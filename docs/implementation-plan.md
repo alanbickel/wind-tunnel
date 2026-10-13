@@ -26,13 +26,9 @@ Only milestones, tasks, their status, and short log entries that future sessions
 
 ---
 
-## M0: Project scaffolding
+## M0: Project scaffolding ✅
 
-**Done when:** `npm run check` (typecheck, lint, test, build) passes locally and in CI, and a deliberately wrong import (e.g. `domain` → `adapters`) fails lint.
-
-Scaffolding, strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`, CI workflow, README, and LICENSE are done and pass locally.
-
-- [ ] Create the GitHub repo, push, and confirm the CI run passes (needs the user: the repo is public-facing)
+Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`, GitHub Actions CI, README, LICENSE; project renamed to Wind Tunnel and published at `alanbickel/wind-tunnel`. Commits `e976b3c`..`1fdb22b`.
 
 ## M1: Domain model and engine, headless
 
@@ -93,7 +89,7 @@ Newest first. Record what was built, what differs from the plan, and what the ne
 
 ### 2026-10-13: M0 scaffolding
 
-- Built as planned; tooling and enforcement are documented in the architecture overview ("How the rules are enforced").
+- Built as planned and green in CI (about 20s per run); tooling and enforcement are documented in the architecture overview ("How the rules are enforced").
 - Differences from the plan: layer rules use typescript-eslint's `no-restricted-imports` rather than `eslint-plugin-boundaries`, whose dependencies had critical audit findings. `tsconfig.core.json` checks `domain`/`application` without DOM or Node types. Prettier skips Markdown.
 - Versions: ESLint 10, Vite 8, Vitest 5, Zod 4. TypeScript is pinned to `~6.0` because typescript-eslint doesn't support TS 7 yet.
 - For M1: the headless runner needs a way to run TS in Node with extensionless imports (Node's built-in type stripping can't resolve them). Consider `vite-node` or running it through Vitest rather than adding `tsx`.

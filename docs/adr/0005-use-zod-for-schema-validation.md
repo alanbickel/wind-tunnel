@@ -5,7 +5,7 @@
 
 ## Context
 
-Cloud Builder reads data it cannot trust at compile time:
+Wind Tunnel reads data it cannot trust at compile time:
 
 - project documents from IndexedDB, which may have been written by an older version ([ADR-0004](0004-persist-projects-in-indexeddb.md))
 - JSON files imported by users

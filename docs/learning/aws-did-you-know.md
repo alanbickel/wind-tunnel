@@ -1,6 +1,6 @@
 # AWS: Did You Know?
 
-AWS facts and at-scale behaviors collected while building Cloud Builder. Some of these may later appear as in-app tips.
+AWS facts and at-scale behaviors collected while building Wind Tunnel. Some of these may later appear as in-app tips.
 
 Each entry has the fact, why it matters at scale, and a source. AWS quotas change over time, so re-check the source before showing an entry in the app.
 

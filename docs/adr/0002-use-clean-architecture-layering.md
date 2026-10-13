@@ -5,7 +5,7 @@
 
 ## Context
 
-Cloud Builder has a few distinct concerns that change at different rates and for different reasons:
+Wind Tunnel has a few distinct concerns that change at different rates and for different reasons:
 
 - **The simulation model**: components, queues, rate limits, workflows, workloads. It should be pure, deterministic, and testable without a browser.
 - **Use cases**: building an architecture, defining workflows, running and comparing simulations.

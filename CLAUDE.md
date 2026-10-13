@@ -1,6 +1,6 @@
-# Cloud Builder
+# Wind Tunnel
 
-Browser-based cloud architecture workload simulator. The vision (`cloud-builder-concept.md`) and future ideas (`TODO.md`) are local-only files, deliberately excluded from git; they may not exist in other clones.
+A workload simulator for exploring how application workflows behave under real-world stress. (Formerly "Cloud Builder"; the local folder still uses that name.) The vision (`cloud-builder-concept.md`) and future ideas (`TODO.md`) are local-only files, deliberately excluded from git; they may not exist in other clones.
 
 ## Current work
 

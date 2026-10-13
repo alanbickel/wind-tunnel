@@ -5,7 +5,7 @@
 
 ## Context
 
-Cloud Builder is a personal learning project that will be published as a public repository. Anyone curious should be able to try it with no account, no install, and no hosting costs for the maintainer. The simulation is CPU-bound but small enough to run on a typical laptop.
+Wind Tunnel is a personal learning project that will be published as a public repository. Anyone curious should be able to try it with no account, no install, and no hosting costs for the maintainer. The simulation is CPU-bound but small enough to run on a typical laptop.
 
 The maintainer is fluent in TypeScript and wants to build React experience along the way.
 

@@ -1,12 +1,12 @@
-# Cloud Builder Architecture Overview
+# Wind Tunnel Architecture Overview
 
 > **Status: draft.** The project scaffolding and layer folders exist, but the layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
-## What Cloud Builder does
+## What Wind Tunnel does
 
-Cloud Builder lets you model a cloud application's architecture (e.g. API Gateway → Lambda → DynamoDB), describe what users do with it, and simulate concurrent load to see where bottlenecks form.
+Wind Tunnel lets you model a cloud application's architecture (e.g. API Gateway → Lambda → DynamoDB), describe what users do with it, and simulate concurrent load to see where bottlenecks form.
 
 ## Core concepts
 

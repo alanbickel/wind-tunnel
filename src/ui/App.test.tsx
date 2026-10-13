@@ -4,6 +4,6 @@ import { App } from "./App";
 
 describe("App", () => {
   it("renders the app title", () => {
-    expect(renderToString(<App />)).toContain("Cloud Builder");
+    expect(renderToString(<App />)).toContain("Wind Tunnel");
   });
 });

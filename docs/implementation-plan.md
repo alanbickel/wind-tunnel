@@ -85,6 +85,12 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
+### 2026-10-13: Renamed to Wind Tunnel
+
+- The project was renamed from Cloud Builder to Wind Tunnel (repo `alanbickel/wind-tunnel`, package `wind-tunnel`). The local folder and the local-only `cloud-builder-concept.md` keep the old name.
+- ADRs 0002, 0003, and 0005 were edited in place for the rename, with the user's approval; this is a one-off exception to ADR immutability.
+- The IndexedDB database name in the MVP design is now `wind-tunnel`.
+
 ### 2026-10-13: M0 scaffolding
 
 - Built as planned; tooling and enforcement are documented in the architecture overview ("How the rules are enforced").

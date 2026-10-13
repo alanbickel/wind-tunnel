@@ -4,7 +4,7 @@
 - **Date:** 2026-10-13
 - **Related:** [Architecture overview](../architecture/README.md), [ADR-0002](../adr/0002-use-clean-architecture-layering.md), [ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)
 
-This document describes what the first working version of Cloud Builder contains and how its core works. It is written for maintainers who are new to the codebase. Read the [architecture overview](../architecture/README.md) first for vocabulary and layering.
+This document describes what the first working version of Wind Tunnel contains and how its core works. It is written for maintainers who are new to the codebase. Read the [architecture overview](../architecture/README.md) first for vocabulary and layering.
 
 ## 1. MVP goal
 
@@ -291,7 +291,7 @@ interface StepDocument {
 }
 ```
 
-**IndexedDB layout (database version 1):** database `cloud-builder`, one object store `projects` with key path `id` and an index on `updatedAt` for "recent projects". A `runs` store will be added in a later database version.
+**IndexedDB layout (database version 1):** database `wind-tunnel`, one object store `projects` with key path `id` and an index on `updatedAt` for "recent projects". A `runs` store will be added in a later database version.
 
 **Load-time checks:** the schema version is known (otherwise migrate or refuse), all IDs are unique, every edge and step points at an existing component, every step follows an edge, mix weights are positive, and the profile's times increase.
 

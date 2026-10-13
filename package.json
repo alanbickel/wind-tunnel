@@ -1,8 +1,8 @@
 {
-  "name": "cloud-builder",
+  "name": "wind-tunnel",
   "private": true,
   "version": "0.0.0",
-  "description": "Browser-based cloud architecture workload simulator",
+  "description": "A workload simulator for exploring how application workflows behave under real-world stress.",
   "license": "MIT",
   "type": "module",
   "engines": {

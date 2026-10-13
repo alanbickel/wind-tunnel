@@ -1,8 +1,10 @@
-# Cloud Builder
+# Wind Tunnel
 
-Cloud Builder is a browser-based simulator for cloud architectures. You model an application's architecture (for example API Gateway → Lambda → RDS), describe what its users do, and simulate concurrent load to see where bottlenecks form: throttling, exhausted connection pools, growing queues, and rising latency.
+A workload simulator for exploring how application workflows behave under real-world stress. Wind Tunnel lets you replicate your application architecture and workflows to explore how it behaves under realistic stress. Easily detect failure points and explore mitigation options.
 
-It runs entirely in the browser. There is no backend and no account; projects are saved in your browser's storage.
+You model an application's architecture (for example API Gateway → Lambda → RDS), describe what its users do, and simulate concurrent load to see where bottlenecks form: throttling, exhausted connection pools, growing queues, and rising latency.
+
+Wind Tunnel runs entirely in the browser. There is no backend, no server calls, and nothing to deploy. Projects are saved in your browser's storage and never leave your machine.
 
 ## Status
 

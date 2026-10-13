@@ -30,19 +30,9 @@ Only milestones, tasks, their status, and short log entries that future sessions
 
 **Done when:** `npm run check` (typecheck, lint, test, build) passes locally and in CI, and a deliberately wrong import (e.g. `domain` → `adapters`) fails lint.
 
-- [ ] Scaffold Vite + React + TypeScript; pin the Node version (`.nvmrc` and `engines`)
-- [ ] Strict `tsconfig` (`strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`)
-- [ ] Create the layer folders (`src/domain`, `src/application`, `src/adapters`, `src/ui`) and the composition root `src/main.tsx`
-- [ ] Vitest with one sample test per layer
-- [ ] ESLint (flat config) with typescript-eslint
-- [ ] Import-boundary rule per ADR-0002, with Zod allowed in `domain` per ADR-0005
-- [ ] Ban `Math.random`, `Date.now`, and `new Date()` in `domain` and `application`
-- [ ] Prettier
-- [ ] `npm run check` script combining typecheck, lint, test, and build
-- [ ] GitHub Actions CI running `npm run check`
-- [ ] `README.md`: what the project is, its status, how to run it, and links to the docs
-- [ ] Add an MIT `LICENSE` (chosen 2026-10-13)
-- [ ] Update the architecture overview with the actual tooling
+Scaffolding, strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`, CI workflow, README, and LICENSE are done and pass locally.
+
+- [ ] Create the GitHub repo, push, and confirm the CI run passes (needs the user: the repo is public-facing)
 
 ## M1: Domain model and engine, headless
 
@@ -95,7 +85,10 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
-### 2026-10-13: Planning complete
+### 2026-10-13: M0 scaffolding
 
-- Concept, ADRs 0001–0005, architecture overview, and MVP design written and committed.
-- Next: M0.
+- Built as planned; tooling and enforcement are documented in the architecture overview ("How the rules are enforced").
+- Differences from the plan: layer rules use typescript-eslint's `no-restricted-imports` rather than `eslint-plugin-boundaries`, whose dependencies had critical audit findings. `tsconfig.core.json` checks `domain`/`application` without DOM or Node types. Prettier skips Markdown.
+- Versions: ESLint 10, Vite 8, Vitest 5, Zod 4. TypeScript is pinned to `~6.0` because typescript-eslint doesn't support TS 7 yet.
+- For M1: the headless runner needs a way to run TS in Node with extensionless imports (Node's built-in type stripping can't resolve them). Consider `vite-node` or running it through Vitest rather than adding `tsx`.
+- Layer placeholder tests (`src/*/layer.test.ts`) should be deleted once each layer has real tests.

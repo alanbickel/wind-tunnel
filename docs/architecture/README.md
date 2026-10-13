@@ -1,6 +1,6 @@
 # Cloud Builder Architecture Overview
 
-> **Status: draft.** No code exists yet. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding and layer folders exist, but the layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -70,6 +70,43 @@ flowchart TB
 | A CloudFormation/CDK/Terraform importer or exporter | `src/adapters/iac/` | Converts between file formats and domain objects. |
 | A React component | `src/ui/` | Ordinary React patterns are fine here. Get use cases via context, not by importing adapters. |
 | Wiring adapters to ports | `src/main.tsx` | The only place that knows about every layer. |
+
+## How the rules are enforced
+
+The layer rules are checked by tooling, so a mistake fails `npm run check` (and CI) instead of waiting for code review.
+
+| Rule | Enforced by | Where |
+|---|---|---|
+| Imports point inward only; `ui` imports only *types* from `domain`; nothing imports `main.tsx` | `@typescript-eslint/no-restricted-imports`, configured per layer | [`eslint.config.js`](../../eslint.config.js) |
+| `domain` and `application` use only approved pure libraries (currently `zod` in `domain`, [ADR-0005](../adr/0005-use-zod-for-schema-validation.md)); tests there may also import `vitest` | Same rule, with an allowlist of packages | [`eslint.config.js`](../../eslint.config.js) |
+| No DOM, `Worker`, timers, or Node APIs in `domain` and `application` | TypeScript: these folders are checked without the DOM lib or Node types | [`tsconfig.core.json`](../../tsconfig.core.json) |
+| No `Math.random`, `Date.now`, `new Date()`, or `Date()` in `domain` and `application` | `no-restricted-properties` and `no-restricted-syntax` | [`eslint.config.js`](../../eslint.config.js) |
+
+[`tests/architecture/layer-rules.test.ts`](../../tests/architecture/layer-rules.test.ts) lints sample snippets in each layer and asserts that the rules above fire. If you change the rules, update that test.
+
+To approve a new library for `domain` or `application`, write an ADR, then add it to `DOMAIN_PACKAGES` or `APPLICATION_PACKAGES` in `eslint.config.js`.
+
+### TypeScript projects
+
+`npm run typecheck` runs `tsc -b`, which checks three projects listed in [`tsconfig.json`](../../tsconfig.json). All of them extend `tsconfig.base.json` (strict mode, `noUncheckedIndexedAccess`, `noImplicitOverride`).
+
+| Project | Covers | Environment |
+|---|---|---|
+| `tsconfig.core.json` | `src/domain`, `src/application` | ECMAScript only |
+| `tsconfig.app.json` | all of `src` | Browser (DOM) + Vite, JSX |
+| `tsconfig.node.json` | `vite.config.ts`, `tests/` | Node |
+
+`domain` and `application` are checked twice: once in the core project to keep browser APIs out, and once in the app project, where the rest of `src` imports them.
+
+## Tooling
+
+| Tool | Used for |
+|---|---|
+| [Vite](https://vite.dev/) | Dev server and production build |
+| [Vitest](https://vitest.dev/) | Tests. Unit tests sit next to the code (`*.test.ts`); cross-cutting tests live in `tests/` |
+| [ESLint](https://eslint.org/) (flat config) + [typescript-eslint](https://typescript-eslint.io/) | Linting, with the `strictTypeChecked` rules, React hooks rules, and the layer rules above |
+| [Prettier](https://prettier.io/) | Code formatting. Markdown is excluded so docs stay hand-formatted. |
+| GitHub Actions | CI runs `npm run check` on every push to `main` and on pull requests ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) |
 
 ## Planned: how a simulation run works
 

@@ -1,0 +1,7 @@
+dist
+coverage
+package-lock.json
+
+# Docs are hand-formatted: Prettier would pad every Markdown table (noisy
+# diffs) and rewrite accepted ADRs, which are meant to stay unchanged.
+*.md

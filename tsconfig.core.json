@@ -1,0 +1,13 @@
+{
+  // domain/ and application/ must run anywhere (browser, Worker, Node) and stay
+  // deterministic (ADR-0002). Checking them without the DOM lib or Node types
+  // makes the compiler reject window, document, Worker, setTimeout, process, etc.
+  // Math.random and Date are part of ECMAScript, so ESLint bans those instead.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.core.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src/domain", "src/application"]
+}

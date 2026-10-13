@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`random/`, `behaviors/`, and the event queue in `engine/`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, and the event queue in `engine/`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -30,6 +30,8 @@ flowchart LR
     W & A --> R[Run]
     R -->|"produces"| M[Metrics]
 ```
+
+For how these fit together in code, including workflows as call trees and the validation rules, see [The domain model](domain-model.md).
 
 ## Layers and the dependency rule
 
@@ -62,6 +64,7 @@ flowchart TB
 
 | If you're writing… | Put it in | Notes |
 |---|---|---|
+| A new field or consistency rule on projects, workflows, or workloads | `src/domain/model/` | Update `validateProject` and, once it exists, the document schema. See [The domain model](domain-model.md). |
 | A new cloud service type (e.g. Kinesis) | `src/domain/components/` | Register it; don't edit the engine. Must pass the component contract tests. |
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |

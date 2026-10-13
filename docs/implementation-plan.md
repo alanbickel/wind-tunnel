@@ -37,7 +37,7 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 - [x] `RandomSource` interface and seeded generator in `src/domain/random/`; distributions (constant, exponential, lognormal)
 - [x] Event queue (binary heap, ties broken by sequence number)
 - [x] Behavior primitives with unit tests: `ConcurrencyLimit`, `RateLimit`, `Queue`, `ServiceTime`
-- [ ] Domain entities and validation: unique IDs, references point at real components, steps follow edges
+- [x] Domain entities and validation: unique IDs, references point at real components, steps follow edges
 - [ ] Component definition interface, registry, and shared contract test suite
 - [ ] Component definitions: API Gateway, Lambda (with cold starts), DynamoDB, RDS (connections + query workers), SQS (with consumer max concurrency)
 - [ ] Engine: event loop, request lifecycle, nested calls, edge latency, timeouts, retries, async `enqueue` work
@@ -56,6 +56,7 @@ Tasks will be refined at the end of M1.
 
 - [ ] Ports: `ProjectRepository`, `TemplateCatalog`, `Clock`, `IdGenerator`, `SimulationRunner`
 - [ ] IndexedDB adapter (`idb`), database version 1, `projects` store with an `updatedAt` index
+- [ ] Document mapper keeps document-only fields (`layout`, timestamps, `source`) when saving; the domain entities don't carry them
 - [ ] Document migration scaffolding (`schemaVersion`)
 - [ ] Template catalog adapter
 - [ ] Use cases: `ListProjects`, `CreateProjectFromTemplate`, `LoadProject`, `SaveProject`, `DeleteProject`, `RunSimulation`

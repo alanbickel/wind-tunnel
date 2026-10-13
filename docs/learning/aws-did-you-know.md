@@ -68,3 +68,17 @@ SQS keeps a message for **4 days by default**, configurable from 1 minute up to 
 
 **At scale:** a queue protects against short spikes, but if consumers are slower than the incoming rate for days, messages are lost. Watch the age of the oldest message (`ApproximateAgeOfOldestMessage`), not just how many are queued.
 **Source:** [SQS message retention](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-basic-architecture.html)
+
+### Lambda pulls from SQS; SQS never pushes
+
+When SQS "triggers" a Lambda function, the **Lambda service** is polling the queue through an **event source mapping**, fetching batches and invoking the function. On success Lambda deletes the messages; on failure they reappear after the visibility timeout and are retried, or moved to a dead-letter queue.
+
+**At scale:** because the consumer side controls the pace, a queue can absorb a spike while consumers drain it at a safe rate.
+**Source:** [Using Lambda with Amazon SQS](https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html)
+
+### Limit SQS consumers with maximum concurrency, not reserved concurrency
+
+An SQS event source mapping has a **maximum concurrency** setting (2 to 1,000) that stops the pollers from pulling more messages than that many concurrent invocations can handle. Capping the function with **reserved concurrency** instead makes Lambda throttle invocations while the pollers keep pulling: the messages return to the queue, and repeated throttling can send healthy messages to the dead-letter queue.
+
+**At scale:** this is how a queue consumer protects a database with a fixed connection limit (Template B caps `fn-writer` at 40 so RDS never runs out of connections).
+**Source:** [Configuring maximum concurrency for SQS event sources](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)

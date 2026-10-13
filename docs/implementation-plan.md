@@ -82,6 +82,13 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
+### 2026-10-13: M1 in progress (tasks 1–4)
+
+- `erasableSyntaxOnly` is on: no constructor parameter properties (`constructor(private x)`); declare fields explicitly.
+- Floating-point drift matters in time-based primitives: `RateLimit` compares tokens with a 1e-9 tolerance; a long-run rate test guards it.
+- Worked examples for guides live in `src/domain/traces/` as file snapshots (`toMatchFileSnapshot`); add a trace when adding a guide.
+- Validation is split: Zod document schema checks shape and ranges; `validateProject` checks cross-entity rules; type-specific rules (e.g. which actions a component accepts) belong to component definitions.
+
 ### 2026-10-13: Renamed to Wind Tunnel
 
 - The project was renamed from Cloud Builder to Wind Tunnel (repo `alanbickel/wind-tunnel`, package `wind-tunnel`). The local folder and the local-only `cloud-builder-concept.md` keep the old name.

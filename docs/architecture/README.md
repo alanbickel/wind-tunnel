@@ -43,10 +43,10 @@ flowchart TB
     end
     subgraph app["application/"]
         UC["Use cases<br/>RunSimulation, CompareRuns, ..."]
-        P["Ports (interfaces)<br/>RandomSource, Clock,<br/>ArchitectureRepository, ..."]
+        P["Ports (interfaces)<br/>Clock, ProjectRepository,<br/>SimulationRunner, ..."]
     end
     subgraph dom["domain/ (most stable)"]
-        D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives"]
+        D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives,<br/>RandomSource"]
     end
 
     UI --> UC
@@ -65,7 +65,8 @@ flowchart TB
 | A new cloud service type (e.g. Kinesis) | `src/domain/components/` | Register it; don't edit the engine. Must pass the component contract tests. |
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
-| Something that needs randomness, time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Math.random` or `Date.now` in `domain`/`application`. |
+| Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. |
+| Something that needs randomness | Use the `RandomSource` passed in from `src/domain/random/` | Never call `Math.random`; runs must stay reproducible from a seed. |
 | A CloudFormation/CDK/Terraform importer or exporter | `src/adapters/iac/` | Converts between file formats and domain objects. |
 | A React component | `src/ui/` | Ordinary React patterns are fine here. Get use cases via context, not by importing adapters. |
 | Wiring adapters to ports | `src/main.tsx` | The only place that knows about every layer. |

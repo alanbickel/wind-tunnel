@@ -203,7 +203,7 @@ stateDiagram-v2
 
 Given the same project, workload, and **seed**, a run produces exactly the same results. This makes bugs reproducible, lets tests assert exact numbers, and allows replay later.
 
-- All randomness comes from a `RandomSource` port, implemented by a seeded generator. The engine never calls `Math.random`.
+- All randomness comes from a `RandomSource` interface. The engine never calls `Math.random`. Because the engine lives in `domain` and `domain` cannot import from `application`, `RandomSource` is **defined in `domain`**, along with its seeded implementation (a small, pure algorithm such as mulberry32). The engine receives a `RandomSource` as a parameter, so tests can pass in a scripted one.
 - Simulated time is a number of milliseconds inside the engine; the wall clock is never used.
 - Events with the same timestamp are ordered by a sequence number assigned when they were scheduled.
 
@@ -232,7 +232,6 @@ Each request generates roughly 5 to 15 events. A 60-second run at 2,000 requests
 | `ProjectRepository` | Load, save, list, and delete projects | IndexedDB (`idb`) |
 | `TemplateCatalog` | List templates and load one | Bundled JSON |
 | `SimulationRunner` | Start a run and stream snapshots | Web Worker (in-process for tests) |
-| `RandomSource` | Seeded random numbers | Seeded PRNG |
 | `Clock` | Current wall-clock time for timestamps like `createdAt` | `Date` |
 | `IdGenerator` | New unique IDs | `crypto.randomUUID()` |
 

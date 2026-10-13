@@ -98,5 +98,4 @@ Newest first. Record what was built, what differs from the plan, and what the ne
 ### 2026-10-13: Planning complete
 
 - Concept, ADRs 0001–0005, architecture overview, and MVP design written and committed.
-- `RandomSource` lives in `domain`, not `application`. ADR-0002's context section lists it as an application port; that example is outdated, but the layering decision itself is unchanged.
 - Next: M0.

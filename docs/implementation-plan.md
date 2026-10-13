@@ -34,9 +34,9 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 
 **Done when:** `npm run simulate -- --template a` and `--template b` print text reports; Template A shows connection exhaustion during the spike and Template B doesn't (asserted by scenario tests).
 
-- [ ] `RandomSource` interface and seeded generator in `src/domain/random/`; distributions (constant, exponential, lognormal)
-- [ ] Event queue (binary heap, ties broken by sequence number)
-- [ ] Behavior primitives with unit tests: `ConcurrencyLimit`, `RateLimit`, `Queue`, `ServiceTime`
+- [x] `RandomSource` interface and seeded generator in `src/domain/random/`; distributions (constant, exponential, lognormal)
+- [x] Event queue (binary heap, ties broken by sequence number)
+- [x] Behavior primitives with unit tests: `ConcurrencyLimit`, `RateLimit`, `Queue`, `ServiceTime`
 - [ ] Domain entities and validation: unique IDs, references point at real components, steps follow edges
 - [ ] Component definition interface, registry, and shared contract test suite
 - [ ] Component definitions: API Gateway, Lambda (with cold starts), DynamoDB, RDS (connections + query workers), SQS (with consumer max concurrency)

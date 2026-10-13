@@ -1,0 +1,13 @@
+# Local-only planning notes
+cloud-builder-concept.md
+TODO.md
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Environment and OS/editor files
+.env*
+.DS_Store
+Thumbs.db

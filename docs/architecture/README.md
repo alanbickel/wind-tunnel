@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-> **Status: draft.** The project scaffolding and layer folders exist, but the layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`random/`, `behaviors/`, and the event queue in `engine/`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -109,6 +109,8 @@ To approve a new library for `domain` or `application`, write an ADR, then add i
 | GitHub Actions | CI runs `npm run check` on every push to `main` and on pull requests ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) |
 
 ## Planned: how a simulation run works
+
+For how the engine itself works (the event queue and the behavior primitives, with diagrams and example timelines), see [How the simulation engine works](simulation-engine.md).
 
 ```mermaid
 sequenceDiagram

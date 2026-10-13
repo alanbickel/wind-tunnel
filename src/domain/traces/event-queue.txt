@@ -1,0 +1,9 @@
+Scheduled in this order: t=20, t=5, t=20, t=0, t=20
+Popped in this order:
+
+t(ms)  seq  event
+0      3    RequestArrived (req 1)
+5      1    RequestArrived (req 2)
+20     0    ServiceCompleted (req 1)
+20     2    TimeoutFired (req 3)
+20     4    RequestArrived (req 4)

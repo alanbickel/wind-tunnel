@@ -1,0 +1,12 @@
+ConcurrencyLimit { limit: 2, whenFull: "queue", queueCapacity: 2 }
+
+t(ms)  action     inUse  queued  in progress  result
+0      acquire a  1      0       [a]          admitted
+0      acquire b  2      0       [a, b]       admitted
+0      acquire c  2      1       [a, b]       queued
+0      acquire d  2      2       [a, b]       queued
+0      acquire e  2      2       [a, b]       rejected
+15     release a  2      1       [b, c]       slot passed to c
+20     release b  2      0       [c, d]       slot passed to d
+35     release c  1      0       [d]          slot freed
+40     release d  0      0       []           slot freed

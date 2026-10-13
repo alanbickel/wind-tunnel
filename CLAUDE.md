@@ -2,6 +2,10 @@
 
 Browser-based cloud architecture workload simulator. The vision (`cloud-builder-concept.md`) and future ideas (`TODO.md`) are local-only files, deliberately excluded from git; they may not exist in other clones.
 
+## Current work
+
+Read `docs/implementation-plan.md` at the start of every session. It records the current milestone, the next task, and a progress log. Update it as tasks are completed, and follow its "How to finish a milestone" steps (including compacting the plan) before the session ends. Keep working notes out of it.
+
 ## Architecture rules
 
 - Follow Clean Architecture as described in `docs/adr/0002-use-clean-architecture-layering.md`. Imports point inward only: `ui`/`adapters` → `application` → `domain`.

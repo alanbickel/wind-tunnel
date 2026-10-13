@@ -1,6 +1,6 @@
 # ADR-0005: Use Zod for schema validation, including in the domain layer
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

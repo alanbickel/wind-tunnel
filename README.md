@@ -32,11 +32,11 @@ Other scripts:
 
 ## Documentation
 
+Start at the [documentation hub](docs/README.md). It lists every document and a reading order for new maintainers. The most-used ones:
+
 - [Architecture overview](docs/architecture/README.md): start here if you're new to the code
-- [Architecture decision records](docs/adr/)
-- [MVP design](docs/design/mvp-design.md)
+- [How the simulation engine works](docs/architecture/simulation-engine.md)
 - [Implementation plan](docs/implementation-plan.md)
-- [AWS: Did you know?](docs/learning/aws-did-you-know.md): AWS facts collected along the way
 
 ## License
 

@@ -12,7 +12,7 @@ Tracks milestone progress for the MVP described in [`design/mvp-design.md`](desi
 ## How to finish a milestone
 
 1. All tasks checked, and the milestone's "done when" criteria verified.
-2. Docs updated: the architecture overview, the design doc if reality differs from it, and new ADRs for significant decisions.
+2. Docs updated: the architecture overview, the design doc if reality differs from it, new ADRs for significant decisions, a short onboarding guide for each new subsystem, and the [docs hub](README.md) listing any new documents.
 3. A short entry added to the [Progress log](#progress-log): what was built, what differs from the plan, and anything the next session needs to know.
 4. **Compact this file:**
    - Replace the finished milestone's task list with a one-line summary and its commit range.

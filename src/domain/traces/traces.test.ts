@@ -4,6 +4,12 @@ import { RateLimit } from "../behaviors/rate-limit";
 import { EventQueue } from "../engine/event-queue";
 import type { Edge, Project } from "../model/project";
 import { validateProject } from "../model/validate-project";
+import type { Effect } from "../components/component-behavior";
+import {
+  messageQueueDefinition,
+  workerPoolDefinition,
+} from "../components/testing/fake-definitions";
+import { SeededRandom } from "../random/random-source";
 
 // Worked examples for the guides in docs/architecture/. Each test runs
 // a building block through a small scenario and saves a text timeline next to
@@ -188,5 +194,98 @@ describe("traces", () => {
         rows,
       ),
     ).toMatchFileSnapshot("validate-project.txt");
+  });
+
+  it("Component behavior: effects a definition returns to the engine", async () => {
+    const show = (effects: Effect<string>[]) =>
+      effects
+        .map((e) =>
+          e.kind === "started"
+            ? `started ${e.request} (${String(e.serviceMs)} ms)`
+            : e.kind === "rejected"
+              ? `rejected ${e.request}: ${e.reason}`
+              : `${e.kind} ${e.request}`,
+        )
+        .join(", ") || "(none)";
+    const random = new SeededRandom(1);
+
+    const pool = workerPoolDefinition.build<string>(
+      {
+        workers: 2,
+        queueCapacity: 1,
+        serviceTime: { kind: "constant", valueMs: 10 },
+      },
+      { random },
+    );
+    const poolRows: string[][] = [];
+    const onPool = (timeMs: number, call: string, effects: Effect<string>[]) =>
+      poolRows.push([
+        String(timeMs),
+        call,
+        show(effects),
+        String(pool.inProgress),
+        String(pool.queueDepth),
+      ]);
+    for (const id of ["a", "b", "c", "d"]) {
+      onPool(0, `arrive ${id}`, pool.arrive(id, "invoke", 0));
+    }
+    onPool(10, "finish a", pool.finish("a", 10));
+    onPool(10, "finish b", pool.finish("b", 10));
+    onPool(20, "finish c", pool.finish("c", 20));
+
+    const queue = messageQueueDefinition.build<string>(
+      { consumers: 1, sendMs: 1 },
+      { random },
+    );
+    const queueRows: string[][] = [];
+    const onQueue = (timeMs: number, call: string, effects: Effect<string>[]) =>
+      queueRows.push([
+        String(timeMs),
+        call,
+        show(effects),
+        String(queue.inProgress),
+        String(queue.queueDepth),
+      ]);
+    onQueue(0, "arrive m1 (enqueue)", queue.arrive("m1", "enqueue", 0));
+    onQueue(0, "arrive m2 (enqueue)", queue.arrive("m2", "enqueue", 0));
+    onQueue(1, "finish m1", queue.finish("m1", 1));
+    onQueue(1, "finish m2", queue.finish("m2", 1));
+    onQueue(
+      30,
+      "dispatchFinished m1 ✗",
+      queue.dispatchFinished?.("m1", false, 30) ?? [],
+    );
+    onQueue(
+      55,
+      "dispatchFinished m2 ✓",
+      queue.dispatchFinished?.("m2", true, 55) ?? [],
+    );
+    onQueue(
+      80,
+      "dispatchFinished m1 ✓",
+      queue.dispatchFinished?.("m1", true, 80) ?? [],
+    );
+
+    const header = [
+      "t(ms)",
+      "engine calls",
+      "effects returned",
+      "inProgress",
+      "queueDepth",
+    ];
+    await expect(
+      [
+        table(
+          "Worker pool { workers: 2, queueCapacity: 1, service time 10 ms }",
+          header,
+          poolRows,
+        ),
+        table(
+          "Message queue { consumers: 1, sendMs: 1 }  (deliversAsync)",
+          header,
+          queueRows,
+        ),
+      ].join("\n"),
+    ).toMatchFileSnapshot("component-behavior.txt");
   });
 });

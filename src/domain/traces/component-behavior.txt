@@ -1,0 +1,21 @@
+Worker pool { workers: 2, queueCapacity: 1, service time 10 ms }
+
+t(ms)  engine calls  effects returned        inProgress  queueDepth
+0      arrive a      started a (10 ms)       1           0
+0      arrive b      started b (10 ms)       2           0
+0      arrive c      queued c                2           1
+0      arrive d      rejected d: queue-full  2           1
+10     finish a      started c (10 ms)       2           0
+10     finish b      (none)                  1           0
+20     finish c      (none)                  0           0
+
+Message queue { consumers: 1, sendMs: 1 }  (deliversAsync)
+
+t(ms)  engine calls           effects returned   inProgress  queueDepth
+0      arrive m1 (enqueue)    started m1 (1 ms)  1           0
+0      arrive m2 (enqueue)    started m2 (1 ms)  2           0
+1      finish m1              dispatched m1      1           0
+1      finish m2              (none)             0           1
+30     dispatchFinished m1 ✗  dispatched m2      0           1
+55     dispatchFinished m2 ✓  dispatched m1      0           0
+80     dispatchFinished m1 ✓  (none)             0           0

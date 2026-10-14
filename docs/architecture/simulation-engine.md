@@ -2,7 +2,7 @@
 
 A visual introduction to the engine's building blocks, for maintainers new to the code. Read the [architecture overview](README.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§3 and §4); this page explains the moving parts.
 
-> **Status:** the event queue and behavior primitives exist. The engine loop and the component definitions that combine them are still being built (M1), so the later sections describe the plan.
+> **Status:** the event queue and behavior primitives exist, and so does the [component definition interface](component-definitions.md). The engine loop and the five MVP service types are still being built (M1), so the later sections describe the plan.
 
 ## The big idea: jump from event to event
 
@@ -122,7 +122,7 @@ All randomness comes from the seeded [`RandomSource`](../../src/domain/random/ra
 
 ## Planned: how primitives combine into a component
 
-A component definition chains primitives. RDS is the most interesting one, because its two limits create Template A's failure:
+A component definition chains primitives (see [Component definitions](component-definitions.md) for the interface). RDS is the most interesting one, because its two limits create Template A's failure:
 
 ```mermaid
 flowchart LR

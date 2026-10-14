@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, and the event queue in `engine/`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/`, and the event queue in `engine/`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -48,7 +48,7 @@ flowchart TB
         P["Ports (interfaces)<br/>Clock, ProjectRepository,<br/>SimulationRunner, ..."]
     end
     subgraph dom["domain/ (most stable)"]
-        D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives,<br/>RandomSource"]
+        D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives,<br/>component definitions, RandomSource"]
     end
 
     UI --> UC
@@ -65,7 +65,7 @@ flowchart TB
 | If you're writing… | Put it in | Notes |
 |---|---|---|
 | A new field or consistency rule on projects, workflows, or workloads | `src/domain/model/` | Update `validateProject` and, once it exists, the document schema. See [The domain model](domain-model.md). |
-| A new cloud service type (e.g. Kinesis) | `src/domain/components/` | Register it; don't edit the engine. Must pass the component contract tests. |
+| A new cloud service type (e.g. Kinesis) | `src/domain/components/` | Register it; don't edit the engine. Must pass `checkComponentContract`. See [Component definitions](component-definitions.md). |
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
 | Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. |
@@ -113,7 +113,7 @@ To approve a new library for `domain` or `application`, write an ADR, then add i
 
 ## Planned: how a simulation run works
 
-For how the engine itself works (the event queue and the behavior primitives, with diagrams and example timelines), see [How the simulation engine works](simulation-engine.md).
+For how the engine itself works (the event queue and the behavior primitives, with diagrams and example timelines), see [How the simulation engine works](simulation-engine.md). For how service types plug into it, see [Component definitions](component-definitions.md).
 
 ```mermaid
 sequenceDiagram

@@ -7,8 +7,9 @@ The starting point for maintainers. It lists every document in `docs/`, what eac
 1. [Architecture overview](architecture/README.md): vocabulary, layers, where code goes, and how the rules are enforced. (~10 min)
 2. [The domain model](architecture/domain-model.md): projects, architectures, workflows as call trees, and how they're validated. (~5 min)
 3. [How the simulation engine works](architecture/simulation-engine.md): the event queue and behavior primitives, with diagrams and example timelines. (~10 min)
-4. [Implementation plan](implementation-plan.md): the current milestone and what's next. (~2 min)
-5. Skim the [ADR titles](#decisions-adrs) below. Read an ADR in full when you touch the area it covers.
+4. [Component definitions](architecture/component-definitions.md): how a service type plugs into the engine through effects, and the contract every type must pass. (~8 min)
+5. [Implementation plan](implementation-plan.md): the current milestone and what's next. (~2 min)
+6. Skim the [ADR titles](#decisions-adrs) below. Read an ADR in full when you touch the area it covers.
 
 The [MVP design](design/mvp-design.md) is the detailed reference behind all of this. Read the section you need, not the whole thing.
 
@@ -21,6 +22,7 @@ Short, visual introductions to one part of the system. They explain how somethin
 | [Architecture overview](architecture/README.md) | Core concepts, Clean Architecture layers, where code goes, tooling |
 | [The domain model](architecture/domain-model.md) | Entities, workflows as call trees over the architecture, `validateProject` |
 | [How the simulation engine works](architecture/simulation-engine.md) | Discrete-event loop, `EventQueue`, `RateLimit`, `ConcurrencyLimit`, `Queue`, `ServiceTime`, distributions |
+| [Component definitions](architecture/component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents` |
 
 ## Design and planning
 
@@ -40,6 +42,7 @@ Architecture decision records explain *why* things are the way they are. Accepte
 | [0003](adr/0003-browser-only-react-typescript-app.md) | Build a browser-only app with TypeScript, React, and Vite |
 | [0004](adr/0004-persist-projects-in-indexeddb.md) | Persist projects in IndexedDB as versioned documents; ship templates as bundled data |
 | [0005](adr/0005-use-zod-for-schema-validation.md) | Use Zod for schema validation, including in the domain layer |
+| [0006](adr/0006-components-return-effects-to-the-engine.md) | Components return effects to the engine; they never schedule events |
 
 ## Learning
 

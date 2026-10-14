@@ -106,11 +106,15 @@ interface ComponentDefinition<Config> {
   displayName: string;                // "AWS Lambda"
   configSchema: z.ZodType<Config>;    // validates config; see ADR-0005
   defaultConfig: Config;
-  build(config: Config): ComponentBehavior;
+  actions: StepAction[];              // actions it accepts, e.g. ["read", "write"]
+  deliversAsync: boolean;             // queue-like: runs the `async` step of what it accepts
+  build<T>(config: Config, context: { random: RandomSource }): ComponentBehavior<T>;
 }
 ```
 
-Every definition must pass a shared **contract test suite** (Liskov Substitution): it must eventually complete or reject every request it accepts, never complete a request twice, and report consistent metrics.
+A `ComponentBehavior` is called by the engine (`arrive`, `finish`, `dispatchFinished`) and answers with effects (`started`, `queued`, `rejected`, `dispatched`); it never schedules events itself. See [ADR-0006](../adr/0006-components-return-effects-to-the-engine.md) and the [component definitions guide](../architecture/component-definitions.md).
+
+Every definition must pass a shared **contract test suite** (Liskov Substitution), `checkComponentContract`: it must eventually complete or reject every request it accepts, never complete a request twice, and report consistent metrics.
 
 ### 3.2 MVP component types
 

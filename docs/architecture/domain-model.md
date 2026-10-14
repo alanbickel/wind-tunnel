@@ -71,4 +71,4 @@ workloads.0.mix.0.workflowId  Mix refers to unknown workflow "gett".
 workloads.0.profile.1.atSec   Profile times must increase; 0 s comes after 0 s.
 ```
 
-Rules that depend on a component's type (for example, "only queues accept `enqueue`" or "this Lambda's config is valid") belong to the component definitions, not here. That keeps this validator unchanged when new component types are added.
+Rules that depend on a component's type (for example, "only queues accept `enqueue`" or "this Lambda's config is valid") belong to the component definitions, not here. That keeps this validator unchanged when new component types are added. Those rules are checked by `validateComponents`; see [Component definitions](component-definitions.md#type-specific-validation).

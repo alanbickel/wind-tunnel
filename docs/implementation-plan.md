@@ -38,7 +38,7 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 - [x] Event queue (binary heap, ties broken by sequence number)
 - [x] Behavior primitives with unit tests: `ConcurrencyLimit`, `RateLimit`, `Queue`, `ServiceTime`
 - [x] Domain entities and validation: unique IDs, references point at real components, steps follow edges
-- [ ] Component definition interface, registry, and shared contract test suite
+- [x] Component definition interface, registry, and shared contract test suite
 - [ ] Component definitions: API Gateway, Lambda (with cold starts), DynamoDB, RDS (connections + query workers), SQS (with consumer max concurrency)
 - [ ] Engine: event loop, request lifecycle, nested calls, edge latency, timeouts, retries, async `enqueue` work
 - [ ] Metrics: per-component and per-workflow counters, fixed-bucket latency histograms, per-second snapshots
@@ -82,7 +82,12 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
-### 2026-10-13: M1 in progress (tasks 1–4)
+### 2026-10-13: M1 in progress (tasks 1–5)
+
+- Components talk to the engine through effects (ADR-0006). No cancellation: timed-out callers stop waiting, but the callee finishes normally.
+- Each definition's test asserts `checkComponentContract(def).violations` is empty. `testing/fake-definitions.ts` holds two reference implementations (worker pool, message queue).
+- Lambda cold starts must be lazy (check idle time on `arrive`); there's no timer effect yet.
+- Vitest doesn't type-check: run `npx tsc -b` (or `npm run check`) before trusting a green test run.
 
 - `erasableSyntaxOnly` is on: no constructor parameter properties (`constructor(private x)`); declare fields explicitly.
 - Floating-point drift matters in time-based primitives: `RateLimit` compares tokens with a 1e-9 tolerance; a long-run rate test guards it.

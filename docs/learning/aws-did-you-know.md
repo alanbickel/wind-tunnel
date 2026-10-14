@@ -82,3 +82,10 @@ An SQS event source mapping has a **maximum concurrency** setting (2 to 1,000) t
 
 **At scale:** this is how a queue consumer protects a database with a fixed connection limit (Template B caps `fn-writer` at 40 so RDS never runs out of connections).
 **Source:** [Configuring maximum concurrency for SQS event sources](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)
+
+### A timeout upstream doesn't stop the work downstream
+
+When API Gateway hits its integration timeout (**29 seconds** by default for REST APIs), it returns `504` to the client, but the Lambda function keeps running until it finishes or reaches its own timeout. Likewise, a database usually keeps executing a query after the Lambda that sent it gives up.
+
+**At scale:** timed-out requests still use capacity. When clients retry, each retry adds new work on top of the abandoned work that is still running, so retries make overload worse. Wind Tunnel models this: a timeout stops the caller from waiting, but never cancels the callee ([ADR-0006](../adr/0006-components-return-effects-to-the-engine.md)).
+**Source:** [API Gateway quotas (integration timeout)](https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html), [Lambda function timeout](https://docs.aws.amazon.com/lambda/latest/dg/configuration-timeout.html)

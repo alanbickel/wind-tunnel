@@ -42,7 +42,7 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 - [x] Component definitions: API Gateway, Lambda (with cold starts), DynamoDB, RDS (connections + query workers), SQS (with consumer max concurrency)
 - [x] Engine: event loop, request lifecycle, nested calls, edge latency, timeouts, retries, async `enqueue` work
 - [x] Metrics: per-component and per-workflow counters, fixed-bucket latency histograms, per-second snapshots, type-specific gauges and counters (RDS connections held, Lambda cold starts), engine ticks
-- [ ] Project document Zod schema (v1) and mapper to domain entities
+- [x] Project document Zod schema (v1) and mapper to domain entities
 - [ ] Template JSON files A and B. Set DynamoDB's `burstSec` deliberately: the default (300) starts the bucket full and hides throttling in a 60 s run
 - [ ] Headless runner script with a text report (use `simulateWithMetrics`)
 - [ ] Scenario tests for both templates
@@ -81,6 +81,12 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-14: M1 task 9 (project document)
+
+- `loadProject(json, registry)` in `src/adapters/persistence/` runs the v1 schema, `validateProject`, then `validateComponents`, and returns the `Project` plus the parsed document, or every issue in the first failing stage. Templates and the runner should load through it.
+- Schema objects are strict (unknown keys fail). Seeds must be 0 to 2^32 − 1; `maxAttempts` is capped at 10.
+- Saving (domain → document, keeping `layout`/timestamps/`source`) and migrations are still M2 tasks.
 
 ### 2026-10-14: Fidelity catalog
 

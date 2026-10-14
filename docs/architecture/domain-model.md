@@ -45,12 +45,29 @@ Thick arrows are this workflow's calls; the dotted one is an edge this workflow 
 
 ## Validation: who checks what
 
-Data is checked in two stages when a project is loaded:
+Projects are stored as JSON documents ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). [`loadProject`](../../src/adapters/persistence/load-project.ts) turns one into a domain `Project` in three stages. Each runs only if the one before passed, because the later checks assume the earlier ones hold:
 
 | Stage | Where | Checks |
 |---|---|---|
-| 1. Shape | Zod document schema in `adapters/` (planned) | Fields exist and have the right types; numbers are in range (e.g. timeouts are positive) |
+| 1. Shape | [`projectDocumentV1Schema`](../../src/adapters/persistence/project-document-v1.ts) in `adapters/` | The schema version is one this build reads; fields exist and have the right types; numbers are in range (e.g. timeouts are positive); no unknown keys |
 | 2. Consistency | [`validateProject`](../../src/domain/model/validate-project.ts) in `domain/` | Rules that span the whole project, listed below |
+| 3. Component types | [`validateComponents`](../../src/domain/components/validate-components.ts) in `domain/` | Known types, valid configs, actions each type accepts |
+
+```mermaid
+flowchart LR
+    J["JSON<br/>(IndexedDB, template, import)"] --> V{schemaVersion<br/>known?}
+    V -->|no| X[Refused]
+    V -->|yes| S[1. Schema]
+    S -->|issues| I[Issues with paths]
+    S --> M["toProject()<br/>drops layout, timestamps, source"]
+    M --> P[2. validateProject]
+    P -->|issues| I
+    P --> C[3. validateComponents]
+    C -->|issues| I
+    C --> OK[Project ready to simulate]
+```
+
+The document's structure mirrors the domain's, so an issue's path, like `["architecture", "edges", 2, "to"]`, points at the same place whichever stage found it. Objects in the schema are **strict**: an unknown key such as `latencyMS` is an error rather than being silently dropped, which catches typos in hand-written templates.
 
 Consistency rules:
 

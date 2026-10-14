@@ -5,7 +5,7 @@ The starting point for maintainers. It lists every document in `docs/`, what eac
 ## New to the codebase? Read in this order
 
 1. [Architecture overview](architecture/README.md): vocabulary, layers, where code goes, and how the rules are enforced. (~10 min)
-2. [The domain model](architecture/domain-model.md): projects, architectures, workflows as call trees, and how they're validated. (~5 min)
+2. [The domain model](architecture/domain-model.md): projects, architectures, workflows as call trees, and how documents are loaded and validated. (~7 min)
 3. [How the simulation engine works](architecture/simulation-engine.md): the event queue, behavior primitives, and the engine loop (calls, timeouts, retries), with diagrams and example timelines. (~14 min)
 4. [Component definitions](architecture/component-definitions.md): how a service type plugs into the engine through effects, the contract every type must pass, and the five AWS types. (~11 min)
 5. [How metrics work](architecture/metrics.md): ticks, per-second snapshots, run totals, type-specific gauges and counters, and latency histograms, with a worked example. (~9 min)
@@ -21,7 +21,7 @@ Short, visual introductions to one part of the system. They explain how somethin
 | Guide | Covers |
 |---|---|
 | [Architecture overview](architecture/README.md) | Core concepts, Clean Architecture layers, where code goes, tooling |
-| [The domain model](architecture/domain-model.md) | Entities, workflows as call trees over the architecture, `validateProject` |
+| [The domain model](architecture/domain-model.md) | Entities, workflows as call trees over the architecture, loading documents (`loadProject`), `validateProject` |
 | [How the simulation engine works](architecture/simulation-engine.md) | Discrete-event loop, `EventQueue`, `RateLimit`, `ConcurrencyLimit`, `Queue`, `ServiceTime`, distributions, `simulate`, `ArrivalProcess`, `backoffMs` |
 | [Component definitions](architecture/component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents`, the five AWS types |
 | [How metrics work](architecture/metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, gauges and counters, `LatencyHistogram` |

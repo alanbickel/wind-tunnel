@@ -4,7 +4,11 @@ import { RateLimit } from "../behaviors/rate-limit";
 import { EventQueue } from "../engine/event-queue";
 import type { Edge, Project } from "../model/project";
 import { validateProject } from "../model/validate-project";
-import type { Effect } from "../components/component-behavior";
+import { lambdaDefinition, rdsDefinition } from "../components/aws";
+import type {
+  ComponentBehavior,
+  Effect,
+} from "../components/component-behavior";
 import {
   messageQueueDefinition,
   workerPoolDefinition,
@@ -28,6 +32,21 @@ function table(title: string, header: string[], rows: string[][]): string {
       .join("  ")
       .trimEnd();
   return [title, "", line(header), ...rows.map(line), ""].join("\n");
+}
+
+/** Effects as text, e.g. "started a (10 ms), queued b". */
+function showEffects(effects: Effect<string>[]): string {
+  return (
+    effects
+      .map((e) =>
+        e.kind === "started"
+          ? `started ${e.request} (${String(e.serviceMs)} ms)`
+          : e.kind === "rejected"
+            ? `rejected ${e.request}: ${e.reason}`
+            : `${e.kind} ${e.request}`,
+      )
+      .join(", ") || "(none)"
+  );
 }
 
 describe("traces", () => {
@@ -197,16 +216,6 @@ describe("traces", () => {
   });
 
   it("Component behavior: effects a definition returns to the engine", async () => {
-    const show = (effects: Effect<string>[]) =>
-      effects
-        .map((e) =>
-          e.kind === "started"
-            ? `started ${e.request} (${String(e.serviceMs)} ms)`
-            : e.kind === "rejected"
-              ? `rejected ${e.request}: ${e.reason}`
-              : `${e.kind} ${e.request}`,
-        )
-        .join(", ") || "(none)";
     const random = new SeededRandom(1);
 
     const pool = workerPoolDefinition.build<string>(
@@ -222,7 +231,7 @@ describe("traces", () => {
       poolRows.push([
         String(timeMs),
         call,
-        show(effects),
+        showEffects(effects),
         String(pool.inProgress),
         String(pool.queueDepth),
       ]);
@@ -242,7 +251,7 @@ describe("traces", () => {
       queueRows.push([
         String(timeMs),
         call,
-        show(effects),
+        showEffects(effects),
         String(queue.inProgress),
         String(queue.queueDepth),
       ]);
@@ -287,5 +296,93 @@ describe("traces", () => {
         ),
       ].join("\n"),
     ).toMatchFileSnapshot("component-behavior.txt");
+  });
+
+  it("AWS components: Lambda cold starts and RDS connection exhaustion", async () => {
+    const random = new SeededRandom(1);
+    const header = [
+      "t(ms)",
+      "engine calls",
+      "effects returned",
+      "inProgress",
+      "queueDepth",
+      "why",
+    ];
+    const recorder = (behavior: ComponentBehavior<string>) => {
+      const rows: string[][] = [];
+      const record = (
+        timeMs: number,
+        call: string,
+        effects: Effect<string>[],
+        why = "",
+      ) =>
+        rows.push([
+          String(timeMs),
+          call,
+          showEffects(effects),
+          String(behavior.inProgress),
+          String(behavior.queueDepth),
+          why,
+        ]);
+      return { rows, record };
+    };
+
+    const fn = lambdaDefinition.build<string>(
+      {
+        concurrency: 2,
+        coldStart: { kind: "constant", valueMs: 300 },
+        idleTimeoutSec: 60,
+        computeTime: { kind: "constant", valueMs: 20 },
+      },
+      { random },
+    );
+    const lambda = recorder(fn);
+    lambda.record(0, "arrive a", fn.arrive("a", "invoke", 0), "cold start");
+    lambda.record(0, "arrive b", fn.arrive("b", "invoke", 0), "cold start");
+    lambda.record(0, "arrive c", fn.arrive("c", "invoke", 0), "2 of 2 busy");
+    lambda.record(320, "finish a", fn.finish("a", 320), "a's env is warm");
+    lambda.record(320, "finish b", fn.finish("b", 320), "b's env is warm");
+    lambda.record(400, "arrive d", fn.arrive("d", "invoke", 400), "warm");
+    lambda.record(420, "finish d", fn.finish("d", 420));
+    lambda.record(
+      90_000,
+      "arrive e",
+      fn.arrive("e", "invoke", 90_000),
+      "idle > 60 s: cold",
+    );
+
+    const db = rdsDefinition.build<string>(
+      {
+        maxConnections: 3,
+        queryWorkers: 1,
+        queryTime: { kind: "constant", valueMs: 15 },
+      },
+      { random },
+    );
+    const rds = recorder(db);
+    rds.record(0, "arrive a", db.arrive("a", "read", 0), "connection 1");
+    rds.record(0, "arrive b", db.arrive("b", "read", 0), "connection 2");
+    rds.record(0, "arrive c", db.arrive("c", "read", 0), "connection 3");
+    rds.record(0, "arrive d", db.arrive("d", "read", 0), "no connection");
+    rds.record(15, "finish a", db.finish("a", 15), "worker passes to b");
+    rds.record(15, "arrive e", db.arrive("e", "read", 15), "a's connection");
+    rds.record(30, "finish b", db.finish("b", 30));
+    rds.record(45, "finish c", db.finish("c", 45));
+    rds.record(60, "finish e", db.finish("e", 60));
+
+    await expect(
+      [
+        table(
+          "Lambda { concurrency: 2, cold start 300 ms, compute 20 ms, idleTimeoutSec: 60 }",
+          header,
+          lambda.rows,
+        ),
+        table(
+          "RDS { maxConnections: 3, queryWorkers: 1, query 15 ms }",
+          header,
+          rds.rows,
+        ),
+      ].join("\n"),
+    ).toMatchFileSnapshot("aws-components.txt");
   });
 });

@@ -122,9 +122,9 @@ Every definition must pass a shared **contract test suite** (Liskov Substitution
 |---|---|---|---|
 | **API Gateway** | `RateLimit` → `ServiceTime` | rate 10,000/s, burst 5,000, overhead ~10 ms | Account-level throttling, 429s |
 | **Lambda** | `ConcurrencyLimit` (reject = throttle) + cold starts → `ServiceTime` | concurrency 1,000, cold start ~300 ms, idle timeout before an instance goes cold, compute time | Throttling; concurrency = rate × duration |
-| **DynamoDB** | `RateLimit` per table → `ServiceTime` | read/write capacity per second, ~5 ms latency | Throttling under capacity limits (partitions come later) |
+| **DynamoDB** | `RateLimit` per table → `ServiceTime` | read/write capacity per second, up to 300 s of saved-up burst capacity, ~5 ms latency | Throttling under capacity limits (partitions come later) |
 | **RDS** | `ConcurrencyLimit` on connections (reject) **and** a second `ConcurrencyLimit` for query workers (queue) → `ServiceTime` | max connections 90, query workers 16, query time ~15 ms | Connection exhaustion; queueing when the database is CPU-bound |
-| **SQS** | Unbounded `Queue` + pollers that pull into a consumer Lambda | consumer max concurrency (event source mapping), batch size 1 for the MVP | Buffering, backlog, decoupling |
+| **SQS** | Unbounded `Queue` + pollers that pull into a consumer Lambda | consumer max concurrency (event source mapping, 10), batch size 1 for the MVP; failed messages are redelivered immediately (no visibility timeout yet) | Buffering, backlog, decoupling |
 
 RDS has two limits on purpose. When queries arrive faster than the workers can handle them, they queue. That makes each Lambda invocation take longer, so more invocations are running at once. Each one holds a connection, so the connection limit is eventually hit. This feedback loop is the main lesson of Template A.
 

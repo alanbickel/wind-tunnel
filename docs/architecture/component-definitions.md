@@ -4,7 +4,7 @@ A short introduction to how a cloud service type (Lambda, RDS, …) is described
 
 Code: [`src/domain/components/`](../../src/domain/components/).
 
-> **Status:** the interface, registry, validation, and contract checker exist, with two small test definitions. The five MVP service types come next (M1).
+> **Status:** the interface, registry, validation, contract checker, and the five MVP service types exist. The engine that drives them comes next (M1).
 
 ## Three pieces
 
@@ -84,6 +84,56 @@ t(ms)  engine calls           effects returned   inProgress  queueDepth
 80     dispatchFinished m1 ✓  (none)             0           0
 ```
 
+## The five AWS types
+
+Code: [`src/domain/components/aws/`](../../src/domain/components/aws/). `createAwsComponentRegistry()` returns a registry with all five.
+
+| `type` | Built from | Rejects with | Key config |
+|---|---|---|---|
+| `api-gateway` | `RateLimit` → overhead | `throttled` (HTTP 429) | `ratePerSec`, `burst`, `overhead` |
+| `lambda` | `ConcurrencyLimit` (reject) + warm environments → cold start + compute | `throttled` | `concurrency`, `coldStart`, `idleTimeoutSec`, `computeTime` |
+| `dynamodb` | one `RateLimit` for reads, one for writes → latency | `throttled` | `readUnitsPerSec`, `writeUnitsPerSec`, `burstSec`, `latency` |
+| `rds` | `ConcurrencyLimit` on connections (reject) → `ConcurrencyLimit` on query workers (queue) → query time | `too-many-connections` | `maxConnections`, `queryWorkers`, `queryTime` |
+| `sqs` | send latency → unbounded `Queue` → at most `consumerMaxConcurrency` dispatched at once | never | `consumerMaxConcurrency`, `sendLatency` |
+
+Durations (`overhead`, `coldStart`, …) are distributions from [`distribution.ts`](../../src/domain/random/distribution.ts); defaults are mostly lognormal, given as a median and a p99.
+
+A few things to know:
+
+- **Lambda cold starts are checked lazily.** Each finished invocation leaves a warm environment. An arriving request takes the most recently used one; environments idle longer than `idleTimeoutSec` are dropped at that moment. The concurrency slot covers the cold start, the compute time, and every nested call.
+- **RDS holds a connection while a query waits for a worker.** That's what turns "the database is busy" into "the database refuses connections".
+- **DynamoDB's bucket starts full.** With the default `burstSec: 300`, a table can absorb a long spike before it throttles. Set `burstSec: 0` to see raw provisioned capacity.
+- **SQS redelivers failed messages immediately**, to the back of the backlog. Real SQS waits for the visibility timeout (30 s by default) and can move a message to a dead-letter queue; both need a timer effect, which ADR-0006 leaves for later.
+
+From [`aws-components.txt`](../../src/domain/traces/aws-components.txt). Lambda: two cold starts, a throttle, a warm reuse, and a cold start again after a long idle period:
+
+```text
+t(ms)  engine calls  effects returned       inProgress  queueDepth  why
+0      arrive a      started a (320 ms)     1           0           cold start
+0      arrive b      started b (320 ms)     2           0           cold start
+0      arrive c      rejected c: throttled  2           0           2 of 2 busy
+320    finish a      (none)                 1           0           a's env is warm
+320    finish b      (none)                 0           0           b's env is warm
+400    arrive d      started d (20 ms)      1           0           warm
+420    finish d      (none)                 0           0
+90000  arrive e      started e (320 ms)     1           0           idle > 60 s: cold
+```
+
+RDS with 3 connections and 1 worker. Queries b and c hold connections while they wait, so d is refused even though the database is only running one query:
+
+```text
+t(ms)  engine calls  effects returned                  inProgress  queueDepth  why
+0      arrive a      started a (15 ms)                 1           0           connection 1
+0      arrive b      queued b                          1           1           connection 2
+0      arrive c      queued c                          1           2           connection 3
+0      arrive d      rejected d: too-many-connections  1           2           no connection
+15     finish a      started b (15 ms)                 1           1           worker passes to b
+15     arrive e      queued e                          1           2           a's connection
+30     finish b      started c (15 ms)                 1           1
+45     finish c      started e (15 ms)                 1           0
+60     finish e      (none)                            0           0
+```
+
 ## The contract every definition must pass
 
 [`checkComponentContract`](../../src/domain/components/check-component-contract.ts) plays the engine's part against any definition: two overload bursts separated by a long quiet period (so warm instances go cold), random hold times standing in for nested calls, and 20% failed async deliveries. It checks that:
@@ -113,4 +163,4 @@ The checker has its own tests, which feed it deliberately broken definitions to 
 3. In `build`, compose primitives from `src/domain/behaviors/`, and take randomness only from `context.random`.
 4. Return exactly one outcome from `arrive`; pass freed resources to waiters in `finish`.
 5. Add a test that runs `checkComponentContract`, plus unit tests for the type's own behavior.
-6. Register it where the engine's registry is assembled.
+6. Register it in `createAwsComponentRegistry` ([`aws/index.ts`](../../src/domain/components/aws/index.ts)), or in a new registry function for another provider.

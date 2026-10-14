@@ -39,11 +39,11 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 - [x] Behavior primitives with unit tests: `ConcurrencyLimit`, `RateLimit`, `Queue`, `ServiceTime`
 - [x] Domain entities and validation: unique IDs, references point at real components, steps follow edges
 - [x] Component definition interface, registry, and shared contract test suite
-- [ ] Component definitions: API Gateway, Lambda (with cold starts), DynamoDB, RDS (connections + query workers), SQS (with consumer max concurrency)
-- [ ] Engine: event loop, request lifecycle, nested calls, edge latency, timeouts, retries, async `enqueue` work
-- [ ] Metrics: per-component and per-workflow counters, fixed-bucket latency histograms, per-second snapshots
+- [x] Component definitions: API Gateway, Lambda (with cold starts), DynamoDB, RDS (connections + query workers), SQS (with consumer max concurrency)
+- [ ] Engine: event loop, request lifecycle, nested calls, edge latency, timeouts, retries, async `enqueue` work. Decide how to stop SQS's immediate redelivery from looping at one instant (nonzero edge latency, or a `wake-at` effect for a visibility timeout)
+- [ ] Metrics: per-component and per-workflow counters, fixed-bucket latency histograms, per-second snapshots. Expose type-specific gauges: RDS connections held, Lambda cold starts
 - [ ] Project document Zod schema (v1) and mapper to domain entities
-- [ ] Template JSON files A and B
+- [ ] Template JSON files A and B. Set DynamoDB's `burstSec` deliberately: the default (300) starts the bucket full and hides throttling in a 60 s run
 - [ ] Headless runner script with a text report
 - [ ] Scenario tests for both templates
 - [ ] Tuning pass: adjust defaults until the templates clearly teach their lesson; record final numbers in the design doc
@@ -81,6 +81,13 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-14: M1 task 6 (AWS component definitions)
+
+- The five types live in `src/domain/components/aws/`; `createAwsComponentRegistry()` builds the registry the engine, runner, and templates should use.
+- SQS redelivers a failed message immediately (no visibility timeout). For the engine: if a consumer fails instantly (e.g. throttled) over a zero-latency edge, this can loop many times at one simulated instant. Keep queue → consumer edges at nonzero latency, or add a `wake-at` effect.
+- DynamoDB's default `burstSec: 300` starts the bucket full, so Template B's table won't throttle during a 60 s run unless the template sets `burstSec` lower.
+- Type-specific gauges (RDS connections held, Lambda cold starts) aren't exposed yet; the metrics task will need them.
 
 ### 2026-10-13: M1 in progress (tasks 1–5)
 

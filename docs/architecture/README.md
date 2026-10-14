@@ -65,7 +65,7 @@ flowchart TB
 | If you're writing… | Put it in | Notes |
 |---|---|---|
 | A new field or consistency rule on projects, workflows, or workloads | `src/domain/model/` | Update `validateProject` and, once it exists, the document schema. See [The domain model](domain-model.md). |
-| A new cloud service type (e.g. Kinesis) | `src/domain/components/` | Register it; don't edit the engine. Must pass `checkComponentContract`. See [Component definitions](component-definitions.md). |
+| A new cloud service type (e.g. Kinesis) | `src/domain/components/aws/` | Register it in `createAwsComponentRegistry`; don't edit the engine. Must pass `checkComponentContract`. See [Component definitions](component-definitions.md). |
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
 | Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. |

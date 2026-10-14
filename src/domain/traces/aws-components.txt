@@ -1,0 +1,24 @@
+Lambda { concurrency: 2, cold start 300 ms, compute 20 ms, idleTimeoutSec: 60 }
+
+t(ms)  engine calls  effects returned       inProgress  queueDepth  why
+0      arrive a      started a (320 ms)     1           0           cold start
+0      arrive b      started b (320 ms)     2           0           cold start
+0      arrive c      rejected c: throttled  2           0           2 of 2 busy
+320    finish a      (none)                 1           0           a's env is warm
+320    finish b      (none)                 0           0           b's env is warm
+400    arrive d      started d (20 ms)      1           0           warm
+420    finish d      (none)                 0           0
+90000  arrive e      started e (320 ms)     1           0           idle > 60 s: cold
+
+RDS { maxConnections: 3, queryWorkers: 1, query 15 ms }
+
+t(ms)  engine calls  effects returned                  inProgress  queueDepth  why
+0      arrive a      started a (15 ms)                 1           0           connection 1
+0      arrive b      queued b                          1           1           connection 2
+0      arrive c      queued c                          1           2           connection 3
+0      arrive d      rejected d: too-many-connections  1           2           no connection
+15     finish a      started b (15 ms)                 1           1           worker passes to b
+15     arrive e      queued e                          1           2           a's connection
+30     finish b      started c (15 ms)                 1           1
+45     finish c      started e (15 ms)                 1           0
+60     finish e      (none)                            0           0

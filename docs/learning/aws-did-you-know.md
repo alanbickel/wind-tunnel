@@ -89,3 +89,17 @@ When API Gateway hits its integration timeout (**29 seconds** by default for RES
 
 **At scale:** timed-out requests still use capacity. When clients retry, each retry adds new work on top of the abandoned work that is still running, so retries make overload worse. Wind Tunnel models this: a timeout stops the caller from waiting, but never cancels the callee ([ADR-0006](../adr/0006-components-return-effects-to-the-engine.md)).
 **Source:** [API Gateway quotas (integration timeout)](https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html), [Lambda function timeout](https://docs.aws.amazon.com/lambda/latest/dg/configuration-timeout.html)
+
+### DynamoDB saves up unused capacity for bursts
+
+A provisioned DynamoDB table keeps up to **300 seconds** of unused read and write capacity and spends it when traffic exceeds the provisioned rate. AWS uses the same burst capacity for background work and doesn't guarantee it's available.
+
+**At scale:** a short spike may pass without throttling, then the same spike an hour later is throttled because the burst was already spent. Size provisioned capacity for the sustained rate, or use on-demand mode for unpredictable traffic.
+**Source:** [DynamoDB burst capacity](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/burst-adaptive-capacity.html)
+
+### Cold starts count toward Lambda concurrency
+
+A cold start (downloading code and running the initialization code outside the handler) happens inside the execution environment, so it holds a concurrency slot the whole time. During a spike, many environments start at once, every one of them pays the cold start, and concurrency climbs faster than the request rate alone suggests. AWS doesn't publish how long an idle environment stays warm.
+
+**At scale:** concurrency ≈ requests per second × duration, and during a spike the duration includes the cold start. Provisioned concurrency keeps environments initialized ahead of time.
+**Source:** [Lambda execution environment lifecycle](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html), [Understanding Lambda function scaling](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)

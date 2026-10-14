@@ -34,6 +34,9 @@ export type LambdaConfig = z.infer<typeof lambdaConfig>;
  *
  * The concurrency slot is held for the whole invocation: cold start, compute
  * time, and all nested calls. That's why slow dependencies raise concurrency.
+ *
+ * Differences from AWS (shared account pool, scaling rate, no function
+ * timeout, ...) are listed in docs/design/fidelity.md as LMB-1 to LMB-9.
  */
 export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
   type: "lambda",

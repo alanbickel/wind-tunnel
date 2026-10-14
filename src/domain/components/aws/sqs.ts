@@ -30,7 +30,8 @@ export type SqsConfig = z.infer<typeof sqsConfig>;
  * Simplification: a failed delivery goes straight to the back of the
  * backlog. Real SQS hides it until its visibility timeout ends (30 s by
  * default) and may move it to a dead-letter queue; both need a timer effect
- * (ADR-0006).
+ * (ADR-0006). See docs/design/fidelity.md: SQS-1, and SQS-3 for the
+ * consumer reaching full concurrency at once.
  */
 export const sqsDefinition: ComponentDefinition<SqsConfig> = {
   type: "sqs",

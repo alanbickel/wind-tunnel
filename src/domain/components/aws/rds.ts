@@ -32,8 +32,8 @@ export type RdsConfig = z.infer<typeof rdsConfig>;
  * That feedback loop is Template A's lesson.
  *
  * A connection is held for one query (wait plus run). In real Lambda it's
- * usually held for the life of the execution environment; see the fidelity
- * note in the design doc.
+ * usually held for the life of the execution environment (fidelity LMB-8);
+ * see docs/design/fidelity.md for this and the other RDS simplifications.
  */
 export const rdsDefinition: ComponentDefinition<RdsConfig> = {
   type: "rds",

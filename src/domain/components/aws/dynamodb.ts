@@ -30,6 +30,7 @@ export type DynamoDbConfig = z.infer<typeof dynamoDbConfig>;
  * One request uses one capacity unit, as for items up to 4 KB read with
  * strong consistency or up to 1 KB written. Per-partition limits (hot keys)
  * aren't modeled yet.
+ * See docs/design/fidelity.md: DDB-1 to DDB-5.
  */
 export const dynamoDbDefinition: ComponentDefinition<DynamoDbConfig> = {
   type: "dynamodb",

@@ -21,7 +21,8 @@ export type ApiGatewayConfig = z.infer<typeof apiGatewayConfig>;
 /**
  * Amazon API Gateway (MVP design §3.2): a token bucket in front of a short
  * overhead. Defaults are the account-level limit per region: 10,000
- * requests/s with a burst of 5,000.
+ * requests/s with a burst of 5,000. In AWS that limit is shared by every API
+ * in the account and Region (fidelity APIGW-1).
  */
 export const apiGatewayDefinition: ComponentDefinition<ApiGatewayConfig> = {
   type: "api-gateway",

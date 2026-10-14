@@ -82,6 +82,11 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
+### 2026-10-14: Fidelity catalog
+
+- `docs/design/fidelity.md` lists every known difference from AWS by ID (e.g. LMB-8), with evidence (Documented, Observed, Assumption) and skew. CLAUDE.md now requires an entry for each new simplification.
+- For the template and tuning tasks: use `maxAttempts: 1` on API Gateway's outgoing edges (APIGW-3), keep API Gateway → Lambda timeouts ≤ 29 s (ENG-5), and remember that Template A's lesson is understated by the model (LMB-8, RDS-2, RDS-4).
+
 ### 2026-10-14: M1 task 8 (metrics)
 
 - `simulateWithMetrics()` in `src/domain/metrics/` returns per-second `snapshots` and `totals`; design in ADR-0007, guide in `docs/architecture/metrics.md`.

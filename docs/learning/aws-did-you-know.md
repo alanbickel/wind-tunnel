@@ -112,3 +112,17 @@ The CloudWatch metrics closest to Wind Tunnel's: Lambda `ConcurrentExecutions` a
 
 **At scale:** alarm on p99 latency and on throttles or rejections, not on average latency.
 **Source:** [CloudWatch statistics and percentiles](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Percentiles), [Lambda function metrics](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-types.html)
+
+### Lambda can't scale out instantly, and an SQS consumer starts at five
+
+Each Lambda function can add at most **1,000 execution environments every 10 seconds**. An SQS event source mapping starts with **5 concurrent invocations** and adds up to **300 more per minute** (up to 1,250), even if its maximum concurrency is set higher.
+
+**At scale:** a queue absorbs a spike instantly, but draining it takes longer than the consumer's maximum concurrency suggests, because the consumer has to ramp up first.
+**Source:** [Lambda concurrency, scaling rate](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html), [SQS event source mapping scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)
+
+### Your code may never see a DynamoDB throttle, because the SDK retries it
+
+The AWS SDKs automatically retry `ProvisionedThroughputExceededException`. DynamoDB clients make up to **4 attempts** by default, backing off from about a second for throttling errors. Separately, DynamoDB reads are **eventually consistent by default**, and one read capacity unit covers **two** eventually consistent reads (up to 4 KB each), versus one strongly consistent read.
+
+**At scale:** throttling often shows up as latency, not errors. Requests slow down by seconds while the SDK retries, and errors appear only once retries run out.
+**Source:** [DynamoDB error handling](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html), [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html), [DynamoDB provisioned capacity](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html)

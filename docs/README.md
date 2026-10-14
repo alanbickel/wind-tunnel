@@ -31,6 +31,7 @@ Short, visual introductions to one part of the system. They explain how somethin
 | Document | Purpose |
 |---|---|
 | [MVP design](design/mvp-design.md) | Domain model, engine, project document format, templates, and testing strategy for the MVP |
+| [Fidelity: where Wind Tunnel differs from AWS](design/fidelity.md) | Every known simplification, what AWS actually does (cited or marked as an assumption), and which way it skews results |
 | [Implementation plan](implementation-plan.md) | Milestones, task status, and a progress log. Updated every session. |
 
 ## Decisions (ADRs)

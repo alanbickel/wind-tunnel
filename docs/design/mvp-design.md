@@ -128,7 +128,7 @@ Every definition must pass a shared **contract test suite** (Liskov Substitution
 
 RDS has two limits on purpose. When queries arrive faster than the workers can handle them, they queue. That makes each Lambda invocation take longer, so more invocations are running at once. Each one holds a connection, so the connection limit is eventually hit. This feedback loop is the main lesson of Template A.
 
-> **Fidelity note:** In real Lambda, a database connection opened during initialization stays open for as long as the execution environment exists, even between invocations. The MVP simplifies this to "a connection is held for the duration of an invocation". Modeling connections per environment is a later fidelity improvement.
+> **Fidelity note:** In real Lambda, a database connection opened during initialization stays open for as long as the execution environment exists, even between invocations. The MVP simplifies this to "a connection is held for the duration of an invocation". Modeling connections per environment is a later fidelity improvement. This and every other known difference from AWS is listed, with sources, in [Fidelity: where Wind Tunnel differs from AWS](fidelity.md) (this one is LMB-8).
 
 ### 3.3 Workflows are call trees
 

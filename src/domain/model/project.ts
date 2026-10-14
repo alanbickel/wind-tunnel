@@ -12,8 +12,10 @@ export interface Component {
   readonly config: Readonly<Record<string, unknown>>;
 }
 
+/** How the wait between attempts grows; see `backoffMs` in the engine. */
 export type BackoffStrategy = "none" | "exponential" | "exponential-jitter";
 
+/** Any failed attempt is retried: a rejection, a timeout, or an error from further down. */
 export interface RetryPolicy {
   /** Total attempts, including the first. 1 means no retries. */
   readonly maxAttempts: number;
@@ -26,7 +28,9 @@ export interface Edge {
   readonly id: string;
   readonly from: string;
   readonly to: string;
+  /** One-way network delay. A call pays it twice: there and back. */
   readonly latencyMs: number;
+  /** How long the caller waits for each attempt, counted from sending it. */
   readonly timeoutMs: number;
   readonly retry: RetryPolicy;
 }

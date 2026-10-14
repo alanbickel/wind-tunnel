@@ -48,13 +48,6 @@ SQS standard queues support very high throughput, but a message can occasionally
 **At scale:** consumers of standard queues must be idempotent.
 **Source:** [SQS standard queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html)
 
-### Limit SQS → Lambda concurrency on the event source mapping, not only on the function
-
-An SQS event source mapping has a **maximum concurrency** setting that limits how many concurrent invocations Lambda's queue pollers start. If you rely only on reserved concurrency, pollers can still pull messages faster than the function may run. Those invocations are throttled and the messages return to the queue; with a dead-letter queue (DLQ) configured, a message that's throttled repeatedly can end up there.
-
-**At scale:** putting SQS in front of a database-writing Lambda and setting maximum concurrency is a standard way to keep Lambda within RDS connection limits.
-**Source:** [Configuring maximum concurrency for SQS event sources](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)
-
 ### Lambda database connections outlive the invocation
 
 AWS recommends opening database connections outside the handler so warm execution environments can reuse them. That means each execution environment holds its connection while it's idle between invocations, not just while it's running. The number of open connections tracks how many environments exist, which can be higher than current concurrency after a spike.
@@ -103,3 +96,10 @@ A cold start (downloading code and running the initialization code outside the h
 
 **At scale:** concurrency ≈ requests per second × duration, and during a spike the duration includes the cold start. Provisioned concurrency keeps environments initialized ahead of time.
 **Source:** [Lambda execution environment lifecycle](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html), [Understanding Lambda function scaling](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)
+
+### Retries at every layer multiply
+
+If a client makes up to 3 attempts against an API, the Lambda function behind it makes up to 3 attempts at its database call, and the database is the slow part, one user request can become **3 × 3 = 9** database queries. AWS's guidance is to retry at one layer only and to cap retries with a token bucket so a struggling service isn't buried.
+
+**At scale:** when a database slows down, retries can multiply its load several times over, exactly when it can least afford it. Wind Tunnel's engine trace shows a 2 × 2 case: one request, four queries ([engine guide](../architecture/simulation-engine.md#the-engine-loop-a-requests-journey)).
+**Source:** [Timeouts, retries, and backoff with jitter (Amazon Builders' Library)](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/)

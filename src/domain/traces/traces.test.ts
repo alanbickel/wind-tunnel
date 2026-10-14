@@ -4,7 +4,12 @@ import { RateLimit } from "../behaviors/rate-limit";
 import { EventQueue } from "../engine/event-queue";
 import type { Edge, Project } from "../model/project";
 import { validateProject } from "../model/validate-project";
-import { lambdaDefinition, rdsDefinition } from "../components/aws";
+import {
+  createAwsComponentRegistry,
+  lambdaDefinition,
+  rdsDefinition,
+} from "../components/aws";
+import { simulate, type SimulationEvent } from "../engine/simulation";
 import type {
   ComponentBehavior,
   Effect,
@@ -384,5 +389,164 @@ describe("traces", () => {
         ),
       ].join("\n"),
     ).toMatchFileSnapshot("aws-components.txt");
+  });
+
+  it("Engine: one request's journey, then a slow database", async () => {
+    const constant = (valueMs: number) => ({ kind: "constant", valueMs });
+    const edge = (from: string, to: string, timeoutMs: number): Edge => ({
+      id: `${from}->${to}`,
+      from,
+      to,
+      latencyMs: 1,
+      timeoutMs,
+      retry: { maxAttempts: 2, backoff: "none", baseDelayMs: 10 },
+    });
+    /** Runs one request's worth of events, with the database's query time. */
+    const journey = (queryMs: number) => {
+      const project: Project = {
+        id: "p",
+        name: "Journey",
+        architecture: {
+          components: [
+            {
+              id: "api",
+              type: "api-gateway",
+              name: "API",
+              config: { ratePerSec: 100, burst: 10, overhead: constant(10) },
+            },
+            {
+              id: "fn",
+              type: "lambda",
+              name: "Function",
+              config: {
+                concurrency: 10,
+                coldStart: constant(300),
+                idleTimeoutSec: 600,
+                computeTime: constant(20),
+              },
+            },
+            {
+              id: "db",
+              type: "rds",
+              name: "Database",
+              config: {
+                maxConnections: 10,
+                queryWorkers: 4,
+                queryTime: constant(queryMs),
+              },
+            },
+          ],
+          edges: [edge("api", "fn", 3_000), edge("fn", "db", 100)],
+        },
+        workflows: [
+          {
+            id: "get",
+            name: "Get order",
+            root: {
+              componentId: "api",
+              action: "invoke",
+              calls: [
+                {
+                  componentId: "fn",
+                  action: "invoke",
+                  calls: [{ componentId: "db", action: "read" }],
+                },
+              ],
+            },
+          },
+        ],
+        workloads: [
+          {
+            id: "one",
+            name: "One request",
+            durationSec: 5,
+            seed: 3,
+            mix: [{ workflowId: "get", weight: 1 }],
+            profile: [{ atSec: 0, requestsPerSec: 1 }],
+          },
+        ],
+      };
+      const events: SimulationEvent[] = [];
+      simulate({
+        project,
+        workloadId: "one",
+        registry: createAwsComponentRegistry(),
+        observer: (e) => {
+          if (e.requestId === 0) events.push(e);
+        },
+        untilMs: 20_000,
+      });
+      const start = events[0]?.timeMs ?? 0;
+      return events.map((e) => {
+        const t = (e.timeMs - start).toFixed(0);
+        switch (e.kind) {
+          case "workflow-started":
+            return [t, "user", `starts "${e.workflowId}"`];
+          case "workflow-finished":
+            return [
+              t,
+              "user",
+              e.failure === undefined
+                ? `gets an answer after ${String(e.latencyMs)} ms`
+                : `gets an error after ${String(e.latencyMs)} ms (${e.failure.componentId}: ${e.failure.reason})`,
+            ];
+          case "arrived":
+            return [t, e.componentId, `arrived (${e.action})`];
+          case "queued":
+            return [t, e.componentId, "queued"];
+          case "started":
+            return [
+              t,
+              e.componentId,
+              `started, ${String(e.serviceMs)} ms of work`,
+            ];
+          case "rejected":
+            return [t, e.componentId, `rejected: ${e.reason}`];
+          case "finished":
+            return [
+              t,
+              e.componentId,
+              e.failure === undefined
+                ? "finished, answer sent"
+                : `finished with error (${e.failure.componentId}: ${e.failure.reason})`,
+            ];
+          case "attempt-failed":
+            return [
+              t,
+              e.edgeId,
+              `attempt ${String(e.attempt)} failed (${e.failure.componentId}: ${e.failure.reason})` +
+                (e.retryAtMs === undefined
+                  ? ", no retries left"
+                  : `, retry at ${(e.retryAtMs - start).toFixed(0)}`),
+            ];
+          case "dispatched":
+            return [t, e.componentId, "dispatched"];
+          case "async-finished":
+            return [
+              t,
+              e.componentId,
+              `async work done (${String(e.succeeded)})`,
+            ];
+        }
+      });
+    };
+
+    const header = ["t(ms)", "where", "what happened"];
+    await expect(
+      [
+        table(
+          [
+            'Workflow "Get order": api -> fn -> db. Edges: 1 ms each way, 2 attempts,',
+            "10 ms between them; fn -> db times out after 100 ms. Times are from the",
+            "request's arrival. fn's first invocation is a cold start (300 ms).",
+            "",
+            "All is well (query: 15 ms):",
+          ].join("\n"),
+          header,
+          journey(15),
+        ),
+        table("The database is slow (query: 150 ms):", header, journey(150)),
+      ].join("\n"),
+    ).toMatchFileSnapshot("simulation.txt");
   });
 });

@@ -40,8 +40,8 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 - [x] Domain entities and validation: unique IDs, references point at real components, steps follow edges
 - [x] Component definition interface, registry, and shared contract test suite
 - [x] Component definitions: API Gateway, Lambda (with cold starts), DynamoDB, RDS (connections + query workers), SQS (with consumer max concurrency)
-- [ ] Engine: event loop, request lifecycle, nested calls, edge latency, timeouts, retries, async `enqueue` work. Decide how to stop SQS's immediate redelivery from looping at one instant (nonzero edge latency, or a `wake-at` effect for a visibility timeout)
-- [ ] Metrics: per-component and per-workflow counters, fixed-bucket latency histograms, per-second snapshots. Expose type-specific gauges: RDS connections held, Lambda cold starts
+- [x] Engine: event loop, request lifecycle, nested calls, edge latency, timeouts, retries, async `enqueue` work
+- [ ] Metrics: per-component and per-workflow counters, fixed-bucket latency histograms, per-second snapshots. Expose type-specific gauges: RDS connections held, Lambda cold starts. Needs a per-second tick from the engine to sample `inProgress`/`queueDepth`
 - [ ] Project document Zod schema (v1) and mapper to domain entities
 - [ ] Template JSON files A and B. Set DynamoDB's `burstSec` deliberately: the default (300) starts the bucket full and hides throttling in a 60 s run
 - [ ] Headless runner script with a text report
@@ -82,10 +82,16 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
+### 2026-10-14: M1 task 7 (engine)
+
+- `simulate()` in `src/domain/engine/simulation.ts` reports `SimulationEvent`s to an observer; metrics should be an observer, plus a tick for gauges.
+- SQS redelivery: no visibility timeout yet (TODO). The engine throws after 1,000,000 events at one instant, so a zero-latency redelivery loop fails loudly instead of hanging. Templates should use nonzero edge latency.
+- Rough scale check: Template A's shape (default configs, 60 s, 2,000 requests/s peak) is 1.4M events in about 0.8 s, and already shows `too-many-connections` during the spike.
+
 ### 2026-10-14: M1 task 6 (AWS component definitions)
 
 - The five types live in `src/domain/components/aws/`; `createAwsComponentRegistry()` builds the registry the engine, runner, and templates should use.
-- SQS redelivers a failed message immediately (no visibility timeout). For the engine: if a consumer fails instantly (e.g. throttled) over a zero-latency edge, this can loop many times at one simulated instant. Keep queue → consumer edges at nonzero latency, or add a `wake-at` effect.
+- SQS redelivers a failed message immediately (no visibility timeout); see task 7.
 - DynamoDB's default `burstSec: 300` starts the bucket full, so Template B's table won't throttle during a 60 s run unless the template sets `burstSec` lower.
 - Type-specific gauges (RDS connections held, Lambda cold starts) aren't exposed yet; the metrics task will need them.
 

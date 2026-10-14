@@ -2,7 +2,7 @@
 
 A visual introduction to the engine's building blocks, for maintainers new to the code. Read the [architecture overview](README.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§3 and §4); this page explains the moving parts.
 
-> **Status:** the event queue and behavior primitives exist, and so does the [component definition interface](component-definitions.md). The engine loop and the five MVP service types are still being built (M1), so the later sections describe the plan.
+> **Status:** the event queue, behavior primitives, [component definitions](component-definitions.md), and the engine loop exist. Metrics come next (M1).
 
 ## The big idea: jump from event to event
 
@@ -120,7 +120,7 @@ t(ms)  action     inUse  queued  in progress  result
 
 All randomness comes from the seeded [`RandomSource`](../../src/domain/random/random-source.ts), so a run is reproducible from its seed.
 
-## Planned: how primitives combine into a component
+## How primitives combine into a component
 
 A component definition chains primitives (see [Component definitions](component-definitions.md) for the interface). RDS is the most interesting one, because its two limits create Template A's failure:
 
@@ -135,6 +135,80 @@ flowchart LR
 ```
 
 Under load, queries wait for one of the 16 workers while still holding a connection. Waiting longer means more connections are held at once, until the 90th is taken and new requests fail.
+
+## The engine loop: a request's journey
+
+[`simulate()`](../../src/domain/engine/simulation.ts) runs one workload against a project. It builds each component's behavior from the registry, then pops events until the workload's duration is over. What happens is reported to an **observer** callback as `SimulationEvent`s (`workflow-started`, `arrived`, `started`, `rejected`, `attempt-failed`, …); the metrics collector will be such an observer.
+
+| Piece | File | Job |
+|---|---|---|
+| `ArrivalProcess` | [`arrivals.ts`](../../src/domain/engine/arrivals.ts) | When users arrive (Poisson, following the profile's rate) and which workflow each runs |
+| `backoffMs` | [`backoff.ts`](../../src/domain/engine/backoff.ts) | Wait before a retry: fixed, exponential, or exponential with full jitter (capped at 20 s) |
+| `simulate` | [`simulation.ts`](../../src/domain/engine/simulation.ts) | The loop: calls, attempts, timeouts, retries, and turning component effects into events |
+
+A **call** goes from a caller to a step's component along an edge and is made of one or more **attempts**:
+
+```mermaid
+sequenceDiagram
+    participant C as Caller (e.g. fn)
+    participant E as Engine
+    participant T as Target (e.g. db)
+    C->>E: nested call
+    E->>E: schedule arrival (+latency) and timeout (+timeoutMs)
+    E->>T: arrive()
+    T-->>E: started (serviceMs) / queued / rejected
+    Note over E,T: after serviceMs: the target's own nested calls, in order
+    E->>T: finish()
+    E->>C: answer (+latency)
+    Note over C,E: rejected, timed out, or an error from further down:<br/>retry after backoff, or fail the caller's step
+```
+
+Rules worth knowing:
+
+- **Latency is paid both ways.** An edge's `latencyMs` is one-way; an answer travels back the same edge.
+- **A step's order is fixed:** its own service time, then its nested calls one at a time, then `finish`. If a nested call fails for good, the remaining calls are skipped and the step fails.
+- **Timeouts don't cancel anything.** The caller stops waiting, and the target's work runs to the end and holds its resources (ADR-0006).
+- **Every failure is retryable:** a rejection, a timeout, or an error from further down. Retries happen at each edge, so they multiply across layers.
+- **The user's call to the root step has no edge:** no latency, no timeout, no retries.
+- **Async work** starts when a queue-like component returns `dispatched`. The user already has an answer by then; `async-finished` reports when the work landed.
+- **Each part has its own random stream** (`arrivals`, `workflows`, `retries`, `component:<id>`), seeded from the workload's seed. Changing one component's config doesn't move the arrival times, so two runs are comparable.
+- **A run that loops without advancing time is stopped** with an error after 1,000,000 events at one instant.
+
+From [`simulation.txt`](../../src/domain/traces/simulation.txt). Each edge allows 2 attempts, and fn → db times out after 100 ms. First, all is well:
+
+```text
+t(ms)  where  what happened
+0      user   starts "get"
+0      api    arrived (invoke)
+0      api    started, 10 ms of work
+11     fn     arrived (invoke)
+11     fn     started, 320 ms of work      ← cold start (300) + compute (20)
+332    db     arrived (read)
+332    db     started, 15 ms of work
+347    db     finished, answer sent
+348    fn     finished, answer sent
+349    api    finished, answer sent
+349    user   gets an answer after 349 ms
+```
+
+Then the database takes 150 ms per query. Each fn → db attempt times out; when fn gives up, api retries fn, which tries the database twice more. **One user request becomes four queries**, and the abandoned ones still run to the end:
+
+```text
+t(ms)  where    what happened
+332    db       started, 150 ms of work
+431    fn->db   attempt 1 failed (db: timeout), retry at 441
+442    db       started, 150 ms of work
+482    db       finished, answer sent                         ← nobody is listening
+541    fn->db   attempt 2 failed (db: timeout), no retries left
+541    fn       finished with error (db: timeout)
+542    api->fn  attempt 1 failed (db: timeout), retry at 552
+553    fn       started, 20 ms of work                        ← warm this time
+574    db       started, 150 ms of work
+...
+784    api->fn  attempt 2 failed (db: timeout), no retries left
+784    user     gets an error after 784 ms (db: timeout)
+834    db       finished, answer sent
+```
 
 ## Traces are tests
 

@@ -1,0 +1,51 @@
+Workflow "Get order": api -> fn -> db. Edges: 1 ms each way, 2 attempts,
+10 ms between them; fn -> db times out after 100 ms. Times are from the
+request's arrival. fn's first invocation is a cold start (300 ms).
+
+All is well (query: 15 ms):
+
+t(ms)  where  what happened
+0      user   starts "get"
+0      api    arrived (invoke)
+0      api    started, 10 ms of work
+11     fn     arrived (invoke)
+11     fn     started, 320 ms of work
+332    db     arrived (read)
+332    db     started, 15 ms of work
+347    db     finished, answer sent
+348    fn     finished, answer sent
+349    api    finished, answer sent
+349    user   gets an answer after 349 ms
+
+The database is slow (query: 150 ms):
+
+t(ms)  where    what happened
+0      user     starts "get"
+0      api      arrived (invoke)
+0      api      started, 10 ms of work
+11     fn       arrived (invoke)
+11     fn       started, 320 ms of work
+332    db       arrived (read)
+332    db       started, 150 ms of work
+431    fn->db   attempt 1 failed (db: timeout), retry at 441
+442    db       arrived (read)
+442    db       started, 150 ms of work
+482    db       finished, answer sent
+541    fn->db   attempt 2 failed (db: timeout), no retries left
+541    fn       finished with error (db: timeout)
+542    api->fn  attempt 1 failed (db: timeout), retry at 552
+553    fn       arrived (invoke)
+553    fn       started, 20 ms of work
+574    db       arrived (read)
+574    db       started, 150 ms of work
+592    db       finished, answer sent
+673    fn->db   attempt 1 failed (db: timeout), retry at 683
+684    db       arrived (read)
+684    db       started, 150 ms of work
+724    db       finished, answer sent
+783    fn->db   attempt 2 failed (db: timeout), no retries left
+783    fn       finished with error (db: timeout)
+784    api->fn  attempt 2 failed (db: timeout), no retries left
+784    api      finished with error (db: timeout)
+784    user     gets an error after 784 ms (db: timeout)
+834    db       finished, answer sent

@@ -60,4 +60,14 @@ export interface ComponentBehavior<T> {
    * in-flight SQS messages are invisible.
    */
   readonly queueDepth: number;
+  /**
+   * Type-specific values sampled once per metrics tick, e.g. RDS
+   * `connectionsHeld`. Names are camelCase and stable across a run.
+   */
+  readonly gauges?: Readonly<Record<string, number>>;
+  /**
+   * Type-specific running totals since the run began, e.g. Lambda
+   * `coldStarts`. They never decrease; metrics report the increase per tick.
+   */
+  readonly counters?: Readonly<Record<string, number>>;
 }

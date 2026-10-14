@@ -61,6 +61,7 @@ export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
     // When each idle warm environment last finished, oldest first. Finishes
     // happen in time order, so pushing keeps the array sorted.
     const idleSince: number[] = [];
+    let coldStarts = 0;
 
     /** Takes the most recently used warm environment, if any is still warm. */
     const takeWarm = (nowMs: number): boolean => {
@@ -78,7 +79,11 @@ export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
         if (slots.acquire(request) === "rejected") {
           return [{ kind: "rejected", request, reason: "throttled" }];
         }
-        const initMs = takeWarm(nowMs) ? 0 : coldStart.next();
+        let initMs = 0;
+        if (!takeWarm(nowMs)) {
+          coldStarts++;
+          initMs = coldStart.next();
+        }
         return [
           { kind: "started", request, serviceMs: initMs + computeTime.next() },
         ];
@@ -92,6 +97,9 @@ export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
         return slots.inUse;
       },
       queueDepth: 0,
+      get counters() {
+        return { coldStarts };
+      },
     };
   },
 };

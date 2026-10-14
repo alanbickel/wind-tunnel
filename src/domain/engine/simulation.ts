@@ -27,6 +27,19 @@ export interface Failure {
   readonly reason: string;
 }
 
+/** One component's state at a metrics tick. */
+export interface ComponentSample {
+  readonly componentId: string;
+  readonly inProgress: number;
+  readonly queueDepth: number;
+  /** Highest values since the previous tick (or the start). */
+  readonly peakInProgress: number;
+  readonly peakQueueDepth: number;
+  /** The component's type-specific values; see `ComponentBehavior`. */
+  readonly gauges: Readonly<Record<string, number>>;
+  readonly counters: Readonly<Record<string, number>>;
+}
+
 /**
  * What happened during a run, reported to the observer as it happens.
  * `requestId` identifies the user request (one workflow run) that the work
@@ -108,6 +121,17 @@ export type SimulationEvent =
       readonly componentId: string;
       readonly latencyMs: number;
       readonly succeeded: boolean;
+    }
+  | {
+      /**
+       * A metrics tick (only when `tickMs` is set): every component's state
+       * now. Comes before any other event at the same time, so it closes the
+       * window of events strictly before `timeMs`. The last tick is at the
+       * end of the run and also covers events at exactly that time.
+       */
+      readonly kind: "tick";
+      readonly timeMs: number;
+      readonly components: readonly ComponentSample[];
     };
 
 export interface SimulationInput {
@@ -124,6 +148,11 @@ export interface SimulationInput {
   readonly random?: (stream: string) => RandomSource;
   /** Stop at this simulated time. Defaults to the workload's duration. */
   readonly untilMs?: number;
+  /**
+   * Report a `tick` every `tickMs` of simulated time, plus one at the end.
+   * Off by default.
+   */
+  readonly tickMs?: number;
 }
 
 export interface SimulationResult {
@@ -149,6 +178,9 @@ export function simulate(input: SimulationInput): SimulationResult {
 interface RuntimeComponent {
   readonly id: string;
   readonly behavior: ComponentBehavior<Visit>;
+  /** Highest values since the last tick. */
+  peakInProgress: number;
+  peakQueueDepth: number;
 }
 
 /** One user request: a single run of a workflow. */
@@ -211,6 +243,8 @@ class Simulation {
   private readonly retryRandom: RandomSource;
   private readonly observe: (event: SimulationEvent) => void;
   private readonly untilMs: number;
+  private readonly tickMs: number | undefined;
+  private nextTickMs = Infinity;
   private nowMs = 0;
   private nextRequestId = 0;
 
@@ -234,6 +268,8 @@ class Simulation {
         behavior: type.build<Visit>(component.config, {
           random: random(`component:${component.id}`),
         }),
+        peakInProgress: 0,
+        peakQueueDepth: 0,
       });
     }
     for (const edge of project.architecture.edges) {
@@ -252,11 +288,17 @@ class Simulation {
     this.retryRandom = random("retries");
     this.observe = input.observer ?? (() => undefined);
     this.untilMs = input.untilMs ?? workload.durationSec * 1000;
+    if (input.tickMs !== undefined && !(input.tickMs > 0)) {
+      throw new Error(`tickMs must be positive, got ${String(input.tickMs)}`);
+    }
+    this.tickMs = input.tickMs;
+    if (this.tickMs !== undefined) this.nextTickMs = this.tickMs;
   }
 
   run(): SimulationResult {
     this.scheduleNextUser();
     let processed = 0;
+    let instantMs = 0;
     let atThisInstant = 0;
     for (
       let next = this.events.peek();
@@ -264,7 +306,9 @@ class Simulation {
       next = this.events.peek()
     ) {
       this.events.pop();
-      atThisInstant = next.timeMs === this.nowMs ? atThisInstant + 1 : 1;
+      this.ticksBefore(next.timeMs);
+      atThisInstant = next.timeMs === instantMs ? atThisInstant + 1 : 1;
+      instantMs = next.timeMs;
       if (atThisInstant > MAX_EVENTS_AT_ONE_INSTANT) {
         throw new Error(
           `Simulation stuck: over ${String(MAX_EVENTS_AT_ONE_INSTANT)} events at t=${String(next.timeMs)} ms`,
@@ -274,7 +318,41 @@ class Simulation {
       this.handle(next.payload);
       processed++;
     }
+    this.ticksBefore(this.untilMs);
+    if (this.tickMs !== undefined && this.untilMs > 0) {
+      this.nowMs = this.untilMs;
+      this.tick();
+    }
     return { eventsProcessed: processed };
+  }
+
+  /** Reports every tick due before `timeMs` and before the end of the run. */
+  private ticksBefore(timeMs: number): void {
+    if (this.tickMs === undefined) return;
+    while (this.nextTickMs <= timeMs && this.nextTickMs < this.untilMs) {
+      this.nowMs = this.nextTickMs;
+      this.tick();
+      this.nextTickMs += this.tickMs;
+    }
+  }
+
+  private tick(): void {
+    const components: ComponentSample[] = [];
+    for (const component of this.components.values()) {
+      const { behavior } = component;
+      components.push({
+        componentId: component.id,
+        inProgress: behavior.inProgress,
+        queueDepth: behavior.queueDepth,
+        peakInProgress: component.peakInProgress,
+        peakQueueDepth: component.peakQueueDepth,
+        gauges: { ...behavior.gauges },
+        counters: { ...behavior.counters },
+      });
+      component.peakInProgress = behavior.inProgress;
+      component.peakQueueDepth = behavior.queueDepth;
+    }
+    this.observe({ kind: "tick", timeMs: this.nowMs, components });
   }
 
   private handle(event: EngineEvent): void {
@@ -393,8 +471,18 @@ class Simulation {
     this.apply(target, target.behavior.arrive(visit, step.action, this.nowMs));
   }
 
-  /** Turns a component's effects into events (ADR-0006). */
+  /**
+   * Turns a component's effects into events (ADR-0006). Called right after
+   * every call into a component, so it also tracks peaks for the metrics.
+   */
   private apply(component: RuntimeComponent, effects: Effect<Visit>[]): void {
+    const { behavior } = component;
+    if (behavior.inProgress > component.peakInProgress) {
+      component.peakInProgress = behavior.inProgress;
+    }
+    if (behavior.queueDepth > component.peakQueueDepth) {
+      component.peakQueueDepth = behavior.queueDepth;
+    }
     for (const effect of effects) {
       const visit = effect.request;
       const base = {

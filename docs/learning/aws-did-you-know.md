@@ -103,3 +103,12 @@ If a client makes up to 3 attempts against an API, the Lambda function behind it
 
 **At scale:** when a database slows down, retries can multiply its load several times over, exactly when it can least afford it. Wind Tunnel's engine trace shows a 2 × 2 case: one request, four queries ([engine guide](../architecture/simulation-engine.md#the-engine-loop-a-requests-journey)).
 **Source:** [Timeouts, retries, and backoff with jitter (Amazon Builders' Library)](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/)
+
+### Averages hide the requests users complain about; CloudWatch can show percentiles
+
+CloudWatch can report percentile statistics such as `p99` for many metrics (for example API Gateway `Latency` and Lambda `Duration`), not just `Average`. When 1% of requests wait seconds for a database connection, the average barely moves, but p99 jumps. Most AWS service metrics are also published once a minute, so a 10-second spike is diluted across the whole minute. To see what Wind Tunnel's per-second snapshots show, look at `Maximum` or `p99` at the finest period available.
+
+The CloudWatch metrics closest to Wind Tunnel's: Lambda `ConcurrentExecutions` and `Throttles`, RDS `DatabaseConnections`, and SQS `ApproximateNumberOfMessagesVisible` (backlog) and `ApproximateAgeOfOldestMessage`.
+
+**At scale:** alarm on p99 latency and on throttles or rejections, not on average latency.
+**Source:** [CloudWatch statistics and percentiles](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Percentiles), [Lambda function metrics](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-types.html)

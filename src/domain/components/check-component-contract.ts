@@ -51,6 +51,8 @@ const MAX_VIOLATIONS = 20;
  *   request finished, never twice at once, and is eventually delivered;
  * - `inProgress` and `queueDepth` always match what the effects imply, so
  *   both are zero once all work drains;
+ * - type-specific `gauges` and `counters` are finite, and counters never
+ *   decrease;
  * - the same seed produces exactly the same effects.
  *
  * Each definition's test asserts that `violations` is empty.
@@ -223,6 +225,26 @@ function runScenario<Config>(
     }
   };
 
+  let lastCounters: Readonly<Record<string, number>> = {};
+  const checkExtraMetrics = () => {
+    for (const [name, value] of Object.entries(behavior.gauges ?? {})) {
+      if (!Number.isFinite(value)) {
+        violate(undefined, `gauge ${name} is ${String(value)}.`);
+      }
+    }
+    const counters = behavior.counters ?? {};
+    for (const [name, value] of Object.entries(counters)) {
+      const last = lastCounters[name] ?? 0;
+      if (!Number.isFinite(value) || value < last) {
+        violate(
+          undefined,
+          `counter ${name} went from ${String(last)} to ${String(value)}.`,
+        );
+      }
+    }
+    lastCounters = { ...counters };
+  };
+
   const checkGauges = () => {
     let inProgress = 0;
     let queueDepth = 0;
@@ -292,6 +314,7 @@ function runScenario<Config>(
       }
     }
     checkGauges();
+    checkExtraMetrics();
   }
 
   if (handled > maxEvents) {

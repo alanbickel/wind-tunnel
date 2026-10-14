@@ -41,6 +41,12 @@ function broken<Config>(
         get queueDepth() {
           return p.queueDepth ?? inner.queueDepth;
         },
+        get gauges() {
+          return p.gauges ?? inner.gauges;
+        },
+        get counters() {
+          return p.counters ?? inner.counters;
+        },
       };
       // The checker always uses number tokens, so T is number here.
       return behavior as unknown as ComponentBehavior<T>;
@@ -104,6 +110,22 @@ describe("checkComponentContract", () => {
       expect(firstViolation(def)).toMatch(
         /inProgress is 0; the effects imply 1/,
       );
+    });
+
+    it("a counter that goes down", () => {
+      const definition = broken(workerPoolDefinition, (b) => ({
+        get counters() {
+          return { busy: b.inProgress };
+        },
+      }));
+      expect(firstViolation(definition)).toMatch(/counter busy went from/);
+    });
+
+    it("a gauge that isn't a number", () => {
+      const definition = broken(workerPoolDefinition, () => ({
+        gauges: { broken: Number.NaN },
+      }));
+      expect(firstViolation(definition)).toMatch(/gauge broken is NaN/);
     });
 
     it("a negative service time", () => {

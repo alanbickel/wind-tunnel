@@ -2,7 +2,7 @@
 
 A visual introduction to the engine's building blocks, for maintainers new to the code. Read the [architecture overview](README.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§3 and §4); this page explains the moving parts.
 
-> **Status:** the event queue, behavior primitives, [component definitions](component-definitions.md), and the engine loop exist. Metrics come next (M1).
+> **Status:** the event queue, behavior primitives, [component definitions](component-definitions.md), the engine loop, and [metrics](metrics.md) exist.
 
 ## The big idea: jump from event to event
 
@@ -138,7 +138,7 @@ Under load, queries wait for one of the 16 workers while still holding a connect
 
 ## The engine loop: a request's journey
 
-[`simulate()`](../../src/domain/engine/simulation.ts) runs one workload against a project. It builds each component's behavior from the registry, then pops events until the workload's duration is over. What happens is reported to an **observer** callback as `SimulationEvent`s (`workflow-started`, `arrived`, `started`, `rejected`, `attempt-failed`, …); the metrics collector will be such an observer.
+[`simulate()`](../../src/domain/engine/simulation.ts) runs one workload against a project. It builds each component's behavior from the registry, then pops events until the workload's duration is over. What happens is reported to an **observer** callback as `SimulationEvent`s (`workflow-started`, `arrived`, `started`, `rejected`, `attempt-failed`, …). The [metrics collector](metrics.md) is such an observer; with `tickMs` set, the engine also reports a `tick` with every component's state each simulated second.
 
 | Piece | File | Job |
 |---|---|---|

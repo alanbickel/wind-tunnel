@@ -86,6 +86,7 @@ interface Setup {
   edges: Edge[];
   overrides?: Record<string, Partial<Component["config"]>>;
   untilMs?: number;
+  tickMs?: number;
 }
 
 function run({
@@ -93,6 +94,7 @@ function run({
   edges,
   overrides = {},
   untilMs,
+  tickMs,
 }: Setup): SimulationEvent[] {
   const project: Project = {
     id: "p",
@@ -114,6 +116,7 @@ function run({
     registry: createAwsComponentRegistry(),
     observer: (e) => events.push(e),
     ...(untilMs === undefined ? {} : { untilMs }),
+    ...(tickMs === undefined ? {} : { tickMs }),
   });
   return events;
 }
@@ -297,6 +300,76 @@ describe("simulate", () => {
         overrides: { writer: { concurrency: 0 } },
       }),
     ).toThrow(/stuck/);
+  });
+
+  describe("metrics ticks", () => {
+    it("ticks every tickMs and at the end, before other events at that time", () => {
+      const events = run({
+        root: apiFnDb,
+        edges: [edge("api", "fn"), edge("fn", "db")],
+        untilMs: 2_500,
+        tickMs: 1_000,
+      });
+      const ticks = ofKind(events, "tick");
+      expect(ticks.map((t) => t.timeMs)).toEqual([1_000, 2_000, 2_500]);
+      for (const tick of ticks) {
+        const at = events.indexOf(tick);
+        const before = events.slice(0, at).filter((e) => e.kind !== "tick");
+        const isLast = tick.timeMs === 2_500;
+        for (const e of before) {
+          expect(e.timeMs).toBeLessThanOrEqual(tick.timeMs);
+          if (!isLast) expect(e.timeMs).toBeLessThan(tick.timeMs);
+        }
+        const after = events.slice(at + 1);
+        for (const e of after)
+          expect(e.timeMs).toBeGreaterThanOrEqual(tick.timeMs);
+        expect(tick.components.map((c) => c.componentId)).toEqual(
+          Object.keys(components),
+        );
+      }
+    });
+
+    it("samples peaks since the last tick and type-specific values", () => {
+      const events = run({
+        root: apiFnDb,
+        edges: [edge("api", "fn"), edge("fn", "db")],
+        overrides: { db: { queryWorkers: 1, queryTime: constant(400) } },
+        tickMs: 1_000,
+      });
+      const samples = ofKind(events, "tick").map((t) => {
+        const of = (id: string) =>
+          t.components.find((c) => c.componentId === id);
+        return { db: of("db"), fn: of("fn") };
+      });
+      expect(samples).toHaveLength(5);
+      let coldStarts = 0;
+      for (const { db, fn } of samples) {
+        if (db === undefined || fn === undefined) throw new Error("missing");
+        expect(db.peakInProgress).toBeGreaterThanOrEqual(db.inProgress);
+        expect(db.peakQueueDepth).toBeGreaterThanOrEqual(db.queueDepth);
+        expect(db.gauges).toEqual({
+          connectionsHeld: db.inProgress + db.queueDepth,
+        });
+        const total = fn.counters["coldStarts"] ?? 0;
+        expect(total).toBeGreaterThanOrEqual(coldStarts);
+        coldStarts = total;
+      }
+      // 2 requests/s against 400 ms queries on one worker: a line forms.
+      expect(
+        Math.max(...samples.map((s) => s.db?.peakQueueDepth ?? 0)),
+      ).toBeGreaterThan(0);
+      expect(coldStarts).toBeGreaterThan(0);
+    });
+
+    it("refuses a tickMs that isn't positive", () => {
+      expect(() =>
+        run({
+          root: apiFnDb,
+          edges: [edge("api", "fn"), edge("fn", "db")],
+          tickMs: 0,
+        }),
+      ).toThrow(/tickMs/);
+    });
   });
 
   it("refuses an unknown workload", () => {

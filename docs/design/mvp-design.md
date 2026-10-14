@@ -112,7 +112,7 @@ interface ComponentDefinition<Config> {
 }
 ```
 
-A `ComponentBehavior` is called by the engine (`arrive`, `finish`, `dispatchFinished`) and answers with effects (`started`, `queued`, `rejected`, `dispatched`); it never schedules events itself. See [ADR-0006](../adr/0006-components-return-effects-to-the-engine.md) and the [component definitions guide](../architecture/component-definitions.md).
+A `ComponentBehavior` is called by the engine (`arrive`, `finish`, `dispatchFinished`) and answers with effects (`started`, `queued`, `rejected`, `dispatched`); it never schedules events itself. For metrics it exposes `inProgress`, `queueDepth`, and optional type-specific `gauges` and `counters`. See [ADR-0006](../adr/0006-components-return-effects-to-the-engine.md) and the [component definitions guide](../architecture/component-definitions.md).
 
 Every definition must pass a shared **contract test suite** (Liskov Substitution), `checkComponentContract`: it must eventually complete or reject every request it accepts, never complete a request twice, and report consistent metrics.
 
@@ -179,7 +179,7 @@ Arrivals are random (a Poisson process), following the profile's rate. Requests 
 
 The engine does not advance in fixed time steps. It keeps a **priority queue of future events** ordered by simulated time, repeatedly takes the earliest one, and processes it, which may schedule new events. Simulated time jumps directly from one event to the next, so idle periods cost nothing.
 
-Internal event types: `user-arrives`, `attempt-arrives` (after edge latency), `service-done`, `response` (after edge latency), `timeout`, `retry`. Metrics ticks come with the metrics collector. What happens is reported to an observer as `SimulationEvent`s; see the [engine guide](../architecture/simulation-engine.md#the-engine-loop-a-requests-journey).
+Internal event types: `user-arrives`, `attempt-arrives` (after edge latency), `service-done`, `response` (after edge latency), `timeout`, `retry`. Metrics ticks are emitted by the loop itself, outside the queue, when `tickMs` is set ([ADR-0007](../adr/0007-metrics-observe-the-engine.md)). What happens is reported to an observer as `SimulationEvent`s; see the [engine guide](../architecture/simulation-engine.md#the-engine-loop-a-requests-journey).
 
 ```mermaid
 stateDiagram-v2
@@ -215,11 +215,13 @@ Given the same project, workload, and **seed**, a run produces exactly the same 
 
 The engine runs as fast as it can and emits a **snapshot every simulated second** containing, per component:
 
-- arrivals, completions, rejections, timeouts
+- arrivals, completions, failures, rejections, timeouts
 - in-progress count and queue depth (current and peak)
 - latency percentiles (p50, p95, p99) from a fixed-bucket histogram
+- for queue-like components, async deliveries and their latency
+- type-specific gauges and counters, e.g. RDS connections held and Lambda cold starts
 
-and, per workflow, end-to-end success rate and latency percentiles.
+and, per workflow, requests started, succeeded, and failed (with failures grouped by cause), and latency percentiles of successful requests. Run totals have the same shape. The engine emits ticks; a `MetricsCollector` observer builds the snapshots ([ADR-0007](../adr/0007-metrics-observe-the-engine.md), [metrics guide](../architecture/metrics.md)).
 
 Separating computation from display is intentional: the UI replays snapshots at any speed, and the same engine can feed charts, tests, or a command-line report.
 

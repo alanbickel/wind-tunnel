@@ -4,7 +4,7 @@ A short introduction to how a cloud service type (Lambda, RDS, …) is described
 
 Code: [`src/domain/components/`](../../src/domain/components/).
 
-> **Status:** the interface, registry, validation, contract checker, and the five MVP service types exist. The engine that drives them comes next (M1).
+> **Status:** the interface, registry, validation, contract checker, and the five MVP service types exist, and the [engine](simulation-engine.md#the-engine-loop-a-requests-journey) drives them.
 
 ## Three pieces
 
@@ -51,6 +51,8 @@ stateDiagram-v2
     Finished --> [*]
     Rejected --> [*]
 ```
+
+Besides effects, a behavior exposes `inProgress` and `queueDepth`, and optionally type-specific `gauges` (sampled values, e.g. RDS `connectionsHeld`) and `counters` (running totals, e.g. Lambda `coldStarts`). The engine reads them for [metrics](metrics.md#type-specific-gauges-and-counters).
 
 Nothing is ever cancelled. If a caller times out, the engine stops waiting for the answer, but the work here continues and is finished normally, just as a database keeps running a query after the Lambda that sent it gave up.
 
@@ -142,6 +144,7 @@ t(ms)  engine calls  effects returned                  inProgress  queueDepth  w
 - every queued request eventually starts, and all async work is eventually delivered;
 - service times are finite and not negative;
 - `inProgress` and `queueDepth` match what the effects imply, after every call;
+- `gauges` and `counters` are finite, and counters never decrease;
 - the same seed produces exactly the same effects (no state shared between runs).
 
 Every definition's test file includes:

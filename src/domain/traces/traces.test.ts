@@ -10,6 +10,7 @@ import {
   rdsDefinition,
 } from "../components/aws";
 import { simulate, type SimulationEvent } from "../engine/simulation";
+import { simulateWithMetrics } from "../metrics/metrics-collector";
 import type {
   ComponentBehavior,
   Effect,
@@ -466,13 +467,13 @@ describe("traces", () => {
           },
         ],
       };
-      const events: SimulationEvent[] = [];
+      const events: Exclude<SimulationEvent, { kind: "tick" }>[] = [];
       simulate({
         project,
         workloadId: "one",
         registry: createAwsComponentRegistry(),
         observer: (e) => {
-          if (e.requestId === 0) events.push(e);
+          if (e.kind !== "tick" && e.requestId === 0) events.push(e);
         },
         untilMs: 20_000,
       });
@@ -548,5 +549,132 @@ describe("traces", () => {
         table("The database is slow (query: 150 ms):", header, journey(150)),
       ].join("\n"),
     ).toMatchFileSnapshot("simulation.txt");
+  });
+
+  it("Metrics: per-second snapshots of a short spike", async () => {
+    const constant = (valueMs: number) => ({ kind: "constant", valueMs });
+    const edge = (from: string, to: string): Edge => ({
+      id: `${from}->${to}`,
+      from,
+      to,
+      latencyMs: 1,
+      timeoutMs: 1_000,
+      retry: { maxAttempts: 1, backoff: "none", baseDelayMs: 0 },
+    });
+    const project: Project = {
+      id: "p",
+      name: "Spike",
+      architecture: {
+        components: [
+          {
+            id: "fn",
+            type: "lambda",
+            name: "Function",
+            config: {
+              concurrency: 50,
+              coldStart: constant(200),
+              idleTimeoutSec: 600,
+              computeTime: constant(10),
+            },
+          },
+          {
+            id: "db",
+            type: "rds",
+            name: "Database",
+            config: {
+              maxConnections: 8,
+              queryWorkers: 2,
+              queryTime: constant(20),
+            },
+          },
+        ],
+        edges: [edge("fn", "db")],
+      },
+      workflows: [
+        {
+          id: "get",
+          name: "Get order",
+          root: {
+            componentId: "fn",
+            action: "invoke",
+            calls: [{ componentId: "db", action: "read" }],
+          },
+        },
+      ],
+      workloads: [
+        {
+          id: "spike",
+          name: "Spike",
+          durationSec: 8,
+          seed: 7,
+          mix: [{ workflowId: "get", weight: 1 }],
+          profile: [
+            { atSec: 0, requestsPerSec: 40 },
+            { atSec: 3, requestsPerSec: 40 },
+            { atSec: 3, requestsPerSec: 200 },
+            { atSec: 5, requestsPerSec: 200 },
+            { atSec: 5, requestsPerSec: 40 },
+          ],
+        },
+      ],
+    };
+    const { snapshots, totals } = simulateWithMetrics({
+      project,
+      workloadId: "spike",
+      registry: createAwsComponentRegistry(),
+    });
+
+    const ms = (value: number | undefined) =>
+      value === undefined ? "-" : value.toFixed(0);
+    const row = (label: string, s: (typeof snapshots)[number]) => {
+      const get = s.workflows["get"];
+      const db = s.components["db"];
+      const fn = s.components["fn"];
+      return [
+        label,
+        String(get?.started),
+        String(get?.succeeded),
+        String(get?.failed),
+        ms(get?.latency?.p50),
+        ms(get?.latency?.p99),
+        String(db?.peakQueueDepth),
+        String(db?.gauges["connectionsHeld"]),
+        String(db?.rejected),
+        String(fn?.counters["coldStarts"]),
+      ];
+    };
+    const rows = snapshots.map((s) =>
+      row(`${String(s.startMs / 1000)}-${String(s.endMs / 1000)}`, s),
+    );
+    rows.push(row("total", totals));
+    await expect(
+      [
+        table(
+          [
+            'Workflow "Get order": fn -> db, 1 ms edges, no retries. fn: 10 ms of work,',
+            "200 ms cold starts. db: 8 connections, 2 query workers, 20 ms queries, so",
+            "it handles at most 100 queries/s. Load: 40 requests/s, then 200/s from",
+            "3 s to 5 s. One row per snapshot (simulated second), then the run's totals.",
+            "requests: started; ok/failed: answered. p50/p99: latency of ok requests.",
+            "db queue: peak in the row's time. connections: held at the row's end.",
+          ].join("\n"),
+          [
+            "second",
+            "requests",
+            "ok",
+            "failed",
+            "p50",
+            "p99",
+            "db queue",
+            "connections",
+            "db rejected",
+            "cold starts",
+          ],
+          rows,
+        ),
+        `Failures by cause: ${JSON.stringify(totals.workflows["get"]?.failures)}`,
+        "",
+      ].join("\n"),
+    ).toMatchFileSnapshot("metrics.txt");
   });
 });

@@ -80,6 +80,10 @@ export const rdsDefinition: ComponentDefinition<RdsConfig> = {
       get queueDepth() {
         return workers.queued;
       },
+      /** Running plus waiting queries: each holds a connection. */
+      get gauges() {
+        return { connectionsHeld: connections.inUse };
+      },
     };
   },
 };

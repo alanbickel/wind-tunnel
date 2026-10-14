@@ -8,8 +8,9 @@ The starting point for maintainers. It lists every document in `docs/`, what eac
 2. [The domain model](architecture/domain-model.md): projects, architectures, workflows as call trees, and how they're validated. (~5 min)
 3. [How the simulation engine works](architecture/simulation-engine.md): the event queue, behavior primitives, and the engine loop (calls, timeouts, retries), with diagrams and example timelines. (~14 min)
 4. [Component definitions](architecture/component-definitions.md): how a service type plugs into the engine through effects, the contract every type must pass, and the five AWS types. (~11 min)
-5. [Implementation plan](implementation-plan.md): the current milestone and what's next. (~2 min)
-6. Skim the [ADR titles](#decisions-adrs) below. Read an ADR in full when you touch the area it covers.
+5. [How metrics work](architecture/metrics.md): ticks, per-second snapshots, run totals, type-specific gauges and counters, and latency histograms, with a worked example. (~9 min)
+6. [Implementation plan](implementation-plan.md): the current milestone and what's next. (~2 min)
+7. Skim the [ADR titles](#decisions-adrs) below. Read an ADR in full when you touch the area it covers.
 
 The [MVP design](design/mvp-design.md) is the detailed reference behind all of this. Read the section you need, not the whole thing.
 
@@ -23,6 +24,7 @@ Short, visual introductions to one part of the system. They explain how somethin
 | [The domain model](architecture/domain-model.md) | Entities, workflows as call trees over the architecture, `validateProject` |
 | [How the simulation engine works](architecture/simulation-engine.md) | Discrete-event loop, `EventQueue`, `RateLimit`, `ConcurrencyLimit`, `Queue`, `ServiceTime`, distributions, `simulate`, `ArrivalProcess`, `backoffMs` |
 | [Component definitions](architecture/component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents`, the five AWS types |
+| [How metrics work](architecture/metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, gauges and counters, `LatencyHistogram` |
 
 ## Design and planning
 
@@ -43,6 +45,7 @@ Architecture decision records explain *why* things are the way they are. Accepte
 | [0004](adr/0004-persist-projects-in-indexeddb.md) | Persist projects in IndexedDB as versioned documents; ship templates as bundled data |
 | [0005](adr/0005-use-zod-for-schema-validation.md) | Use Zod for schema validation, including in the domain layer |
 | [0006](adr/0006-components-return-effects-to-the-engine.md) | Components return effects to the engine; they never schedule events |
+| [0007](adr/0007-metrics-observe-the-engine.md) | Metrics observe the engine through events and ticks; components expose named gauges and counters |
 
 ## Learning
 

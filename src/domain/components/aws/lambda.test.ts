@@ -76,6 +76,8 @@ describe("lambdaDefinition", () => {
     expect(fn.inProgress).toBe(2);
     fn.finish("a", 320);
     expect(fn.arrive("c", "invoke", 320)[0]?.kind).toBe("started");
+    // a and b started cold; c reused a's warm environment.
+    expect(fn.counters).toEqual({ coldStarts: 2 });
   });
 
   it("throttles everything with concurrency 0", () => {

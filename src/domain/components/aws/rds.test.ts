@@ -47,6 +47,8 @@ describe("rdsDefinition", () => {
       { kind: "rejected", request: "d", reason: "too-many-connections" },
     ]);
     expect([db.inProgress, db.queueDepth]).toEqual([1, 2]);
+    // Waiting queries hold their connection too.
+    expect(db.gauges).toEqual({ connectionsHeld: 3 });
   });
 
   it("hands a freed worker to the next waiter and frees a connection", () => {

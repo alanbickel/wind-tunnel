@@ -50,7 +50,7 @@ Decisions that still apply: rule 7 applies to component methods (no exception). 
 - [x] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
 - [x] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
 - [x] Use cases: `ListProjects`, `ListTemplates`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `OpenProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
-- [ ] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Make the CLI run through `RunSimulation` (which now has the seed override) and delete its own `selectWorkload`/`withSeed`. Add `RunSimulation` to `use-cases-with-indexeddb.test.ts`
+- [x] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Make the CLI run through `RunSimulation` (which now has the seed override) and delete its own `selectWorkload`/`withSeed`. Add `RunSimulation` to `use-cases-with-indexeddb.test.ts`
 - [ ] Request persistent storage (`navigator.storage.persist()`)
 - [ ] Onboarding guide for the application layer and persistence: ports, records vs. documents, a use case traced end to end
 
@@ -72,6 +72,12 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-15: M2 in-process runner
+
+- **`InProcessSimulationRunner({ registry })`** (`src/adapters/simulation/`) wraps `simulateWithMetrics`. It runs synchronously inside a `Promise` executor, so an engine error rejects instead of throwing, as a Worker's failure will.
+- **The CLI runs through `RunSimulation`;** its `selectWorkload`/`withSeed` are gone. Report snapshots unchanged.
+- **`use-cases-with-indexeddb.test.ts`** now covers `RunSimulation` too, with each workload cut to 5 s so it stays fast.
 
 ### 2026-10-15: M2 use cases
 

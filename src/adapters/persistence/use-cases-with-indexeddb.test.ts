@@ -2,6 +2,8 @@ import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
+import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
+import type { Project } from "../../domain/model/project";
 import {
   FixedClock,
   SequentialIds,
@@ -11,13 +13,15 @@ import { DeleteProject } from "../../application/use-cases/delete-project";
 import { ListProjects } from "../../application/use-cases/list-projects";
 import { ListTemplates } from "../../application/use-cases/list-templates";
 import { OpenProject } from "../../application/use-cases/open-project";
+import { RunSimulation } from "../../application/use-cases/run-simulation";
 import { SaveProject } from "../../application/use-cases/save-project";
+import { InProcessSimulationRunner } from "../simulation/in-process-simulation-runner";
 import { createBundledTemplateCatalog } from "../templates/bundled-template-catalog";
 import { IndexedDbProjectRepository } from "./indexeddb-project-repository";
 import { openProjectDatabase, type ProjectDatabase } from "./project-database";
 
-// The project use cases wired to the real adapters: IndexedDB (through
-// fake-indexeddb) and the bundled templates. The use case tests in
+// The MVP use cases wired to the real adapters: IndexedDB (through
+// fake-indexeddb), the bundled templates, and the in-process runner. The use case tests in
 // `application/` use fakes; this checks the adapters keep their promises.
 
 const CREATED_AT = "2026-10-15T12:00:00.000Z";
@@ -55,10 +59,19 @@ function useCases() {
     openProject: new OpenProject({ projects }),
     saveProject: new SaveProject({ projects, clock, registry }),
     deleteProject: new DeleteProject({ projects }),
+    runSimulation: new RunSimulation({
+      runner: new InProcessSimulationRunner({ registry }),
+    }),
   };
 }
 
-describe("project use cases over IndexedDB and the bundled templates", () => {
+/** The project with each workload cut to its first five seconds, so tests run fast. */
+function shortened(project: Project): Project {
+  const workloads = project.workloads.map((w) => ({ ...w, durationMs: 5_000 }));
+  return { ...project, workloads };
+}
+
+describe("MVP use cases over IndexedDB, the bundled templates, and the in-process runner", () => {
   it("create, list, open, rename, save, and delete a project from every template", async () => {
     const app = useCases();
 
@@ -111,5 +124,32 @@ describe("project use cases over IndexedDB and the bundled templates", () => {
       second.name,
       first.name,
     ]);
+  });
+
+  it("runs a saved project's workload with a seed override, streaming its snapshots", async () => {
+    const app = useCases();
+
+    for (const template of await app.listTemplates.execute()) {
+      const created = await app.createProject.execute(template.id);
+      if (created.status !== "created") throw new Error(created.status);
+      const opened = await app.openProject.execute(created.record.project.id);
+      if (opened.status !== "found") throw new Error(opened.status);
+      const received: MetricsSnapshot[] = [];
+
+      const result = await app.runSimulation.execute({
+        project: shortened(opened.record.project),
+        seed: 7,
+        onSnapshot: (snapshot) => received.push(snapshot),
+      });
+
+      if (result.status !== "finished") throw new Error(result.status);
+      expect(result.workload.seed).toBe(7);
+      expect(result.run.snapshots).toHaveLength(5);
+      expect(received).toEqual(result.run.snapshots);
+      const started = Object.values(result.run.totals.workflows).map(
+        (w) => w.started,
+      );
+      expect(Math.min(...started)).toBeGreaterThan(0);
+    }
   });
 });

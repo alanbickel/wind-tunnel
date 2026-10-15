@@ -1,11 +1,13 @@
 import { createAwsComponentRegistry } from "../../domain/components/aws";
-import type { ComponentRegistry } from "../../domain/components/component-registry";
-import { simulateWithMetrics } from "../../domain/metrics/metrics-collector";
-import type { Project, Workload } from "../../domain/model/project";
 import type {
   TemplateCatalog,
   TemplateSummary,
 } from "../../application/ports/template-catalog";
+import {
+  RunSimulation,
+  type WorkloadMissing,
+} from "../../application/use-cases/run-simulation";
+import { InProcessSimulationRunner } from "../simulation/in-process-simulation-runner";
 import { createBundledTemplateCatalog } from "../templates/bundled-template-catalog";
 import { formatReport } from "./text-report";
 
@@ -37,7 +39,9 @@ export async function runSimulateCommand(
   const registry = createAwsComponentRegistry();
   const catalog = createBundledTemplateCatalog(registry);
   const usage = formatUsage(await catalog.list());
-  const report = await reportFor({ args, catalog, registry });
+  const runner = new InProcessSimulationRunner({ registry });
+  const runSimulation = new RunSimulation({ runner });
+  const report = await reportFor({ args, catalog, runSimulation });
   if (typeof report === "string") return fail({ message: report, usage });
   return { exitCode: 0, output: report.text };
 }
@@ -45,7 +49,7 @@ export async function runSimulateCommand(
 interface ReportInput {
   readonly args: readonly string[];
   readonly catalog: TemplateCatalog;
-  readonly registry: ComponentRegistry;
+  readonly runSimulation: RunSimulation;
 }
 
 /** The finished report. */
@@ -57,7 +61,7 @@ interface Report {
 async function reportFor({
   args,
   catalog,
-  registry,
+  runSimulation,
 }: ReportInput): Promise<Report | string> {
   const options = parseArgs(args);
   if (typeof options === "string") return options;
@@ -65,44 +69,18 @@ async function reportFor({
   if (template === undefined) {
     return `Unknown template ${JSON.stringify(options.template)}.`;
   }
-  const target = selectWorkload(template.project, options);
-  if (typeof target === "string") return target;
-
-  const run = simulateWithMetrics({
-    project: target.project,
-    workloadId: target.workload.id,
-    registry,
+  const result = await runSimulation.execute({
+    project: template.project,
+    workloadId: options.workload,
+    seed: options.seed,
   });
-  return { text: formatReport({ ...target, run }) };
+  if (result.status === "workload-missing") return unknownWorkload(result);
+  return { text: formatReport(result) };
 }
 
-/** The workload to run, and the project it runs in. */
-interface RunTarget {
-  readonly project: Project;
-  readonly workload: Workload;
-}
-
-/** Returns the workload the options ask for, or an error message. */
-function selectWorkload(
-  project: Project,
-  options: Options,
-): RunTarget | string {
-  const workloadId = options.workload ?? project.workloads[0]?.id;
-  const workload = project.workloads.find((w) => w.id === workloadId);
-  if (workload === undefined) {
-    return `Unknown workload ${JSON.stringify(workloadId)}.`;
-  }
-  if (options.seed === undefined) return { project, workload };
-  return withSeed({ project, workload }, options.seed);
-}
-
-/** The target with its workload's seed replaced, in the project too. */
-function withSeed(target: RunTarget, seed: number): RunTarget {
-  const workload = { ...target.workload, seed };
-  const workloads = target.project.workloads.map((w) =>
-    w.id === workload.id ? workload : w,
-  );
-  return { project: { ...target.project, workloads }, workload };
+function unknownWorkload({ workloadId }: WorkloadMissing): string {
+  if (workloadId === undefined) return "The template has no workloads.";
+  return `Unknown workload ${JSON.stringify(workloadId)}.`;
 }
 
 interface Options {

@@ -1,11 +1,7 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
-import { validateComponents } from "../../domain/components/validate-components";
-import type { Project } from "../../domain/model/project";
+import { findProjectIssues } from "../../domain/components/find-project-issues";
 import type { ProjectRecord } from "../../application/ports/project-record";
-import {
-  validateProject,
-  type ValidationIssue,
-} from "../../domain/model/validate-project";
+import type { ValidationIssue } from "../../domain/model/validate-project";
 import { issuesFromZod } from "../../domain/model/zod-issues";
 import { projectDocumentV1Schema } from "./project-document-v1";
 import { toDocumentIssue, toProjectRecord } from "./project-document-mapper";
@@ -52,17 +48,9 @@ export function loadProject(
   }
 
   const record = toProjectRecord(parsed.data);
-  const issues = checkProject(record.project, registry).map(toDocumentIssue);
+  const issues = findProjectIssues(record.project, registry).map(
+    toDocumentIssue,
+  );
   if (issues.length > 0) return { ok: false, issues };
   return { ok: true, record };
-}
-
-/** Stages 2 and 3: the issues from the first stage that finds any. */
-function checkProject(
-  project: Project,
-  registry: ComponentRegistry,
-): readonly ValidationIssue[] {
-  const issues = validateProject(project);
-  if (issues.length > 0) return issues;
-  return validateComponents(project, registry);
 }

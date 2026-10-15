@@ -67,6 +67,8 @@ flowchart LR
     C --> OK[Record ready to use]
 ```
 
+Stages 2 and 3 together are [`findProjectIssues`](../../src/domain/components/find-project-issues.ts), for code that has a `Project` rather than a document.
+
 The document's structure mirrors the domain's, so an issue's path, like `["architecture", "edges", 2, "to"]`, points at the same place whichever stage found it. The one difference is units: the document gives workload times in seconds (`durationSec`, `atSec`), which are easier to write by hand, and the domain keeps every time in milliseconds (`durationMs`, `atMs`). The [document mapper](../../src/adapters/persistence/project-document-mapper.ts) converts them in both directions (`toProjectRecord`, `toProjectDocument`), and `loadProject` renames those fields in issue paths (`toDocumentIssue`), so the user always sees a path into the document. Objects in the schema are **strict**: an unknown key such as `latencyMS` is an error rather than being silently dropped, which catches typos in hand-written templates.
 
 Consistency rules:

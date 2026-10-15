@@ -1,9 +1,14 @@
 import { deriveSeed, SeededRandom } from "../random/random-source";
 import { HeapEventQueue } from "./heap-event-queue";
-import { IntervalTickSampler } from "./interval-tick-sampler";
+import {
+  IntervalTickSampler,
+  type IntervalTickSamplerDependencies,
+} from "./interval-tick-sampler";
+import { NoTickSampler } from "./no-tick-sampler";
 import { PoissonArrivalProcess } from "./poisson-arrival-process";
 import { buildTopology, findWorkload } from "./project-topology";
 import { Simulation, type EngineEvent } from "./simulation";
+import type { TickSampler } from "./tick-sampler";
 import type {
   RandomStreams,
   SimulationInput,
@@ -34,7 +39,7 @@ export function createSimulation(input: SimulationInput): Simulation {
   const retryRandom = random("retries");
   const observe = input.observer ?? ignoreEvent;
   const untilMs = input.untilMs ?? workload.durationMs;
-  const ticks = new IntervalTickSampler({
+  const ticks = buildTickSampler({
     topology,
     observe,
     tickMs: input.tickMs,
@@ -50,6 +55,20 @@ export function createSimulation(input: SimulationInput): Simulation {
     observe,
     untilMs,
   });
+}
+
+interface TickSamplerInput extends Omit<
+  IntervalTickSamplerDependencies,
+  "tickMs"
+> {
+  readonly tickMs: number | undefined;
+}
+
+/** Ticks every `tickMs` if it's set; otherwise none, and no peak tracking. */
+function buildTickSampler(input: TickSamplerInput): TickSampler {
+  const { tickMs } = input;
+  if (tickMs === undefined) return new NoTickSampler();
+  return new IntervalTickSampler({ ...input, tickMs });
 }
 
 /** Streams seeded from the workload's seed, one per name. */

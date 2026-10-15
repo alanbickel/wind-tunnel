@@ -6,16 +6,16 @@ import type { Topology } from "./topology";
 export interface IntervalTickSamplerDependencies {
   readonly topology: Topology;
   readonly observe: (event: TickEvent) => void;
-  /** Report a tick every `tickMs`; undefined reports none. */
-  readonly tickMs: number | undefined;
+  /** Report a tick every `tickMs`; must be positive. */
+  readonly tickMs: number;
   readonly untilMs: number;
 }
 
-/** A `TickSampler` that reports every `tickMs`, or never if it's undefined. */
+/** A `TickSampler` that reports every `tickMs`, plus once at the end. */
 export class IntervalTickSampler implements TickSampler {
   private readonly topology: Topology;
   private readonly observe: (event: TickEvent) => void;
-  private readonly tickMs: number | undefined;
+  private readonly tickMs: number;
   private readonly untilMs: number;
   private nextTickMs: number;
 
@@ -24,11 +24,10 @@ export class IntervalTickSampler implements TickSampler {
     this.observe = dependencies.observe;
     this.tickMs = checkTickMs(dependencies.tickMs);
     this.untilMs = dependencies.untilMs;
-    this.nextTickMs = this.tickMs ?? Infinity;
+    this.nextTickMs = this.tickMs;
   }
 
   ticksBefore(timeMs: number): void {
-    if (this.tickMs === undefined) return;
     while (this.nextTickMs <= timeMs && this.nextTickMs < this.untilMs) {
       this.tick(this.nextTickMs);
       this.nextTickMs += this.tickMs;
@@ -37,7 +36,7 @@ export class IntervalTickSampler implements TickSampler {
 
   finalTick(): void {
     this.ticksBefore(this.untilMs);
-    if (this.tickMs === undefined || this.untilMs <= 0) return;
+    if (this.untilMs <= 0) return;
     this.tick(this.untilMs);
   }
 
@@ -61,8 +60,8 @@ export class IntervalTickSampler implements TickSampler {
   }
 }
 
-function checkTickMs(tickMs: number | undefined): number | undefined {
-  if (tickMs !== undefined && !(tickMs > 0)) {
+function checkTickMs(tickMs: number): number {
+  if (!(tickMs > 0)) {
     throw new Error(`tickMs must be positive, got ${String(tickMs)}`);
   }
   return tickMs;

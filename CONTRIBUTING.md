@@ -174,6 +174,16 @@ interface RejectedEvent { kind: "rejected"; timeMs: number; componentId: string;
 type SimulationEvent = ArrivedEvent | RejectedEvent;
 ```
 
+**Parameter objects** take one of three suffixes, so the type name says what kind of thing is being passed:
+
+| Suffix | What it holds | Example |
+|---|---|---|
+| `<Name>Input` | The data a function, method, or constructor works on, in one object (rule 7). `Name` is the function, or the subject when a family of functions takes the same shape. | `RunSimulationInput`; `StepInput` for `checkStep`, `checkTarget`, and `checkAsync` |
+| `<Class>Dependencies` | A constructor's collaborators (rule 10). | `RunSimulationDependencies` |
+| `<Name>Context` | State shared across a family of functions, such as the lookup tables and issue list of a validation walk. It comes second, after the `Input`. | `checkStep(input: StepInput, context: StepContext)` |
+
+Don't use `Options`, `Settings`, `Params`, `Args`, or `At`. A type holding an input with its defaults filled in is named for what it holds. Two names stay as they are: `BuildContext`, which is public component API, and the component `*Config` types, which are part of the project document rather than parameter objects.
+
 ### 9. Put the unit in the name
 
 A simulator is full of numbers that mean time, rates, and counts. A name without a unit invites mixing milliseconds with seconds. Durations and timestamps end in `Ms` (`timeoutMs`, `nowMs`, `retryAtMs`); rates say what they count per what (`requestsPerSecond`). Keep the engine in milliseconds and convert only at the edges, such as a report or a chart axis.

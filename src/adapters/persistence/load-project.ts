@@ -1,6 +1,12 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
 import { validateComponents } from "../../domain/components/validate-components";
-import type { Project, Step } from "../../domain/model/project";
+import type {
+  Architecture,
+  Project,
+  Step,
+  Workflow,
+  Workload,
+} from "../../domain/model/project";
 import {
   validateProject,
   type ValidationIssue,
@@ -8,8 +14,11 @@ import {
 import { issuesFromZod } from "../../domain/model/zod-issues";
 import {
   projectDocumentV1Schema,
+  type ArchitectureDocument,
   type ProjectDocumentV1,
   type StepDocument,
+  type WorkflowDocument,
+  type WorkloadDocument,
 } from "./project-document-v1";
 
 /** The schema versions this build can read. */
@@ -47,21 +56,8 @@ export function loadProject(
   input: unknown,
   registry: ComponentRegistry,
 ): LoadResult {
-  const version = schemaVersionOf(input);
-  if (version !== CURRENT_SCHEMA_VERSION) {
-    return {
-      ok: false,
-      issues: [
-        {
-          path: ["schemaVersion"],
-          message:
-            version === undefined
-              ? "This isn't a Wind Tunnel project: it has no schemaVersion."
-              : `Unsupported schema version ${JSON.stringify(version)}; this version of Wind Tunnel reads version ${String(CURRENT_SCHEMA_VERSION)}.`,
-        },
-      ],
-    };
-  }
+  const versionIssue = checkSchemaVersion(input);
+  if (versionIssue !== undefined) return { ok: false, issues: [versionIssue] };
 
   const parsed = projectDocumentV1Schema.safeParse(input);
   if (!parsed.success) {
@@ -69,11 +65,32 @@ export function loadProject(
   }
 
   const project = toProject(parsed.data);
-  const issues = validateProject(project);
+  const issues = checkProject(project, registry);
   if (issues.length > 0) return { ok: false, issues };
-  const typeIssues = validateComponents(project, registry);
-  if (typeIssues.length > 0) return { ok: false, issues: typeIssues };
   return { ok: true, project, document: parsed.data };
+}
+
+/** Stage 0: an issue if this build can't read the document's version. */
+function checkSchemaVersion(input: unknown): ValidationIssue | undefined {
+  const version = schemaVersionOf(input);
+  if (version === CURRENT_SCHEMA_VERSION) return undefined;
+  return {
+    path: ["schemaVersion"],
+    message:
+      version === undefined
+        ? "This isn't a Wind Tunnel project: it has no schemaVersion."
+        : `Unsupported schema version ${JSON.stringify(version)}; this version of Wind Tunnel reads version ${String(CURRENT_SCHEMA_VERSION)}.`,
+  };
+}
+
+/** Stages 2 and 3: the issues from the first stage that finds any. */
+function checkProject(
+  project: Project,
+  registry: ComponentRegistry,
+): readonly ValidationIssue[] {
+  const issues = validateProject(project);
+  if (issues.length > 0) return issues;
+  return validateComponents(project, registry);
 }
 
 /**
@@ -88,35 +105,43 @@ export function toProject(document: ProjectDocumentV1): Project {
     ...(document.description === undefined
       ? {}
       : { description: document.description }),
-    architecture: {
-      components: document.architecture.components.map((c) => ({
-        id: c.id,
-        type: c.type,
-        name: c.name,
-        config: c.config,
-      })),
-      edges: document.architecture.edges.map((e) => ({
-        id: e.id,
-        from: e.from,
-        to: e.to,
-        latencyMs: e.latencyMs,
-        timeoutMs: e.timeoutMs,
-        retry: { ...e.retry },
-      })),
-    },
-    workflows: document.workflows.map((w) => ({
-      id: w.id,
-      name: w.name,
-      root: toStep(w.root),
+    architecture: toArchitecture(document.architecture),
+    workflows: document.workflows.map(toWorkflow),
+    workloads: document.workloads.map(toWorkload),
+  };
+}
+
+function toArchitecture(architecture: ArchitectureDocument): Architecture {
+  return {
+    components: architecture.components.map((c) => ({
+      id: c.id,
+      type: c.type,
+      name: c.name,
+      config: c.config,
     })),
-    workloads: document.workloads.map((w) => ({
-      id: w.id,
-      name: w.name,
-      durationSec: w.durationSec,
-      seed: w.seed,
-      mix: w.mix.map((m) => ({ ...m })),
-      profile: w.profile.map((p) => ({ ...p })),
+    edges: architecture.edges.map((e) => ({
+      id: e.id,
+      from: e.from,
+      to: e.to,
+      latencyMs: e.latencyMs,
+      timeoutMs: e.timeoutMs,
+      retry: { ...e.retry },
     })),
+  };
+}
+
+function toWorkflow(workflow: WorkflowDocument): Workflow {
+  return { id: workflow.id, name: workflow.name, root: toStep(workflow.root) };
+}
+
+function toWorkload(workload: WorkloadDocument): Workload {
+  return {
+    id: workload.id,
+    name: workload.name,
+    durationSec: workload.durationSec,
+    seed: workload.seed,
+    mix: workload.mix.map((m) => ({ ...m })),
+    profile: workload.profile.map((p) => ({ ...p })),
   };
 }
 

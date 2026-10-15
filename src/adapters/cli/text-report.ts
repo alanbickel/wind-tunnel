@@ -1,28 +1,28 @@
-import type { LatencySummary } from "../../domain/metrics/latency-histogram";
 import type {
   ComponentMetrics,
   MetricsRun,
   MetricsSnapshot,
+  WorkflowMetrics,
 } from "../../domain/metrics/metrics-collector";
 import type { Project, Workload } from "../../domain/model/project";
+
+/** The run to report on, and the project and workload it ran. */
+export interface ReportInput {
+  readonly project: Project;
+  readonly workload: Workload;
+  readonly run: MetricsRun;
+}
 
 /**
  * Renders a run's metrics as plain text for a terminal: totals per workflow
  * and component, failure causes, then one row per snapshot. Deterministic,
  * so tests can compare it to a file snapshot.
  */
-export function formatReport(
-  project: Project,
-  workload: Workload,
-  run: MetricsRun,
-): string {
+export function formatReport(input: ReportInput): string {
+  const { project, run } = input;
   const { totals, snapshots } = run;
   const sections = [
-    [
-      `${project.name} (${project.id})`,
-      `Workload: ${workload.name} (${workload.id}), ${String(workload.durationSec)} s, seed ${String(workload.seed)}`,
-      `Events processed: ${run.eventsProcessed.toLocaleString("en-US")}`,
-    ].join("\n"),
+    heading(input),
     section("Workflows", workflowTotals(totals)),
     section("Failures", failureTotals(totals)),
     section("Components", componentTotals(project, totals)),
@@ -32,99 +32,151 @@ export function formatReport(
   return sections.join("\n\n") + "\n";
 }
 
+function heading({ project, workload, run }: ReportInput): string {
+  return [
+    `${project.name} (${project.id})`,
+    `Workload: ${workload.name} (${workload.id}), ${String(workload.durationSec)} s, seed ${String(workload.seed)}`,
+    `Events processed: ${run.eventsProcessed.toLocaleString("en-US")}`,
+  ].join("\n");
+}
+
 function section(title: string, body: string): string {
   return `${title}\n${"=".repeat(title.length)}\n${body}`;
 }
 
-function workflowTotals(totals: MetricsSnapshot): string {
-  const rows = Object.entries(totals.workflows).map(([id, w]) => [
-    id,
-    count(w.started),
-    count(w.succeeded),
-    count(w.failed),
-    count(w.started - w.succeeded - w.failed),
-    percent(w.failed, w.succeeded + w.failed),
-    ...latencyCells(w.latency),
-  ]);
+/** One column of a table: its header and its cell for a row. */
+interface Column<Row> {
+  readonly header: string;
+  readonly cell: (row: Row) => string;
+}
+
+/** A table, then a blank line, then the notes that explain it. */
+interface NotedTable<Row> {
+  readonly columns: readonly Column<Row>[];
+  readonly rows: readonly Row[];
+  readonly notes: readonly string[];
+}
+
+function notedTable<Row>({ columns, rows, notes }: NotedTable<Row>): string {
+  const cells = rows.map((row) => columns.map((c) => c.cell(row)));
   return [
     table(
-      [
-        "workflow",
-        "started",
-        "ok",
-        "failed",
-        "in progress",
-        "failed %",
-        "p50",
-        "p95",
-        "p99",
-        "max",
-      ],
-      rows,
+      columns.map((c) => c.header),
+      cells,
     ),
     "",
-    'started = ok + failed + in progress. "in progress" requests had no answer yet when the run ended.',
-    '"failed %" is of answered requests (ok + failed). Latencies are in ms, of ok requests.',
+    ...notes,
   ].join("\n");
 }
+
+/** One workflow's metrics, for the Workflows table. */
+interface WorkflowRow {
+  readonly id: string;
+  readonly metrics: WorkflowMetrics;
+}
+
+const WORKFLOW_COLUMNS: readonly Column<WorkflowRow>[] = [
+  { header: "workflow", cell: (r) => r.id },
+  { header: "started", cell: (r) => count(r.metrics.started) },
+  { header: "ok", cell: (r) => count(r.metrics.succeeded) },
+  { header: "failed", cell: (r) => count(r.metrics.failed) },
+  {
+    header: "in progress",
+    cell: ({ metrics: w }) => count(w.started - w.succeeded - w.failed),
+  },
+  {
+    header: "failed %",
+    cell: ({ metrics: w }) => percent(w.failed, w.succeeded + w.failed),
+  },
+  { header: "p50", cell: (r) => ms(r.metrics.latency?.p50Ms) },
+  { header: "p95", cell: (r) => ms(r.metrics.latency?.p95Ms) },
+  { header: "p99", cell: (r) => ms(r.metrics.latency?.p99Ms) },
+  { header: "max", cell: (r) => ms(r.metrics.latency?.maxMs) },
+];
+
+const WORKFLOW_NOTES = [
+  'started = ok + failed + in progress. "in progress" requests had no answer yet when the run ended.',
+  '"failed %" is of answered requests (ok + failed). Latencies are in ms, of ok requests.',
+];
+
+function workflowTotals(totals: MetricsSnapshot): string {
+  const rows = Object.entries(totals.workflows).map(([id, metrics]) => ({
+    id,
+    metrics,
+  }));
+  return notedTable({ columns: WORKFLOW_COLUMNS, rows, notes: WORKFLOW_NOTES });
+}
+
+/** How many of a workflow's requests failed for one cause. */
+interface FailureRow {
+  readonly workflowId: string;
+  readonly cause: string;
+  readonly failedRequests: number;
+}
+
+const FAILURE_COLUMNS: readonly Column<FailureRow>[] = [
+  { header: "workflow", cell: (r) => r.workflowId },
+  { header: "cause", cell: (r) => r.cause },
+  { header: "failed requests", cell: (r) => count(r.failedRequests) },
+];
+
+const FAILURE_NOTES = [
+  `Each workflow's rows add up to its "failed" count above. The cause is the component and reason where the failure started; the callers it passed through count it as "failed" in Components.`,
+];
 
 function failureTotals(totals: MetricsSnapshot): string {
-  const rows = Object.entries(totals.workflows).flatMap(([id, w]) =>
+  const rows = Object.entries(totals.workflows).flatMap(([workflowId, w]) =>
     Object.entries(w.failures)
       .sort(([, a], [, b]) => b - a)
-      .map(([cause, n]) => [id, cause, count(n)]),
+      .map(([cause, failedRequests]) => ({
+        workflowId,
+        cause,
+        failedRequests,
+      })),
   );
   if (rows.length === 0) return "None.";
-  return [
-    table(["workflow", "cause", "failed requests"], rows),
-    "",
-    `Each workflow's rows add up to its "failed" count above. The cause is the component and reason where the failure started; the callers it passed through count it as "failed" in Components.`,
-  ].join("\n");
+  return notedTable({ columns: FAILURE_COLUMNS, rows, notes: FAILURE_NOTES });
 }
 
+/** One component's metrics, for the Components table. */
+interface ComponentRow {
+  readonly id: string;
+  readonly metrics: ComponentMetrics;
+}
+
+const COMPONENT_COLUMNS: readonly Column<ComponentRow>[] = [
+  { header: "component", cell: (r) => r.id },
+  { header: "arrivals", cell: (r) => count(r.metrics.arrivals) },
+  { header: "ok", cell: (r) => count(r.metrics.completed) },
+  { header: "failed", cell: (r) => count(r.metrics.failed) },
+  { header: "rejected", cell: (r) => count(r.metrics.rejected) },
+  { header: "unfinished", cell: (r) => count(unfinished(r.metrics)) },
+  { header: "timeouts", cell: (r) => count(r.metrics.timeouts) },
+  { header: "p50", cell: (r) => ms(r.metrics.latency?.p50Ms) },
+  { header: "p99", cell: (r) => ms(r.metrics.latency?.p99Ms) },
+  { header: "peak busy", cell: (r) => count(r.metrics.peakInProgress) },
+  { header: "peak queue", cell: (r) => count(r.metrics.peakQueueDepth) },
+  { header: "other", cell: (r) => extras(r.metrics) },
+];
+
+const COMPONENT_NOTES = [
+  'arrivals = ok + failed + rejected + unfinished. "unfinished" work was still running or waiting when the run ended.',
+  `"timeouts" isn't part of that sum: the caller stopped waiting, but the component still finished the work as ok or failed.`,
+  'Latencies are in ms (bucket upper bounds, up to 5% high), of ok work. "busy" is work running; "queue" is work waiting.',
+  'Queues: "ok" counts messages accepted. Each is then delivered (async ok), waiting in the backlog, or being delivered.',
+  '"async failed" counts failed deliveries; those messages go back to the backlog and are tried again.',
+];
+
 function componentTotals(project: Project, totals: MetricsSnapshot): string {
-  const rows = project.architecture.components.map((c) => {
-    const m = metricsFor(totals, c.id);
-    return [
-      c.id,
-      count(m.arrivals),
-      count(m.completed),
-      count(m.failed),
-      count(m.rejected),
-      count(unfinished(m)),
-      count(m.timeouts),
-      ms(m.latency?.p50Ms),
-      ms(m.latency?.p99Ms),
-      count(m.peakInProgress),
-      count(m.peakQueueDepth),
-      extras(m),
-    ];
+  const rows = project.architecture.components.map(({ id }) => ({
+    id,
+    metrics: metricsFor(totals, id),
+  }));
+  return notedTable({
+    columns: COMPONENT_COLUMNS,
+    rows,
+    notes: COMPONENT_NOTES,
   });
-  return [
-    table(
-      [
-        "component",
-        "arrivals",
-        "ok",
-        "failed",
-        "rejected",
-        "unfinished",
-        "timeouts",
-        "p50",
-        "p99",
-        "peak busy",
-        "peak queue",
-        "other",
-      ],
-      rows,
-    ),
-    "",
-    'arrivals = ok + failed + rejected + unfinished. "unfinished" work was still running or waiting when the run ended.',
-    `"timeouts" isn't part of that sum: the caller stopped waiting, but the component still finished the work as ok or failed.`,
-    'Latencies are in ms (bucket upper bounds, up to 5% high), of ok work. "busy" is work running; "queue" is work waiting.',
-    'Queues: "ok" counts messages accepted. Each is then delivered (async ok), waiting in the backlog, or being delivered.',
-    '"async failed" counts failed deliveries; those messages go back to the backlog and are tried again.',
-  ].join("\n");
 }
 
 /** Work that arrived and hadn't finished or been rejected by the end. */
@@ -152,47 +204,71 @@ function extras(m: ComponentMetrics): string {
   return parts.join(", ");
 }
 
-function workflowTimeline(snapshots: readonly MetricsSnapshot[]): string {
-  const ids = Object.keys(snapshots[0]?.workflows ?? {});
-  let inProgress = 0;
-  const rows = snapshots.map((s) => {
-    const all = Object.values(s.workflows);
-    const started = sum(all.map((w) => w.started));
-    const succeeded = sum(all.map((w) => w.succeeded));
-    const failed = sum(all.map((w) => w.failed));
-    inProgress += started - succeeded - failed;
-    return [
-      seconds(s.endMs),
-      count(started),
-      count(succeeded),
-      count(failed),
-      count(inProgress),
-      ...ids.map((id) => ms(s.workflows[id]?.latency?.p99Ms)),
-    ];
-  });
-  return [
-    table(
-      [
-        "t (s)",
-        "started",
-        "ok",
-        "failed",
-        "in progress",
-        ...ids.map((id) => `${id} p99`),
-      ],
-      rows,
-    ),
-    "",
-    'Each row covers the second ending at t. "started" counts requests that arrived in it; "ok" and "failed" count those answered in it, whenever they started.',
-    `"in progress" is at the end of the second: the previous row's, plus started, minus ok and failed. The last row matches the Workflows total.`,
-  ].join("\n");
+/** Requests started and answered in one second, across all workflows. */
+interface WorkflowCounts {
+  readonly started: number;
+  readonly succeeded: number;
+  readonly failed: number;
 }
 
-/** One column of a per-second table: its header and its cell for a snapshot. */
-interface TimelineColumn {
-  readonly header: string;
-  readonly value: (snapshot: MetricsSnapshot) => string;
+/** One second of the Workflows per second table. */
+interface WorkflowSecond extends WorkflowCounts {
+  readonly snapshot: MetricsSnapshot;
+  /** Requests unanswered at the end of the second. */
+  readonly inProgress: number;
 }
+
+const WORKFLOW_SECOND_COLUMNS: readonly Column<WorkflowSecond>[] = [
+  { header: "t (s)", cell: (r) => seconds(r.snapshot.endMs) },
+  { header: "started", cell: (r) => count(r.started) },
+  { header: "ok", cell: (r) => count(r.succeeded) },
+  { header: "failed", cell: (r) => count(r.failed) },
+  { header: "in progress", cell: (r) => count(r.inProgress) },
+];
+
+const WORKFLOW_SECOND_NOTES = [
+  'Each row covers the second ending at t. "started" counts requests that arrived in it; "ok" and "failed" count those answered in it, whenever they started.',
+  `"in progress" is at the end of the second: the previous row's, plus started, minus ok and failed. The last row matches the Workflows total.`,
+];
+
+function workflowTimeline(snapshots: readonly MetricsSnapshot[]): string {
+  const ids = Object.keys(snapshots[0]?.workflows ?? {});
+  const p99Columns = ids.map((id): Column<WorkflowSecond> => ({
+    header: `${id} p99`,
+    cell: (r) => ms(r.snapshot.workflows[id]?.latency?.p99Ms),
+  }));
+  return notedTable({
+    columns: [...WORKFLOW_SECOND_COLUMNS, ...p99Columns],
+    rows: workflowSeconds(snapshots),
+    notes: WORKFLOW_SECOND_NOTES,
+  });
+}
+
+/** Each snapshot's counts, with the running total still in progress. */
+function workflowSeconds(
+  snapshots: readonly MetricsSnapshot[],
+): WorkflowSecond[] {
+  let inProgress = 0;
+  return snapshots.map((snapshot) => {
+    const counts = workflowCounts(snapshot);
+    inProgress += counts.started - counts.succeeded - counts.failed;
+    return { ...counts, snapshot, inProgress };
+  });
+}
+
+function workflowCounts(snapshot: MetricsSnapshot): WorkflowCounts {
+  const all = Object.values(snapshot.workflows);
+  return {
+    started: sum(all.map((w) => w.started)),
+    succeeded: sum(all.map((w) => w.succeeded)),
+    failed: sum(all.map((w) => w.failed)),
+  };
+}
+
+const TIME_COLUMN: Column<MetricsSnapshot> = {
+  header: "t (s)",
+  cell: (s) => seconds(s.endMs),
+};
 
 /**
  * Peak work in progress for every component, plus queue depth and gauges
@@ -202,47 +278,45 @@ function componentTimeline(
   project: Project,
   snapshots: readonly MetricsSnapshot[],
 ): string {
-  const columns: TimelineColumn[] = [];
-  for (const { id } of project.architecture.components) {
-    columns.push({
-      header: `${id} busy`,
-      value: (s) => count(metricsFor(s, id).peakInProgress),
-    });
-    if (snapshots.some((s) => metricsFor(s, id).peakQueueDepth > 0)) {
-      columns.push({
-        header: `${id} queue`,
-        value: (s) => count(metricsFor(s, id).peakQueueDepth),
-      });
-    }
-    const gauges = Object.keys(snapshots[0]?.components[id]?.gauges ?? {});
-    for (const gauge of gauges) {
-      columns.push({
-        header: `${id} ${gauge}`,
-        value: (s) => count(metricsFor(s, id).gauges[gauge] ?? 0),
-      });
-    }
-  }
-  const rows = snapshots.map((s) => [
-    seconds(s.endMs),
-    ...columns.map((c) => c.value(s)),
-  ]);
-  return [
-    table(["t (s)", ...columns.map((c) => c.header)], rows),
-    "",
-    "busy and queue are peaks during the second; gauges are values at its end.",
-  ].join("\n");
+  const columns = project.architecture.components.flatMap(({ id }) =>
+    componentColumns(id, snapshots),
+  );
+  return notedTable({
+    columns: [TIME_COLUMN, ...columns],
+    rows: snapshots,
+    notes: [
+      "busy and queue are peaks during the second; gauges are values at its end.",
+    ],
+  });
+}
+
+/** One component's columns: busy, queue if it ever had one, then gauges. */
+function componentColumns(
+  id: string,
+  snapshots: readonly MetricsSnapshot[],
+): Column<MetricsSnapshot>[] {
+  const busy: Column<MetricsSnapshot> = {
+    header: `${id} busy`,
+    cell: (s) => count(metricsFor(s, id).peakInProgress),
+  };
+  const queue: Column<MetricsSnapshot> = {
+    header: `${id} queue`,
+    cell: (s) => count(metricsFor(s, id).peakQueueDepth),
+  };
+  const hasQueue = snapshots.some((s) => metricsFor(s, id).peakQueueDepth > 0);
+  const gauges = Object.keys(snapshots[0]?.components[id]?.gauges ?? {}).map(
+    (gauge): Column<MetricsSnapshot> => ({
+      header: `${id} ${gauge}`,
+      cell: (s) => count(metricsFor(s, id).gauges[gauge] ?? 0),
+    }),
+  );
+  return [busy, ...(hasQueue ? [queue] : []), ...gauges];
 }
 
 function metricsFor(snapshot: MetricsSnapshot, id: string): ComponentMetrics {
   const metrics = snapshot.components[id];
   if (metrics === undefined) throw new Error(`No metrics for ${id}`);
   return metrics;
-}
-
-function latencyCells(latency: LatencySummary | undefined): string[] {
-  return [latency?.p50Ms, latency?.p95Ms, latency?.p99Ms, latency?.maxMs].map(
-    ms,
-  );
 }
 
 /** Right-aligns columns that hold only numbers (or "-"); left-aligns the rest. */

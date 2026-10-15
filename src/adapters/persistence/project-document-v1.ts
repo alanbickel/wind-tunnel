@@ -98,3 +98,6 @@ export const projectDocumentV1Schema = z.strictObject({
 
 export type ProjectDocumentV1 = z.infer<typeof projectDocumentV1Schema>;
 export type StepDocument = z.infer<typeof stepSchema>;
+export type ArchitectureDocument = ProjectDocumentV1["architecture"];
+export type WorkflowDocument = z.infer<typeof workflowSchema>;
+export type WorkloadDocument = z.infer<typeof workloadSchema>;

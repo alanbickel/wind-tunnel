@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { SeededRandom } from "../random/random-source";
-import { ComponentRegistry } from "./component-registry";
+import { ComponentRegistryMap } from "./component-registry-map";
 import {
   messageQueueDefinition,
   workerPoolDefinition,
 } from "./testing/fake-definitions";
 
 const registry = () =>
-  new ComponentRegistry()
+  new ComponentRegistryMap()
     .register(workerPoolDefinition)
     .register(messageQueueDefinition);
 
-describe("ComponentRegistry", () => {
+describe("ComponentRegistryMap", () => {
   it("looks up registered types and lists them in order", () => {
     const r = registry();
     expect(r.get("test-worker-pool")?.displayName).toBe("Test worker pool");

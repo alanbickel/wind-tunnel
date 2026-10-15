@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Component, Project } from "../model/project";
-import { ComponentRegistry } from "./component-registry";
+import { ComponentRegistryMap } from "./component-registry-map";
 import { findProjectIssues } from "./find-project-issues";
 import { workerPoolDefinition } from "./testing/fake-definitions";
 
-const registry = new ComponentRegistry().register(workerPoolDefinition);
+const registry = new ComponentRegistryMap().register(workerPoolDefinition);
 
 const worker: Component = {
   id: "worker",

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Project, Step } from "../model/project";
-import { ComponentRegistry } from "./component-registry";
+import { ComponentRegistryMap } from "./component-registry-map";
 import {
   messageQueueDefinition,
   workerPoolDefinition,
 } from "./testing/fake-definitions";
 import { validateComponents } from "./validate-components";
 
-const registry = new ComponentRegistry()
+const registry = new ComponentRegistryMap()
   .register(workerPoolDefinition)
   .register(messageQueueDefinition);
 

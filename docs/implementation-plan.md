@@ -51,7 +51,7 @@ Decisions that still apply: rule 7 applies to component methods (no exception). 
 - [x] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
 - [x] Use cases: `ListProjects`, `ListTemplates`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `OpenProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
 - [x] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Make the CLI run through `RunSimulation` (which now has the seed override) and delete its own `selectWorkload`/`withSeed`. Add `RunSimulation` to `use-cases-with-indexeddb.test.ts`
-- [ ] Request persistent storage (`navigator.storage.persist()`)
+- [x] Request persistent storage (`navigator.storage.persist()`): the `StoragePersistence` port and its browser adapter; the UI makes the call in M3
 - [ ] Onboarding guide for the application layer and persistence: ports, records vs. documents, a use case traced end to end
 
 ## M3: Minimal UI
@@ -66,12 +66,18 @@ Tasks will be refined at the end of M2.
 - [ ] Read-only architecture view
 - [ ] Web Worker `SimulationRunner` adapter. Add cancellation to the port (stop a run, terminate the Worker); M2's port has none because `AbortSignal` isn't in the ECMAScript-only lib `application/` is checked with
 - [ ] Run controls and metric charts
+- [ ] Call `StoragePersistence.request()` after the user's first project is created (Firefox prompts, so not at startup); if it isn't `persisted`, point to export
 
 ---
 
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-15: M2 persistent storage
+
+- **`StoragePersistence` port** (`request()` → `persisted`, `best-effort`, or `unsupported`) and **`BrowserStoragePersistence({ storage })`**, which checks `persisted()` before calling `persist()`. Pass `navigator.storage`, or `undefined` where it's missing (outside secure contexts).
+- **Differs from the plan:** nothing calls it yet. Firefox prompts the user ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)), so asking at startup would prompt before there's anything to keep. M3 calls it after the first project is created.
 
 ### 2026-10-15: M2 in-process runner
 

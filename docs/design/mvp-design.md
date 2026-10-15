@@ -242,6 +242,7 @@ Each request generates roughly 5 to 15 events. A 60-second run at 2,000 requests
 | `SimulationRunner` | Start a run and stream snapshots | Web Worker (in-process for tests) |
 | `Clock` | Current wall-clock time for timestamps like `createdAt`, as an ISO 8601 string | `Date` |
 | `IdGenerator` | New unique IDs | `crypto.randomUUID()` |
+| `StoragePersistence` | Ask the browser not to evict saved projects ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). Firefox prompts the user, so ask after the first project is created, not at startup | `navigator.storage.persist()` |
 
 The repository and the catalog exchange **`ProjectRecord`s**: a domain `Project` plus `createdAt`, `updatedAt`, `source`, and `layout`. Adapters map records to and from the project document (§6), so use cases never see the stored format ([ADR-0008](../adr/0008-ports-exchange-project-records.md)). The ports are in `src/application/ports/`; in-memory fakes, a sample record, and `checkProjectRepositoryContract` are in `src/application/testing/`.
 

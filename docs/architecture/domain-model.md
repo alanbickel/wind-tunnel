@@ -67,7 +67,7 @@ flowchart LR
     C --> OK[Project ready to simulate]
 ```
 
-The document's structure mirrors the domain's, so an issue's path, like `["architecture", "edges", 2, "to"]`, points at the same place whichever stage found it. Objects in the schema are **strict**: an unknown key such as `latencyMS` is an error rather than being silently dropped, which catches typos in hand-written templates.
+The document's structure mirrors the domain's, so an issue's path, like `["architecture", "edges", 2, "to"]`, points at the same place whichever stage found it. The one difference is units: the document gives workload times in seconds (`durationSec`, `atSec`), which are easier to write by hand, and the domain keeps every time in milliseconds (`durationMs`, `atMs`). `loadProject` converts them and renames those fields in issue paths, so the user always sees a path into the document. Objects in the schema are **strict**: an unknown key such as `latencyMS` is an error rather than being silently dropped, which catches typos in hand-written templates.
 
 Consistency rules:
 
@@ -85,7 +85,7 @@ path                          message
 architecture.edges.2.to       Edge "fn->cache" refers to unknown component "cache".
 workflows.0.root.calls.0      No edge from "api" to "db"; every call must follow an edge.
 workloads.0.mix.0.workflowId  Mix refers to unknown workflow "gett".
-workloads.0.profile.1.atSec   Profile times must increase; 0 s comes after 0 s.
+workloads.0.profile.1.atMs    Profile times must increase; 0 s comes after 0 s.
 ```
 
 Rules that depend on a component's type (for example, "only queues accept `enqueue`" or "this Lambda's config is valid") belong to the component definitions, not here. That keeps this validator unchanged when new component types are added. Those rules are checked by `validateComponents`; see [Component definitions](component-definitions.md#type-specific-validation).

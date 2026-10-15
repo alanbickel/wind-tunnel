@@ -65,7 +65,7 @@ export function loadProject(
   }
 
   const project = toProject(parsed.data);
-  const issues = checkProject(project, registry);
+  const issues = checkProject(project, registry).map(toDocumentIssue);
   if (issues.length > 0) return { ok: false, issues };
   return { ok: true, project, document: parsed.data };
 }
@@ -94,9 +94,30 @@ function checkProject(
 }
 
 /**
+ * Domain fields with a different name in the document. The document gives
+ * workload times in seconds, which people find easier to write; the domain
+ * keeps every time in milliseconds.
+ */
+const DOCUMENT_FIELD_NAMES: Readonly<Record<string, string>> = {
+  atMs: "atSec",
+  durationMs: "durationSec",
+};
+
+/** The issue with its path pointing into the document, not the domain. */
+function toDocumentIssue(issue: ValidationIssue): ValidationIssue {
+  return {
+    ...issue,
+    path: issue.path.map((key) =>
+      typeof key === "string" ? (DOCUMENT_FIELD_NAMES[key] ?? key) : key,
+    ),
+  };
+}
+
+/**
  * Maps a parsed document to domain entities. The domain's structure mirrors
- * the document's, so validation paths point at the same places in both.
- * Document-only fields (`layout`, timestamps, `source`) are left out.
+ * the document's, so validation paths point at the same places in both,
+ * apart from the renamed fields in `DOCUMENT_FIELD_NAMES`. Document-only
+ * fields (`layout`, timestamps, `source`) are left out.
  */
 export function toProject(document: ProjectDocumentV1): Project {
   return {
@@ -138,10 +159,13 @@ function toWorkload(workload: WorkloadDocument): Workload {
   return {
     id: workload.id,
     name: workload.name,
-    durationSec: workload.durationSec,
+    durationMs: workload.durationSec * 1000,
     seed: workload.seed,
     mix: workload.mix.map((m) => ({ ...m })),
-    profile: workload.profile.map((p) => ({ ...p })),
+    profile: workload.profile.map((p) => ({
+      atMs: p.atSec * 1000,
+      requestsPerSec: p.requestsPerSec,
+    })),
   };
 }
 

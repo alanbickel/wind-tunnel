@@ -75,10 +75,10 @@ const edge = (
 const lightLoad: Workload = {
   id: "light",
   name: "Light",
-  durationSec: 5,
+  durationMs: 5_000,
   seed: 1,
   mix: [{ workflowId: "main", weight: 1 }],
-  profile: [{ atSec: 0, requestsPerSec: 2 }],
+  profile: [{ atMs: 0, requestsPerSec: 2 }],
 };
 
 interface Setup {

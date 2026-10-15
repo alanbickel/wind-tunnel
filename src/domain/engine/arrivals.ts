@@ -2,34 +2,31 @@ import type { ProfilePoint, Workload } from "../model/project";
 import type { RandomSource } from "../random/random-source";
 
 /**
- * Target request rate at `atSec`: linear between profile points, flat before
+ * Target request rate at `atMs`: linear between profile points, flat before
  * the first point and after the last (MVP design §3.4).
  */
-export function rateAt(
-  profile: readonly ProfilePoint[],
-  atSec: number,
-): number {
-  const index = profile.findIndex((point) => atSec <= point.atSec);
+export function rateAt(profile: readonly ProfilePoint[], atMs: number): number {
+  const index = profile.findIndex((point) => atMs <= point.atMs);
   const point = profile[index];
   // Past the last point (index -1), or an empty profile.
   if (point === undefined) return profile.at(-1)?.requestsPerSec ?? 0;
   const previous = profile[index - 1];
-  if (previous === undefined || point.atSec === previous.atSec) {
+  if (previous === undefined || point.atMs === previous.atMs) {
     return point.requestsPerSec;
   }
-  return interpolate({ from: previous, to: point, atSec });
+  return interpolate({ from: previous, to: point, atMs });
 }
 
 interface Interpolation {
   readonly from: ProfilePoint;
   readonly to: ProfilePoint;
-  /** Between `from.atSec` and `to.atSec`. */
-  readonly atSec: number;
+  /** Between `from.atMs` and `to.atMs`. */
+  readonly atMs: number;
 }
 
 /** The rate on the straight line between two profile points. */
-function interpolate({ from, to, atSec }: Interpolation): number {
-  const share = (atSec - from.atSec) / (to.atSec - from.atSec);
+function interpolate({ from, to, atMs }: Interpolation): number {
+  const share = (atMs - from.atMs) / (to.atMs - from.atMs);
   return (
     from.requestsPerSec + share * (to.requestsPerSec - from.requestsPerSec)
   );
@@ -71,7 +68,7 @@ export class ArrivalProcess {
       0,
       ...workload.profile.map((p) => p.requestsPerSec),
     );
-    this.endMs = workload.durationSec * 1000;
+    this.endMs = workload.durationMs;
     this.totalWeight = workload.mix.reduce((sum, m) => sum + m.weight, 0);
   }
 
@@ -83,7 +80,7 @@ export class ArrivalProcess {
     for (;;) {
       timeMs += -meanGapMs * Math.log(1 - this.timing.next());
       if (timeMs >= this.endMs) return undefined;
-      const rate = rateAt(this.workload.profile, timeMs / 1000);
+      const rate = rateAt(this.workload.profile, timeMs);
       if (this.timing.next() * this.peakPerSec < rate) return timeMs;
     }
   }

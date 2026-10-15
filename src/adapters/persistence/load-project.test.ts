@@ -134,6 +134,44 @@ describe("loadProject", () => {
     expect(result.document.layout.nodes["fn"]).toEqual({ x: 200, y: 0 });
   });
 
+  it("converts workload times from the document's seconds to milliseconds", () => {
+    const doc = document();
+    set(
+      doc,
+      ["workloads", 0, "profile"],
+      [
+        { atSec: 0, requestsPerSec: 50 },
+        { atSec: 1.5, requestsPerSec: 80 },
+      ],
+    );
+    const result = loadProject(doc, registry);
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    const workload = result.project.workloads[0];
+    expect(workload?.durationMs).toBe(60_000);
+    expect(workload?.profile).toEqual([
+      { atMs: 0, requestsPerSec: 50 },
+      { atMs: 1_500, requestsPerSec: 80 },
+    ]);
+  });
+
+  it("reports issues in renamed fields at the document's field name", () => {
+    const doc = document();
+    set(
+      doc,
+      ["workloads", 0, "profile"],
+      [
+        { atSec: 2, requestsPerSec: 50 },
+        { atSec: 1, requestsPerSec: 50 },
+      ],
+    );
+    expect(issuesFor(doc)).toEqual([
+      {
+        path: ["workloads", 0, "profile", 1, "atSec"],
+        message: "Profile times must increase; 1 s comes after 2 s.",
+      },
+    ]);
+  });
+
   it("refuses an unknown schema version, or something that isn't a project", () => {
     const newer = document();
     newer["schemaVersion"] = 2;

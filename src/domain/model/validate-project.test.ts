@@ -76,15 +76,15 @@ function workload(overrides: Partial<Workload> = {}): Workload {
   return {
     id: "lunch-rush",
     name: "Lunch rush",
-    durationSec: 60,
+    durationMs: 60_000,
     seed: 42,
     mix: [
       { workflowId: "get-order", weight: 80 },
       { workflowId: "create-order", weight: 20 },
     ],
     profile: [
-      { atSec: 0, requestsPerSec: 200 },
-      { atSec: 20, requestsPerSec: 2000 },
+      { atMs: 0, requestsPerSec: 200 },
+      { atMs: 20_000, requestsPerSec: 2000 },
     ],
     ...overrides,
   };
@@ -281,10 +281,10 @@ describe("validateProject", () => {
 
     it("rejects profile times that don't increase", () => {
       const profile = [
-        { atSec: 0, requestsPerSec: 1 },
-        { atSec: 10, requestsPerSec: 1 },
-        { atSec: 10, requestsPerSec: 1 },
-        { atSec: 5, requestsPerSec: 1 },
+        { atMs: 0, requestsPerSec: 1 },
+        { atMs: 10_000, requestsPerSec: 1 },
+        { atMs: 10_000, requestsPerSec: 1 },
+        { atMs: 5_000, requestsPerSec: 1 },
       ];
       expect(messages(withWorkload({ profile }))).toEqual([
         "Profile times must increase; 10 s comes after 10 s.",
@@ -293,7 +293,7 @@ describe("validateProject", () => {
     });
 
     it("rejects negative rates", () => {
-      const profile = [{ atSec: 0, requestsPerSec: -5 }];
+      const profile = [{ atMs: 0, requestsPerSec: -5 }];
       expect(messages(withWorkload({ profile }))).toEqual([
         "Request rates can't be negative.",
       ]);

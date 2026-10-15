@@ -163,11 +163,13 @@ A workload has a **mix** (relative weights of workflows) and a **profile** (targ
 interface Workload {
   id: string;
   name: string;
-  durationSec: number;
+  durationMs: number;
   mix: { workflowId: string; weight: number }[];
-  profile: { atSec: number; requestsPerSec: number }[];
+  profile: { atMs: number; requestsPerSec: number }[];
 }
 ```
+
+The stored document (§6) gives these times in seconds (`durationSec`, `atSec`); the document mapper converts them.
 
 Arrivals are random (a Poisson process), following the profile's rate. Requests keep arriving at the target rate however slow the system gets. This is called an **open model**.
 

@@ -270,10 +270,10 @@ function checkProfile({ workload, path }: WorkloadAt, report: Report): void {
   workload.profile.forEach((point, index) => {
     const pointPath = [...path, "profile", index];
     const previous = workload.profile[index - 1];
-    if (previous !== undefined && !(point.atSec > previous.atSec)) {
+    if (previous !== undefined && !(point.atMs > previous.atMs)) {
       report(
-        [...pointPath, "atSec"],
-        `Profile times must increase; ${String(point.atSec)} s comes after ${String(previous.atSec)} s.`,
+        [...pointPath, "atMs"],
+        `Profile times must increase; ${seconds(point.atMs)} comes after ${seconds(previous.atMs)}.`,
       );
     }
     if (!(point.requestsPerSec >= 0)) {
@@ -283,4 +283,9 @@ function checkProfile({ workload, path }: WorkloadAt, report: Report): void {
       );
     }
   });
+}
+
+/** A time for a message, in the seconds users enter in the document. */
+function seconds(timeMs: number): string {
+  return `${String(timeMs / 1000)} s`;
 }

@@ -35,7 +35,7 @@ export function formatReport(input: ReportInput): string {
 function heading({ project, workload, run }: ReportInput): string {
   return [
     `${project.name} (${project.id})`,
-    `Workload: ${workload.name} (${workload.id}), ${String(workload.durationSec)} s, seed ${String(workload.seed)}`,
+    `Workload: ${workload.name} (${workload.id}), ${String(workload.durationMs / 1000)} s, seed ${String(workload.seed)}`,
     `Events processed: ${run.eventsProcessed.toLocaleString("en-US")}`,
   ].join("\n");
 }

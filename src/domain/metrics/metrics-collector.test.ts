@@ -76,10 +76,10 @@ function project({ queryMs = 15, dbTimeoutMs = 1_000 } = {}): Project {
       {
         id: "light",
         name: "Light",
-        durationSec: 3,
+        durationMs: 3_000,
         seed: 1,
         mix: [{ workflowId: "get", weight: 1 }],
-        profile: [{ atSec: 0, requestsPerSec: 5 }],
+        profile: [{ atMs: 0, requestsPerSec: 5 }],
       },
     ],
   };

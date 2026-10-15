@@ -314,7 +314,7 @@ class Simulation {
     });
     this.retryRandom = random("retries");
     this.observe = input.observer ?? ignoreEvent;
-    this.untilMs = input.untilMs ?? workload.durationSec * 1000;
+    this.untilMs = input.untilMs ?? workload.durationMs;
     this.tickMs = checkTickMs(input.tickMs);
     this.nextTickMs = this.tickMs ?? Infinity;
   }

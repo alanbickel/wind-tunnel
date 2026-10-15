@@ -69,7 +69,7 @@ export interface MixEntry {
 
 /** Target request rate at a point in time; linear between points. */
 export interface ProfilePoint {
-  readonly atSec: number;
+  readonly atMs: number;
   readonly requestsPerSec: number;
 }
 
@@ -77,7 +77,7 @@ export interface ProfilePoint {
 export interface Workload {
   readonly id: string;
   readonly name: string;
-  readonly durationSec: number;
+  readonly durationMs: number;
   readonly seed: number;
   readonly mix: readonly MixEntry[];
   readonly profile: readonly ProfilePoint[];

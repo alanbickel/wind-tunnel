@@ -6,10 +6,10 @@ import { ArrivalProcess, rateAt } from "./arrivals";
 const workload = (overrides: Partial<Workload> = {}): Workload => ({
   id: "w",
   name: "Workload",
-  durationSec: 60,
+  durationMs: 60_000,
   seed: 1,
   mix: [{ workflowId: "only", weight: 1 }],
-  profile: [{ atSec: 0, requestsPerSec: 100 }],
+  profile: [{ atMs: 0, requestsPerSec: 100 }],
   ...overrides,
 });
 
@@ -31,19 +31,19 @@ const process = (w: Workload, seed = 1) =>
 
 describe("rateAt", () => {
   const profile = [
-    { atSec: 10, requestsPerSec: 200 },
-    { atSec: 20, requestsPerSec: 2_000 },
-    { atSec: 40, requestsPerSec: 2_000 },
+    { atMs: 10_000, requestsPerSec: 200 },
+    { atMs: 20_000, requestsPerSec: 2_000 },
+    { atMs: 40_000, requestsPerSec: 2_000 },
   ];
 
   it("interpolates linearly between points", () => {
-    expect(rateAt(profile, 15)).toBe(1_100);
-    expect(rateAt(profile, 30)).toBe(2_000);
+    expect(rateAt(profile, 15_000)).toBe(1_100);
+    expect(rateAt(profile, 30_000)).toBe(2_000);
   });
 
   it("is flat before the first point and after the last", () => {
     expect(rateAt(profile, 0)).toBe(200);
-    expect(rateAt(profile, 50)).toBe(2_000);
+    expect(rateAt(profile, 50_000)).toBe(2_000);
   });
 });
 
@@ -63,11 +63,11 @@ describe("ArrivalProcess", () => {
     const times = arrivals(
       process(
         workload({
-          durationSec: 20,
+          durationMs: 20_000,
           profile: [
-            { atSec: 0, requestsPerSec: 100 },
-            { atSec: 10, requestsPerSec: 100 },
-            { atSec: 20, requestsPerSec: 1_100 },
+            { atMs: 0, requestsPerSec: 100 },
+            { atMs: 10_000, requestsPerSec: 100 },
+            { atMs: 20_000, requestsPerSec: 1_100 },
           ],
         }),
       ),
@@ -82,7 +82,7 @@ describe("ArrivalProcess", () => {
   });
 
   it("produces nothing when the rate is zero", () => {
-    const w = workload({ profile: [{ atSec: 0, requestsPerSec: 0 }] });
+    const w = workload({ profile: [{ atMs: 0, requestsPerSec: 0 }] });
     expect(process(w).next(0)).toBeUndefined();
   });
 

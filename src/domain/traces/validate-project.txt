@@ -6,4 +6,4 @@ path                          message
 architecture.edges.2.to       Edge "fn->cache" refers to unknown component "cache".
 workflows.0.root.calls.0      No edge from "api" to "db"; every call must follow an edge.
 workloads.0.mix.0.workflowId  Mix refers to unknown workflow "gett".
-workloads.0.profile.1.atSec   Profile times must increase; 0 s comes after 0 s.
+workloads.0.profile.1.atMs    Profile times must increase; 0 s comes after 0 s.

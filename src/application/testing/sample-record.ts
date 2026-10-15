@@ -84,10 +84,10 @@ export const sampleRecord: ProjectRecord = {
       {
         id: "steady",
         name: "Steady",
-        durationSec: 5,
+        durationMs: 5_000,
         seed: 1,
         mix: [{ workflowId: "read", weight: 1 }],
-        profile: [{ atSec: 0, requestsPerSec: 20 }],
+        profile: [{ atMs: 0, requestsPerSec: 20 }],
       },
     ],
   },

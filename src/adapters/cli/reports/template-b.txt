@@ -1,0 +1,169 @@
+Serverless API with DynamoDB + SQS (template-b)
+Workload: Lunch rush (lunch-rush), 60 s, seed 42
+Events processed: 857,808
+
+Workflows
+=========
+workflow      started      ok  failed  in progress  failed %  p50  p95  p99    max
+------------  -------  ------  ------  -----------  --------  ---  ---  ---  -----
+get-order      52,871  52,865       0            6      0.0%   45   81  108  1,145
+create-order   13,103  13,101       0            2      0.0%   50   85  114  1,143
+
+started = ok + failed + in progress. "in progress" requests had no answer yet when the run ended.
+"failed %" is of answered requests (ok + failed). Latencies are in ms, of ok requests.
+
+Failures
+========
+None.
+
+Components
+==========
+component     arrivals      ok  failed  rejected  unfinished  timeouts  p50  p99  peak busy  peak queue  other
+------------  --------  ------  ------  --------  ----------  --------  ---  ---  ---------  ----------  ----------------------------------------------------------------------------
+api             65,974  65,966       0         0           8         0   45  108        138           0
+fn-api          65,972  65,966       0         0           6         0   30   93        101           0  coldStarts=101
+orders-read     52,865  52,865       0         0           0         0    5   21         26           0
+orders-queue    13,102  13,101       0         0           1         0   10   30         14           0  async ok=13,098, async failed=0, backlog=0, being delivered=3, async p99=194
+fn-writer       13,101  13,098       0         0           3         0   41  119         35           0  coldStarts=35
+orders-db       13,099  13,098       0         0           1         0   15   63         16           3
+
+arrivals = ok + failed + rejected + unfinished. "unfinished" work was still running or waiting when the run ended.
+"timeouts" isn't part of that sum: the caller stopped waiting, but the component still finished the work as ok or failed.
+Latencies are in ms (bucket upper bounds, up to 5% high), of ok work. "busy" is work running; "queue" is work waiting.
+Queues: "ok" counts messages accepted. Each is then delivered (async ok), waiting in the backlog, or being delivered.
+"async failed" counts failed deliveries; those messages go back to the backlog and are tried again.
+
+Workflows per second
+====================
+t (s)  started     ok  failed  in progress  get-order p99  create-order p99
+-----  -------  -----  ------  -----------  -------------  ----------------
+    1      224    206       0           18            658               584
+    2      172    182       0            8            926             1,143
+    3      201    200       0            9             99               110
+    4      191    189       0           11             98               102
+    5      181    181       0           11            114                83
+    6      170    169       0           12            108                79
+    7      194    199       0            7            114               111
+    8      210    205       0           12            101               137
+    9      189    189       0           12            103               105
+   10      198    203       0            7             93               106
+   11      275    253       0           29            103                99
+   12      492    491       0           30            108               114
+   13      647    639       0           38            108               108
+   14      830    827       0           41            108               132
+   15    1,006    995       0           52            119                98
+   16    1,185  1,172       0           65            103               108
+   17    1,378  1,371       0           72            176               103
+   18    1,487  1,488       0           71            114                98
+   19    1,774  1,756       0           89            114               204
+   20    1,922  1,889       0          122            108               108
+   21    1,990  2,010       0          102            125               125
+   22    1,989  2,002       0           89            108               108
+   23    1,957  1,947       0           99            103               103
+   24    2,041  2,032       0          108            119               108
+   25    1,953  1,971       0           90            108               108
+   26    1,945  1,939       0           96            103               108
+   27    2,010  2,005       0          101            108               138
+   28    2,003  2,022       0           82            114               114
+   29    1,959  1,945       0           96            103               114
+   30    2,044  2,015       0          125            103               103
+   31    1,981  2,000       0          106            108               125
+   32    2,076  2,088       0           94            103               103
+   33    2,015  2,015       0           94            103               119
+   34    2,000  2,002       0           92            108               108
+   35    1,990  1,984       0           98            103               125
+   36    2,048  2,047       0           99            119               114
+   37    2,025  2,037       0           87            108               119
+   38    1,978  1,958       0          107            108               103
+   39    2,038  2,054       0           91            108               108
+   40    1,992  1,989       0           94             98               125
+   41    1,871  1,883       0           82            108               114
+   42    1,750  1,748       0           84            108               103
+   43    1,513  1,533       0           64            103               114
+   44    1,423  1,423       0           64            108               119
+   45    1,207  1,208       0           63            103               114
+   46      981    991       0           53            103               125
+   47      859    875       0           37            103               114
+   48      671    675       0           33            103                98
+   49      480    499       0           14            119                98
+   50      278    286       0            6            103               110
+   51      204    204       0            6            105               122
+   52      207    207       0            6            108                95
+   53      191    187       0           10            108                85
+   54      211    213       0            8            114               153
+   55      188    189       0            7             85                79
+   56      199    195       0           11            103                87
+   57      202    203       0           10             93               133
+   58      152    154       0            8            103               111
+   59      218    213       0           13            103               105
+   60      209    214       0            8            104                86
+
+Each row covers the second ending at t. "started" counts requests that arrived in it; "ok" and "failed" count those answered in it, whenever they started.
+"in progress" is at the end of the second: the previous row's, plus started, minus ok and failed. The last row matches the Workflows total.
+
+Components per second
+=====================
+t (s)  api busy  fn-api busy  orders-read busy  orders-queue busy  fn-writer busy  orders-db busy  orders-db queue  orders-db connectionsHeld
+-----  --------  -----------  ----------------  -----------------  --------------  --------------  ---------------  -------------------------
+    1        59           55                 6                  4              23               5                0                          0
+    2        18           16                 5                  3              12               4                0                          0
+    3        22           17                 7                  4               7               4                0                          3
+    4        17           14                 5                  2               6               4                0                          1
+    5        15           13                 4                  3               6               4                0                          1
+    6        19           15                 7                  3               4               4                0                          0
+    7        18           13                 6                  4               6               5                0                          2
+    8        18           14                 6                  3               5               3                0                          1
+    9        19           13                 5                  4               7               4                0                          0
+   10        16           12                 6                  3               6               5                0                          2
+   11        29           20                 6                  4               7               4                0                          0
+   12        38           26                 8                  7              11               8                0                          1
+   13        49           36                13                  7              12               9                0                          5
+   14        66           51                12                  6              12               9                0                          1
+   15        64           48                16                  7              14               8                0                          5
+   16        81           63                14                  9              17              11                0                          4
+   17        94           70                15                 10              25              13                0                          4
+   18        91           65                19                 10              25              14                0                          1
+   19       116           86                20                 11              25              14                0                          7
+   20       125           82                20                 11              26              14                0                          8
+   21       123           93                19                 12              34              15                0                          7
+   22       124           88                19                 14              27              15                0                          5
+   23       122           85                20                 13              31              16                1                         17
+   24       128           96                20                 13              34              16                3                         10
+   25       118           88                22                 12              28              16                1                          9
+   26       118           87                21                 12              32              16                1                         11
+   27       122           87                21                 10              25              15                0                          7
+   28       133          101                21                 12              26              14                0                          4
+   29       114           83                20                 12              33              16                0                          5
+   30       127           90                26                 12              27              16                0                         16
+   31       128           95                23                 11              31              16                3                          8
+   32       126           96                21                 11              27              15                0                         10
+   33       125           92                20                 12              27              16                0                          8
+   34       119           91                19                 12              31              14                0                          5
+   35       128           92                23                 11              31              16                1                          4
+   36       123           90                26                 11              27              16                0                          0
+   37       123           90                20                 12              31              16                3                         11
+   38       124           88                20                 13              32              16                0                          5
+   39       138           94                21                 12              28              16                0                          8
+   40       116           86                20                 10              27              14                0                          9
+   41       120           91                21                 14              35              16                3                         11
+   42       104           77                19                 10              29              16                0                          7
+   43        94           71                17                 10              21              13                0                          7
+   44       100           77                19                 10              23              15                0                          2
+   45        79           59                15                  8              19              10                0                          4
+   46        63           49                13                  8              18              10                0                          4
+   47        56           44                14                 10              16              11                0                          3
+   48        49           35                11                  7              12               7                0                          3
+   49        37           30                 8                  7              12               7                0                          3
+   50        23           16                 6                  5               7               4                0                          0
+   51        18           14                 6                  4               6               4                0                          1
+   52        19           16                 6                  3               6               3                0                          0
+   53        18           14                 4                  3               5               4                0                          2
+   54        17           13                 5                  3               5               3                0                          3
+   55        15           13                 6                  3               5               3                0                          1
+   56        18           13                 5                  3               5               3                0                          1
+   57        17           12                 6                  3               5               4                0                          0
+   58        13           11                 5                  3               6               3                0                          0
+   59        20           16                 7                  3               5               3                0                          0
+   60        19           13                 5                  3               6               4                0                          1
+
+busy and queue are peaks during the second; gauges are values at its end.

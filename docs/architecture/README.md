@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), and `adapters/persistence/` loads project documents; the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` loads project documents, and `adapters/cli/` runs templates headlessly (`npm run simulate`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -41,7 +41,7 @@ The code follows Clean Architecture ([ADR-0002](../adr/0002-use-clean-architectu
 flowchart TB
     subgraph outer["Outer layers (change often)"]
         UI["ui/<br/>React components & hooks"]
-        AD["adapters/<br/>Worker bridge, storage,<br/>serialization, IaC import/export"]
+        AD["adapters/<br/>Worker bridge, storage,<br/>serialization, IaC import/export,<br/>headless CLI"]
     end
     subgraph app["application/"]
         UC["Use cases<br/>RunSimulation, CompareRuns, ..."]

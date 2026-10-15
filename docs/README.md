@@ -25,6 +25,7 @@ Short, visual introductions to one part of the system. They explain how somethin
 | [How the simulation engine works](architecture/simulation-engine.md) | Discrete-event loop, `EventQueue`, `RateLimit`, `ConcurrencyLimit`, `Queue`, `ServiceTime`, distributions, `simulate`, `ArrivalProcess`, `backoffMs` |
 | [Component definitions](architecture/component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents`, the five AWS types |
 | [How metrics work](architecture/metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, gauges and counters, `LatencyHistogram` |
+| [The headless runner](architecture/headless-runner.md) | `npm run simulate`, `runSimulateCommand`, the text report and how to read it, loading TypeScript through Vite |
 
 ## Design and planning
 

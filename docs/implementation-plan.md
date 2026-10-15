@@ -44,7 +44,7 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 - [x] Metrics: per-component and per-workflow counters, fixed-bucket latency histograms, per-second snapshots, type-specific gauges and counters (RDS connections held, Lambda cold starts), engine ticks
 - [x] Project document Zod schema (v1) and mapper to domain entities
 - [x] Template JSON files A and B. Set DynamoDB's `burstSec` deliberately: the default (300) starts the bucket full and hides throttling in a 60 s run
-- [ ] Headless runner script with a text report (use `simulateWithMetrics`)
+- [x] Headless runner script with a text report (use `simulateWithMetrics`)
 - [ ] Scenario tests for both templates
 - [ ] Tuning pass: adjust defaults until the templates clearly teach their lesson; record final numbers in the design doc
 
@@ -81,6 +81,13 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-15: M1 task 11 (headless runner)
+
+- `npm run simulate -- --template a|b [--workload id] [--seed n]`. `runSimulateCommand(args)` in `src/adapters/cli/` is pure (returns `{ exitCode, output }`); `scripts/simulate.js` loads it with Vite's `runnerImport` (experimental API; about 2 s startup), so no `tsx`. Guide: `docs/architecture/headless-runner.md`.
+- Every total in the report reconciles, including requests still in progress when the run ends; each table states its sum, and `report-reconciles.test.ts` checks the derived remainders against independent values. Keep it that way when adding columns.
+- `simulate-command.test.ts` writes both reports to `src/adapters/cli/reports/*.txt` as file snapshots; tuning will change them (`npx vitest run -u src/adapters/cli`).
+- Seed 42 numbers unchanged from task 10. Template A: `orders-db` queue sits at 74 with 16 running (= 90 connections) from 15 s to 46 s. Template B: `orders-db` queue peaks at 3, so the SQS backlog lesson still needs the tuning pass.
 
 ### 2026-10-14: M1 task 10 (templates)
 

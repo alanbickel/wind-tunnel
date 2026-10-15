@@ -29,6 +29,7 @@ Other scripts:
 | `npm run lint` | ESLint, including the architecture layer rules |
 | `npm run format` | Format code with Prettier |
 | `npm run typecheck` | TypeScript checks for all projects (`tsc -b`) |
+| `npm run simulate -- --template a` | Run a template headlessly and print a text report ([guide](docs/architecture/headless-runner.md)) |
 
 ## Documentation
 

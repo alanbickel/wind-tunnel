@@ -1,7 +1,7 @@
 // Checks that the ESLint layer rules in eslint.config.js actually fire.
 // Without this, a typo in a regex could silently switch a rule off.
 import { ESLint } from "eslint";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const LAYER_RULES = new Set([
   "@typescript-eslint/no-restricted-imports",
@@ -25,6 +25,13 @@ async function violations(filePath: string, code: string): Promise<string[]> {
 }
 
 describe("layer rules", () => {
+  // Regression: the first lint loads the config and plugins, which can take
+  // over 5 s in a busy parallel run. Pay that once here, with its own budget,
+  // instead of timing out whichever test runs first.
+  beforeAll(async () => {
+    await eslint.lintText("", { filePath: "src/domain/warm-up.ts" });
+  }, 60_000);
+
   describe.each([
     ["src/domain/x.ts", "../application/x"],
     ["src/domain/x.ts", "../adapters/x"],

@@ -48,7 +48,7 @@ Decisions that still apply: rule 7 applies to component methods (no exception). 
 - [x] Document mapper, `ProjectRecord` ↔ document (ADR-0008): round-trips `sampleRecord` and both templates through `loadProject` unchanged
 - [x] Document migration scaffolding (`schemaVersion`), run by `loadProject` before the v1 schema
 - [x] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
-- [ ] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
+- [x] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
 - [ ] Use cases: `ListProjects`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `LoadProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
 - [ ] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Move the CLI's seed-override logic into `RunSimulation` so both share it
 - [ ] Request persistent storage (`navigator.storage.persist()`)
@@ -72,6 +72,13 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-15: M2 IndexedDB adapter
+
+- **`openProjectDatabase()`** (`project-database.ts`) opens `wind-tunnel` v1; **`IndexedDbProjectRepository({ database, registry })`** passes the contract. It stores `toProjectDocument(record)` and reads through `loadProject`, so a failing or newer-version document comes back `invalid` with `UNREADABLE_PROJECT_REASON`, yet is still listed (`list` reads only the summary fields, with a fallback name).
+- **Tests:** `import "fake-indexeddb/auto"`, then `vi.stubGlobal("indexedDB", new IDBFactory())` in `beforeEach` for a fresh database per test; close it in `afterEach`.
+- **Not handled yet:** the `blocking`/`versionchange` case (another tab holding an older database version open). Matters once there's a version 2.
+- **Next:** the use cases.
 
 ### 2026-10-15: M2 template catalog
 

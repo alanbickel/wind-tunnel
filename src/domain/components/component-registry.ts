@@ -1,5 +1,6 @@
 import type { StepAction } from "../model/project";
 import type { ValidationIssue } from "../model/validate-project";
+import { issuesFromZod } from "../model/zod-issues";
 import type { ComponentBehavior } from "./component-behavior";
 import type { BuildContext, ComponentDefinition } from "./component-definition";
 
@@ -44,12 +45,7 @@ export class ComponentRegistry {
       checkConfig(config) {
         const result = schema.safeParse(config);
         if (result.success) return [];
-        return result.error.issues.map((issue) => ({
-          path: issue.path.map((key) =>
-            typeof key === "number" ? key : String(key),
-          ),
-          message: issue.message,
-        }));
+        return issuesFromZod(result.error);
       },
       build(config, context) {
         return definition.build(schema.parse(config), context);

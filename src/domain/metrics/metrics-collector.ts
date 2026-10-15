@@ -181,15 +181,16 @@ export interface MetricsRun {
   readonly totals: MetricsSnapshot;
 }
 
+export interface MetricsSimulationInput extends SimulationInput {
+  /** Gets each snapshot as soon as its tick closes, before the run ends. */
+  readonly onSnapshot?: (snapshot: MetricsSnapshot) => void;
+}
+
 /**
  * Runs `simulate` with a `MetricsCollector` attached. Ticks every simulated
  * second unless `tickMs` says otherwise.
  */
-export function simulateWithMetrics(
-  input: SimulationInput & {
-    readonly onSnapshot?: (snapshot: MetricsSnapshot) => void;
-  },
-): MetricsRun {
+export function simulateWithMetrics(input: MetricsSimulationInput): MetricsRun {
   const { onSnapshot, observer, ...rest } = input;
   const collector = new MetricsCollector(input.project, onSnapshot);
   const { eventsProcessed } = simulate({

@@ -46,93 +46,99 @@ export interface ComponentSample {
  * belongs to, including its retries and async work.
  */
 export type SimulationEvent =
-  | {
-      readonly kind: "workflow-started";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly workflowId: string;
-    }
-  | {
-      /** The user got an answer. Async work may still be pending. */
-      readonly kind: "workflow-finished";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly workflowId: string;
-      readonly latencyMs: number;
-      readonly failure?: Failure;
-    }
-  | {
-      readonly kind: "arrived";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly componentId: string;
-      readonly action: StepAction;
-    }
-  | {
-      readonly kind: "queued";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly componentId: string;
-    }
-  | {
-      readonly kind: "started";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly componentId: string;
-      readonly serviceMs: number;
-    }
-  | {
-      readonly kind: "rejected";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly componentId: string;
-      readonly reason: string;
-    }
-  | {
-      /** Work at a component ended; `latencyMs` counts from its arrival. */
-      readonly kind: "finished";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly componentId: string;
-      readonly latencyMs: number;
-      readonly failure?: Failure;
-    }
-  | {
-      /** One attempt along an edge failed. `retryAtMs` is set if another follows. */
-      readonly kind: "attempt-failed";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly edgeId: string;
-      readonly attempt: number;
-      readonly failure: Failure;
-      readonly retryAtMs?: number;
-    }
-  | {
-      readonly kind: "dispatched";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly componentId: string;
-    }
-  | {
-      /** A delivery of async work ended; `latencyMs` counts from the workflow's start. */
-      readonly kind: "async-finished";
-      readonly timeMs: number;
-      readonly requestId: number;
-      readonly componentId: string;
-      readonly latencyMs: number;
-      readonly succeeded: boolean;
-    }
-  | {
-      /**
-       * A metrics tick (only when `tickMs` is set): every component's state
-       * now. Comes before any other event at the same time, so it closes the
-       * window of events strictly before `timeMs`. The last tick is at the
-       * end of the run and also covers events at exactly that time.
-       */
-      readonly kind: "tick";
-      readonly timeMs: number;
-      readonly components: readonly ComponentSample[];
-    };
+  | WorkflowStartedEvent
+  | WorkflowFinishedEvent
+  | ArrivedEvent
+  | QueuedEvent
+  | StartedEvent
+  | RejectedEvent
+  | FinishedEvent
+  | AttemptFailedEvent
+  | DispatchedEvent
+  | AsyncFinishedEvent
+  | TickEvent;
+
+/** Fields every event about one user request has. */
+export interface RequestEventBase {
+  readonly timeMs: number;
+  readonly requestId: number;
+}
+
+/** Fields every event about a request at one component has. */
+export interface ComponentEventBase extends RequestEventBase {
+  readonly componentId: string;
+}
+
+export interface WorkflowStartedEvent extends RequestEventBase {
+  readonly kind: "workflow-started";
+  readonly workflowId: string;
+}
+
+/** The user got an answer. Async work may still be pending. */
+export interface WorkflowFinishedEvent extends RequestEventBase {
+  readonly kind: "workflow-finished";
+  readonly workflowId: string;
+  readonly latencyMs: number;
+  readonly failure?: Failure;
+}
+
+export interface ArrivedEvent extends ComponentEventBase {
+  readonly kind: "arrived";
+  readonly action: StepAction;
+}
+
+export interface QueuedEvent extends ComponentEventBase {
+  readonly kind: "queued";
+}
+
+export interface StartedEvent extends ComponentEventBase {
+  readonly kind: "started";
+  readonly serviceMs: number;
+}
+
+export interface RejectedEvent extends ComponentEventBase {
+  readonly kind: "rejected";
+  readonly reason: string;
+}
+
+/** Work at a component ended; `latencyMs` counts from its arrival. */
+export interface FinishedEvent extends ComponentEventBase {
+  readonly kind: "finished";
+  readonly latencyMs: number;
+  readonly failure?: Failure;
+}
+
+/** One attempt along an edge failed. `retryAtMs` is set if another follows. */
+export interface AttemptFailedEvent extends RequestEventBase {
+  readonly kind: "attempt-failed";
+  readonly edgeId: string;
+  readonly attempt: number;
+  readonly failure: Failure;
+  readonly retryAtMs?: number;
+}
+
+export interface DispatchedEvent extends ComponentEventBase {
+  readonly kind: "dispatched";
+}
+
+/** A delivery of async work ended; `latencyMs` counts from the workflow's start. */
+export interface AsyncFinishedEvent extends ComponentEventBase {
+  readonly kind: "async-finished";
+  readonly latencyMs: number;
+  readonly succeeded: boolean;
+}
+
+/**
+ * A metrics tick (only when `tickMs` is set): every component's state now.
+ * Comes before any other event at the same time, so it closes the window of
+ * events strictly before `timeMs`. The last tick is at the end of the run and
+ * also covers events at exactly that time.
+ */
+export interface TickEvent {
+  readonly kind: "tick";
+  readonly timeMs: number;
+  readonly components: readonly ComponentSample[];
+}
 
 export interface SimulationInput {
   /** A project that passed `validateProject` and `validateComponents`. */
@@ -220,18 +226,50 @@ interface Visit {
   nextCall: number;
 }
 
+/** What the engine schedules on its own event queue. */
 type EngineEvent =
-  | { readonly kind: "user-arrives" }
-  | { readonly kind: "attempt-arrives"; readonly attempt: Attempt }
-  | { readonly kind: "service-done"; readonly visit: Visit }
-  | {
-      readonly kind: "response";
-      readonly attempt: Attempt;
-      readonly failure: Failure | undefined;
-    }
-  | { readonly kind: "timeout"; readonly attempt: Attempt }
-  | { readonly kind: "retry"; readonly call: Call }
-  | { readonly kind: "nothing-to-deliver"; readonly visit: Visit };
+  | UserArrivesEvent
+  | AttemptArrivesEvent
+  | ServiceDoneEvent
+  | ResponseEvent
+  | TimeoutEvent
+  | RetryEvent
+  | NothingToDeliverEvent;
+
+interface UserArrivesEvent {
+  readonly kind: "user-arrives";
+}
+
+interface AttemptArrivesEvent {
+  readonly kind: "attempt-arrives";
+  readonly attempt: Attempt;
+}
+
+interface ServiceDoneEvent {
+  readonly kind: "service-done";
+  readonly visit: Visit;
+}
+
+interface ResponseEvent {
+  readonly kind: "response";
+  readonly attempt: Attempt;
+  readonly failure: Failure | undefined;
+}
+
+interface TimeoutEvent {
+  readonly kind: "timeout";
+  readonly attempt: Attempt;
+}
+
+interface RetryEvent {
+  readonly kind: "retry";
+  readonly call: Call;
+}
+
+interface NothingToDeliverEvent {
+  readonly kind: "nothing-to-deliver";
+  readonly visit: Visit;
+}
 
 class Simulation {
   private readonly events = new EventQueue<EngineEvent>();

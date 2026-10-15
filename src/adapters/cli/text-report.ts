@@ -188,6 +188,12 @@ function workflowTimeline(snapshots: readonly MetricsSnapshot[]): string {
   ].join("\n");
 }
 
+/** One column of a per-second table: its header and its cell for a snapshot. */
+interface TimelineColumn {
+  readonly header: string;
+  readonly value: (snapshot: MetricsSnapshot) => string;
+}
+
 /**
  * Peak work in progress for every component, plus queue depth and gauges
  * (e.g. RDS `connectionsHeld`) for the components that have them.
@@ -196,8 +202,7 @@ function componentTimeline(
   project: Project,
   snapshots: readonly MetricsSnapshot[],
 ): string {
-  const columns: { header: string; value: (s: MetricsSnapshot) => string }[] =
-    [];
+  const columns: TimelineColumn[] = [];
   for (const { id } of project.architecture.components) {
     columns.push({
       header: `${id} busy`,

@@ -1,5 +1,6 @@
-import type { ProjectRecord, ProjectSummary } from "../ports/project-record";
+import { summaryOf, type ProjectRecord } from "../ports/project-record";
 import type { ProjectRepository } from "../ports/project-repository";
+import { compareStrings } from "./compare-strings";
 
 /**
  * Checks that a `ProjectRepository` behaves as the port promises: what's
@@ -107,17 +108,6 @@ function variant(
   return { ...sample, project: { ...sample.project, id, name }, updatedAt };
 }
 
-function summaryOf({ project, updatedAt }: ProjectRecord): ProjectSummary {
-  return {
-    id: project.id,
-    name: project.name,
-    ...(project.description === undefined
-      ? {}
-      : { description: project.description }),
-    updatedAt,
-  };
-}
-
 /** Equal as JSON data, ignoring key order. */
 function sameData(a: unknown, b: unknown): boolean {
   return canonical(a) === canonical(b);
@@ -127,7 +117,7 @@ function canonical(value: unknown): string {
   return JSON.stringify(value, (_key, v: unknown) =>
     typeof v === "object" && v !== null && !Array.isArray(v)
       ? Object.fromEntries(
-          Object.entries(v).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)),
+          Object.entries(v).sort(([x], [y]) => compareStrings(x, y)),
         )
       : v,
   );

@@ -3,11 +3,17 @@ import type { Edge, Project, Step, Workload } from "./project";
 /** A problem found in a project, located by a path into its data. */
 export interface ValidationIssue {
   /** Where the problem is, e.g. `["workflows", 0, "root", "calls", 1]`. */
-  readonly path: readonly (string | number)[];
+  readonly path: IssuePath;
   readonly message: string;
 }
 
-type Path = readonly (string | number)[];
+/** Keys and array indexes from the root of a project to one value in it. */
+export type IssuePath = readonly (string | number)[];
+
+/** Anything with an ID that must be unique among its siblings. */
+interface Identified {
+  readonly id: string;
+}
 
 /**
  * Checks the rules that span a whole project and that a schema can't express
@@ -20,7 +26,7 @@ type Path = readonly (string | number)[];
  */
 export function validateProject(project: Project): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const report = (path: Path, message: string) => {
+  const report = (path: IssuePath, message: string) => {
     issues.push({ path, message });
   };
 
@@ -54,11 +60,11 @@ export function validateProject(project: Project): ValidationIssue[] {
   return issues;
 }
 
-type Report = (path: Path, message: string) => void;
+type Report = (path: IssuePath, message: string) => void;
 
 function checkUniqueIds(
-  items: readonly { readonly id: string }[],
-  path: Path,
+  items: readonly Identified[],
+  path: IssuePath,
   kind: string,
   report: Report,
 ): void {
@@ -114,7 +120,7 @@ interface StepContext {
 
 function checkStep(
   step: Step,
-  path: Path,
+  path: IssuePath,
   callerId: string | undefined,
   context: StepContext,
 ): void {
@@ -153,7 +159,7 @@ function checkStep(
 
 function checkWorkload(
   workload: Workload,
-  path: Path,
+  path: IssuePath,
   workflowIds: ReadonlySet<string>,
   report: Report,
 ): void {

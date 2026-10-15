@@ -101,18 +101,32 @@ interface Tracked {
   delivery?: Delivery;
 }
 
-type HarnessEvent =
-  | {
-      readonly kind: "arrive";
-      readonly request: number;
-      readonly action: StepAction;
-    }
-  | { readonly kind: "finish"; readonly request: number }
-  | {
-      readonly kind: "dispatch-finished";
-      readonly request: number;
-      readonly succeeded: boolean;
-    };
+/** What the harness schedules, playing the engine's part. */
+type HarnessEvent = ArriveEvent | FinishEvent | DispatchFinishedEvent;
+
+interface ArriveEvent {
+  readonly kind: "arrive";
+  readonly request: number;
+  readonly action: StepAction;
+}
+
+interface FinishEvent {
+  readonly kind: "finish";
+  readonly request: number;
+}
+
+interface DispatchFinishedEvent {
+  readonly kind: "dispatch-finished";
+  readonly request: number;
+  readonly succeeded: boolean;
+}
+
+/** Arrivals come in two bursts of `requests / 2`, `quietMs` apart. */
+interface ArrivalPlan {
+  readonly requests: number;
+  readonly meanGapMs: number;
+  readonly quietMs: number;
+}
 
 interface ScenarioResult {
   violations: string[];
@@ -337,7 +351,7 @@ function scheduleArrivals(
   events: EventQueue<HarnessEvent>,
   random: RandomSource,
   actions: readonly StepAction[],
-  plan: { requests: number; meanGapMs: number; quietMs: number },
+  plan: ArrivalPlan,
 ): void {
   let timeMs = 0;
   for (let request = 0; request < plan.requests; request++) {

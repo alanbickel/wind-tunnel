@@ -5,6 +5,7 @@ import {
   validateProject,
   type ValidationIssue,
 } from "../../domain/model/validate-project";
+import { issuesFromZod } from "../../domain/model/zod-issues";
 import {
   projectDocumentV1Schema,
   type ProjectDocumentV1,
@@ -14,14 +15,19 @@ import {
 /** The schema versions this build can read. */
 export const CURRENT_SCHEMA_VERSION = 1;
 
-export type LoadResult =
-  | {
-      readonly ok: true;
-      readonly project: Project;
-      /** The parsed document, including the fields the domain doesn't keep. */
-      readonly document: ProjectDocumentV1;
-    }
-  | { readonly ok: false; readonly issues: readonly ValidationIssue[] };
+export type LoadResult = Loaded | LoadFailed;
+
+export interface Loaded {
+  readonly ok: true;
+  readonly project: Project;
+  /** The parsed document, including the fields the domain doesn't keep. */
+  readonly document: ProjectDocumentV1;
+}
+
+export interface LoadFailed {
+  readonly ok: false;
+  readonly issues: readonly ValidationIssue[];
+}
 
 /**
  * Turns stored or imported JSON into a domain `Project`, checking it in three
@@ -59,15 +65,7 @@ export function loadProject(
 
   const parsed = projectDocumentV1Schema.safeParse(input);
   if (!parsed.success) {
-    return {
-      ok: false,
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path.map((key) =>
-          typeof key === "number" ? key : String(key),
-        ),
-        message: issue.message,
-      })),
-    };
+    return { ok: false, issues: issuesFromZod(parsed.error) };
   }
 
   const project = toProject(parsed.data);
@@ -131,7 +129,12 @@ function toStep(step: StepDocument): Step {
   };
 }
 
+/** Any document, before its schema version says which schema applies. */
+interface VersionedDocument {
+  readonly schemaVersion?: unknown;
+}
+
 function schemaVersionOf(input: unknown): unknown {
   if (typeof input !== "object" || input === null) return undefined;
-  return (input as { schemaVersion?: unknown }).schemaVersion;
+  return (input as VersionedDocument).schemaVersion;
 }

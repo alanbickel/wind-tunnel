@@ -38,3 +38,18 @@ export interface ProjectSummary {
   readonly description?: string;
   readonly updatedAt: string;
 }
+
+/** The list entry for a saved record. Repositories use it to build `list()`. */
+export function summaryOf({
+  project,
+  updatedAt,
+}: ProjectRecord): ProjectSummary {
+  return {
+    id: project.id,
+    name: project.name,
+    ...(project.description === undefined
+      ? {}
+      : { description: project.description }),
+    updatedAt,
+  };
+}

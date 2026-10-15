@@ -1,8 +1,6 @@
 import type { Component, Project, Step } from "../model/project";
-import type { ValidationIssue } from "../model/validate-project";
+import type { IssuePath, ValidationIssue } from "../model/validate-project";
 import type { ComponentRegistry } from "./component-registry";
-
-type Path = readonly (string | number)[];
 
 /**
  * Checks the rules that depend on component types, using the registry: every
@@ -39,7 +37,7 @@ export function validateComponents(
     }
   });
 
-  const checkStep = (step: Step, path: Path) => {
+  const checkStep = (step: Step, path: IssuePath) => {
     const component = byId.get(step.componentId);
     const type =
       component === undefined ? undefined : registry.get(component.type);

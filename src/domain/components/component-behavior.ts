@@ -9,21 +9,36 @@ import type { StepAction } from "../model/project";
  * hold it while a request waits and hand it back in effects.
  */
 export type Effect<T> =
-  /** `request` begins its work here now; its own work takes `serviceMs`. */
-  | {
-      readonly kind: "started";
-      readonly request: T;
-      readonly serviceMs: number;
-    }
-  /** `request` waits inside the component; a later `started` will follow. */
-  | { readonly kind: "queued"; readonly request: T }
-  /** `request` failed to get in, e.g. `"throttled"` or `"too-many-connections"`. */
-  | { readonly kind: "rejected"; readonly request: T; readonly reason: string }
-  /**
-   * Start `request`'s `async` step now (queue-like components only). Sent
-   * after the request has finished here, when a consumer takes the message.
-   */
-  | { readonly kind: "dispatched"; readonly request: T };
+  StartedEffect<T> | QueuedEffect<T> | RejectedEffect<T> | DispatchedEffect<T>;
+
+/** `request` begins its work here now; its own work takes `serviceMs`. */
+export interface StartedEffect<T> {
+  readonly kind: "started";
+  readonly request: T;
+  readonly serviceMs: number;
+}
+
+/** `request` waits inside the component; a later `started` will follow. */
+export interface QueuedEffect<T> {
+  readonly kind: "queued";
+  readonly request: T;
+}
+
+/** `request` failed to get in, e.g. `"throttled"` or `"too-many-connections"`. */
+export interface RejectedEffect<T> {
+  readonly kind: "rejected";
+  readonly request: T;
+  readonly reason: string;
+}
+
+/**
+ * Start `request`'s `async` step now (queue-like components only). Sent
+ * after the request has finished here, when a consumer takes the message.
+ */
+export interface DispatchedEffect<T> {
+  readonly kind: "dispatched";
+  readonly request: T;
+}
 
 /**
  * The run-time state of one component during a simulation, built from a

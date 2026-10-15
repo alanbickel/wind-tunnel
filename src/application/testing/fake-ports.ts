@@ -1,10 +1,15 @@
 import type { Clock } from "../ports/clock";
 import type { IdGenerator } from "../ports/id-generator";
-import type { ProjectRecord, ProjectSummary } from "../ports/project-record";
+import {
+  summaryOf,
+  type ProjectRecord,
+  type ProjectSummary,
+} from "../ports/project-record";
 import type {
   ProjectLookup,
   ProjectRepository,
 } from "../ports/project-repository";
+import { compareStrings } from "./compare-strings";
 
 // Simple, in-memory port implementations for use case tests. The repository
 // passes `checkProjectRepositoryContract`, the same as the real adapter.
@@ -46,11 +51,10 @@ export class InMemoryProjectRepository implements ProjectRepository {
 
   list(): Promise<ProjectSummary[]> {
     const summaries = [...this.records.values()].map((json) =>
-      toSummary(JSON.parse(json) as ProjectRecord),
+      summaryOf(JSON.parse(json) as ProjectRecord),
     );
-    summaries.sort((a, b) =>
-      a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0,
-    );
+    // Most recently updated first.
+    summaries.sort((a, b) => compareStrings(b.updatedAt, a.updatedAt));
     return Promise.resolve(summaries);
   }
 
@@ -72,15 +76,4 @@ export class InMemoryProjectRepository implements ProjectRepository {
     this.records.delete(id);
     return Promise.resolve();
   }
-}
-
-function toSummary({ project, updatedAt }: ProjectRecord): ProjectSummary {
-  return {
-    id: project.id,
-    name: project.name,
-    ...(project.description === undefined
-      ? {}
-      : { description: project.description }),
-    updatedAt,
-  };
 }

@@ -367,7 +367,7 @@ The tuning pass at the end of M1 may change these numbers.
 |---|---|---|
 | Domain primitives | Unit tests | Exact numbers, thanks to determinism |
 | Component definitions | Shared contract tests | Every type runs the same suite |
-| Engine | Scenario tests | Templates as fixtures; assert broad outcomes ("A has >5% errors during the spike; B has <0.1%") rather than exact values, so tuning doesn't break tests |
+| Engine | Scenario tests (`src/adapters/templates/template-scenarios.test.ts`) | Templates as fixtures; assert broad outcomes ("A has >5% errors during the spike; B has <0.1%") rather than exact values, so tuning doesn't break tests |
 | Persistence adapter | Integration tests | `fake-indexeddb` in Node |
 | UI | Component tests | Added in M3; kept light |
 

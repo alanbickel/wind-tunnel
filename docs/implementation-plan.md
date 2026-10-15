@@ -45,7 +45,7 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 - [x] Project document Zod schema (v1) and mapper to domain entities
 - [x] Template JSON files A and B. Set DynamoDB's `burstSec` deliberately: the default (300) starts the bucket full and hides throttling in a 60 s run
 - [x] Headless runner script with a text report (use `simulateWithMetrics`)
-- [ ] Scenario tests for both templates
+- [x] Scenario tests for both templates
 - [ ] Tuning pass: adjust defaults until the templates clearly teach their lesson; record final numbers in the design doc
 
 ## M2: Application layer and persistence
@@ -81,6 +81,11 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-15: M1 task 12 (scenario tests)
+
+- `src/adapters/templates/template-scenarios.test.ts` runs both templates on seeds 42, 7, and 2026 (about 0.4 s per run) and asserts by phase of the lunch rush: A fails no requests while calm, holds at least 90% of `maxConnections` through 20–40 s with failures every second, fails over 25% overall (all `orders-db: too-many-connections`), and recovers by 50 s. B fails nothing, and its DB connections stay under the SQS consumer cap. Both templates get identical requests for a given seed.
+- Thresholds are loose on purpose (MVP design §8). If tuning changes a template's lesson, change the test with it. Add an assertion for B's backlog growing and draining once tuning makes it appear.
 
 ### 2026-10-15: M1 task 11 (headless runner)
 

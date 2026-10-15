@@ -345,6 +345,22 @@ flowchart LR
 
 If M1 shows these two behaviors clearly, the concept works.
 
+### Template files and their settings
+
+The templates are `src/adapters/templates/template-a.json` and `template-b.json` (ADR-0004), and load through `loadProject`. Components use their type's defaults except where noted. JSON can't hold comments, so the reasons for the other settings are recorded here:
+
+| Setting | Value | Why |
+|---|---|---|
+| API Gateway → Lambda edges | 1 attempt, 29 s timeout | API Gateway doesn't retry integrations (APIGW-3); 29 s is the REST API integration maximum (ENG-5) |
+| Lambda → RDS edges | 1 attempt, 5 s timeout | Database drivers don't retry by default (Assumption) |
+| fn-api → orders-read | 4 attempts, exponential jitter, 25 ms base | Like the AWS SDK's DynamoDB client (ENG-2, DDB-4) |
+| fn-api → orders-queue | 3 attempts, exponential jitter, 50 ms base | Like the AWS SDK's standard mode (ENG-2) |
+| orders-queue → fn-writer | 1 attempt | SQS redelivers failed messages itself (SQS-1) |
+| orders-read `readUnitsPerSec`, `burstSec` | 2,500, 5 | Headroom over the 1,600 reads/s peak without leaning on a full 300 s bucket, which would hide throttling (DDB-2) |
+| Edge latencies | 1–2 ms | Same-Region calls; nonzero so redelivery loops advance time |
+
+The tuning pass at the end of M1 may change these numbers.
+
 ## 8. Testing strategy
 
 | Layer | Test type | Notes |

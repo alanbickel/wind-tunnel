@@ -43,7 +43,7 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 - [x] Engine: event loop, request lifecycle, nested calls, edge latency, timeouts, retries, async `enqueue` work
 - [x] Metrics: per-component and per-workflow counters, fixed-bucket latency histograms, per-second snapshots, type-specific gauges and counters (RDS connections held, Lambda cold starts), engine ticks
 - [x] Project document Zod schema (v1) and mapper to domain entities
-- [ ] Template JSON files A and B. Set DynamoDB's `burstSec` deliberately: the default (300) starts the bucket full and hides throttling in a 60 s run
+- [x] Template JSON files A and B. Set DynamoDB's `burstSec` deliberately: the default (300) starts the bucket full and hides throttling in a 60 s run
 - [ ] Headless runner script with a text report (use `simulateWithMetrics`)
 - [ ] Scenario tests for both templates
 - [ ] Tuning pass: adjust defaults until the templates clearly teach their lesson; record final numbers in the design doc
@@ -81,6 +81,11 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-14: M1 task 10 (templates)
+
+- `src/adapters/templates/template-{a,b}.json`; `templates.test.ts` checks they load and share the workload. Non-default settings and their reasons are in MVP design §7 ("Template files and their settings"). They import as JSON modules with no tsconfig change.
+- First run (seed 42): A fails 44% of requests (`orders-db: too-many-connections`, 90/90 connections from about 15 s to 45 s); B fails none. For tuning: B's queue never builds a backlog (40 consumers keep up with 400 writes/s), so "the queue grows, then empties" doesn't show yet. Slower fn-writer work or lower consumer concurrency would show it.
 
 ### 2026-10-14: M1 task 9 (project document)
 

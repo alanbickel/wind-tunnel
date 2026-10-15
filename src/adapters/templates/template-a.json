@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "id": "template-a",
+  "name": "Serverless API with RDS",
+  "description": "API Gateway in front of one Lambda function that reads and writes a relational database. Run the lunch rush and watch what happens to the database's connections when the traffic spikes.",
+  "createdAt": "2026-10-14T00:00:00Z",
+  "updatedAt": "2026-10-14T00:00:00Z",
+  "architecture": {
+    "components": [
+      {
+        "id": "api",
+        "type": "api-gateway",
+        "name": "API Gateway",
+        "config": {
+          "ratePerSec": 10000,
+          "burst": 5000,
+          "overhead": { "kind": "lognormal", "medianMs": 10, "p99Ms": 25 }
+        }
+      },
+      {
+        "id": "fn-orders",
+        "type": "lambda",
+        "name": "fn-orders",
+        "config": {
+          "concurrency": 1000,
+          "coldStart": { "kind": "lognormal", "medianMs": 300, "p99Ms": 1000 },
+          "idleTimeoutSec": 600,
+          "computeTime": { "kind": "lognormal", "medianMs": 20, "p99Ms": 80 }
+        }
+      },
+      {
+        "id": "orders-db",
+        "type": "rds",
+        "name": "orders-db",
+        "config": {
+          "maxConnections": 90,
+          "queryWorkers": 16,
+          "queryTime": { "kind": "lognormal", "medianMs": 15, "p99Ms": 60 }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "api->fn-orders",
+        "from": "api",
+        "to": "fn-orders",
+        "latencyMs": 2,
+        "timeoutMs": 29000,
+        "retry": { "maxAttempts": 1, "backoff": "none", "baseDelayMs": 0 }
+      },
+      {
+        "id": "fn-orders->orders-db",
+        "from": "fn-orders",
+        "to": "orders-db",
+        "latencyMs": 1,
+        "timeoutMs": 5000,
+        "retry": { "maxAttempts": 1, "backoff": "none", "baseDelayMs": 0 }
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "id": "get-order",
+      "name": "Get order",
+      "root": {
+        "componentId": "api",
+        "action": "invoke",
+        "calls": [
+          {
+            "componentId": "fn-orders",
+            "action": "invoke",
+            "calls": [{ "componentId": "orders-db", "action": "read" }]
+          }
+        ]
+      }
+    },
+    {
+      "id": "create-order",
+      "name": "Create order",
+      "root": {
+        "componentId": "api",
+        "action": "invoke",
+        "calls": [
+          {
+            "componentId": "fn-orders",
+            "action": "invoke",
+            "calls": [{ "componentId": "orders-db", "action": "write" }]
+          }
+        ]
+      }
+    }
+  ],
+  "workloads": [
+    {
+      "id": "lunch-rush",
+      "name": "Lunch rush",
+      "durationSec": 60,
+      "seed": 42,
+      "mix": [
+        { "workflowId": "get-order", "weight": 80 },
+        { "workflowId": "create-order", "weight": 20 }
+      ],
+      "profile": [
+        { "atSec": 0, "requestsPerSec": 200 },
+        { "atSec": 10, "requestsPerSec": 200 },
+        { "atSec": 20, "requestsPerSec": 2000 },
+        { "atSec": 40, "requestsPerSec": 2000 },
+        { "atSec": 50, "requestsPerSec": 200 }
+      ]
+    }
+  ],
+  "layout": {
+    "nodes": {
+      "api": { "x": 0, "y": 0 },
+      "fn-orders": { "x": 250, "y": 0 },
+      "orders-db": { "x": 500, "y": 0 }
+    }
+  }
+}

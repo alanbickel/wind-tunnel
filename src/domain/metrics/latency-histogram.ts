@@ -1,10 +1,10 @@
-/** Latency percentiles for a set of recorded values. */
+/** Latency percentiles for a set of recorded values, in milliseconds. */
 export interface LatencySummary {
   readonly count: number;
-  readonly p50: number;
-  readonly p95: number;
-  readonly p99: number;
-  readonly max: number;
+  readonly p50Ms: number;
+  readonly p95Ms: number;
+  readonly p99Ms: number;
+  readonly maxMs: number;
 }
 
 /** Each bucket is this much wider than the one before: about 5% error. */
@@ -90,10 +90,10 @@ export class LatencyHistogram {
     if (this.total === 0) return undefined;
     return {
       count: this.total,
-      p50: this.percentile(0.5) ?? 0,
-      p95: this.percentile(0.95) ?? 0,
-      p99: this.percentile(0.99) ?? 0,
-      max: this.max,
+      p50Ms: this.percentile(0.5) ?? 0,
+      p95Ms: this.percentile(0.95) ?? 0,
+      p99Ms: this.percentile(0.99) ?? 0,
+      maxMs: this.max,
     };
   }
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import type { RandomSource } from "./random-source";
 
 /**
@@ -38,22 +39,31 @@ export type Distribution = z.infer<typeof distributionSchema>;
 /** The z-score of the 99th percentile of a standard normal distribution. */
 const Z_99 = 2.3263478740408408;
 
+/** Draws one value from a distribution, using `random`. */
+type Sampler = (random: RandomSource) => number;
+
+const SAMPLERS: KindHandlers<Distribution, Sampler> = {
+  constant:
+    ({ valueMs }) =>
+    () =>
+      valueMs,
+  exponential:
+    ({ meanMs }) =>
+    (random) =>
+      -meanMs * Math.log(uniformOpenAtZero(random)),
+  lognormal: ({ medianMs, p99Ms }) => {
+    const mu = Math.log(medianMs);
+    const sigma = Math.log(p99Ms / medianMs) / Z_99;
+    return (random) => Math.exp(mu + sigma * standardNormal(random));
+  },
+};
+
 /** Draws one sample from `distribution`. */
 export function sample(
   distribution: Distribution,
   random: RandomSource,
 ): number {
-  switch (distribution.kind) {
-    case "constant":
-      return distribution.valueMs;
-    case "exponential":
-      return -distribution.meanMs * Math.log(uniformOpenAtZero(random));
-    case "lognormal": {
-      const mu = Math.log(distribution.medianMs);
-      const sigma = Math.log(distribution.p99Ms / distribution.medianMs) / Z_99;
-      return Math.exp(mu + sigma * standardNormal(random));
-    }
-  }
+  return handleKind(SAMPLERS, distribution)(random);
 }
 
 /** A uniform number in (0, 1], safe to pass to `Math.log`. */

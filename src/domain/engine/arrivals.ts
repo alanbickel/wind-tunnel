@@ -9,21 +9,41 @@ export function rateAt(
   profile: readonly ProfilePoint[],
   atSec: number,
 ): number {
-  let previous: ProfilePoint | undefined;
-  for (const point of profile) {
-    if (atSec <= point.atSec) {
-      if (previous === undefined || point.atSec === previous.atSec) {
-        return point.requestsPerSec;
-      }
-      const share = (atSec - previous.atSec) / (point.atSec - previous.atSec);
-      return (
-        previous.requestsPerSec +
-        share * (point.requestsPerSec - previous.requestsPerSec)
-      );
-    }
-    previous = point;
+  const index = profile.findIndex((point) => atSec <= point.atSec);
+  const point = profile[index];
+  // Past the last point (index -1), or an empty profile.
+  if (point === undefined) return profile.at(-1)?.requestsPerSec ?? 0;
+  const previous = profile[index - 1];
+  if (previous === undefined || point.atSec === previous.atSec) {
+    return point.requestsPerSec;
   }
-  return previous?.requestsPerSec ?? 0;
+  return interpolate({ from: previous, to: point, atSec });
+}
+
+interface Interpolation {
+  readonly from: ProfilePoint;
+  readonly to: ProfilePoint;
+  /** Between `from.atSec` and `to.atSec`. */
+  readonly atSec: number;
+}
+
+/** The rate on the straight line between two profile points. */
+function interpolate({ from, to, atSec }: Interpolation): number {
+  const share = (atSec - from.atSec) / (to.atSec - from.atSec);
+  return (
+    from.requestsPerSec + share * (to.requestsPerSec - from.requestsPerSec)
+  );
+}
+
+export interface ArrivalProcessInput {
+  readonly workload: Workload;
+  /** Draws arrival times. */
+  readonly timing: RandomSource;
+  /**
+   * Draws which workflow runs. A separate stream, so changing the mix doesn't
+   * move the arrival times.
+   */
+  readonly choice: RandomSource;
 }
 
 /**
@@ -43,12 +63,7 @@ export class ArrivalProcess {
   private readonly endMs: number;
   private readonly totalWeight: number;
 
-  /**
-   * @param timing draws arrival times.
-   * @param choice draws which workflow runs. A separate stream, so changing
-   *   the mix doesn't move the arrival times.
-   */
-  constructor(workload: Workload, timing: RandomSource, choice: RandomSource) {
+  constructor({ workload, timing, choice }: ArrivalProcessInput) {
     this.workload = workload;
     this.timing = timing;
     this.choice = choice;

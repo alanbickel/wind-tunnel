@@ -1,34 +1,57 @@
-import type { RetryPolicy } from "../model/project";
+import type { BackoffStrategy, RetryPolicy } from "../model/project";
 import type { RandomSource } from "../random/random-source";
+import { lookup } from "../shared/kind-handlers";
 
 /** Longest wait between attempts; the AWS SDKs cap backoff at 20 s. */
 export const MAX_BACKOFF_MS = 20_000;
 
+export interface BackoffInput {
+  readonly policy: RetryPolicy;
+  /** Failures so far: 1 before the first retry. */
+  readonly failedAttempts: number;
+  /** Draws the jitter for `exponential-jitter`. */
+  readonly random: RandomSource;
+}
+
+interface BackoffRuleInput {
+  readonly policy: RetryPolicy;
+  /** `baseDelayMs × 2^(failedAttempts − 1)`, capped at `MAX_BACKOFF_MS`. */
+  readonly exponentialMs: number;
+  readonly random: RandomSource;
+}
+
+type BackoffRule = (input: BackoffRuleInput) => number;
+
 /**
- * How long to wait before the next attempt, after `failedAttempts` failures
- * (1 for the first retry).
- *
  * - `none`: always `baseDelayMs`.
- * - `exponential`: `baseDelayMs × 2^(failedAttempts − 1)`, capped.
- * - `exponential-jitter`: a random wait between 0 and the exponential value
+ * - `exponential`: the exponential wait.
+ * - `exponential-jitter`: a random wait between 0 and the exponential one
  *   ("full jitter"), so retries from many callers spread out instead of
  *   arriving in waves.
  */
-export function backoffMs(
-  policy: RetryPolicy,
-  failedAttempts: number,
-  random: RandomSource,
-): number {
-  const exponential = Math.min(
+const BACKOFF_RULES: Readonly<Record<BackoffStrategy, BackoffRule>> = {
+  none: ({ policy }) => policy.baseDelayMs,
+  exponential: ({ exponentialMs }) => exponentialMs,
+  "exponential-jitter": ({ exponentialMs, random }) =>
+    random.next() * exponentialMs,
+};
+
+/** How long to wait before the next attempt, by the policy's `backoff` rule. */
+export function backoffMs({
+  policy,
+  failedAttempts,
+  random,
+}: BackoffInput): number {
+  const exponentialMs = Math.min(
     MAX_BACKOFF_MS,
     policy.baseDelayMs * 2 ** (failedAttempts - 1),
   );
-  switch (policy.backoff) {
-    case "none":
-      return policy.baseDelayMs;
-    case "exponential":
-      return exponential;
-    case "exponential-jitter":
-      return random.next() * exponential;
-  }
+  return lookup(
+    BACKOFF_RULES,
+    policy.backoff,
+  )({
+    policy,
+    exponentialMs,
+    random,
+  });
 }

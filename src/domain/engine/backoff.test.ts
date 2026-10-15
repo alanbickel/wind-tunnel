@@ -12,20 +12,28 @@ const random = new SeededRandom(1);
 
 describe("backoffMs", () => {
   it("waits the base delay every time with no backoff", () => {
-    expect([1, 2, 3].map((n) => backoffMs(policy("none"), n, random))).toEqual([
-      100, 100, 100,
-    ]);
+    expect(
+      [1, 2, 3].map((n) =>
+        backoffMs({ policy: policy("none"), failedAttempts: n, random }),
+      ),
+    ).toEqual([100, 100, 100]);
   });
 
   it("doubles the wait with exponential backoff, up to the cap", () => {
     expect(
-      [1, 2, 3, 20].map((n) => backoffMs(policy("exponential"), n, random)),
+      [1, 2, 3, 20].map((n) =>
+        backoffMs({ policy: policy("exponential"), failedAttempts: n, random }),
+      ),
     ).toEqual([100, 200, 400, MAX_BACKOFF_MS]);
   });
 
   it("waits a random share of the exponential value with jitter", () => {
     for (const n of [1, 2, 3, 4]) {
-      const wait = backoffMs(policy("exponential-jitter"), n, random);
+      const wait = backoffMs({
+        policy: policy("exponential-jitter"),
+        failedAttempts: n,
+        random,
+      });
       expect(wait).toBeGreaterThanOrEqual(0);
       expect(wait).toBeLessThan(100 * 2 ** (n - 1));
     }

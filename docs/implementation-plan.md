@@ -39,8 +39,8 @@ Seeded randomness, event queue, behavior primitives, domain entities and validat
 **Done when:** `npm run lint` reports no warnings, the coding-standard rules are errors, and the trace and report snapshots are unchanged except for intended renames. Every phase is `refactor` commits only; no behavior changes.
 
 - [x] 1. Foundations: a shared exhaustive handler-map type in `domain/`; name the anonymous union members (`SimulationEvent`, `Effect`, `EngineEvent`, `HarnessEvent`, `ProjectLookup`, `LoadResult`, and the inline types); a string comparator in place of the nested ternaries; remove duplicates (`summaryOf`/`toSummary`, `Path`, Zod issue mapping)
-- [ ] 2. `backoffMs` and `sample` as lookup maps with input objects; `LatencySummary` fields become `p50Ms`, `p95Ms`, `p99Ms`, `maxMs` (snapshots and guides too)
-- [ ] 3. Engine: split the constructor; `handle` and `apply` become handler maps; `call()` takes an input object
+- [x] 2. `backoffMs` and `sample` as lookup maps with input objects; `LatencySummary` fields become `p50Ms`, `p95Ms`, `p99Ms`, `maxMs` (snapshots and guides too)
+- [x] 3. Engine: split the constructor; `handle` and `apply` become handler maps; `call()` takes an input object
 - [ ] 4. `ComponentBehavior` methods take one input object; each `build()` becomes a named class. Before/after timings from `npm run simulate`; a dated addendum to ADR-0006 for the signature
 - [ ] 5. `MetricsCollector.observe` as an event-handler map
 - [ ] 6. Contract checker: `runScenario` becomes a `ContractHarness` class

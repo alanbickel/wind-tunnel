@@ -9,12 +9,14 @@ import type {
   Step,
   StepAction,
   Workflow,
+  Workload,
 } from "../model/project";
 import {
   deriveSeed,
   SeededRandom,
   type RandomSource,
 } from "../random/random-source";
+import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import { ArrivalProcess } from "./arrivals";
 import { backoffMs } from "./backoff";
 import { EventQueue } from "./event-queue";
@@ -271,66 +273,50 @@ interface NothingToDeliverEvent {
   readonly visit: Visit;
 }
 
+/** The random stream for a name such as `"arrivals"`. */
+type RandomStreams = (stream: string) => RandomSource;
+
+interface CallInput {
+  readonly step: Step;
+  /** The calling component, or undefined for the user. */
+  readonly fromId: string | undefined;
+  readonly request: UserRequest;
+  readonly onSettled: (failure: Failure | undefined) => void;
+}
+
 class Simulation {
   private readonly events = new EventQueue<EngineEvent>();
-  private readonly components = new Map<string, RuntimeComponent>();
+  private readonly components: ReadonlyMap<string, RuntimeComponent>;
   /** Keyed by `edgeKey(from, to)`. */
-  private readonly edges = new Map<string, Edge>();
-  private readonly workflows = new Map<string, Workflow>();
+  private readonly edges: ReadonlyMap<string, Edge>;
+  private readonly workflows: ReadonlyMap<string, Workflow>;
   private readonly arrivals: ArrivalProcess;
   private readonly retryRandom: RandomSource;
   private readonly observe: (event: SimulationEvent) => void;
   private readonly untilMs: number;
   private readonly tickMs: number | undefined;
-  private nextTickMs = Infinity;
+  private nextTickMs: number;
   private nowMs = 0;
   private nextRequestId = 0;
 
   constructor(input: SimulationInput) {
-    const { project, registry } = input;
-    const workload = project.workloads.find((w) => w.id === input.workloadId);
-    if (workload === undefined) {
-      throw new Error(`No workload "${input.workloadId}"`);
-    }
-    const random =
-      input.random ??
-      ((stream: string) => new SeededRandom(deriveSeed(workload.seed, stream)));
-
-    for (const component of project.architecture.components) {
-      const type = registry.get(component.type);
-      if (type === undefined) {
-        throw new Error(`Unknown component type "${component.type}"`);
-      }
-      this.components.set(component.id, {
-        id: component.id,
-        behavior: type.build<Visit>(component.config, {
-          random: random(`component:${component.id}`),
-        }),
-        peakInProgress: 0,
-        peakQueueDepth: 0,
-      });
-    }
-    for (const edge of project.architecture.edges) {
-      const key = edgeKey(edge.from, edge.to);
-      if (!this.edges.has(key)) this.edges.set(key, edge);
-    }
-    for (const workflow of project.workflows) {
-      this.workflows.set(workflow.id, workflow);
-    }
-
-    this.arrivals = new ArrivalProcess(
+    const { project } = input;
+    const workload = findWorkload(input);
+    const random = input.random ?? seededStreams(workload.seed);
+    // Streams are created in this order; scripted sources in tests rely on it.
+    this.components = buildComponents({ input, random });
+    this.edges = indexEdges(project.architecture.edges);
+    this.workflows = new Map(project.workflows.map((w) => [w.id, w]));
+    this.arrivals = new ArrivalProcess({
       workload,
-      random("arrivals"),
-      random("workflows"),
-    );
+      timing: random("arrivals"),
+      choice: random("workflows"),
+    });
     this.retryRandom = random("retries");
-    this.observe = input.observer ?? (() => undefined);
+    this.observe = input.observer ?? ignoreEvent;
     this.untilMs = input.untilMs ?? workload.durationSec * 1000;
-    if (input.tickMs !== undefined && !(input.tickMs > 0)) {
-      throw new Error(`tickMs must be positive, got ${String(input.tickMs)}`);
-    }
-    this.tickMs = input.tickMs;
-    if (this.tickMs !== undefined) this.nextTickMs = this.tickMs;
+    this.tickMs = checkTickMs(input.tickMs);
+    this.nextTickMs = this.tickMs ?? Infinity;
   }
 
   run(): SimulationResult {
@@ -347,22 +333,66 @@ class Simulation {
       this.ticksBefore(next.timeMs);
       atThisInstant = next.timeMs === instantMs ? atThisInstant + 1 : 1;
       instantMs = next.timeMs;
-      if (atThisInstant > MAX_EVENTS_AT_ONE_INSTANT) {
-        throw new Error(
-          `Simulation stuck: over ${String(MAX_EVENTS_AT_ONE_INSTANT)} events at t=${String(next.timeMs)} ms`,
-        );
-      }
+      if (atThisInstant > MAX_EVENTS_AT_ONE_INSTANT) throwStuck(next.timeMs);
       this.nowMs = next.timeMs;
-      this.handle(next.payload);
+      handleKind(this.eventHandlers, next.payload);
       processed++;
     }
-    this.ticksBefore(this.untilMs);
-    if (this.tickMs !== undefined && this.untilMs > 0) {
-      this.nowMs = this.untilMs;
-      this.tick();
-    }
+    this.finalTick();
     return { eventsProcessed: processed };
   }
+
+  /** What each kind of engine event does when its time comes. */
+  private readonly eventHandlers: KindHandlers<EngineEvent, void> = {
+    "user-arrives": () => {
+      this.startUserRequest();
+      this.scheduleNextUser();
+    },
+    "attempt-arrives": ({ attempt }) => {
+      this.arrive(attempt);
+    },
+    "service-done": ({ visit }) => {
+      this.continueVisit(visit);
+    },
+    response: ({ attempt, failure }) => {
+      this.respond(attempt, failure);
+    },
+    timeout: ({ attempt }) => {
+      this.timeOut(attempt);
+    },
+    retry: ({ call }) => {
+      this.sendAttempt(call);
+    },
+    "nothing-to-deliver": ({ visit }) => {
+      this.dispatchFinished(visit, true);
+    },
+  };
+
+  /**
+   * What each effect a component returns turns into (ADR-0006). An effect's
+   * request is always a visit at the component that returned it.
+   */
+  private readonly effectHandlers: KindHandlers<Effect<Visit>, void> = {
+    started: ({ request: visit, serviceMs }) => {
+      this.observe({ kind: "started", ...this.eventBase(visit), serviceMs });
+      this.events.schedule(this.nowMs + serviceMs, {
+        kind: "service-done",
+        visit,
+      });
+    },
+    queued: ({ request: visit }) => {
+      this.observe({ kind: "queued", ...this.eventBase(visit) });
+    },
+    rejected: ({ request: visit, reason }) => {
+      this.observe({ kind: "rejected", ...this.eventBase(visit), reason });
+      const componentId = visit.attempt.call.target.id;
+      this.respondLater(visit, { componentId, reason });
+    },
+    dispatched: ({ request: visit }) => {
+      this.observe({ kind: "dispatched", ...this.eventBase(visit) });
+      this.dispatch(visit);
+    },
+  };
 
   /** Reports every tick due before `timeMs` and before the end of the run. */
   private ticksBefore(timeMs: number): void {
@@ -374,62 +404,23 @@ class Simulation {
     }
   }
 
-  private tick(): void {
-    const components: ComponentSample[] = [];
-    for (const component of this.components.values()) {
-      const { behavior } = component;
-      components.push({
-        componentId: component.id,
-        inProgress: behavior.inProgress,
-        queueDepth: behavior.queueDepth,
-        peakInProgress: component.peakInProgress,
-        peakQueueDepth: component.peakQueueDepth,
-        gauges: { ...behavior.gauges },
-        counters: { ...behavior.counters },
-      });
-      component.peakInProgress = behavior.inProgress;
-      component.peakQueueDepth = behavior.queueDepth;
-    }
-    this.observe({ kind: "tick", timeMs: this.nowMs, components });
+  /** The ticks left before the end, then one at the end itself. */
+  private finalTick(): void {
+    this.ticksBefore(this.untilMs);
+    if (this.tickMs === undefined || this.untilMs <= 0) return;
+    this.nowMs = this.untilMs;
+    this.tick();
   }
 
-  private handle(event: EngineEvent): void {
-    switch (event.kind) {
-      case "user-arrives":
-        this.startUserRequest();
-        this.scheduleNextUser();
-        break;
-      case "attempt-arrives":
-        this.arrive(event.attempt);
-        break;
-      case "service-done":
-        this.continueVisit(event.visit);
-        break;
-      case "response":
-        this.respond(event.attempt, event.failure);
-        break;
-      case "timeout":
-        if (!event.attempt.settled) {
-          this.failAttempt(event.attempt, {
-            componentId: event.attempt.call.target.id,
-            reason: "timeout",
-          });
-        }
-        break;
-      case "retry":
-        this.sendAttempt(event.call);
-        break;
-      case "nothing-to-deliver":
-        this.dispatchFinished(event.visit, true);
-        break;
-    }
+  private tick(): void {
+    const components = [...this.components.values()].map(sampleAndResetPeaks);
+    this.observe({ kind: "tick", timeMs: this.nowMs, components });
   }
 
   private scheduleNextUser(): void {
     const timeMs = this.arrivals.next(this.nowMs);
-    if (timeMs !== undefined) {
-      this.events.schedule(timeMs, { kind: "user-arrives" });
-    }
+    if (timeMs === undefined) return;
+    this.events.schedule(timeMs, { kind: "user-arrives" });
   }
 
   private startUserRequest(): void {
@@ -447,37 +438,48 @@ class Simulation {
       requestId: request.id,
       workflowId,
     });
-    this.call(workflow.root, undefined, request, (failure) => {
-      this.observe({
-        kind: "workflow-finished",
-        timeMs: this.nowMs,
-        requestId: request.id,
-        workflowId,
-        latencyMs: this.nowMs - request.startMs,
-        ...(failure === undefined ? {} : { failure }),
-      });
+    this.call({
+      step: workflow.root,
+      fromId: undefined,
+      request,
+      onSettled: (failure) => {
+        this.finishUserRequest(request, failure);
+      },
     });
   }
 
-  /** Calls `step` from component `fromId` (undefined for the user). */
-  private call(
-    step: Step,
-    fromId: string | undefined,
+  private finishUserRequest(
     request: UserRequest,
-    onSettled: (failure: Failure | undefined) => void,
+    failure: Failure | undefined,
   ): void {
+    this.observe({
+      kind: "workflow-finished",
+      timeMs: this.nowMs,
+      requestId: request.id,
+      workflowId: request.workflowId,
+      latencyMs: this.nowMs - request.startMs,
+      ...(failure === undefined ? {} : { failure }),
+    });
+  }
+
+  /** Calls `step` along the edge from `fromId`, as its retry policy allows. */
+  private call({ step, fromId, request, onSettled }: CallInput): void {
     const target = this.components.get(step.componentId);
     if (target === undefined) {
       throw new Error(`No component "${step.componentId}"`);
     }
-    let edge: Edge | undefined;
-    if (fromId !== undefined) {
-      edge = this.edges.get(edgeKey(fromId, step.componentId));
-      if (edge === undefined) {
-        throw new Error(`No edge from "${fromId}" to "${step.componentId}"`);
-      }
-    }
+    const edge = this.edgeFor(fromId, step.componentId);
     this.sendAttempt({ step, target, edge, request, attempts: 0, onSettled });
+  }
+
+  /** The edge a call travels along; the user's call has none. */
+  private edgeFor(fromId: string | undefined, toId: string): Edge | undefined {
+    if (fromId === undefined) return undefined;
+    const edge = this.edges.get(edgeKey(fromId, toId));
+    if (edge === undefined) {
+      throw new Error(`No edge from "${fromId}" to "${toId}"`);
+    }
+    return edge;
   }
 
   private sendAttempt(call: Call): void {
@@ -488,12 +490,11 @@ class Simulation {
       kind: "attempt-arrives",
       attempt,
     });
-    if (edge !== undefined) {
-      this.events.schedule(this.nowMs + edge.timeoutMs, {
-        kind: "timeout",
-        attempt,
-      });
-    }
+    if (edge === undefined) return;
+    this.events.schedule(this.nowMs + edge.timeoutMs, {
+      kind: "timeout",
+      attempt,
+    });
   }
 
   private arrive(attempt: Attempt): void {
@@ -510,52 +511,22 @@ class Simulation {
   }
 
   /**
-   * Turns a component's effects into events (ADR-0006). Called right after
-   * every call into a component, so it also tracks peaks for the metrics.
+   * Turns a component's effects into events. Called right after every call
+   * into a component, so it also tracks peaks for the metrics.
    */
   private apply(component: RuntimeComponent, effects: Effect<Visit>[]): void {
-    const { behavior } = component;
-    if (behavior.inProgress > component.peakInProgress) {
-      component.peakInProgress = behavior.inProgress;
-    }
-    if (behavior.queueDepth > component.peakQueueDepth) {
-      component.peakQueueDepth = behavior.queueDepth;
-    }
-    for (const effect of effects) {
-      const visit = effect.request;
-      const base = {
-        timeMs: this.nowMs,
-        requestId: visit.attempt.call.request.id,
-        componentId: component.id,
-      };
-      switch (effect.kind) {
-        case "started":
-          this.observe({
-            kind: "started",
-            ...base,
-            serviceMs: effect.serviceMs,
-          });
-          this.events.schedule(this.nowMs + effect.serviceMs, {
-            kind: "service-done",
-            visit,
-          });
-          break;
-        case "queued":
-          this.observe({ kind: "queued", ...base });
-          break;
-        case "rejected":
-          this.observe({ kind: "rejected", ...base, reason: effect.reason });
-          this.respondLater(visit, {
-            componentId: component.id,
-            reason: effect.reason,
-          });
-          break;
-        case "dispatched":
-          this.observe({ kind: "dispatched", ...base });
-          this.dispatch(component, visit);
-          break;
-      }
-    }
+    trackPeaks(component);
+    for (const effect of effects) handleKind(this.effectHandlers, effect);
+  }
+
+  /** The fields every event about `visit` shares. */
+  private eventBase(visit: Visit): ComponentEventBase {
+    const { request, target } = visit.attempt.call;
+    return {
+      timeMs: this.nowMs,
+      requestId: request.id,
+      componentId: target.id,
+    };
   }
 
   /** The visit's own service time is done, or a nested call succeeded: make the next call. */
@@ -567,20 +538,31 @@ class Simulation {
       return;
     }
     visit.nextCall++;
-    this.call(child, target.id, request, (failure) => {
-      if (failure === undefined) this.continueVisit(visit);
-      else this.completeVisit(visit, failure);
+    this.call({
+      step: child,
+      fromId: target.id,
+      request,
+      onSettled: (failure) => {
+        this.childSettled(visit, failure);
+      },
     });
+  }
+
+  /** A nested call is done: carry on with the next, or fail the visit. */
+  private childSettled(visit: Visit, failure: Failure | undefined): void {
+    if (failure !== undefined) {
+      this.completeVisit(visit, failure);
+      return;
+    }
+    this.continueVisit(visit);
   }
 
   /** Frees the visit's resources and sends its answer back to the caller. */
   private completeVisit(visit: Visit, failure: Failure | undefined): void {
-    const { target, request } = visit.attempt.call;
+    const { target } = visit.attempt.call;
     this.observe({
       kind: "finished",
-      timeMs: this.nowMs,
-      requestId: request.id,
-      componentId: target.id,
+      ...this.eventBase(visit),
       latencyMs: this.nowMs - visit.arrivedMs,
       ...(failure === undefined ? {} : { failure }),
     });
@@ -609,15 +591,18 @@ class Simulation {
     attempt.call.onSettled(undefined);
   }
 
+  /** The caller stops waiting, unless the attempt was already answered. */
+  private timeOut(attempt: Attempt): void {
+    if (attempt.settled) return;
+    const componentId = attempt.call.target.id;
+    this.failAttempt(attempt, { componentId, reason: "timeout" });
+  }
+
   /** Retries if the edge's policy allows; otherwise the call fails. */
   private failAttempt(attempt: Attempt, failure: Failure): void {
     attempt.settled = true;
     const { call } = attempt;
-    const policy = call.edge?.retry;
-    const retryAtMs =
-      policy !== undefined && call.attempts < policy.maxAttempts
-        ? this.nowMs + backoffMs(policy, call.attempts, this.retryRandom)
-        : undefined;
+    const retryAtMs = this.retryAtMs(call);
     if (call.edge !== undefined) {
       this.observe({
         kind: "attempt-failed",
@@ -629,21 +614,40 @@ class Simulation {
         ...(retryAtMs === undefined ? {} : { retryAtMs }),
       });
     }
-    if (retryAtMs === undefined) call.onSettled(failure);
-    else this.events.schedule(retryAtMs, { kind: "retry", call });
+    if (retryAtMs === undefined) {
+      call.onSettled(failure);
+      return;
+    }
+    this.events.schedule(retryAtMs, { kind: "retry", call });
+  }
+
+  /** When to try `call` again, or undefined if it has no attempts left. */
+  private retryAtMs(call: Call): number | undefined {
+    const policy = call.edge?.retry;
+    if (policy === undefined || call.attempts >= policy.maxAttempts) {
+      return undefined;
+    }
+    const failedAttempts = call.attempts;
+    const random = this.retryRandom;
+    return this.nowMs + backoffMs({ policy, failedAttempts, random });
   }
 
   /** Starts the `async` step of a message a queue-like component delivers. */
-  private dispatch(queue: RuntimeComponent, visit: Visit): void {
-    const { step, request } = visit.attempt.call;
+  private dispatch(visit: Visit): void {
+    const { step, target: queue, request } = visit.attempt.call;
     if (step.async === undefined) {
       // Nothing to run. Report success from a fresh event rather than
       // recursively, so a long backlog can't overflow the stack.
       this.events.schedule(this.nowMs, { kind: "nothing-to-deliver", visit });
       return;
     }
-    this.call(step.async, queue.id, request, (failure) => {
-      this.dispatchFinished(visit, failure === undefined);
+    this.call({
+      step: step.async,
+      fromId: queue.id,
+      request,
+      onSettled: (failure) => {
+        this.dispatchFinished(visit, failure === undefined);
+      },
     });
   }
 
@@ -651,9 +655,7 @@ class Simulation {
     const { target: queue, request } = visit.attempt.call;
     this.observe({
       kind: "async-finished",
-      timeMs: this.nowMs,
-      requestId: request.id,
-      componentId: queue.id,
+      ...this.eventBase(visit),
       latencyMs: this.nowMs - request.startMs,
       succeeded,
     });
@@ -662,6 +664,103 @@ class Simulation {
       queue.behavior.dispatchFinished?.(visit, succeeded, this.nowMs) ?? [],
     );
   }
+}
+
+function findWorkload({ project, workloadId }: SimulationInput): Workload {
+  const workload = project.workloads.find((w) => w.id === workloadId);
+  if (workload === undefined) throw new Error(`No workload "${workloadId}"`);
+  return workload;
+}
+
+/** Streams seeded from the workload's seed, one per name. */
+function seededStreams(seed: number): RandomStreams {
+  return (stream) => new SeededRandom(deriveSeed(seed, stream));
+}
+
+interface BuildComponentsInput {
+  readonly input: SimulationInput;
+  readonly random: RandomStreams;
+}
+
+/** Builds each component's behavior from its type in the registry. */
+function buildComponents({
+  input,
+  random,
+}: BuildComponentsInput): Map<string, RuntimeComponent> {
+  const components = new Map<string, RuntimeComponent>();
+  for (const component of input.project.architecture.components) {
+    const type = input.registry.get(component.type);
+    if (type === undefined) {
+      throw new Error(`Unknown component type "${component.type}"`);
+    }
+    const behavior = type.build<Visit>(component.config, {
+      random: random(`component:${component.id}`),
+    });
+    components.set(component.id, {
+      id: component.id,
+      behavior,
+      peakInProgress: 0,
+      peakQueueDepth: 0,
+    });
+  }
+  return components;
+}
+
+/** Edges by their endpoints. Validation rejects duplicates; the first wins. */
+function indexEdges(edges: readonly Edge[]): Map<string, Edge> {
+  const byEnds = new Map<string, Edge>();
+  for (const edge of edges) {
+    const key = edgeKey(edge.from, edge.to);
+    if (!byEnds.has(key)) byEnds.set(key, edge);
+  }
+  return byEnds;
+}
+
+function checkTickMs(tickMs: number | undefined): number | undefined {
+  if (tickMs !== undefined && !(tickMs > 0)) {
+    throw new Error(`tickMs must be positive, got ${String(tickMs)}`);
+  }
+  return tickMs;
+}
+
+function ignoreEvent(): void {
+  // No observer: events are dropped.
+}
+
+function throwStuck(timeMs: number): never {
+  throw new Error(
+    `Simulation stuck: over ${String(MAX_EVENTS_AT_ONE_INSTANT)} events at t=${String(timeMs)} ms`,
+  );
+}
+
+/** Raises the component's peaks to its current values. */
+function trackPeaks(component: RuntimeComponent): void {
+  const { behavior } = component;
+  component.peakInProgress = Math.max(
+    component.peakInProgress,
+    behavior.inProgress,
+  );
+  component.peakQueueDepth = Math.max(
+    component.peakQueueDepth,
+    behavior.queueDepth,
+  );
+}
+
+/** The component's state for a tick; its peaks start again from now. */
+function sampleAndResetPeaks(component: RuntimeComponent): ComponentSample {
+  const { behavior } = component;
+  const sample: ComponentSample = {
+    componentId: component.id,
+    inProgress: behavior.inProgress,
+    queueDepth: behavior.queueDepth,
+    peakInProgress: component.peakInProgress,
+    peakQueueDepth: component.peakQueueDepth,
+    gauges: { ...behavior.gauges },
+    counters: { ...behavior.counters },
+  };
+  component.peakInProgress = behavior.inProgress;
+  component.peakQueueDepth = behavior.queueDepth;
+  return sample;
 }
 
 function edgeKey(from: string, to: string): string {

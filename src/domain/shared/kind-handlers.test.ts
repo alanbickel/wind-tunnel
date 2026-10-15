@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { handleKind, type KindHandlers } from "./kind-handlers";
+import { handleKind, lookup, type KindHandlers } from "./kind-handlers";
 
 interface Circle {
   readonly kind: "circle";
@@ -17,6 +17,19 @@ const AREA: KindHandlers<Shape, number> = {
   circle: ({ radius }) => Math.PI * radius ** 2,
   square: ({ side }) => side ** 2,
 };
+
+describe("lookup", () => {
+  const SIDES: Record<Shape["kind"], number> = { circle: 0, square: 4 };
+
+  it("returns the entry for the key", () => {
+    expect(lookup(SIDES, "square")).toBe(4);
+  });
+
+  it("throws for a key outside the table, including inherited ones", () => {
+    const unknown = JSON.parse('"toString"') as Shape["kind"];
+    expect(() => lookup(SIDES, unknown)).toThrow('No entry for "toString"');
+  });
+});
 
 describe("handleKind", () => {
   it("calls the handler for the member's kind", () => {

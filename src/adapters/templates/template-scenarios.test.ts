@@ -155,8 +155,8 @@ describe.each(SEEDS)("with seed %i", (seed) => {
     });
 
     it("answers writes quickly while the writes themselves land late", () => {
-      const answered = b.totals.workflows["create-order"]?.latency?.p99;
-      const landed = b.totals.components["orders-queue"]?.asyncLatency?.p99;
+      const answered = b.totals.workflows["create-order"]?.latency?.p99Ms;
+      const landed = b.totals.components["orders-queue"]?.asyncLatency?.p99Ms;
       expect(answered).toBeLessThan(500);
       expect(landed).toBeGreaterThan(2000);
     });

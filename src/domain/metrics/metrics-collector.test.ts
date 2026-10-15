@@ -127,11 +127,11 @@ describe("simulateWithMetrics", () => {
     const { totals } = run(project());
     const get = totals.workflows["get"];
     expect(get?.failed).toBe(0);
-    expect(get?.latency?.p50).toBeCloseTo(49, 6);
-    expect(get?.latency?.p99).toBeCloseTo(49, 6);
+    expect(get?.latency?.p50Ms).toBeCloseTo(49, 6);
+    expect(get?.latency?.p99Ms).toBeCloseTo(49, 6);
     // fn: 20 ms of its own, plus 1 + 15 + 1 waiting on db.
-    expect(totals.components["fn"]?.latency?.p99).toBeCloseTo(37, 6);
-    expect(totals.components["db"]?.latency?.p99).toBeCloseTo(15, 6);
+    expect(totals.components["fn"]?.latency?.p99Ms).toBeCloseTo(37, 6);
+    expect(totals.components["db"]?.latency?.p99Ms).toBeCloseTo(15, 6);
     expect(totals.components["db"]?.gauges).toEqual({ connectionsHeld: 0 });
   });
 

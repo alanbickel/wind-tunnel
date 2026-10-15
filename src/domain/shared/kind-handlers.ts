@@ -33,3 +33,16 @@ export function handleKind<U extends Kinded, R>(
   const handler = handlers[kind] as (member: U) => R;
   return handler(member);
 }
+
+/**
+ * The entry for `key` in a table typed `Record<Key, Value>`, which the
+ * compiler makes complete. Throws on a key outside `Key`, for the same
+ * reasons as `handleKind`.
+ */
+export function lookup<Key extends string, Value>(
+  table: Readonly<Record<Key, Value>>,
+  key: Key,
+): Value {
+  if (!Object.hasOwn(table, key)) throw new Error(`No entry for "${key}"`);
+  return table[key];
+}

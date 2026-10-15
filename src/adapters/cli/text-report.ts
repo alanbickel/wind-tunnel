@@ -93,8 +93,8 @@ function componentTotals(project: Project, totals: MetricsSnapshot): string {
       count(m.rejected),
       count(unfinished(m)),
       count(m.timeouts),
-      ms(m.latency?.p50),
-      ms(m.latency?.p99),
+      ms(m.latency?.p50Ms),
+      ms(m.latency?.p99Ms),
       count(m.peakInProgress),
       count(m.peakQueueDepth),
       extras(m),
@@ -143,7 +143,7 @@ function extras(m: ComponentMetrics): string {
     const delivering = m.completed - m.asyncSucceeded - m.queueDepth;
     parts.push(`being delivered=${count(delivering)}`);
     if (m.asyncLatency !== undefined) {
-      parts.push(`async p99=${ms(m.asyncLatency.p99)}`);
+      parts.push(`async p99=${ms(m.asyncLatency.p99Ms)}`);
     }
   }
   for (const [name, value] of Object.entries(m.counters)) {
@@ -167,7 +167,7 @@ function workflowTimeline(snapshots: readonly MetricsSnapshot[]): string {
       count(succeeded),
       count(failed),
       count(inProgress),
-      ...ids.map((id) => ms(s.workflows[id]?.latency?.p99)),
+      ...ids.map((id) => ms(s.workflows[id]?.latency?.p99Ms)),
     ];
   });
   return [
@@ -240,7 +240,9 @@ function metricsFor(snapshot: MetricsSnapshot, id: string): ComponentMetrics {
 }
 
 function latencyCells(latency: LatencySummary | undefined): string[] {
-  return [latency?.p50, latency?.p95, latency?.p99, latency?.max].map(ms);
+  return [latency?.p50Ms, latency?.p95Ms, latency?.p99Ms, latency?.maxMs].map(
+    ms,
+  );
 }
 
 /** Right-aligns columns that hold only numbers (or "-"); left-aligns the rest. */

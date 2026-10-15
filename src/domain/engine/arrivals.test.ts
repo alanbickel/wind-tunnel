@@ -23,7 +23,11 @@ const arrivals = (process: ArrivalProcess): number[] => {
 };
 
 const process = (w: Workload, seed = 1) =>
-  new ArrivalProcess(w, new SeededRandom(seed), new SeededRandom(seed + 1));
+  new ArrivalProcess({
+    workload: w,
+    timing: new SeededRandom(seed),
+    choice: new SeededRandom(seed + 1),
+  });
 
 describe("rateAt", () => {
   const profile = [

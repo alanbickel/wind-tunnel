@@ -17,10 +17,10 @@ describe("LatencyHistogram", () => {
   it("reports identical values exactly", () => {
     expect(histogramOf([49, 49, 49]).summary()).toEqual({
       count: 3,
-      p50: 49,
-      p95: 49,
-      p99: 49,
-      max: 49,
+      p50Ms: 49,
+      p95Ms: 49,
+      p99Ms: 49,
+      maxMs: 49,
     });
   });
 
@@ -44,7 +44,7 @@ describe("LatencyHistogram", () => {
   it("merges, and resets", () => {
     const a = histogramOf([10, 10]);
     a.merge(histogramOf([1_000, 1_000]));
-    expect(a.summary()).toMatchObject({ count: 4, max: 1_000 });
+    expect(a.summary()).toMatchObject({ count: 4, maxMs: 1_000 });
     // 10 ms falls in the bucket up to about 10.4 ms.
     expect(a.percentile(0.5)).toBeCloseTo(10.4, 1);
     a.reset();

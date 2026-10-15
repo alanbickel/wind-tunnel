@@ -49,8 +49,8 @@ Decisions that still apply: rule 7 applies to component methods (no exception). 
 - [x] Document migration scaffolding (`schemaVersion`), run by `loadProject` before the v1 schema
 - [x] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
 - [x] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
-- [ ] Use cases: `ListProjects`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `LoadProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
-- [ ] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Move the CLI's seed-override logic into `RunSimulation` so both share it
+- [x] Use cases: `ListProjects`, `ListTemplates`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `OpenProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
+- [ ] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Make the CLI run through `RunSimulation` (which now has the seed override) and delete its own `selectWorkload`/`withSeed`. Add `RunSimulation` to `use-cases-with-indexeddb.test.ts`
 - [ ] Request persistent storage (`navigator.storage.persist()`)
 - [ ] Onboarding guide for the application layer and persistence: ports, records vs. documents, a use case traced end to end
 
@@ -72,6 +72,12 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-15: M2 use cases
+
+- **Shape:** one class per use case in `src/application/use-cases/`, ports in the constructor (one object), work in `execute`. Results are `status` unions like `ProjectLookup`.
+- **Differs from the plan:** `LoadProject` is `OpenProject` (clashed with the adapter's `loadProject`), and `ListTemplates` is new. `SaveProject` stamps `updatedAt` and refuses an invalid project, using `findProjectIssues` (domain; `loadProject` uses it too). `RunSimulation` takes a `Project` (not an ID) plus optional `workloadId`, `seed`, `onSnapshot`; seed range checking stays with whoever parses the input.
+- **Testing kit** gained `InMemoryTemplateCatalog` and `RecordingSimulationRunner` (`FAKE_RUN`). `src/adapters/persistence/use-cases-with-indexeddb.test.ts` runs the project use cases against IndexedDB and the bundled catalog.
 
 ### 2026-10-15: M2 IndexedDB adapter
 

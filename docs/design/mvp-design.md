@@ -247,7 +247,7 @@ The repository and the catalog exchange **`ProjectRecord`s**: a domain `Project`
 
 ### 5.2 MVP use cases
 
-`ListProjects`, `CreateProjectFromTemplate`, `LoadProject`, `SaveProject`, `DeleteProject`, `RunSimulation`.
+`ListProjects`, `ListTemplates`, `CreateProjectFromTemplate`, `OpenProject`, `SaveProject`, `DeleteProject`, `RunSimulation`, in `src/application/use-cases/`. Each is a class that takes its ports in the constructor and does its work in `execute`. `OpenProject` was planned as `LoadProject` and renamed so it isn't confused with the adapter's `loadProject`, which parses documents. `ListTemplates` was added so the UI can offer templates without touching the catalog adapter.
 
 ## 6. Project document (persistence format)
 

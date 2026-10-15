@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` migrates and loads project documents, maps them to and from `ProjectRecord`s, and stores them in IndexedDB (`IndexedDbProjectRepository`), `adapters/templates/` holds the two starter templates, the `TemplateCatalog` adapter over them, and the scenario tests that check their lessons, `adapters/cli/` runs templates headlessly (`npm run simulate`), `application/ports/` defines the ports, with in-memory fakes and a repository contract check in `application/testing/`, and `application/use-cases/` holds the MVP use cases; the UI is still to come. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` migrates and loads project documents, maps them to and from `ProjectRecord`s, and stores them in IndexedDB (`IndexedDbProjectRepository`), `adapters/templates/` holds the two starter templates, the `TemplateCatalog` adapter over them, and the scenario tests that check their lessons, `adapters/cli/` runs templates headlessly (`npm run simulate`), `application/ports/` defines the ports, with in-memory fakes and a repository contract check in `application/testing/`, and `application/use-cases/` holds the MVP use cases (see [The application layer and persistence](application-layer.md)); the UI is still to come. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -117,7 +117,7 @@ To approve a new library for `domain` or `application`, write an ADR, then add i
 
 ## Planned: how a simulation run works
 
-For how the engine itself works (the event queue and the behavior primitives, with diagrams and example timelines), see [How the simulation engine works](simulation-engine.md). For how service types plug into it, see [Component definitions](component-definitions.md). For how snapshots are built, see [How metrics work](metrics.md).
+For how the engine itself works (the event queue and the behavior primitives, with diagrams and example timelines), see [How the simulation engine works](simulation-engine.md). For how service types plug into it, see [Component definitions](component-definitions.md). For how snapshots are built, see [How metrics work](metrics.md). For the use case and port side, with a run traced through the in-process runner, see [The application layer and persistence](application-layer.md). The Worker runner below comes in M3.
 
 ```mermaid
 sequenceDiagram
@@ -129,18 +129,19 @@ sequenceDiagram
     participant E as Engine (domain)
 
     User->>UI: Click "Run"
-    UI->>UC: execute(architecture, workload, seed)
-    UC->>WB: start(...) via SimulationRunner port
+    UI->>UC: execute({ project, workloadId, seed, onSnapshot })
+    UC->>WB: run(request, onSnapshot) via SimulationRunner port
     WB->>W: postMessage(serialized inputs)
     W->>E: run with seeded RandomSource
     loop every snapshot tick
         E-->>W: metrics snapshot
         W-->>WB: postMessage(snapshot)
-        WB-->>UI: snapshot via subscription
+        WB-->>UI: snapshot via onSnapshot
     end
     E-->>W: final results
     W-->>WB: done
-    WB-->>UI: run complete
+    WB-->>UC: run promise resolves
+    UC-->>UI: finished, with the run
 ```
 
 ## Keeping these docs current

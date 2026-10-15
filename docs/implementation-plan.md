@@ -40,33 +40,23 @@ Brought all existing code in line with the CONTRIBUTING coding standards, with n
 
 Decisions that still apply: rule 7 applies to component methods (no exception). Component config fields in seconds (`idleTimeoutSec`, `burstSec`) stay as they are; each component converts its own.
 
-## M2: Application layer and persistence
+## M2: Application layer and persistence ✅
 
-**Done when:** all MVP use cases pass tests against the IndexedDB adapter (`fake-indexeddb`) and the template catalog.
-
-- [x] Ports: `ProjectRepository`, `TemplateCatalog`, `Clock`, `IdGenerator`, `SimulationRunner`. Replace `src/application/layer.test.ts` with real tests
-- [x] Document mapper, `ProjectRecord` ↔ document (ADR-0008): round-trips `sampleRecord` and both templates through `loadProject` unchanged
-- [x] Document migration scaffolding (`schemaVersion`), run by `loadProject` before the v1 schema
-- [x] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
-- [x] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
-- [x] Use cases: `ListProjects`, `ListTemplates`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `OpenProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
-- [x] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Make the CLI run through `RunSimulation` (which now has the seed override) and delete its own `selectWorkload`/`withSeed`. Add `RunSimulation` to `use-cases-with-indexeddb.test.ts`
-- [x] Request persistent storage (`navigator.storage.persist()`): the `StoragePersistence` port and its browser adapter; the UI makes the call in M3
-- [ ] Onboarding guide for the application layer and persistence: ports, records vs. documents, a use case traced end to end
+Ports, `ProjectRecord`s and the document mapper (ADR-0008), document migration scaffolding, the bundled template catalog, the IndexedDB repository, the seven MVP use cases, the in-process simulation runner (the CLI now runs through `RunSimulation`), the `StoragePersistence` port, and the [application layer guide](architecture/application-layer.md). Commits `62e12f2`..`5641ff8`, plus the commit that closes M2.
 
 ## M3: Minimal UI
 
 **Done when:** in the browser, a user can create a project from a template, view its architecture, run its workload, and see charts.
 
-Tasks will be refined at the end of M2.
-
 - [ ] ADRs: canvas library and chart library
-- [ ] App shell and dependency injection via React context
-- [ ] Project list and "new from template"
+- [ ] Browser `Clock` (`new Date().toISOString()`) and `IdGenerator` (`crypto.randomUUID()`) adapters
+- [ ] Composition root in `src/main.tsx` (open the database, build the adapters and use cases) and an app shell that provides the use cases through React context
+- [ ] Project list and "new from template"; opening an `invalid` project shows its `reason` and issues
 - [ ] Read-only architecture view
 - [ ] Web Worker `SimulationRunner` adapter. Add cancellation to the port (stop a run, terminate the Worker); M2's port has none because `AbortSignal` isn't in the ECMAScript-only lib `application/` is checked with
 - [ ] Run controls and metric charts
 - [ ] Call `StoragePersistence.request()` after the user's first project is created (Firefox prompts, so not at startup); if it isn't `persisted`, point to export
+- [ ] Onboarding guide for the UI: the composition root, how components reach use cases, the Worker runner, and a run traced from click to chart
 
 ---
 
@@ -74,67 +64,26 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
-### 2026-10-15: M2 persistent storage
+### 2026-10-15: M2 complete
 
-- **`StoragePersistence` port** (`request()` → `persisted`, `best-effort`, or `unsupported`) and **`BrowserStoragePersistence({ storage })`**, which checks `persisted()` before calling `persist()`. Pass `navigator.storage`, or `undefined` where it's missing (outside secure contexts).
-- **Differs from the plan:** nothing calls it yet. Firefox prompts the user ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)), so asking at startup would prompt before there's anything to keep. M3 calls it after the first project is created.
-
-### 2026-10-15: M2 in-process runner
-
-- **`InProcessSimulationRunner({ registry })`** (`src/adapters/simulation/`) wraps `simulateWithMetrics`. It runs synchronously inside a `Promise` executor, so an engine error rejects instead of throwing, as a Worker's failure will.
-- **The CLI runs through `RunSimulation`;** its `selectWorkload`/`withSeed` are gone. Report snapshots unchanged.
-- **`use-cases-with-indexeddb.test.ts`** now covers `RunSimulation` too, with each workload cut to 5 s so it stays fast.
-
-### 2026-10-15: M2 use cases
-
-- **Shape:** one class per use case in `src/application/use-cases/`, ports in the constructor (one object), work in `execute`. Results are `status` unions like `ProjectLookup`.
-- **Differs from the plan:** `LoadProject` is `OpenProject` (clashed with the adapter's `loadProject`), and `ListTemplates` is new. `SaveProject` stamps `updatedAt` and refuses an invalid project, using `findProjectIssues` (domain; `loadProject` uses it too). `RunSimulation` takes a `Project` (not an ID) plus optional `workloadId`, `seed`, `onSnapshot`; seed range checking stays with whoever parses the input.
-- **Testing kit** gained `InMemoryTemplateCatalog` and `RecordingSimulationRunner` (`FAKE_RUN`). `src/adapters/persistence/use-cases-with-indexeddb.test.ts` runs the project use cases against IndexedDB and the bundled catalog.
-
-### 2026-10-15: M2 IndexedDB adapter
-
-- **`openProjectDatabase()`** (`project-database.ts`) opens `wind-tunnel` v1; **`IndexedDbProjectRepository({ database, registry })`** passes the contract. It stores `toProjectDocument(record)` and reads through `loadProject`, so a failing or newer-version document comes back `invalid` with `UNREADABLE_PROJECT_REASON`, yet is still listed (`list` reads only the summary fields, with a fallback name).
-- **Tests:** `import "fake-indexeddb/auto"`, then `vi.stubGlobal("indexedDB", new IDBFactory())` in `beforeEach` for a fresh database per test; close it in `afterEach`.
-- **Not handled yet:** the `blocking`/`versionchange` case (another tab holding an older database version open). Matters once there's a version 2.
-- **Next:** the use cases.
-
-### 2026-10-15: M2 template catalog
-
-- **`BundledTemplateCatalog`** (`src/adapters/templates/`) loads `BUNDLED_TEMPLATES` up front and throws if one is invalid. Templates are keyed by document ID (`template-a`); the version sits beside each JSON import in `BUNDLED_TEMPLATES`, and `get` returns the record with `source` already set, so `CreateProjectFromTemplate` only replaces the ID and timestamps.
-- **The CLI uses the catalog:** `--template template-a` (no more `a`/`b`), `--help` lists the catalog's templates, and `runSimulateCommand` is now async.
-- **Next:** the IndexedDB adapter.
-
-### 2026-10-15: M2 migration scaffolding
-
-- **`document-migrations.ts`** holds `CURRENT_SCHEMA_VERSION` and `DOCUMENT_MIGRATIONS` (empty while only v1 exists), plus `migrateDocument(input, migrations)`, which `loadProject` runs before the v1 schema. Each migration upgrades one version, keyed by the version it starts from; `migrateDocument` stamps the new `schemaVersion` itself. Migrations run on unchecked JSON, since only the current schema is kept.
-
-### 2026-10-15: M2 document mapper
-
-- **Workload times are milliseconds in the domain** (`durationMs`, `atMs`); the document keeps `durationSec`/`atSec`. `project-document-mapper.ts` converts both ways, and `toDocumentIssue` renames those fields in validation paths so users see document paths. Messages still say seconds.
-- **`loadProject` returns `{ ok: true, record }`** (a `ProjectRecord`), not `project` + `document`. `toProjectDocument(record)` is the way back; the IndexedDB adapter should store its output.
+- **Read [the application layer guide](architecture/application-layer.md)** before M3: the ports, which adapters fill them, records vs. documents, and a project traced end to end ([`src/adapters/traces/`](../src/adapters/traces/), refresh with `npx vitest run -u src/adapters/traces`).
+- **Differs from the plan:** `LoadProject` became `OpenProject`, and `ListTemplates` is new (MVP design §5.2). `RunSimulation` takes a `Project`, not an ID. Nothing calls `StoragePersistence` yet; M3 calls it after the first project is created, because Firefox prompts.
+- **Still missing for the browser:** `Clock` and `IdGenerator` adapters, the Worker runner, and the composition root (all in M3). The `blocked`/`blocking` case when a newer build upgrades the database while another tab holds it is in TODO.md; it matters once there's a database version 2.
+- **Shapes to follow:** one class per use case, ports in the constructor as one object, work in `execute`, results as `status` unions. A new port gets a fake in `src/application/testing/`. Adapters reading stored or imported JSON go through `loadProject`.
+- **Tests:** IndexedDB tests `import "fake-indexeddb/auto"`, then `vi.stubGlobal("indexedDB", new IDBFactory())` in `beforeEach` and close the database in `afterEach`. Each test body stays within 30 lines; split a long scenario into named steps.
 
 ### 2026-10-15: R1 complete
 
-- **Lint is strict now:** a coding-standard violation fails `npm run lint` and CI. An exception needs a disable comment with its reason after `--`.
-- **Helpers:** `src/domain/shared/kind-handlers.ts` has `KindHandlers`/`handleKind` for discriminated unions and `lookup` for `Record` tables; both throw on a key the table doesn't own. Tests can use `workflowIn`/`componentIn` (`src/domain/metrics/testing/`) instead of chains of `?.`, which count toward complexity.
-- **For M2:** the CLI's seed override is now `selectWorkload`/`withSeed` in `simulate-command.ts`; that's the logic to move into `RunSimulation`. `toProject` is split into `toArchitecture`/`toWorkflow`/`toWorkload`, a shape the document mapper can follow.
+- **Lint is strict:** a coding-standard violation fails `npm run lint` and CI. An exception needs a disable comment with its reason after `--`.
+- **Helpers:** `src/domain/shared/kind-handlers.ts` has `KindHandlers`/`handleKind` for discriminated unions and `lookup` for `Record` tables. Tests can use `workflowIn`/`componentIn` (`src/domain/metrics/testing/`) instead of chains of `?.`.
 - **Measuring speed:** whole-template timings swing ±30% between runs. Compare the million-event test instead, alternating with `git stash`: `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`.
 - **Scripted edits:** Python isn't installed, and Git Bash strips backslashes inside heredocs, which breaks regexes. Write such scripts to a file first.
 
-### 2026-10-15: M2 started (ports)
-
-- **Ports** (`62e12f2`): the repository and catalog exchange `ProjectRecord`s (domain `Project` + `createdAt`, `updatedAt`, `source`, `layout`), never documents (ADR-0008). `Clock.now()` returns an ISO string in `toISOString` format, because ESLint bans `new Date` anywhere in `application/`, tests included. `ProjectRepository.get` returns `found`, `missing`, or `invalid` with a user-facing `reason` plus `issues`.
-- **Testing kit** in `src/application/testing/`: `InMemoryProjectRepository`, `FixedClock`, `SequentialIds`, `sampleRecord` (valid against the AWS registry, every optional field set), and `checkProjectRepositoryContract`, which returns a list of violations. The IndexedDB adapter's test must run it with `sampleRecord` and expect `[]`.
-- **Next:** the document mapper. Template JSON timestamps (`2026-10-14T00:00:00Z`) aren't in the `Clock` format; that's fine, because new projects take fresh timestamps from the clock.
-
 ### 2026-10-15: M1 complete
 
-- **Tuning:** only one setting changed. Template B's `orders-queue` consumer limit went from 40 to 15, so the backlog grows during the spike (peak about 1,900) and drains by 54 s, and writes land up to about 6 s late. Template A needed no change (44% of requests fail, all `too-many-connections`). Final numbers and the settings tried are in MVP design §7.
-- **Scenario tests:** `src/adapters/templates/template-scenarios.test.ts` asserts each lesson by phase on seeds 42, 7, and 2026, with loose thresholds. A template change that alters its lesson must update these tests. Refresh the report snapshots with `npx vitest run -u src/adapters/cli`.
-- **Report:** every total in the text report reconciles (`report-reconciles.test.ts`); keep it that way when adding columns.
+- **Templates:** `template-scenarios.test.ts` asserts each template's lesson by phase on seeds 42, 7, and 2026; a template change that alters its lesson must update it. Tuning results are in MVP design §7. Refresh the report snapshots with `npx vitest run -u src/adapters/cli`; every total in the report reconciles (`report-reconciles.test.ts`).
 - **Headless runner:** `scripts/simulate.js` loads TypeScript with Vite's experimental `runnerImport` (about 2 s startup), not `tsx`.
-- **Loading:** `loadProject(json, registry)` runs the v1 schema, `validateProject`, then `validateComponents`, and returns the `Project` plus the parsed document. Schema objects are strict; seeds are 0 to 2^32 − 1.
-- **Known model gaps** (in TODO.md and `docs/design/fidelity.md`): SQS has no visibility timeout (failed messages are redelivered at once; the engine throws after 1,000,000 events at one instant). Lambda cold starts are checked lazily on arrival. Template A understates AWS (LMB-8, RDS-2, RDS-4).
+- **Known model gaps** (in TODO.md and `docs/design/fidelity.md`): SQS has no visibility timeout, Lambda cold starts are checked lazily on arrival, and Template A understates AWS (LMB-8, RDS-2, RDS-4).
 
 ### Gotchas (still apply)
 

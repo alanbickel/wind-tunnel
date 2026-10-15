@@ -1,0 +1,50 @@
+CreateProjectFromTemplate.execute("template-a")
+  port     templates.get("template-a") → record template-a "Serverless API with RDS" (updatedAt 2026-10-14T00:00:00Z)
+  port     ids.newId() → project-1
+  port     clock.now() → 2026-10-15T12:00:00.000Z
+  port     projects.save(record project-1 "Serverless API with RDS" (updatedAt 2026-10-15T12:00:00.000Z))
+  result   created, record project-1 "Serverless API with RDS" (updatedAt 2026-10-15T12:00:00.000Z)
+  IndexedDB "projects" store, key "project-1":
+    schemaVersion 1
+    createdAt 2026-10-15T12:00:00.000Z, updatedAt 2026-10-15T12:00:00.000Z
+    source {"templateId":"template-a","templateVersion":1}
+    workloads[0].durationSec 60   (the record has durationMs 60000)
+
+SaveProject.execute(the record, renamed "Rush hour")
+  port     clock.now() → 2026-10-15T12:05:00.000Z
+  port     projects.save(record project-1 "Rush hour" (updatedAt 2026-10-15T12:05:00.000Z))
+  result   saved
+
+ListProjects.execute()
+  port     projects.list() → [project-1 "Rush hour"]
+  result   1 project
+
+OpenProject.execute("project-1")
+  port     projects.get("project-1") → found
+  result   found, record project-1 "Rush hour" (updatedAt 2026-10-15T12:05:00.000Z)
+
+RunSimulation.execute({ project (cut to 3 s), seed: 7, onSnapshot })
+  port     runner.run({ project: project-1, workloadId: "lunch-rush" })
+  onSnapshot  0–1000 ms
+  onSnapshot  1000–2000 ms
+  onSnapshot  2000–3000 ms
+  port     runner.run → 3 snapshots
+  result   finished, workload "lunch-rush" with seed 7
+  totals: started 619 = succeeded 613 + failed 0 + unfinished 6
+
+(a newer build stored the document as schemaVersion 2; this build reads only 1)
+
+ListProjects.execute()
+  port     projects.list() → [project-1 "Rush hour"]
+  still listed: list() reads only the summary fields
+
+OpenProject.execute("project-1")
+  port     projects.get("project-1") → invalid
+  result   invalid: "This project was saved in a form this version of Wind Tunnel can't open."
+  issue    schemaVersion: Unsupported schema version 2; this version of Wind Tunnel reads version 1.
+
+DeleteProject.execute("project-1")
+  port     projects.delete("project-1")
+
+ListProjects.execute()
+  port     projects.list() → []

@@ -44,7 +44,7 @@ Seeded randomness, event queue, behavior primitives, domain entities and validat
 - [x] 4. `ComponentBehavior` methods take one input object; each `build()` becomes a named class. Before/after timings from `npm run simulate`; a dated addendum to ADR-0006 for the signature
 - [x] 5. `MetricsCollector.observe` as an event-handler map
 - [x] 6. Contract checker: `runScenario` becomes a `ContractHarness` class
-- [ ] 7. Validation: context objects; split `checkWorkload` and `validateComponents`
+- [x] 7. Validation: context objects; split `checkWorkload` and `validateComponents`
 - [ ] 8. Adapters: `parseArgs` as a flag table; `formatReport` input object; report columns as data; `loadProject`/`toProject` in stages
 - [ ] 9. Application testing kit and test files
 - [ ] 10. Coding-standard rules from `warn` to `error`; update CONTRIBUTING ("Enforcement", "Existing code") and the README to match
@@ -84,7 +84,7 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
-### 2026-10-15: R1 phases 1 to 6
+### 2026-10-15: R1 phases 1 to 7
 
 - **Helpers** in `src/domain/shared/kind-handlers.ts`: `KindHandlers`/`handleKind` for discriminated unions, and `lookup` for `Record` tables. Both throw on a key the table doesn't own (so `"toString"` can't find an inherited method). Use them for the remaining `switch` statements.
 - **Proof of no behavior change:** the trace snapshots (`src/domain/traces/`) and report snapshots (`src/adapters/cli/reports/`) must stay byte-for-byte unchanged.

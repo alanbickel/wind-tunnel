@@ -1,4 +1,4 @@
-import type { Edge, Project, Step, Workload } from "./project";
+import type { Edge, Project, Step, Workflow, Workload } from "./project";
 
 /** A problem found in a project, located by a path into its data. */
 export interface ValidationIssue {
@@ -26,46 +26,50 @@ interface Identified {
  */
 export function validateProject(project: Project): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const report = (path: IssuePath, message: string) => {
+  const report: Report = (path, message) => {
     issues.push({ path, message });
   };
 
+  checkAllUniqueIds(project, report);
   const { components, edges } = project.architecture;
-  checkUniqueIds(
-    components,
-    ["architecture", "components"],
-    "component",
-    report,
-  );
-  checkUniqueIds(edges, ["architecture", "edges"], "edge", report);
-  checkUniqueIds(project.workflows, ["workflows"], "workflow", report);
-  checkUniqueIds(project.workloads, ["workloads"], "workload", report);
-
   const componentIds = new Set(components.map((c) => c.id));
-  const edgeTargets = checkEdges(edges, componentIds, report);
-
-  project.workflows.forEach((workflow, index) => {
-    checkStep(workflow.root, ["workflows", index, "root"], undefined, {
-      componentIds,
-      edgeTargets,
-      report,
-    });
-  });
-
+  const edgeTargets = checkEdges(edges, { componentIds, report });
+  checkWorkflows(project.workflows, { componentIds, edgeTargets, report });
   const workflowIds = new Set(project.workflows.map((w) => w.id));
-  project.workloads.forEach((workload, index) => {
-    checkWorkload(workload, ["workloads", index], workflowIds, report);
-  });
+  checkWorkloads(project.workloads, { workflowIds, report });
 
   return issues;
 }
 
 type Report = (path: IssuePath, message: string) => void;
 
+/** For each component, the components it has an edge to. */
+type EdgeTargets = ReadonlyMap<string, ReadonlySet<string>>;
+
+/** One list whose items' IDs must be unique, and what to call an item. */
+interface UniqueIdList {
+  readonly items: readonly Identified[];
+  readonly path: IssuePath;
+  readonly kind: string;
+}
+
+function checkAllUniqueIds(project: Project, report: Report): void {
+  const { components, edges } = project.architecture;
+  const lists: UniqueIdList[] = [
+    {
+      items: components,
+      path: ["architecture", "components"],
+      kind: "component",
+    },
+    { items: edges, path: ["architecture", "edges"], kind: "edge" },
+    { items: project.workflows, path: ["workflows"], kind: "workflow" },
+    { items: project.workloads, path: ["workloads"], kind: "workload" },
+  ];
+  for (const list of lists) checkUniqueIds(list, report);
+}
+
 function checkUniqueIds(
-  items: readonly Identified[],
-  path: IssuePath,
-  kind: string,
+  { items, path, kind }: UniqueIdList,
   report: Report,
 ): void {
   const seen = new Set<string>();
@@ -77,92 +81,163 @@ function checkUniqueIds(
   });
 }
 
+interface EdgeContext {
+  readonly componentIds: ReadonlySet<string>;
+  readonly report: Report;
+}
+
+/** An edge and where it is in the project. */
+interface EdgeAt {
+  readonly edge: Edge;
+  readonly path: IssuePath;
+}
+
+/** Where each component can already call, to spot a second edge to the same place. */
+interface TargetContext {
+  readonly targets: Map<string, Set<string>>;
+  readonly report: Report;
+}
+
 /** Checks edge endpoints and returns, for each component, where it can call. */
-function checkEdges(
-  edges: readonly Edge[],
-  componentIds: ReadonlySet<string>,
-  report: Report,
-): Map<string, Set<string>> {
+function checkEdges(edges: readonly Edge[], context: EdgeContext): EdgeTargets {
   const targets = new Map<string, Set<string>>();
   edges.forEach((edge, index) => {
-    const path = ["architecture", "edges", index];
-    for (const end of ["from", "to"] as const) {
-      if (!componentIds.has(edge[end])) {
-        report(
-          [...path, end],
-          `Edge "${edge.id}" refers to unknown component "${edge[end]}".`,
-        );
-      }
-    }
-    if (edge.from === edge.to) {
-      report(path, `Edge "${edge.id}" connects "${edge.from}" to itself.`);
-    }
-    const fromTargets = targets.get(edge.from) ?? new Set<string>();
-    if (fromTargets.has(edge.to)) {
-      // Two edges between the same pair would make it ambiguous which one's
-      // latency, timeout, and retries apply to a call.
-      report(
-        path,
-        `Edge "${edge.id}" duplicates another edge from "${edge.from}" to "${edge.to}".`,
-      );
-    }
-    fromTargets.add(edge.to);
-    targets.set(edge.from, fromTargets);
+    const at: EdgeAt = { edge, path: ["architecture", "edges", index] };
+    checkEndpoints(at, context);
+    addTarget(at, { targets, report: context.report });
   });
   return targets;
 }
 
+function checkEndpoints({ edge, path }: EdgeAt, context: EdgeContext): void {
+  const { componentIds, report } = context;
+  for (const end of ["from", "to"] as const) {
+    if (!componentIds.has(edge[end])) {
+      report(
+        [...path, end],
+        `Edge "${edge.id}" refers to unknown component "${edge[end]}".`,
+      );
+    }
+  }
+  if (edge.from === edge.to) {
+    report(path, `Edge "${edge.id}" connects "${edge.from}" to itself.`);
+  }
+}
+
+function addTarget({ edge, path }: EdgeAt, context: TargetContext): void {
+  const { targets, report } = context;
+  const fromTargets = targets.get(edge.from) ?? new Set<string>();
+  if (fromTargets.has(edge.to)) {
+    // Two edges between the same pair would make it ambiguous which one's
+    // latency, timeout, and retries apply to a call.
+    report(
+      path,
+      `Edge "${edge.id}" duplicates another edge from "${edge.from}" to "${edge.to}".`,
+    );
+  }
+  fromTargets.add(edge.to);
+  targets.set(edge.from, fromTargets);
+}
+
 interface StepContext {
   readonly componentIds: ReadonlySet<string>;
-  readonly edgeTargets: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly edgeTargets: EdgeTargets;
   readonly report: Report;
 }
 
-function checkStep(
-  step: Step,
-  path: IssuePath,
-  callerId: string | undefined,
+/** A step, where it is in the project, and the component that calls it. */
+interface StepAt {
+  readonly step: Step;
+  readonly path: IssuePath;
+  /** `undefined` for a workflow's root, which the user calls. */
+  readonly callerId: string | undefined;
+}
+
+function checkWorkflows(
+  workflows: readonly Workflow[],
   context: StepContext,
 ): void {
-  const { componentIds, edgeTargets, report } = context;
+  workflows.forEach((workflow, index) => {
+    const path = ["workflows", index, "root"];
+    checkStep({ step: workflow.root, path, callerId: undefined }, context);
+  });
+}
 
+function checkStep(at: StepAt, context: StepContext): void {
+  const { step, path } = at;
+  checkTarget(at, context);
+  step.calls?.forEach((child, index) => {
+    const childPath = [...path, "calls", index];
+    checkStep(
+      { step: child, path: childPath, callerId: step.componentId },
+      context,
+    );
+  });
+  checkAsync(at, context);
+}
+
+/** The step's component exists, and its caller has an edge to it. */
+function checkTarget(at: StepAt, context: StepContext): void {
+  const { step, path, callerId } = at;
+  const { componentIds, edgeTargets, report } = context;
   if (!componentIds.has(step.componentId)) {
     report(
       [...path, "componentId"],
       `Step refers to unknown component "${step.componentId}".`,
     );
-  } else if (
-    callerId !== undefined &&
-    edgeTargets.get(callerId)?.has(step.componentId) !== true
-  ) {
-    report(
-      path,
-      `No edge from "${callerId}" to "${step.componentId}"; every call must follow an edge.`,
-    );
+    return;
   }
-
-  step.calls?.forEach((child, index) => {
-    checkStep(child, [...path, "calls", index], step.componentId, context);
-  });
-
-  if (step.async !== undefined) {
-    if (step.action !== "enqueue") {
-      report(
-        [...path, "async"],
-        `Only "enqueue" steps can have async work; this step is "${step.action}".`,
-      );
-    }
-    // The consumer is called by the queue, so that call needs an edge too.
-    checkStep(step.async, [...path, "async"], step.componentId, context);
-  }
+  if (callerId === undefined) return;
+  if (edgeTargets.get(callerId)?.has(step.componentId) === true) return;
+  report(
+    path,
+    `No edge from "${callerId}" to "${step.componentId}"; every call must follow an edge.`,
+  );
 }
 
-function checkWorkload(
-  workload: Workload,
-  path: IssuePath,
-  workflowIds: ReadonlySet<string>,
-  report: Report,
+function checkAsync({ step, path }: StepAt, context: StepContext): void {
+  if (step.async === undefined) return;
+  const asyncPath = [...path, "async"];
+  if (step.action !== "enqueue") {
+    context.report(
+      asyncPath,
+      `Only "enqueue" steps can have async work; this step is "${step.action}".`,
+    );
+  }
+  // The consumer is called by the queue, so that call needs an edge too.
+  checkStep(
+    { step: step.async, path: asyncPath, callerId: step.componentId },
+    context,
+  );
+}
+
+interface WorkloadContext {
+  readonly workflowIds: ReadonlySet<string>;
+  readonly report: Report;
+}
+
+/** A workload and where it is in the project. */
+interface WorkloadAt {
+  readonly workload: Workload;
+  readonly path: IssuePath;
+}
+
+function checkWorkloads(
+  workloads: readonly Workload[],
+  context: WorkloadContext,
 ): void {
+  workloads.forEach((workload, index) => {
+    const at: WorkloadAt = { workload, path: ["workloads", index] };
+    checkMix(at, context);
+    checkProfile(at, context.report);
+  });
+}
+
+function checkMix(
+  { workload, path }: WorkloadAt,
+  context: WorkloadContext,
+): void {
+  const { workflowIds, report } = context;
   if (workload.mix.length === 0) {
     report([...path, "mix"], "The mix needs at least one workflow.");
   }
@@ -186,7 +261,9 @@ function checkWorkload(
       report([...entryPath, "weight"], "Mix weights must be positive.");
     }
   });
+}
 
+function checkProfile({ workload, path }: WorkloadAt, report: Report): void {
   if (workload.profile.length === 0) {
     report([...path, "profile"], "The profile needs at least one point.");
   }

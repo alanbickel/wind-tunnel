@@ -287,6 +287,8 @@ describe("simulate", () => {
     );
   });
 
+  // Processes MAX_EVENTS_AT_ONE_INSTANT events before it throws: about 1 s
+  // alone, but it has timed out at the default 5 s in a busy parallel run.
   it("stops a run that loops without advancing time", () => {
     const root: Step = {
       componentId: "queue",
@@ -300,7 +302,7 @@ describe("simulate", () => {
         overrides: { writer: { concurrency: 0 } },
       }),
     ).toThrow(/stuck/);
-  });
+  }, 30_000);
 
   describe("metrics ticks", () => {
     it("ticks every tickMs and at the end, before other events at that time", () => {

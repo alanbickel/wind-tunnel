@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` loads project documents and maps them to and from `ProjectRecord`s, `adapters/templates/` holds the two starter templates and the scenario tests that check their lessons, `adapters/cli/` runs templates headlessly (`npm run simulate`), and `application/ports/` defines the ports, with in-memory fakes and a repository contract check in `application/testing/`; use cases and the UI are still to come. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` migrates and loads project documents and maps them to and from `ProjectRecord`s, `adapters/templates/` holds the two starter templates and the scenario tests that check their lessons, `adapters/cli/` runs templates headlessly (`npm run simulate`), and `application/ports/` defines the ports, with in-memory fakes and a repository contract check in `application/testing/`; use cases and the UI are still to come. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -64,7 +64,7 @@ flowchart TB
 
 | If you're writing… | Put it in | Notes |
 |---|---|---|
-| A new field or consistency rule on projects, workflows, or workloads | `src/domain/model/` | Update `validateProject`, the document schema and mapper in `src/adapters/persistence/`. A change old documents can't satisfy needs a new `schemaVersion` and a migration. See [The domain model](domain-model.md). |
+| A new field or consistency rule on projects, workflows, or workloads | `src/domain/model/` | Update `validateProject`, the document schema and mapper in `src/adapters/persistence/`. A change old documents can't satisfy needs a new `schemaVersion` and a migration in `document-migrations.ts`, which `loadProject` runs before the schema. See [The domain model](domain-model.md). |
 | A new cloud service type (e.g. Kinesis) | `src/domain/components/aws/` | Register it in `createAwsComponentRegistry`; don't edit the engine. Must pass `checkComponentContract`. See [Component definitions](component-definitions.md). |
 | A new metric for one service type (e.g. Lambda warm instances) | That type's definition in `src/domain/components/aws/` | Expose it as a gauge or counter on the behavior; the engine and collector pass it through. See [How metrics work](metrics.md). |
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |

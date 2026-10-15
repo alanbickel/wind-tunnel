@@ -9,9 +9,7 @@ import {
 import { issuesFromZod } from "../../domain/model/zod-issues";
 import { projectDocumentV1Schema } from "./project-document-v1";
 import { toDocumentIssue, toProjectRecord } from "./project-document-mapper";
-
-/** The schema versions this build can read. */
-export const CURRENT_SCHEMA_VERSION = 1;
+import { DOCUMENT_MIGRATIONS, migrateDocument } from "./document-migrations";
 
 export type LoadResult = Loaded | LoadFailed;
 
@@ -26,8 +24,10 @@ export interface LoadFailed {
 }
 
 /**
- * Turns stored or imported JSON into a `ProjectRecord`, checking it in three
- * stages (MVP design §6, "Load-time checks"):
+ * Turns stored or imported JSON into a `ProjectRecord`. It first brings an
+ * older document up to the current schema version (`migrateDocument`),
+ * refusing one it can't, then checks it in three stages (MVP design §6,
+ * "Load-time checks"):
  *
  * 1. The document's shape and number ranges (`projectDocumentV1Schema`).
  * 2. Rules across the project: unique IDs, references, steps following edges
@@ -43,10 +43,10 @@ export function loadProject(
   input: unknown,
   registry: ComponentRegistry,
 ): LoadResult {
-  const versionIssue = checkSchemaVersion(input);
-  if (versionIssue !== undefined) return { ok: false, issues: [versionIssue] };
+  const migrated = migrateDocument(input, DOCUMENT_MIGRATIONS);
+  if (!migrated.ok) return { ok: false, issues: [migrated.issue] };
 
-  const parsed = projectDocumentV1Schema.safeParse(input);
+  const parsed = projectDocumentV1Schema.safeParse(migrated.document);
   if (!parsed.success) {
     return { ok: false, issues: issuesFromZod(parsed.error) };
   }
@@ -57,19 +57,6 @@ export function loadProject(
   return { ok: true, record };
 }
 
-/** Stage 0: an issue if this build can't read the document's version. */
-function checkSchemaVersion(input: unknown): ValidationIssue | undefined {
-  const version = schemaVersionOf(input);
-  if (version === CURRENT_SCHEMA_VERSION) return undefined;
-  return {
-    path: ["schemaVersion"],
-    message:
-      version === undefined
-        ? "This isn't a Wind Tunnel project: it has no schemaVersion."
-        : `Unsupported schema version ${JSON.stringify(version)}; this version of Wind Tunnel reads version ${String(CURRENT_SCHEMA_VERSION)}.`,
-  };
-}
-
 /** Stages 2 and 3: the issues from the first stage that finds any. */
 function checkProject(
   project: Project,
@@ -78,14 +65,4 @@ function checkProject(
   const issues = validateProject(project);
   if (issues.length > 0) return issues;
   return validateComponents(project, registry);
-}
-
-/** Any document, before its schema version says which schema applies. */
-interface VersionedDocument {
-  readonly schemaVersion?: unknown;
-}
-
-function schemaVersionOf(input: unknown): unknown {
-  if (typeof input !== "object" || input === null) return undefined;
-  return (input as VersionedDocument).schemaVersion;
 }

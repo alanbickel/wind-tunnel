@@ -46,7 +46,7 @@ Decisions that still apply: rule 7 applies to component methods (no exception). 
 
 - [x] Ports: `ProjectRepository`, `TemplateCatalog`, `Clock`, `IdGenerator`, `SimulationRunner`. Replace `src/application/layer.test.ts` with real tests
 - [x] Document mapper, `ProjectRecord` ↔ document (ADR-0008): round-trips `sampleRecord` and both templates through `loadProject` unchanged
-- [ ] Document migration scaffolding (`schemaVersion`), run by `loadProject` before the v1 schema
+- [x] Document migration scaffolding (`schemaVersion`), run by `loadProject` before the v1 schema
 - [ ] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
 - [ ] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
 - [ ] Use cases: `ListProjects`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `LoadProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
@@ -73,11 +73,15 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
+### 2026-10-15: M2 migration scaffolding
+
+- **`document-migrations.ts`** holds `CURRENT_SCHEMA_VERSION` and `DOCUMENT_MIGRATIONS` (empty while only v1 exists), plus `migrateDocument(input, migrations)`, which `loadProject` runs before the v1 schema. Each migration upgrades one version, keyed by the version it starts from; `migrateDocument` stamps the new `schemaVersion` itself. Migrations run on unchecked JSON, since only the current schema is kept.
+- **Next:** the template catalog adapter.
+
 ### 2026-10-15: M2 document mapper
 
 - **Workload times are milliseconds in the domain** (`durationMs`, `atMs`); the document keeps `durationSec`/`atSec`. `project-document-mapper.ts` converts both ways, and `toDocumentIssue` renames those fields in validation paths so users see document paths. Messages still say seconds.
 - **`loadProject` returns `{ ok: true, record }`** (a `ProjectRecord`), not `project` + `document`. `toProjectDocument(record)` is the way back; the IndexedDB adapter should store its output.
-- **Next:** migration scaffolding. `checkSchemaVersion` in `load-project.ts` is where migrations would slot in.
 
 ### 2026-10-15: R1 complete
 

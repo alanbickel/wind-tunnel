@@ -34,6 +34,23 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 
 Seeded randomness, event queue, behavior primitives, domain entities and validation, component registry and contract suite, the five AWS types, the engine, metrics, the v1 document schema and `loadProject`, Templates A and B, `npm run simulate` with a reconciling text report, scenario tests, and a tuning pass (results in MVP design §7). Commits `ef21c6c`..`3791bb2`, plus the tuning commit that closes M1.
 
+## R1: Coding-standards refactor (interlude, before the rest of M2)
+
+**Done when:** `npm run lint` reports no warnings, the coding-standard rules are errors, and the trace and report snapshots are unchanged except for intended renames. Every phase is `refactor` commits only; no behavior changes.
+
+- [x] 1. Foundations: a shared exhaustive handler-map type in `domain/`; name the anonymous union members (`SimulationEvent`, `Effect`, `EngineEvent`, `HarnessEvent`, `ProjectLookup`, `LoadResult`, and the inline types); a string comparator in place of the nested ternaries; remove duplicates (`summaryOf`/`toSummary`, `Path`, Zod issue mapping)
+- [ ] 2. `backoffMs` and `sample` as lookup maps with input objects; `LatencySummary` fields become `p50Ms`, `p95Ms`, `p99Ms`, `maxMs` (snapshots and guides too)
+- [ ] 3. Engine: split the constructor; `handle` and `apply` become handler maps; `call()` takes an input object
+- [ ] 4. `ComponentBehavior` methods take one input object; each `build()` becomes a named class. Before/after timings from `npm run simulate`; a dated addendum to ADR-0006 for the signature
+- [ ] 5. `MetricsCollector.observe` as an event-handler map
+- [ ] 6. Contract checker: `runScenario` becomes a `ContractHarness` class
+- [ ] 7. Validation: context objects; split `checkWorkload` and `validateComponents`
+- [ ] 8. Adapters: `parseArgs` as a flag table; `formatReport` input object; report columns as data; `loadProject`/`toProject` in stages
+- [ ] 9. Application testing kit and test files
+- [ ] 10. Coding-standard rules from `warn` to `error`; update CONTRIBUTING ("Enforcement", "Existing code") and the README to match
+
+Decisions: rule 7 applies to component methods (no exception). Fields in seconds (`durationSec`, `atSec`, `idleTimeoutSec`, `burstSec`) stay as they are; the M2 document mapper converts to milliseconds for the domain.
+
 ## M2: Application layer and persistence
 
 **Done when:** all MVP use cases pass tests against the IndexedDB adapter (`fake-indexeddb`) and the template catalog.
@@ -87,7 +104,6 @@ Newest first. Record what was built, what differs from the plan, and what the ne
 - Vitest doesn't type-check: run `npx tsc -b` (or `npm run check`) before trusting a green test run.
 - `erasableSyntaxOnly` is on: no constructor parameter properties; declare fields explicitly.
 - Latencies carry float drift (49.000000000000014): assert with `toBeCloseTo`. Percentiles are bucket upper bounds, up to 5% high.
-- `tests/architecture/layer-rules.test.ts` has timed out once in a full parallel run and passed on rerun; watch for flakiness.
 - Components talk to the engine through effects (ADR-0006); there's no timer effect yet, and no cancellation (a timed-out callee still finishes).
 - TypeScript is pinned to `~6.0` because typescript-eslint doesn't support TS 7 yet. Layer rules use typescript-eslint's `no-restricted-imports`.
 - The project was renamed from Cloud Builder; ADRs 0002, 0003, and 0005 were edited in place for the rename with the user's approval, a one-off exception to ADR immutability.

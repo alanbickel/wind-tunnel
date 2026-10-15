@@ -26,7 +26,7 @@ The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architec
 - **Imports point inward only:** `ui`/`adapters` → `application` → `domain`. `ui/` gets adapters through dependency injection and may import only types from `domain/`.
 - **`domain/` and `application/` are deterministic.** No `Math.random`, `Date.now`, or `new Date`; no React, DOM, Worker, or Node APIs. Randomness comes from a seeded `RandomSource` and time from the `Clock` port, so the same seed always gives the same run. Libraries are allowed there only when an ADR approves them ([ADR-0005](docs/adr/0005-use-zod-for-schema-validation.md)).
 - **Register, don't edit the engine (Open/Closed).** A new component type is a new `ComponentDefinition` added to the registry. It returns effects to the engine and never schedules events itself ([ADR-0006](docs/adr/0006-components-return-effects-to-the-engine.md)). See [Adding a component type](#adding-a-component-type).
-- **Significant decisions get an ADR** in `docs/adr/` (copy [the template](docs/adr/template.md)). Accepted ADRs are not edited; a new ADR supersedes an old one.
+- **Significant decisions get an ADR** in `docs/adr/` (copy [the template](docs/adr/template.md)). An accepted ADR's body and decision are never edited. A later change that affects it, without changing the decision, gets a dated addendum at the end; a changed decision gets a new ADR that supersedes the old one ([ADR-0001](docs/adr/0001-record-architecture-decisions.md)).
 
 ## Coding standards
 

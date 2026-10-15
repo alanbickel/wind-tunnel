@@ -39,7 +39,7 @@ Short, visual introductions to one part of the system. They explain how somethin
 
 ## Decisions (ADRs)
 
-Architecture decision records explain *why* things are the way they are. Accepted ADRs aren't edited; a new ADR supersedes an old one. To write one, copy [the template](adr/template.md).
+Architecture decision records explain *why* things are the way they are. Accepted ADRs aren't edited: a later change that affects one gets a dated addendum at the end, and a changed decision gets a new ADR that supersedes it. To write one, copy [the template](adr/template.md).
 
 | ADR | Decision |
 |---|---|

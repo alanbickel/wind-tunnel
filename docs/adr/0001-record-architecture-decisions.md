@@ -25,3 +25,13 @@ Use [`template.md`](template.md) when writing a new ADR.
 - New maintainers can read `docs/adr/` in order to understand how the architecture came to be.
 - Writing an ADR adds a small cost to significant changes; that cost is intentional.
 - ADRs that are proposed in a pull request are reviewed along with the code they justify.
+
+## Addendum, 2026-10-15
+
+Accepted ADRs may now carry dated addenda. A later change sometimes affects an ADR without changing its decision: an interface it quotes gets a new signature, or a file it names moves. Leaving the ADR as written misleads readers, and editing it loses the record of what was decided at the time.
+
+- An addendum is a section at the end of the ADR headed `## Addendum, YYYY-MM-DD`. It says what changed, why, and how it affects the ADR, with a link to the commit or ADR responsible.
+- The body and decision above an addendum are still never edited.
+- A changed decision still needs a new ADR that supersedes the old one.
+
+This addendum is the first.

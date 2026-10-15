@@ -73,7 +73,7 @@ When SQS "triggers" a Lambda function, the **Lambda service** is polling the que
 
 An SQS event source mapping has a **maximum concurrency** setting (2 to 1,000) that stops the pollers from pulling more messages than that many concurrent invocations can handle. Capping the function with **reserved concurrency** instead makes Lambda throttle invocations while the pollers keep pulling: the messages return to the queue, and repeated throttling can send healthy messages to the dead-letter queue.
 
-**At scale:** this is how a queue consumer protects a database with a fixed connection limit (Template B caps `fn-writer` at 40 so RDS never runs out of connections).
+**At scale:** this is how a queue consumer protects a database with a fixed connection limit (Template B caps `fn-writer` at 15 so RDS never runs out of connections).
 **Source:** [Configuring maximum concurrency for SQS event sources](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)
 
 ### A timeout upstream doesn't stop the work downstream

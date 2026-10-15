@@ -44,7 +44,7 @@
         "type": "sqs",
         "name": "orders-queue",
         "config": {
-          "consumerMaxConcurrency": 40,
+          "consumerMaxConcurrency": 15,
           "sendLatency": { "kind": "lognormal", "medianMs": 10, "p99Ms": 30 }
         }
       },

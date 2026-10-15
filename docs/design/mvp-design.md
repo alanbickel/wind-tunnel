@@ -332,14 +332,14 @@ flowchart LR
     API --> FN[Lambda: fn-api]
     FN --> DDB[(DynamoDB: orders-read)]
     FN --> Q[[SQS: orders-queue]]
-    Q --> W[Lambda: fn-writer<br/>max concurrency 40]
+    Q --> W[Lambda: fn-writer<br/>max concurrency 15]
     W --> DB[(RDS: orders-db)]
 ```
 
 - *Get order:* api → fn-api → orders-read (read)
 - *Create order:* api → fn-api → orders-queue (enqueue), then later fn-writer → orders-db (write)
 
-**Expected behavior:** Reads go to DynamoDB, which has capacity to spare. Writes are accepted as soon as they're queued, so API latency stays flat. During the spike the queue grows, then empties after the spike ends. fn-writer never uses more than 40 connections, so RDS never runs out.
+**Expected behavior:** Reads go to DynamoDB, which has capacity to spare. Writes are accepted as soon as they're queued, so API latency stays flat. During the spike the queue grows, then empties after the spike ends. fn-writer never uses more than 15 connections, so RDS never runs out.
 
 > **Key concept: what Template B costs.** Users get "accepted" (HTTP 202) instead of "done" for writes, and a write may be visible only after the queue catches up. Reading data that may briefly be out of date (eventual consistency) is the price of absorbing spikes.
 
@@ -357,9 +357,23 @@ The templates are `src/adapters/templates/template-a.json` and `template-b.json`
 | fn-api → orders-queue | 3 attempts, exponential jitter, 50 ms base | Like the AWS SDK's standard mode (ENG-2) |
 | orders-queue → fn-writer | 1 attempt | SQS redelivers failed messages itself (SQS-1) |
 | orders-read `readUnitsPerSec`, `burstSec` | 2,500, 5 | Headroom over the 1,600 reads/s peak without leaning on a full 300 s bucket, which would hide throttling (DDB-2) |
+| orders-queue `consumerMaxConcurrency` | 15 | Low enough that the backlog grows during the spike, high enough that it drains before the run ends (see below). Tried: 40 and 20 left almost no backlog; 12 left 825 messages at 60 s |
 | Edge latencies | 1–2 ms | Same-Region calls; nonzero so redelivery loops advance time |
 
-The tuning pass at the end of M1 may change these numbers.
+### What the templates show (after the M1 tuning pass)
+
+Seed 42; other seeds give similar numbers. The full reports are in `src/adapters/cli/reports/`, and `template-scenarios.test.ts` asserts these lessons with loose thresholds on three seeds.
+
+| | Template A | Template B |
+|---|---|---|
+| Failed requests | 44% (28,841), all `orders-db: too-many-connections` | 0 |
+| When | From about 14 s to 47 s, during the ramp and peak; none before or after | n/a |
+| RDS connections | 90 of 90 (16 running queries, 74 waiting) through the peak | At most 15 (the consumer cap) |
+| User-facing p99 (successful requests) | About 120 ms calm, 210 ms at peak | About 110 ms throughout |
+| Queue backlog | n/a | Grows from about 17 s to a peak of 1,937 messages at about 42 s, empty by 54 s |
+| Time until a write lands (p99) | Same as the response | 6.2 s |
+
+Template A's p99 rises less than you might expect, because refused requests fail fast and latency counts only successful ones. The error rate carries its lesson. In AWS, the lesson would be stronger (LMB-8, RDS-2, RDS-4).
 
 ## 8. Testing strategy
 

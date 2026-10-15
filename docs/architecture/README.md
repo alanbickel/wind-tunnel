@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` loads project documents, and `adapters/cli/` runs templates headlessly (`npm run simulate`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` loads project documents, `adapters/templates/` holds the two starter templates and the scenario tests that check their lessons, and `adapters/cli/` runs templates headlessly (`npm run simulate`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -71,6 +71,7 @@ flowchart TB
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
 | Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. |
 | Something that needs randomness | Use the `RandomSource` passed in from `src/domain/random/` | Never call `Math.random`; runs must stay reproducible from a seed. |
+| A new template, or a change to one | `src/adapters/templates/` | Record each non-default setting and its reason in [MVP design §7](../design/mvp-design.md#template-files-and-their-settings). Keep `template-scenarios.test.ts` asserting the template's lesson, and refresh the report snapshots (`npx vitest run -u src/adapters/cli`). |
 | A CloudFormation/CDK/Terraform importer or exporter | `src/adapters/iac/` | Converts between file formats and domain objects. |
 | A React component | `src/ui/` | Ordinary React patterns are fine here. Get use cases via context, not by importing adapters. |
 | Wiring adapters to ports | `src/main.tsx` | The only place that knows about every layer. |

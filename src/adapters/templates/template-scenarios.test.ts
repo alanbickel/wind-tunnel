@@ -140,5 +140,25 @@ describe.each(SEEDS)("with seed %i", (seed) => {
       const held = b.snapshots.map(connectionsHeld);
       expect(Math.max(...held)).toBeLessThanOrEqual(cap);
     });
+
+    it("builds a backlog during the spike and empties it before the run ends", () => {
+      const backlog = (s: MetricsSnapshot) =>
+        s.components["orders-queue"]?.queueDepth ?? NaN;
+      const calm = during(b.snapshots, CALM).map(backlog);
+      const peak = during(b.snapshots, PEAK).map(backlog);
+      expect(Math.max(...calm)).toBeLessThan(10);
+      expect(peak.at(-1)).toBeGreaterThan(500);
+      expect(peak.at(-1)).toBeGreaterThan(peak[peak.length / 2] ?? NaN);
+      expect(b.snapshots.at(-1)?.components["orders-queue"]?.queueDepth).toBe(
+        0,
+      );
+    });
+
+    it("answers writes quickly while the writes themselves land late", () => {
+      const answered = b.totals.workflows["create-order"]?.latency?.p99;
+      const landed = b.totals.components["orders-queue"]?.asyncLatency?.p99;
+      expect(answered).toBeLessThan(500);
+      expect(landed).toBeGreaterThan(2000);
+    });
   });
 });

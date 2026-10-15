@@ -1,11 +1,20 @@
 import type {
+  AsyncFinishedEvent,
+  AttemptFailedEvent,
   ComponentSample,
+  Failure,
+  FinishedEvent,
   SimulationEvent,
   SimulationInput,
+  WorkflowFinishedEvent,
 } from "../engine/simulation";
 import { simulate } from "../engine/simulation";
 import type { Project } from "../model/project";
+import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import { LatencyHistogram, type LatencySummary } from "./latency-histogram";
+
+/** For events that don't change any metric. */
+const ignore = (): void => undefined;
 
 /** One component's activity over a window of simulated time. */
 export interface ComponentMetrics {
@@ -90,74 +99,53 @@ export class MetricsCollector {
 
   /** The observer to pass to `simulate`. */
   readonly observe = (event: SimulationEvent): void => {
-    const { window } = this;
-    switch (event.kind) {
-      case "workflow-started":
-        window.workflow(event.workflowId).started++;
-        break;
-      case "workflow-finished": {
-        const workflow = window.workflow(event.workflowId);
-        if (event.failure === undefined) {
-          workflow.succeeded++;
-          workflow.latency.record(event.latencyMs);
-        } else {
-          workflow.failed++;
-          const cause = `${event.failure.componentId}: ${event.failure.reason}`;
-          workflow.failures.set(cause, (workflow.failures.get(cause) ?? 0) + 1);
-        }
-        break;
-      }
-      case "arrived":
-        window.component(event.componentId).arrivals++;
-        break;
-      case "rejected":
-        window.component(event.componentId).rejected++;
-        break;
-      case "finished": {
-        const component = window.component(event.componentId);
-        if (event.failure === undefined) {
-          component.completed++;
-          component.latency.record(event.latencyMs);
-        } else {
-          component.failed++;
-        }
-        break;
-      }
-      case "attempt-failed": {
-        // A timeout also fails each caller further up the chain; count it
-        // only on the edge where it happened, against the component called.
-        const { failure } = event;
-        if (
-          failure.reason === "timeout" &&
-          this.edgeTargets.get(event.edgeId) === failure.componentId
-        ) {
-          window.component(failure.componentId).timeouts++;
-        }
-        break;
-      }
-      case "async-finished": {
-        const component = window.component(event.componentId);
-        if (event.succeeded) {
-          component.asyncSucceeded++;
-          component.asyncLatency.record(event.latencyMs);
-        } else {
-          component.asyncFailed++;
-        }
-        break;
-      }
-      case "tick":
-        this.tick(event.timeMs, event.components);
-        break;
-      case "queued":
-      case "started":
-      case "dispatched":
-        break;
-    }
+    handleKind(this.eventHandlers, event);
   };
 
   /** Metrics for the whole run so far, as one window from the start. */
   totals(): MetricsSnapshot {
     return this.total.snapshot(0, this.windowStartMs);
+  }
+
+  /** What each kind of event adds to the current window. */
+  private readonly eventHandlers: KindHandlers<SimulationEvent, void> = {
+    "workflow-started": ({ workflowId }) => {
+      this.window.workflow(workflowId).started++;
+    },
+    "workflow-finished": (event) => {
+      this.window.workflow(event.workflowId).finish(event);
+    },
+    arrived: ({ componentId }) => {
+      this.window.component(componentId).arrivals++;
+    },
+    rejected: ({ componentId }) => {
+      this.window.component(componentId).rejected++;
+    },
+    finished: (event) => {
+      this.window.component(event.componentId).finish(event);
+    },
+    "attempt-failed": (event) => {
+      this.countTimeout(event);
+    },
+    "async-finished": (event) => {
+      this.window.component(event.componentId).finishAsync(event);
+    },
+    tick: ({ timeMs, components }) => {
+      this.tick(timeMs, components);
+    },
+    queued: ignore,
+    started: ignore,
+    dispatched: ignore,
+  };
+
+  /**
+   * A timeout also fails each caller further up the chain; count it only on
+   * the edge where it happened, against the component called.
+   */
+  private countTimeout({ edgeId, failure }: AttemptFailedEvent): void {
+    if (failure.reason !== "timeout") return;
+    if (this.edgeTargets.get(edgeId) !== failure.componentId) return;
+    this.window.component(failure.componentId).timeouts++;
   }
 
   private tick(timeMs: number, samples: readonly ComponentSample[]): void {
@@ -227,6 +215,26 @@ class ComponentTally {
   counters: Record<string, number> = {};
   /** Each counter's running total at the latest tick. */
   countersSoFar: Readonly<Record<string, number>> = {};
+
+  /** Records work that finished here, successfully or not. */
+  finish({ latencyMs, failure }: FinishedEvent): void {
+    if (failure !== undefined) {
+      this.failed++;
+      return;
+    }
+    this.completed++;
+    this.latency.record(latencyMs);
+  }
+
+  /** Records a delivery of async work that ended. */
+  finishAsync({ latencyMs, succeeded }: AsyncFinishedEvent): void {
+    if (!succeeded) {
+      this.asyncFailed++;
+      return;
+    }
+    this.asyncSucceeded++;
+    this.asyncLatency.record(latencyMs);
+  }
 
   /** Records a tick's sample; `before` holds the counters at the last tick. */
   sample(sample: ComponentSample, before: Readonly<Record<string, number>>) {
@@ -303,6 +311,16 @@ class WorkflowTally {
   readonly failures = new Map<string, number>();
   readonly latency = new LatencyHistogram();
 
+  /** Records a user request that got an answer, successful or not. */
+  finish({ latencyMs, failure }: WorkflowFinishedEvent): void {
+    if (failure !== undefined) {
+      this.fail(failure);
+      return;
+    }
+    this.succeeded++;
+    this.latency.record(latencyMs);
+  }
+
   add(window: WorkflowTally): void {
     this.started += window.started;
     this.succeeded += window.succeeded;
@@ -329,6 +347,12 @@ class WorkflowTally {
       failures: Object.fromEntries(this.failures),
       latency: this.latency.summary(),
     };
+  }
+
+  private fail(failure: Failure): void {
+    this.failed++;
+    const cause = `${failure.componentId}: ${failure.reason}`;
+    this.failures.set(cause, (this.failures.get(cause) ?? 0) + 1);
   }
 }
 

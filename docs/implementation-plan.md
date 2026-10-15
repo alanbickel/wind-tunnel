@@ -38,14 +38,15 @@ Seeded randomness, event queue, behavior primitives, domain entities and validat
 
 **Done when:** all MVP use cases pass tests against the IndexedDB adapter (`fake-indexeddb`) and the template catalog.
 
-- [ ] Ports: `ProjectRepository`, `TemplateCatalog`, `Clock`, `IdGenerator`, `SimulationRunner`. Replace `src/application/layer.test.ts` with real tests
-- [ ] Document mapper, domain → document: keep document-only fields (`layout`, timestamps, `source`) when saving; round-trips through `loadProject` unchanged
+- [x] Ports: `ProjectRepository`, `TemplateCatalog`, `Clock`, `IdGenerator`, `SimulationRunner`. Replace `src/application/layer.test.ts` with real tests
+- [ ] Document mapper, `ProjectRecord` ↔ document (ADR-0008): round-trips `sampleRecord` and both templates through `loadProject` unchanged
 - [ ] Document migration scaffolding (`schemaVersion`), run by `loadProject` before the v1 schema
 - [ ] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
 - [ ] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
 - [ ] Use cases: `ListProjects`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `LoadProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
 - [ ] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Move the CLI's seed-override logic into `RunSimulation` so both share it
 - [ ] Request persistent storage (`navigator.storage.persist()`)
+- [ ] Onboarding guide for the application layer and persistence: ports, records vs. documents, a use case traced end to end
 
 ## M3: Minimal UI
 
@@ -57,7 +58,7 @@ Tasks will be refined at the end of M2.
 - [ ] App shell and dependency injection via React context
 - [ ] Project list and "new from template"
 - [ ] Read-only architecture view
-- [ ] Web Worker `SimulationRunner` adapter
+- [ ] Web Worker `SimulationRunner` adapter. Add cancellation to the port (stop a run, terminate the Worker); M2's port has none because `AbortSignal` isn't in the ECMAScript-only lib `application/` is checked with
 - [ ] Run controls and metric charts
 
 ---

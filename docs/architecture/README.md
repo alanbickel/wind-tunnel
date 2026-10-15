@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` loads project documents, `adapters/templates/` holds the two starter templates and the scenario tests that check their lessons, and `adapters/cli/` runs templates headlessly (`npm run simulate`); the other layers are still empty. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
+> **Status: draft.** The project scaffolding exists, and `domain/` has its first building blocks (`model/`, `random/`, `behaviors/`, `components/` with the five AWS types, the simulation loop in `engine/`, and `metrics/`), `adapters/persistence/` loads project documents, `adapters/templates/` holds the two starter templates and the scenario tests that check their lessons, `adapters/cli/` runs templates headlessly (`npm run simulate`), and `application/ports/` defines the ports, with in-memory fakes and a repository contract check in `application/testing/`; use cases and the UI are still to come. This describes the intended structure and will be updated as the code is written. Decisions behind it are recorded in [`docs/adr/`](../adr/).
 
 Start here if you're new to the codebase.
 
@@ -45,7 +45,7 @@ flowchart TB
     end
     subgraph app["application/"]
         UC["Use cases<br/>RunSimulation, CompareRuns, ..."]
-        P["Ports (interfaces)<br/>Clock, ProjectRepository,<br/>SimulationRunner, ..."]
+        P["Ports (interfaces)<br/>Clock, IdGenerator, ProjectRepository,<br/>TemplateCatalog, SimulationRunner"]
     end
     subgraph dom["domain/ (most stable)"]
         D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives,<br/>component definitions, RandomSource,<br/>metrics collector"]
@@ -69,7 +69,8 @@ flowchart TB
 | A new metric for one service type (e.g. Lambda warm instances) | That type's definition in `src/domain/components/aws/` | Expose it as a gauge or counter on the behavior; the engine and collector pass it through. See [How metrics work](metrics.md). |
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
-| Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. |
+| Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. Add an in-memory fake to `src/application/testing/` for use case tests. |
+| A new field about a project that the engine doesn't use (like `layout`) | `ProjectRecord` in `src/application/ports/`, plus the document schema and mapper in `src/adapters/persistence/` | Add it to `sampleRecord` so the repository contract checks it round-trips ([ADR-0008](../adr/0008-ports-exchange-project-records.md)). |
 | Something that needs randomness | Use the `RandomSource` passed in from `src/domain/random/` | Never call `Math.random`; runs must stay reproducible from a seed. |
 | A new template, or a change to one | `src/adapters/templates/` | Record each non-default setting and its reason in [MVP design §7](../design/mvp-design.md#template-files-and-their-settings). Keep `template-scenarios.test.ts` asserting the template's lesson, and refresh the report snapshots (`npx vitest run -u src/adapters/cli`). |
 | A CloudFormation/CDK/Terraform importer or exporter | `src/adapters/iac/` | Converts between file formats and domain objects. |

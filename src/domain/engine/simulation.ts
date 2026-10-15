@@ -1,16 +1,10 @@
 import type { Effect } from "../components/component-behavior";
 import type { Step } from "../model/project";
-import {
-  deriveSeed,
-  SeededRandom,
-  type RandomSource,
-} from "../random/random-source";
+import type { RandomSource } from "../random/random-source";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
-import { ArrivalProcess } from "./arrivals";
+import type { ArrivalProcess } from "./arrival-process";
 import { backoffMs } from "./backoff";
-import { EventQueue } from "./event-queue";
-import { IntervalTickSampler } from "./interval-tick-sampler";
-import { buildTopology, findWorkload } from "./project-topology";
+import type { EventQueue } from "./event-queue";
 import type {
   Attempt,
   Call,
@@ -21,9 +15,7 @@ import type {
 import type {
   ComponentEventBase,
   Failure,
-  RandomStreams,
   SimulationEvent,
-  SimulationInput,
   SimulationResult,
 } from "./simulation-events";
 import type { TickSampler } from "./tick-sampler";
@@ -36,17 +28,8 @@ import type { Topology } from "./topology";
  */
 export const MAX_EVENTS_AT_ONE_INSTANT = 1_000_000;
 
-/**
- * Runs a workload against a project's architecture (MVP design §4): a
- * discrete-event loop that jumps from one event to the next. Deterministic:
- * the same input always produces the same events.
- */
-export function simulate(input: SimulationInput): SimulationResult {
-  return new Simulation(input).run();
-}
-
 /** What the engine schedules on its own event queue. */
-type EngineEvent =
+export type EngineEvent =
   | UserArrivesEvent
   | AttemptArrivesEvent
   | ServiceDoneEvent
@@ -98,9 +81,25 @@ interface CallInput {
   readonly onSettled: (failure: Failure | undefined) => void;
 }
 
-class Simulation {
-  // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.5 (ADR-0009)
-  private readonly events = new EventQueue<EngineEvent>();
+export interface SimulationDependencies {
+  readonly events: EventQueue<EngineEvent>;
+  readonly topology: Topology;
+  readonly arrivals: ArrivalProcess;
+  readonly ticks: TickSampler;
+  /** Draws the jitter in retry backoff. */
+  readonly retryRandom: RandomSource;
+  readonly observe: (event: SimulationEvent) => void;
+  /** The simulated time the run stops at. */
+  readonly untilMs: number;
+}
+
+/**
+ * One run's discrete-event loop (MVP design §4): pops events in time order
+ * and carries each call through its attempts and visits. `createSimulation`
+ * builds it.
+ */
+export class Simulation {
+  private readonly events: EventQueue<EngineEvent>;
   private readonly topology: Topology;
   private readonly arrivals: ArrivalProcess;
   private readonly retryRandom: RandomSource;
@@ -110,29 +109,14 @@ class Simulation {
   private nowMs = 0;
   private nextRequestId = 0;
 
-  constructor(input: SimulationInput) {
-    const { project, registry } = input;
-    const workload = findWorkload(project, input.workloadId);
-    const random = input.random ?? seededStreams(workload.seed);
-    // Streams are created in this order; scripted sources in tests rely on it.
-    // A helper builds it, so lint can't see it; it moves to a factory in R2.5.
-    this.topology = buildTopology({ project, registry, random });
-    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.5 (ADR-0009)
-    this.arrivals = new ArrivalProcess({
-      workload,
-      timing: random("arrivals"),
-      choice: random("workflows"),
-    });
-    this.retryRandom = random("retries");
-    this.observe = input.observer ?? ignoreEvent;
-    this.untilMs = input.untilMs ?? workload.durationMs;
-    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.5 (ADR-0009)
-    this.ticks = new IntervalTickSampler({
-      topology: this.topology,
-      observe: this.observe,
-      tickMs: input.tickMs,
-      untilMs: this.untilMs,
-    });
+  constructor(dependencies: SimulationDependencies) {
+    this.events = dependencies.events;
+    this.topology = dependencies.topology;
+    this.arrivals = dependencies.arrivals;
+    this.retryRandom = dependencies.retryRandom;
+    this.observe = dependencies.observe;
+    this.untilMs = dependencies.untilMs;
+    this.ticks = dependencies.ticks;
   }
 
   run(): SimulationResult {
@@ -455,15 +439,6 @@ class Simulation {
       }) ?? [],
     );
   }
-}
-
-/** Streams seeded from the workload's seed, one per name. */
-function seededStreams(seed: number): RandomStreams {
-  return (stream) => new SeededRandom(deriveSeed(seed, stream));
-}
-
-function ignoreEvent(): void {
-  // No observer: events are dropped.
 }
 
 function throwStuck(timeMs: number): never {

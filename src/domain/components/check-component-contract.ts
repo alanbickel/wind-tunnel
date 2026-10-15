@@ -1,4 +1,4 @@
-import { EventQueue } from "../engine/event-queue";
+import { HeapEventQueue } from "../engine/heap-event-queue";
 import type { StepAction } from "../model/project";
 import { sample } from "../random/distribution";
 import { SeededRandom } from "../random/random-source";
@@ -202,7 +202,7 @@ class ContractHarness<Config> {
   private readonly random: SeededRandom;
   private readonly behavior: ComponentBehavior<number>;
   // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.6 (ADR-0009)
-  private readonly events = new EventQueue<HarnessEvent>();
+  private readonly events = new HeapEventQueue<HarnessEvent>();
   private readonly tracked = new Map<number, Tracked>();
   private readonly violations: string[] = [];
   private readonly log: string[] = [];

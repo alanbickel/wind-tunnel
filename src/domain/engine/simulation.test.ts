@@ -7,7 +7,7 @@ import type {
   Step,
   Workload,
 } from "../model/project";
-import { simulate } from "./simulation";
+import { simulate } from "./create-simulation";
 import type { SimulationEvent } from "./simulation-events";
 
 // Small projects with constant timings, so latencies can be worked out by

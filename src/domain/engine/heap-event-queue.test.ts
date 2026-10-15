@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SeededRandom } from "../random/random-source";
-import { EventQueue } from "./event-queue";
+import type { EventQueue } from "./event-queue";
+import { HeapEventQueue } from "./heap-event-queue";
 
 const drain = <T>(queue: EventQueue<T>) => {
   const out: T[] = [];
@@ -10,16 +11,16 @@ const drain = <T>(queue: EventQueue<T>) => {
   return out;
 };
 
-describe("EventQueue", () => {
+describe("HeapEventQueue", () => {
   it("is empty when created", () => {
-    const queue = new EventQueue<string>();
+    const queue = new HeapEventQueue<string>();
     expect(queue.size).toBe(0);
     expect(queue.peek()).toBeUndefined();
     expect(queue.pop()).toBeUndefined();
   });
 
   it("pops events in time order", () => {
-    const queue = new EventQueue<string>();
+    const queue = new HeapEventQueue<string>();
     queue.schedule(30, "c");
     queue.schedule(10, "a");
     queue.schedule(20, "b");
@@ -28,7 +29,7 @@ describe("EventQueue", () => {
   });
 
   it("pops events with the same time in the order they were scheduled", () => {
-    const queue = new EventQueue<string>();
+    const queue = new HeapEventQueue<string>();
     queue.schedule(5, "first");
     queue.schedule(1, "early");
     queue.schedule(5, "second");
@@ -38,7 +39,7 @@ describe("EventQueue", () => {
 
   it("orders many random events correctly", () => {
     const random = new SeededRandom(3);
-    const queue = new EventQueue<number>();
+    const queue = new HeapEventQueue<number>();
     const times = Array.from({ length: 2_000 }, () =>
       Math.floor(random.next() * 100),
     );
@@ -56,7 +57,7 @@ describe("EventQueue", () => {
   });
 
   it("keeps working when events are scheduled while draining", () => {
-    const queue = new EventQueue<string>();
+    const queue = new HeapEventQueue<string>();
     queue.schedule(10, "a");
     queue.schedule(30, "c");
     expect(queue.pop()?.payload).toBe("a");
@@ -65,7 +66,7 @@ describe("EventQueue", () => {
   });
 
   it("rejects non-finite times", () => {
-    const queue = new EventQueue<string>();
+    const queue = new HeapEventQueue<string>();
     expect(() => {
       queue.schedule(Number.NaN, "x");
     }).toThrow(RangeError);

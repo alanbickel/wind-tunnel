@@ -19,7 +19,7 @@ Example: a request arrives at t=0 and its service time is sampled as 15 ms. The 
 
 ## Event queue: earliest first, ties in order
 
-[`EventQueue`](../../src/domain/engine/event-queue.ts) is a binary heap. Each event gets a **sequence number** when it's scheduled. When two events are due at the same time, the lower sequence number comes out first. Without that rule, ties could resolve differently from run to run, and the same seed wouldn't always give the same results.
+[`EventQueue`](../../src/domain/engine/event-queue.ts) is implemented by [`HeapEventQueue`](../../src/domain/engine/heap-event-queue.ts), a binary heap. Each event gets a **sequence number** when it's scheduled. When two events are due at the same time, the lower sequence number comes out first. Without that rule, ties could resolve differently from run to run, and the same seed wouldn't always give the same results.
 
 From [`event-queue.txt`](../../src/domain/traces/event-queue.txt):
 
@@ -138,13 +138,14 @@ Under load, queries wait for one of the 16 workers while still holding a connect
 
 ## The engine loop: a request's journey
 
-[`simulate()`](../../src/domain/engine/simulation.ts) runs one workload against a project. It builds each component's behavior from the registry, then pops events until the workload's duration is over. What happens is reported to an **observer** callback as `SimulationEvent`s (`workflow-started`, `arrived`, `started`, `rejected`, `attempt-failed`, …). The [metrics collector](metrics.md) is such an observer; with `tickMs` set, the engine also reports a `tick` with every component's state each simulated second.
+[`simulate()`](../../src/domain/engine/create-simulation.ts) runs one workload against a project. `createSimulation` builds each component's behavior from the registry, along with the run's other collaborators, and passes them all to `Simulation`, which pops events until the workload's duration is over. What happens is reported to an **observer** callback as `SimulationEvent`s (`workflow-started`, `arrived`, `started`, `rejected`, `attempt-failed`, …). The [metrics collector](metrics.md) is such an observer; with `tickMs` set, the engine also reports a `tick` with every component's state each simulated second.
 
 | Piece | File | Job |
 |---|---|---|
-| `ArrivalProcess` | [`arrivals.ts`](../../src/domain/engine/arrivals.ts) | When users arrive (Poisson, following the profile's rate) and which workflow each runs |
+| `ArrivalProcess` | [`arrival-process.ts`](../../src/domain/engine/arrival-process.ts), [`poisson-arrival-process.ts`](../../src/domain/engine/poisson-arrival-process.ts), [`arrivals.ts`](../../src/domain/engine/arrivals.ts) (`rateAt`) | When users arrive (Poisson, following the profile's rate) and which workflow each runs |
 | `backoffMs` | [`backoff.ts`](../../src/domain/engine/backoff.ts) | Wait before a retry: fixed, exponential, or exponential with full jitter (capped at 20 s) |
-| `simulate` | [`simulation.ts`](../../src/domain/engine/simulation.ts) | The loop: calls, attempts, timeouts, retries, and turning component effects into events |
+| `simulate`, `createSimulation` | [`create-simulation.ts`](../../src/domain/engine/create-simulation.ts) | Builds a run's collaborators (random streams, `Topology`, `TickSampler`, `EventQueue`, `ArrivalProcess`) and runs it |
+| `Simulation` | [`simulation.ts`](../../src/domain/engine/simulation.ts) | The loop: calls, attempts, timeouts, retries, and turning component effects into events |
 | `SimulationEvent`, `SimulationInput` | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The public types: what a run takes, and the events it reports to the observer |
 | `Topology` | [`topology.ts`](../../src/domain/engine/topology.ts), [`project-topology.ts`](../../src/domain/engine/project-topology.ts) | Looks up a run's components, edges, and workflows; builds each component's behavior from the registry |
 | `Call`, `Attempt`, `Visit` | [`runtime-records.ts`](../../src/domain/engine/runtime-records.ts) | The records a run creates: a request makes calls, a call makes attempts, an attempt becomes a visit |

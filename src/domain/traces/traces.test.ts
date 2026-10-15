@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ConcurrencyLimit } from "../behaviors/concurrency-limit";
 import { RateLimit } from "../behaviors/rate-limit";
-import { EventQueue } from "../engine/event-queue";
+import { HeapEventQueue } from "../engine/heap-event-queue";
 import type { Edge, Project } from "../model/project";
 import { validateProject } from "../model/validate-project";
 import {
@@ -9,7 +9,7 @@ import {
   lambdaDefinition,
   rdsDefinition,
 } from "../components/aws";
-import { simulate } from "../engine/simulation";
+import { simulate } from "../engine/create-simulation";
 import type {
   Failure,
   SimulationEvent,
@@ -107,7 +107,7 @@ function journeyText(startMs: number): KindHandlers<RequestEvent, JourneyLine> {
 
 describe("traces", () => {
   it("EventQueue: earliest first, ties in scheduling order", async () => {
-    const queue = new EventQueue<string>();
+    const queue = new HeapEventQueue<string>();
     const scheduled: [number, string][] = [
       [20, "ServiceCompleted (req 1)"],
       [5, "RequestArrived (req 2)"],

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Workload } from "../model/project";
 import { SeededRandom } from "../random/random-source";
-import { ArrivalProcess, rateAt } from "./arrivals";
+import type { ArrivalProcess } from "./arrival-process";
+import { rateAt } from "./arrivals";
+import { PoissonArrivalProcess } from "./poisson-arrival-process";
 
 const workload = (overrides: Partial<Workload> = {}): Workload => ({
   id: "w",
@@ -23,7 +25,7 @@ const arrivals = (process: ArrivalProcess): number[] => {
 };
 
 const process = (w: Workload, seed = 1) =>
-  new ArrivalProcess({
+  new PoissonArrivalProcess({
     workload: w,
     timing: new SeededRandom(seed),
     choice: new SeededRandom(seed + 1),
@@ -47,7 +49,7 @@ describe("rateAt", () => {
   });
 });
 
-describe("ArrivalProcess", () => {
+describe("PoissonArrivalProcess", () => {
   it("produces about rate × duration arrivals, in order, within the duration", () => {
     const times = arrivals(process(workload()));
     // 6,000 expected; a Poisson count's standard deviation is about 77.

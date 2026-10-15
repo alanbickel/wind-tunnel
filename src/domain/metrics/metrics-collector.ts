@@ -9,7 +9,7 @@ import type {
   SimulationInput,
   WorkflowFinishedEvent,
 } from "../engine/simulation-events";
-import { simulate } from "../engine/simulation";
+import { simulate } from "../engine/create-simulation";
 import type { Project } from "../model/project";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import { LatencyHistogram, type LatencySummary } from "./latency-histogram";

@@ -22,7 +22,6 @@ const KNOWN_EXCEPTIONS: Record<string, string> = {
   "application/testing/fake-ports.ts: InMemoryProjectRepository": "R2.15",
   "application/testing/fake-ports.ts: InMemoryTemplateCatalog": "R2.15",
   "application/testing/fake-ports.ts: RecordingSimulationRunner": "R2.15",
-  "domain/engine/arrivals.ts: ArrivalProcess": "R2.15",
   "domain/random/random-source.ts: SeededRandom": "R2.15",
   "domain/components/check-component-contract.ts: ContractHarness": "R2.6",
   "domain/metrics/metrics-collector.ts: ComponentTally": "R2.7",

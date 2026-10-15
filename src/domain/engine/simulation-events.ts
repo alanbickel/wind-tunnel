@@ -123,6 +123,9 @@ export interface TickEvent {
   readonly components: readonly ComponentSample[];
 }
 
+/** The random stream for a name such as `"arrivals"`. */
+export type RandomStreams = (stream: string) => RandomSource;
+
 export interface SimulationInput {
   /** A project that passed `validateProject` and `validateComponents`. */
   readonly project: Project;
@@ -134,7 +137,7 @@ export interface SimulationInput {
    * `"component:orders-db"`. Defaults to streams seeded from the workload's
    * seed with `deriveSeed`; tests can pass scripted sources.
    */
-  readonly random?: (stream: string) => RandomSource;
+  readonly random?: RandomStreams;
   /** Stop at this simulated time. Defaults to the workload's duration. */
   readonly untilMs?: number;
   /**

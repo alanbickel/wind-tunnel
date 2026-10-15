@@ -146,6 +146,8 @@ Under load, queries wait for one of the 16 workers while still holding a connect
 | `backoffMs` | [`backoff.ts`](../../src/domain/engine/backoff.ts) | Wait before a retry: fixed, exponential, or exponential with full jitter (capped at 20 s) |
 | `simulate` | [`simulation.ts`](../../src/domain/engine/simulation.ts) | The loop: calls, attempts, timeouts, retries, and turning component effects into events |
 | `SimulationEvent`, `SimulationInput` | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The public types: what a run takes, and the events it reports to the observer |
+| `Topology` | [`topology.ts`](../../src/domain/engine/topology.ts), [`project-topology.ts`](../../src/domain/engine/project-topology.ts) | Looks up a run's components, edges, and workflows; builds each component's behavior from the registry |
+| `Call`, `Attempt`, `Visit` | [`runtime-records.ts`](../../src/domain/engine/runtime-records.ts) | The records a run creates: a request makes calls, a call makes attempts, an attempt becomes a visit |
 
 A **call** goes from a caller to a step's component along an edge and is made of one or more **attempts**:
 

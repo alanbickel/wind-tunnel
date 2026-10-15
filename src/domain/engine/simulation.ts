@@ -1,8 +1,5 @@
-import type {
-  ComponentBehavior,
-  Effect,
-} from "../components/component-behavior";
-import type { Edge, Step, Workflow, Workload } from "../model/project";
+import type { Effect } from "../components/component-behavior";
+import type { Step } from "../model/project";
 import {
   deriveSeed,
   SeededRandom,
@@ -12,14 +9,24 @@ import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import { ArrivalProcess } from "./arrivals";
 import { backoffMs } from "./backoff";
 import { EventQueue } from "./event-queue";
+import { buildTopology, findWorkload } from "./project-topology";
+import type {
+  Attempt,
+  Call,
+  RuntimeComponent,
+  UserRequest,
+  Visit,
+} from "./runtime-records";
 import type {
   ComponentEventBase,
   ComponentSample,
   Failure,
+  RandomStreams,
   SimulationEvent,
   SimulationInput,
   SimulationResult,
 } from "./simulation-events";
+import type { Topology } from "./topology";
 
 /**
  * More events than this at one simulated instant means the run is stuck in a
@@ -35,51 +42,6 @@ export const MAX_EVENTS_AT_ONE_INSTANT = 1_000_000;
  */
 export function simulate(input: SimulationInput): SimulationResult {
   return new Simulation(input).run();
-}
-
-interface RuntimeComponent {
-  readonly id: string;
-  readonly behavior: ComponentBehavior<Visit>;
-  /** Highest values since the last tick. */
-  peakInProgress: number;
-  peakQueueDepth: number;
-}
-
-/** One user request: a single run of a workflow. */
-interface UserRequest {
-  readonly id: number;
-  readonly workflowId: string;
-  readonly startMs: number;
-}
-
-/**
- * A call from a caller to a step's component: one or more attempts, as the
- * edge's retry policy allows. The user's call to a workflow's root has no
- * edge: no latency, no timeout, and no retries.
- */
-interface Call {
-  readonly step: Step;
-  readonly target: RuntimeComponent;
-  readonly edge: Edge | undefined;
-  readonly request: UserRequest;
-  attempts: number;
-  /** Called once, when the call succeeds or its last attempt fails. */
-  readonly onSettled: (failure: Failure | undefined) => void;
-}
-
-interface Attempt {
-  readonly call: Call;
-  readonly number: number;
-  /** Answered or timed out. A response after that is ignored. */
-  settled: boolean;
-}
-
-/** One attempt's stay at its target. This is the token components hold. */
-interface Visit {
-  readonly attempt: Attempt;
-  readonly arrivedMs: number;
-  /** Index of the next nested call to make. */
-  nextCall: number;
 }
 
 /** What the engine schedules on its own event queue. */
@@ -127,9 +89,6 @@ interface NothingToDeliverEvent {
   readonly visit: Visit;
 }
 
-/** The random stream for a name such as `"arrivals"`. */
-type RandomStreams = (stream: string) => RandomSource;
-
 interface CallInput {
   readonly step: Step;
   /** The calling component, or undefined for the user. */
@@ -141,10 +100,7 @@ interface CallInput {
 class Simulation {
   // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.5 (ADR-0009)
   private readonly events = new EventQueue<EngineEvent>();
-  private readonly components: ReadonlyMap<string, RuntimeComponent>;
-  /** Keyed by `edgeKey(from, to)`. */
-  private readonly edges: ReadonlyMap<string, Edge>;
-  private readonly workflows: ReadonlyMap<string, Workflow>;
+  private readonly topology: Topology;
   private readonly arrivals: ArrivalProcess;
   private readonly retryRandom: RandomSource;
   private readonly observe: (event: SimulationEvent) => void;
@@ -155,13 +111,12 @@ class Simulation {
   private nextRequestId = 0;
 
   constructor(input: SimulationInput) {
-    const { project } = input;
-    const workload = findWorkload(input);
+    const { project, registry } = input;
+    const workload = findWorkload(project, input.workloadId);
     const random = input.random ?? seededStreams(workload.seed);
     // Streams are created in this order; scripted sources in tests rely on it.
-    this.components = buildComponents({ input, random });
-    this.edges = indexEdges(project.architecture.edges);
-    this.workflows = new Map(project.workflows.map((w) => [w.id, w]));
+    // A helper builds it, so lint can't see it; it moves to a factory in R2.5.
+    this.topology = buildTopology({ project, registry, random });
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.5 (ADR-0009)
     this.arrivals = new ArrivalProcess({
       workload,
@@ -269,7 +224,9 @@ class Simulation {
   }
 
   private tick(): void {
-    const components = [...this.components.values()].map(sampleAndResetPeaks);
+    const components = [...this.topology.allComponents()].map(
+      sampleAndResetPeaks,
+    );
     this.observe({ kind: "tick", timeMs: this.nowMs, components });
   }
 
@@ -281,8 +238,7 @@ class Simulation {
 
   private startUserRequest(): void {
     const workflowId = this.arrivals.pickWorkflow();
-    const workflow = this.workflows.get(workflowId);
-    if (workflow === undefined) throw new Error(`No workflow "${workflowId}"`);
+    const workflow = this.topology.workflow(workflowId);
     const request: UserRequest = {
       id: this.nextRequestId++,
       workflowId,
@@ -320,22 +276,9 @@ class Simulation {
 
   /** Calls `step` along the edge from `fromId`, as its retry policy allows. */
   private call({ step, fromId, request, onSettled }: CallInput): void {
-    const target = this.components.get(step.componentId);
-    if (target === undefined) {
-      throw new Error(`No component "${step.componentId}"`);
-    }
-    const edge = this.edgeFor(fromId, step.componentId);
+    const target = this.topology.component(step.componentId);
+    const edge = this.topology.edgeFor(fromId, step.componentId);
     this.sendAttempt({ step, target, edge, request, attempts: 0, onSettled });
-  }
-
-  /** The edge a call travels along; the user's call has none. */
-  private edgeFor(fromId: string | undefined, toId: string): Edge | undefined {
-    if (fromId === undefined) return undefined;
-    const edge = this.edges.get(edgeKey(fromId, toId));
-    if (edge === undefined) {
-      throw new Error(`No edge from "${fromId}" to "${toId}"`);
-    }
-    return edge;
   }
 
   private sendAttempt(call: Call): void {
@@ -534,54 +477,9 @@ class Simulation {
   }
 }
 
-function findWorkload({ project, workloadId }: SimulationInput): Workload {
-  const workload = project.workloads.find((w) => w.id === workloadId);
-  if (workload === undefined) throw new Error(`No workload "${workloadId}"`);
-  return workload;
-}
-
 /** Streams seeded from the workload's seed, one per name. */
 function seededStreams(seed: number): RandomStreams {
   return (stream) => new SeededRandom(deriveSeed(seed, stream));
-}
-
-interface BuildComponentsInput {
-  readonly input: SimulationInput;
-  readonly random: RandomStreams;
-}
-
-/** Builds each component's behavior from its type in the registry. */
-function buildComponents({
-  input,
-  random,
-}: BuildComponentsInput): Map<string, RuntimeComponent> {
-  const components = new Map<string, RuntimeComponent>();
-  for (const component of input.project.architecture.components) {
-    const type = input.registry.get(component.type);
-    if (type === undefined) {
-      throw new Error(`Unknown component type "${component.type}"`);
-    }
-    const behavior = type.build<Visit>(component.config, {
-      random: random(`component:${component.id}`),
-    });
-    components.set(component.id, {
-      id: component.id,
-      behavior,
-      peakInProgress: 0,
-      peakQueueDepth: 0,
-    });
-  }
-  return components;
-}
-
-/** Edges by their endpoints. Validation rejects duplicates; the first wins. */
-function indexEdges(edges: readonly Edge[]): Map<string, Edge> {
-  const byEnds = new Map<string, Edge>();
-  for (const edge of edges) {
-    const key = edgeKey(edge.from, edge.to);
-    if (!byEnds.has(key)) byEnds.set(key, edge);
-  }
-  return byEnds;
 }
 
 function checkTickMs(tickMs: number | undefined): number | undefined {
@@ -629,8 +527,4 @@ function sampleAndResetPeaks(component: RuntimeComponent): ComponentSample {
   component.peakInProgress = behavior.inProgress;
   component.peakQueueDepth = behavior.queueDepth;
   return sample;
-}
-
-function edgeKey(from: string, to: string): string {
-  return `${from}\u0000${to}`;
 }

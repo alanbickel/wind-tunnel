@@ -318,10 +318,12 @@ describe("simulate", () => {
         const at = events.indexOf(tick);
         const before = events.slice(0, at).filter((e) => e.kind !== "tick");
         const isLast = tick.timeMs === 2_500;
-        for (const e of before) {
+        for (const e of before)
           expect(e.timeMs).toBeLessThanOrEqual(tick.timeMs);
-          if (!isLast) expect(e.timeMs).toBeLessThan(tick.timeMs);
-        }
+        // Only the end-of-run tick may share its time with earlier events.
+        const strictlyBefore = isLast ? [] : before;
+        for (const e of strictlyBefore)
+          expect(e.timeMs).toBeLessThan(tick.timeMs);
         const after = events.slice(at + 1);
         for (const e of after)
           expect(e.timeMs).toBeGreaterThanOrEqual(tick.timeMs);

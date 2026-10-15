@@ -3,6 +3,7 @@ import { createAwsComponentRegistry } from "../components/aws";
 import type { SimulationEvent } from "../engine/simulation";
 import type { Edge, Project } from "../model/project";
 import { simulateWithMetrics } from "./metrics-collector";
+import { componentIn, workflowIn } from "./testing/snapshot-lookups";
 
 // api -> fn -> db with constant timings, 1 ms edges, light load: every
 // request takes api 10 + (1 + fn 20 + (1 + db 15 + 1) + 1) = 49 ms.
@@ -125,14 +126,15 @@ describe("simulateWithMetrics", () => {
 
   it("reports latency per component and end to end", () => {
     const { totals } = run(project());
-    const get = totals.workflows["get"];
-    expect(get?.failed).toBe(0);
-    expect(get?.latency?.p50Ms).toBeCloseTo(49, 6);
-    expect(get?.latency?.p99Ms).toBeCloseTo(49, 6);
+    const get = workflowIn(totals, "get");
+    const db = componentIn(totals, "db");
+    expect(get.failed).toBe(0);
+    expect(get.latency?.p50Ms).toBeCloseTo(49, 6);
+    expect(get.latency?.p99Ms).toBeCloseTo(49, 6);
     // fn: 20 ms of its own, plus 1 + 15 + 1 waiting on db.
-    expect(totals.components["fn"]?.latency?.p99Ms).toBeCloseTo(37, 6);
-    expect(totals.components["db"]?.latency?.p99Ms).toBeCloseTo(15, 6);
-    expect(totals.components["db"]?.gauges).toEqual({ connectionsHeld: 0 });
+    expect(componentIn(totals, "fn").latency?.p99Ms).toBeCloseTo(37, 6);
+    expect(db.latency?.p99Ms).toBeCloseTo(15, 6);
+    expect(db.gauges).toEqual({ connectionsHeld: 0 });
   });
 
   it("counts a timeout once, where it happened, and groups failures by cause", () => {

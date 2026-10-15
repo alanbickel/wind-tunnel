@@ -17,56 +17,81 @@ export async function checkProjectRepositoryContract(
   emptyRepository: ProjectRepository,
   sample: ProjectRecord,
 ): Promise<string[]> {
-  const repo = emptyRepository;
   const violations: string[] = [];
-  const expect = (ok: boolean, rule: string) => {
-    if (!ok) violations.push(rule);
+  const check: ContractCheck = {
+    repo: emptyRepository,
+    records: contractRecords(sample),
+    expect: (ok, rule) => {
+      if (!ok) violations.push(rule);
+    },
   };
+  // In order: each stage starts from the repository the last one left.
+  for (const stage of STAGES) await stage(check);
+  return violations;
+}
 
+/** Copies of the sample that the stages save, under other IDs and names. */
+interface ContractRecords {
+  readonly first: ProjectRecord;
+  /** `first`, saved again with a new name. */
+  readonly renamed: ProjectRecord;
+  readonly older: ProjectRecord;
+  readonly newer: ProjectRecord;
+}
+
+/** What every stage works with. */
+interface ContractCheck {
+  readonly repo: ProjectRepository;
+  readonly records: ContractRecords;
+  /** Records `rule` as broken unless `ok`. */
+  readonly expect: (ok: boolean, rule: string) => void;
+}
+
+type ContractStage = (check: ContractCheck) => Promise<void>;
+
+const STAGES: readonly ContractStage[] = [
+  checkEmpty,
+  checkSaveAndGet,
+  checkReplace,
+  checkList,
+  checkDelete,
+  checkDeleteUnknown,
+];
+
+async function checkEmpty({ repo, expect }: ContractCheck): Promise<void> {
   expect((await repo.list()).length === 0, "a new repository lists nothing");
   expect(
     (await repo.get("no-such-project")).status === "missing",
     "get reports an unknown ID as missing",
   );
+}
 
-  const first = variant(
-    sample,
-    "contract-1",
-    "First",
-    "2026-01-02T00:00:00.000Z",
-  );
-  await repo.save(first);
-  const found = await repo.get(first.project.id);
-  expect(
+async function checkSaveAndGet(check: ContractCheck): Promise<void> {
+  const { first } = check.records;
+  await check.repo.save(first);
+  const found = await check.repo.get(first.project.id);
+  check.expect(
     found.status === "found" && sameData(found.record, first),
     "get returns a saved record unchanged",
   );
+}
 
-  const renamed = variant(
-    sample,
-    "contract-1",
-    "First, renamed",
-    "2026-01-04T00:00:00.000Z",
-  );
-  await repo.save(renamed);
-  const replaced = await repo.get(renamed.project.id);
-  expect(
+async function checkReplace(check: ContractCheck): Promise<void> {
+  const { renamed } = check.records;
+  await check.repo.save(renamed);
+  const replaced = await check.repo.get(renamed.project.id);
+  check.expect(
     replaced.status === "found" && sameData(replaced.record, renamed),
     "saving a record with an existing ID replaces it",
   );
+}
 
-  const older = variant(
-    sample,
-    "contract-2",
-    "Older",
-    "2026-01-01T00:00:00.000Z",
-  );
-  const newer = variant(
-    sample,
-    "contract-3",
-    "Newer",
-    "2026-01-03T00:00:00.000Z",
-  );
+async function checkList({
+  repo,
+  records,
+  expect,
+}: ContractCheck): Promise<void> {
+  const { renamed, older, newer } = records;
   await repo.save(older);
   await repo.save(newer);
   const listed = await repo.list();
@@ -74,7 +99,14 @@ export async function checkProjectRepositoryContract(
     sameData(listed, [renamed, newer, older].map(summaryOf)),
     "list returns one summary per project, most recently updated first",
   );
+}
 
+async function checkDelete({
+  repo,
+  records,
+  expect,
+}: ContractCheck): Promise<void> {
+  const { renamed, older, newer } = records;
   await repo.delete(newer.project.id);
   expect(
     (await repo.get(newer.project.id)).status === "missing",
@@ -87,7 +119,12 @@ export async function checkProjectRepositoryContract(
     ),
     "a deleted project is no longer listed, and the others are",
   );
+}
 
+async function checkDeleteUnknown({
+  repo,
+  expect,
+}: ContractCheck): Promise<void> {
   let deleteFailed = false;
   try {
     await repo.delete("no-such-project");
@@ -95,15 +132,43 @@ export async function checkProjectRepositoryContract(
     deleteFailed = true;
   }
   expect(!deleteFailed, "deleting an unknown ID does nothing");
+}
 
-  return violations;
+function contractRecords(sample: ProjectRecord): ContractRecords {
+  return {
+    first: variant(sample, {
+      id: "contract-1",
+      name: "First",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    }),
+    renamed: variant(sample, {
+      id: "contract-1",
+      name: "First, renamed",
+      updatedAt: "2026-01-04T00:00:00.000Z",
+    }),
+    older: variant(sample, {
+      id: "contract-2",
+      name: "Older",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    }),
+    newer: variant(sample, {
+      id: "contract-3",
+      name: "Newer",
+      updatedAt: "2026-01-03T00:00:00.000Z",
+    }),
+  };
+}
+
+/** The fields a copy of the sample changes. */
+interface VariantFields {
+  readonly id: string;
+  readonly name: string;
+  readonly updatedAt: string;
 }
 
 function variant(
   sample: ProjectRecord,
-  id: string,
-  name: string,
-  updatedAt: string,
+  { id, name, updatedAt }: VariantFields,
 ): ProjectRecord {
   return { ...sample, project: { ...sample.project, id, name }, updatedAt };
 }

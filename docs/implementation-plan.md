@@ -46,7 +46,7 @@ Seeded randomness, event queue, behavior primitives, domain entities and validat
 - [x] 6. Contract checker: `runScenario` becomes a `ContractHarness` class
 - [x] 7. Validation: context objects; split `checkWorkload` and `validateComponents`
 - [x] 8. Adapters: `parseArgs` as a flag table; `formatReport` input object; report columns as data; `loadProject`/`toProject` in stages
-- [ ] 9. Application testing kit and test files
+- [x] 9. Application testing kit and test files
 - [ ] 10. Coding-standard rules from `warn` to `error`; update CONTRIBUTING ("Enforcement", "Existing code") and the README to match
 
 Decisions: rule 7 applies to component methods (no exception). Fields in seconds (`durationSec`, `atSec`, `idleTimeoutSec`, `burstSec`) stay as they are; the M2 document mapper converts to milliseconds for the domain.

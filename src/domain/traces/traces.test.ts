@@ -9,8 +9,14 @@ import {
   lambdaDefinition,
   rdsDefinition,
 } from "../components/aws";
-import { simulate, type SimulationEvent } from "../engine/simulation";
+import {
+  simulate,
+  type Failure,
+  type SimulationEvent,
+  type TickEvent,
+} from "../engine/simulation";
 import { simulateWithMetrics } from "../metrics/metrics-collector";
+import { componentIn, workflowIn } from "../metrics/testing/snapshot-lookups";
 import type {
   ComponentBehavior,
   Effect,
@@ -20,6 +26,7 @@ import {
   workerPoolDefinition,
 } from "../components/testing/fake-definitions";
 import { SeededRandom } from "../random/random-source";
+import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 
 // Worked examples for the guides in docs/architecture/. Each test runs
 // a building block through a small scenario and saves a text timeline next to
@@ -40,19 +47,62 @@ function table(title: string, header: string[], rows: string[][]): string {
   return [title, "", line(header), ...rows.map(line), ""].join("\n");
 }
 
+const EFFECT_TEXT: KindHandlers<Effect<string>, string> = {
+  started: (e) => `started ${e.request} (${String(e.serviceMs)} ms)`,
+  rejected: (e) => `rejected ${e.request}: ${e.reason}`,
+  queued: (e) => `queued ${e.request}`,
+  dispatched: (e) => `dispatched ${e.request}`,
+};
+
 /** Effects as text, e.g. "started a (10 ms), queued b". */
 function showEffects(effects: Effect<string>[]): string {
-  return (
-    effects
-      .map((e) =>
-        e.kind === "started"
-          ? `started ${e.request} (${String(e.serviceMs)} ms)`
-          : e.kind === "rejected"
-            ? `rejected ${e.request}: ${e.reason}`
-            : `${e.kind} ${e.request}`,
-      )
-      .join(", ") || "(none)"
-  );
+  return effects.map((e) => handleKind(EFFECT_TEXT, e)).join(", ") || "(none)";
+}
+
+/** Every event but ticks: the ones that belong to a request. */
+type RequestEvent = Exclude<SimulationEvent, TickEvent>;
+
+/** One line of a request's journey, after its time. */
+type JourneyLine = [where: string, what: string];
+
+/** How each event reads in a journey; `startMs` is the request's arrival. */
+function journeyText(startMs: number): KindHandlers<RequestEvent, JourneyLine> {
+  const cause = (failure: Failure) =>
+    `${failure.componentId}: ${failure.reason}`;
+  return {
+    "workflow-started": (e) => ["user", `starts "${e.workflowId}"`],
+    "workflow-finished": (e) => [
+      "user",
+      e.failure === undefined
+        ? `gets an answer after ${String(e.latencyMs)} ms`
+        : `gets an error after ${String(e.latencyMs)} ms (${cause(e.failure)})`,
+    ],
+    arrived: (e) => [e.componentId, `arrived (${e.action})`],
+    queued: (e) => [e.componentId, "queued"],
+    started: (e) => [
+      e.componentId,
+      `started, ${String(e.serviceMs)} ms of work`,
+    ],
+    rejected: (e) => [e.componentId, `rejected: ${e.reason}`],
+    finished: (e) => [
+      e.componentId,
+      e.failure === undefined
+        ? "finished, answer sent"
+        : `finished with error (${cause(e.failure)})`,
+    ],
+    "attempt-failed": (e) => [
+      e.edgeId,
+      `attempt ${String(e.attempt)} failed (${cause(e.failure)})` +
+        (e.retryAtMs === undefined
+          ? ", no retries left"
+          : `, retry at ${(e.retryAtMs - startMs).toFixed(0)}`),
+    ],
+    dispatched: (e) => [e.componentId, "dispatched"],
+    "async-finished": (e) => [
+      e.componentId,
+      `async work done (${String(e.succeeded)})`,
+    ],
+  };
 }
 
 describe("traces", () => {
@@ -545,7 +595,7 @@ describe("traces", () => {
           },
         ],
       };
-      const events: Exclude<SimulationEvent, { kind: "tick" }>[] = [];
+      const events: RequestEvent[] = [];
       simulate({
         project,
         workloadId: "one",
@@ -556,58 +606,11 @@ describe("traces", () => {
         untilMs: 20_000,
       });
       const start = events[0]?.timeMs ?? 0;
-      return events.map((e) => {
-        const t = (e.timeMs - start).toFixed(0);
-        switch (e.kind) {
-          case "workflow-started":
-            return [t, "user", `starts "${e.workflowId}"`];
-          case "workflow-finished":
-            return [
-              t,
-              "user",
-              e.failure === undefined
-                ? `gets an answer after ${String(e.latencyMs)} ms`
-                : `gets an error after ${String(e.latencyMs)} ms (${e.failure.componentId}: ${e.failure.reason})`,
-            ];
-          case "arrived":
-            return [t, e.componentId, `arrived (${e.action})`];
-          case "queued":
-            return [t, e.componentId, "queued"];
-          case "started":
-            return [
-              t,
-              e.componentId,
-              `started, ${String(e.serviceMs)} ms of work`,
-            ];
-          case "rejected":
-            return [t, e.componentId, `rejected: ${e.reason}`];
-          case "finished":
-            return [
-              t,
-              e.componentId,
-              e.failure === undefined
-                ? "finished, answer sent"
-                : `finished with error (${e.failure.componentId}: ${e.failure.reason})`,
-            ];
-          case "attempt-failed":
-            return [
-              t,
-              e.edgeId,
-              `attempt ${String(e.attempt)} failed (${e.failure.componentId}: ${e.failure.reason})` +
-                (e.retryAtMs === undefined
-                  ? ", no retries left"
-                  : `, retry at ${(e.retryAtMs - start).toFixed(0)}`),
-            ];
-          case "dispatched":
-            return [t, e.componentId, "dispatched"];
-          case "async-finished":
-            return [
-              t,
-              e.componentId,
-              `async work done (${String(e.succeeded)})`,
-            ];
-        }
-      });
+      const text = journeyText(start);
+      return events.map((e) => [
+        (e.timeMs - start).toFixed(0),
+        ...handleKind(text, e),
+      ]);
     };
 
     const header = ["t(ms)", "where", "what happened"];
@@ -705,20 +708,20 @@ describe("traces", () => {
     const ms = (value: number | undefined) =>
       value === undefined ? "-" : value.toFixed(0);
     const row = (label: string, s: (typeof snapshots)[number]) => {
-      const get = s.workflows["get"];
-      const db = s.components["db"];
-      const fn = s.components["fn"];
+      const get = workflowIn(s, "get");
+      const db = componentIn(s, "db");
+      const fn = componentIn(s, "fn");
       return [
         label,
-        String(get?.started),
-        String(get?.succeeded),
-        String(get?.failed),
-        ms(get?.latency?.p50Ms),
-        ms(get?.latency?.p99Ms),
-        String(db?.peakQueueDepth),
-        String(db?.gauges["connectionsHeld"]),
-        String(db?.rejected),
-        String(fn?.counters["coldStarts"]),
+        String(get.started),
+        String(get.succeeded),
+        String(get.failed),
+        ms(get.latency?.p50Ms),
+        ms(get.latency?.p99Ms),
+        String(db.peakQueueDepth),
+        String(db.gauges["connectionsHeld"]),
+        String(db.rejected),
+        String(fn.counters["coldStarts"]),
       ];
     };
     const rows = snapshots.map((s) =>

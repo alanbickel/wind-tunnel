@@ -19,6 +19,7 @@ export interface TemplateCatalog {
   list(): Promise<TemplateSummary[]>;
   /**
    * The template as a record, or `undefined` if there's no such template.
+   * Its `source` names the template and its version, ready for a copy to keep.
    * Callers copy it into a new project; they don't save it as is.
    */
   get(id: string): Promise<ProjectRecord | undefined>;

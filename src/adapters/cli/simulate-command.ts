@@ -2,21 +2,23 @@ import { createAwsComponentRegistry } from "../../domain/components/aws";
 import type { ComponentRegistry } from "../../domain/components/component-registry";
 import { simulateWithMetrics } from "../../domain/metrics/metrics-collector";
 import type { Project, Workload } from "../../domain/model/project";
-import { loadProject } from "../persistence/load-project";
-import templateA from "../templates/template-a.json";
-import templateB from "../templates/template-b.json";
+import type {
+  TemplateCatalog,
+  TemplateSummary,
+} from "../../application/ports/template-catalog";
+import { createBundledTemplateCatalog } from "../templates/bundled-template-catalog";
 import { formatReport } from "./text-report";
 
-const TEMPLATES: Readonly<Record<string, unknown>> = {
-  a: templateA,
-  b: templateB,
-};
+/** The usage text, listing the templates the catalog has. */
+export function formatUsage(templates: readonly TemplateSummary[]): string {
+  const ids = templates.map((t) => `                ${t.id}  ${t.name}`);
+  return `Usage: npm run simulate -- --template <id> [--workload <id>] [--seed <n>]
 
-export const USAGE = `Usage: npm run simulate -- --template <a|b> [--workload <id>] [--seed <n>]
-
-  --template  Which template to run: ${Object.keys(TEMPLATES).join(", ")}
+  --template  Which template to run:
+${ids.join("\n")}
   --workload  The workload ID to run (default: the project's first workload)
   --seed      Override the workload's random seed (0 to 4294967295)`;
+}
 
 export interface CommandResult {
   readonly exitCode: number;
@@ -29,38 +31,49 @@ export interface CommandResult {
  * workload, and returns a text report. Uses no Node APIs, so tests can call
  * it directly; `scripts/simulate.js` does the printing.
  */
-export function runSimulateCommand(args: readonly string[]): CommandResult {
-  const options = parseArgs(args);
-  if (typeof options === "string") return fail(options);
-
+export async function runSimulateCommand(
+  args: readonly string[],
+): Promise<CommandResult> {
   const registry = createAwsComponentRegistry();
-  const project = loadTemplate(options.template, registry);
-  if (typeof project === "string") return fail(project);
-  const target = selectWorkload(project, options);
-  if (typeof target === "string") return fail(target);
+  const catalog = createBundledTemplateCatalog(registry);
+  const usage = formatUsage(await catalog.list());
+  const report = await reportFor({ args, catalog, registry });
+  if (typeof report === "string") return fail({ message: report, usage });
+  return { exitCode: 0, output: report.text };
+}
+
+interface ReportInput {
+  readonly args: readonly string[];
+  readonly catalog: TemplateCatalog;
+  readonly registry: ComponentRegistry;
+}
+
+/** The finished report. */
+interface Report {
+  readonly text: string;
+}
+
+/** Returns the report the arguments ask for, or an error message. */
+async function reportFor({
+  args,
+  catalog,
+  registry,
+}: ReportInput): Promise<Report | string> {
+  const options = parseArgs(args);
+  if (typeof options === "string") return options;
+  const template = await catalog.get(options.template);
+  if (template === undefined) {
+    return `Unknown template ${JSON.stringify(options.template)}.`;
+  }
+  const target = selectWorkload(template.project, options);
+  if (typeof target === "string") return target;
 
   const run = simulateWithMetrics({
     project: target.project,
     workloadId: target.workload.id,
     registry,
   });
-  return { exitCode: 0, output: formatReport({ ...target, run }) };
-}
-
-/** Returns the template's project, or an error message. */
-function loadTemplate(
-  name: string,
-  registry: ComponentRegistry,
-): Project | string {
-  const template = TEMPLATES[name];
-  if (template === undefined)
-    return `Unknown template ${JSON.stringify(name)}.`;
-  const loaded = loadProject(template, registry);
-  if (loaded.ok) return loaded.record.project;
-  const issues = loaded.issues.map(
-    (i) => `  ${i.path.join(".")}: ${i.message}`,
-  );
-  return `The template is invalid:\n${issues.join("\n")}`;
+  return { text: formatReport({ ...target, run }) };
 }
 
 /** The workload to run, and the project it runs in. */
@@ -153,9 +166,13 @@ function parseSeed(value: string): FlagResult {
   return { seed };
 }
 
-function fail(message: string): CommandResult {
-  return {
-    exitCode: message === "" ? 0 : 1,
-    output: message === "" ? USAGE : `${message}\n\n${USAGE}`,
-  };
+/** An error message ("" for help) and the usage text to follow it. */
+interface FailureInput {
+  readonly message: string;
+  readonly usage: string;
+}
+
+function fail({ message, usage }: FailureInput): CommandResult {
+  if (message === "") return { exitCode: 0, output: usage };
+  return { exitCode: 1, output: `${message}\n\n${usage}` };
 }

@@ -5,9 +5,9 @@ How `npm run simulate` runs a template from the terminal and prints a text repor
 ## Try it
 
 ```sh
-npm run simulate -- --template a          # Serverless API with RDS
-npm run simulate -- --template b          # DynamoDB + SQS
-npm run simulate -- --template a --seed 7 # same run, different random draws
+npm run simulate -- --template template-a          # Serverless API with RDS
+npm run simulate -- --template template-b          # DynamoDB + SQS
+npm run simulate -- --template template-a --seed 7 # same run, different random draws
 npm run simulate -- --help
 ```
 
@@ -16,8 +16,11 @@ npm run simulate -- --help
 ```mermaid
 flowchart LR
     N["scripts/simulate.js<br/>(Node)"] -->|"runnerImport via Vite"| C["runSimulateCommand(args)<br/>adapters/cli/"]
-    C -->|template JSON| L["loadProject<br/>adapters/persistence/"]
-    L -->|Project| S["simulateWithMetrics<br/>domain/metrics/"]
+    C -->|template ID| T["BundledTemplateCatalog<br/>adapters/templates/"]
+    T -->|template JSON| L["loadProject<br/>adapters/persistence/"]
+    L -->|ProjectRecord| T
+    T -->|ProjectRecord| C
+    C -->|Project| S["simulateWithMetrics<br/>domain/metrics/"]
     S -->|MetricsRun| F["formatReport<br/>adapters/cli/"]
     F -->|text| C
     C -->|"{ exitCode, output }"| N
@@ -27,6 +30,7 @@ flowchart LR
 |---|---|---|
 | Launcher | [`scripts/simulate.js`](../../scripts/simulate.js) | Loads the TypeScript through Vite, prints the result, sets the exit code, times the run |
 | Command | [`simulate-command.ts`](../../src/adapters/cli/simulate-command.ts) | Parses arguments, picks the template and workload, applies `--seed`, runs the simulation |
+| Templates | [`bundled-template-catalog.ts`](../../src/adapters/templates/bundled-template-catalog.ts) | The `TemplateCatalog` port over the bundled JSON; `--help` lists its templates |
 | Report | [`text-report.ts`](../../src/adapters/cli/text-report.ts) | Turns a `MetricsRun` into tables |
 
 Two choices worth knowing about:

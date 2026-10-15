@@ -16,7 +16,7 @@ The [README](README.md#running-it) lists every script. A few things worth knowin
 
 - **Vitest doesn't type-check.** A green test run can hide a type error. Run `npm run check` (or at least `npx tsc -b`) before you trust it.
 - Prettier owns formatting, and CI checks it. Run `npm run format` rather than formatting by hand.
-- `npm run simulate -- --template a` runs a template headlessly and prints a text report. Use it to see what a model change does before and after ([guide](docs/architecture/headless-runner.md)).
+- `npm run simulate -- --template template-a` runs a template headlessly and prints a text report. Use it to see what a model change does before and after ([guide](docs/architecture/headless-runner.md)).
 - Work is planned in milestones. [`docs/implementation-plan.md`](docs/implementation-plan.md) says what's in progress and what's next.
 
 ## Architecture rules

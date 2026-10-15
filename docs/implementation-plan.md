@@ -47,7 +47,7 @@ Decisions that still apply: rule 7 applies to component methods (no exception). 
 - [x] Ports: `ProjectRepository`, `TemplateCatalog`, `Clock`, `IdGenerator`, `SimulationRunner`. Replace `src/application/layer.test.ts` with real tests
 - [x] Document mapper, `ProjectRecord` ↔ document (ADR-0008): round-trips `sampleRecord` and both templates through `loadProject` unchanged
 - [x] Document migration scaffolding (`schemaVersion`), run by `loadProject` before the v1 schema
-- [ ] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
+- [x] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
 - [ ] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
 - [ ] Use cases: `ListProjects`, `CreateProjectFromTemplate` (new ID and timestamps from the ports), `LoadProject`, `SaveProject`, `DeleteProject`, `RunSimulation`
 - [ ] In-process `SimulationRunner` over `simulateWithMetrics`, with snapshots streamed through `onSnapshot` (the Worker version comes in M3). Move the CLI's seed-override logic into `RunSimulation` so both share it
@@ -73,10 +73,15 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
+### 2026-10-15: M2 template catalog
+
+- **`BundledTemplateCatalog`** (`src/adapters/templates/`) loads `BUNDLED_TEMPLATES` up front and throws if one is invalid. Templates are keyed by document ID (`template-a`); the version sits beside each JSON import in `BUNDLED_TEMPLATES`, and `get` returns the record with `source` already set, so `CreateProjectFromTemplate` only replaces the ID and timestamps.
+- **The CLI uses the catalog:** `--template template-a` (no more `a`/`b`), `--help` lists the catalog's templates, and `runSimulateCommand` is now async.
+- **Next:** the IndexedDB adapter.
+
 ### 2026-10-15: M2 migration scaffolding
 
 - **`document-migrations.ts`** holds `CURRENT_SCHEMA_VERSION` and `DOCUMENT_MIGRATIONS` (empty while only v1 exists), plus `migrateDocument(input, migrations)`, which `loadProject` runs before the v1 schema. Each migration upgrades one version, keyed by the version it starts from; `migrateDocument` stamps the new `schemaVersion` itself. Migrations run on unchecked JSON, since only the current schema is kept.
-- **Next:** the template catalog adapter.
 
 ### 2026-10-15: M2 document mapper
 
@@ -95,7 +100,7 @@ Newest first. Record what was built, what differs from the plan, and what the ne
 
 - **Ports** (`62e12f2`): the repository and catalog exchange `ProjectRecord`s (domain `Project` + `createdAt`, `updatedAt`, `source`, `layout`), never documents (ADR-0008). `Clock.now()` returns an ISO string in `toISOString` format, because ESLint bans `new Date` anywhere in `application/`, tests included. `ProjectRepository.get` returns `found`, `missing`, or `invalid` with a user-facing `reason` plus `issues`.
 - **Testing kit** in `src/application/testing/`: `InMemoryProjectRepository`, `FixedClock`, `SequentialIds`, `sampleRecord` (valid against the AWS registry, every optional field set), and `checkProjectRepositoryContract`, which returns a list of violations. The IndexedDB adapter's test must run it with `sampleRecord` and expect `[]`.
-- **Next:** the document mapper. Template JSON timestamps (`2026-10-14T00:00:00Z`) aren't in the `Clock` format; that's fine, because new projects take fresh timestamps from the clock. The CLI uses template keys `a`/`b`, while document IDs are `template-a`/`template-b`; settle which one the catalog uses in the catalog task.
+- **Next:** the document mapper. Template JSON timestamps (`2026-10-14T00:00:00Z`) aren't in the `Clock` format; that's fine, because new projects take fresh timestamps from the clock.
 
 ### 2026-10-15: M1 complete
 

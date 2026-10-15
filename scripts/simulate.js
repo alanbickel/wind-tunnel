@@ -1,4 +1,4 @@
-// Runs `npm run simulate -- --template a`. Node can't import the TypeScript
+// Runs `npm run simulate -- --template template-a`. Node can't import the TypeScript
 // sources directly (they use extensionless imports and JSON modules), so this
 // loads them through Vite's module runner, the same pipeline as the app.
 import { runnerImport } from "vite";
@@ -11,7 +11,7 @@ const { module } = await runnerImport("/src/adapters/cli/simulate-command.ts", {
 const loaded = performance.now();
 
 /** @type {import("../src/adapters/cli/simulate-command").CommandResult} */
-const result = module.runSimulateCommand(process.argv.slice(2));
+const result = await module.runSimulateCommand(process.argv.slice(2));
 if (result.exitCode === 0) {
   process.stdout.write(result.output);
   const loadSec = ((loaded - started) / 1000).toFixed(1);

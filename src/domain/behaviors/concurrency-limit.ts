@@ -2,7 +2,7 @@ import { Queue } from "./queue";
 
 export type AcquireResult = "admitted" | "queued" | "rejected";
 
-export interface ConcurrencyLimitOptions {
+export interface ConcurrencyLimitInput {
   /** At most this many holders at once. */
   limit: number;
   /**
@@ -25,13 +25,13 @@ export class ConcurrencyLimit<T> {
   private readonly waiting: Queue<T> | undefined;
   private held = 0;
 
-  constructor(options: ConcurrencyLimitOptions) {
-    if (!(options.limit >= 0))
+  constructor(input: ConcurrencyLimitInput) {
+    if (!(input.limit >= 0))
       throw new RangeError("Concurrency limit must be >= 0");
-    this.limit = options.limit;
+    this.limit = input.limit;
     this.waiting =
-      options.whenFull === "queue"
-        ? new Queue<T>(options.queueCapacity)
+      input.whenFull === "queue"
+        ? new Queue<T>(input.queueCapacity)
         : undefined;
   }
 

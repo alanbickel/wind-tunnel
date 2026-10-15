@@ -40,13 +40,13 @@ interface ComponentContext {
 }
 
 /** A component and where it is in the project. */
-interface ComponentAt {
+interface ComponentInput {
   readonly component: Component;
   readonly path: IssuePath;
 }
 
 /** The component's type is registered, and its config passes the type's checks. */
-function checkComponent(at: ComponentAt, context: ComponentContext): void {
+function checkComponent(at: ComponentInput, context: ComponentContext): void {
   const { component, path } = at;
   const { registry, issues } = context;
   const type = registry.get(component.type);
@@ -71,17 +71,17 @@ interface StepContext extends ComponentContext {
 }
 
 /** A step and where it is in the project. */
-interface StepAt {
+interface StepInput {
   readonly step: Step;
   readonly path: IssuePath;
 }
 
 /** A step and the type of the component it targets. */
-interface TypedStepAt extends StepAt {
+interface TypedStepInput extends StepInput {
   readonly type: ComponentType;
 }
 
-function checkStep(at: StepAt, context: StepContext): void {
+function checkStep(at: StepInput, context: StepContext): void {
   const { step, path } = at;
   const type = targetType(step, context);
   if (type !== undefined) checkStepType({ ...at, type }, context.issues);
@@ -104,7 +104,7 @@ function targetType(
 }
 
 /** The target accepts the step's action, and can carry its async work. */
-function checkStepType(at: TypedStepAt, issues: ValidationIssue[]): void {
+function checkStepType(at: TypedStepInput, issues: ValidationIssue[]): void {
   const { step, path, type } = at;
   if (!type.actions.includes(step.action)) {
     issues.push({

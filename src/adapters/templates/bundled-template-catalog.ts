@@ -27,7 +27,7 @@ export const BUNDLED_TEMPLATES: readonly BundledTemplate[] = [
   { version: 1, document: templateB },
 ];
 
-export interface BundledTemplateCatalogInput {
+export interface BundledTemplateCatalogDependencies {
   readonly templates: readonly BundledTemplate[];
   readonly registry: ComponentRegistry;
 }
@@ -46,7 +46,7 @@ interface CatalogEntry {
 export class BundledTemplateCatalog implements TemplateCatalog {
   private readonly entries: ReadonlyMap<string, CatalogEntry>;
 
-  constructor({ templates, registry }: BundledTemplateCatalogInput) {
+  constructor({ templates, registry }: BundledTemplateCatalogDependencies) {
     this.entries = new Map(
       templates.map((template) => {
         const entry = loadTemplate({ template, registry });

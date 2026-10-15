@@ -9,7 +9,7 @@ import type {
   SimulationRunner,
 } from "../../application/ports/simulation-runner";
 
-export interface InProcessSimulationRunnerInput {
+export interface InProcessSimulationRunnerDependencies {
   readonly registry: ComponentRegistry;
 }
 
@@ -21,7 +21,7 @@ export interface InProcessSimulationRunnerInput {
 export class InProcessSimulationRunner implements SimulationRunner {
   private readonly registry: ComponentRegistry;
 
-  constructor({ registry }: InProcessSimulationRunnerInput) {
+  constructor({ registry }: InProcessSimulationRunnerDependencies) {
     this.registry = registry;
   }
 

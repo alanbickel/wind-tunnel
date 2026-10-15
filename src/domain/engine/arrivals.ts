@@ -32,7 +32,7 @@ function interpolate({ from, to, atMs }: Interpolation): number {
   );
 }
 
-export interface ArrivalProcessInput {
+export interface ArrivalProcessDependencies {
   readonly workload: Workload;
   /** Draws arrival times. */
   readonly timing: RandomSource;
@@ -60,7 +60,7 @@ export class ArrivalProcess {
   private readonly endMs: number;
   private readonly totalWeight: number;
 
-  constructor({ workload, timing, choice }: ArrivalProcessInput) {
+  constructor({ workload, timing, choice }: ArrivalProcessDependencies) {
     this.workload = workload;
     this.timing = timing;
     this.choice = choice;

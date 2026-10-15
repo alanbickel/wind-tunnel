@@ -63,16 +63,16 @@ async function reportFor({
   catalog,
   runSimulation,
 }: ReportInput): Promise<Report | string> {
-  const options = parseArgs(args);
-  if (typeof options === "string") return options;
-  const template = await catalog.get(options.template);
+  const flags = parseArgs(args);
+  if (typeof flags === "string") return flags;
+  const template = await catalog.get(flags.template);
   if (template === undefined) {
-    return `Unknown template ${JSON.stringify(options.template)}.`;
+    return `Unknown template ${JSON.stringify(flags.template)}.`;
   }
   const result = await runSimulation.execute({
     project: template.project,
-    workloadId: options.workload,
-    seed: options.seed,
+    workloadId: flags.workload,
+    seed: flags.seed,
   });
   if (result.status === "workload-missing") return unknownWorkload(result);
   return { text: formatReport(result) };
@@ -83,14 +83,14 @@ function unknownWorkload({ workloadId }: WorkloadMissing): string {
   return `Unknown workload ${JSON.stringify(workloadId)}.`;
 }
 
-interface Options {
+interface FlagValues {
   readonly template: string;
   readonly workload?: string;
   readonly seed?: number;
 }
 
-/** What one flag adds to the options, or an error message ("" for help). */
-type FlagResult = Partial<Options> | string;
+/** What one flag adds to the flag values, or an error message ("" for help). */
+type FlagResult = Partial<FlagValues> | string;
 
 type FlagParser = (value: string) => FlagResult;
 
@@ -104,9 +104,9 @@ const HELP_FLAGS: ReadonlySet<string> = new Set(["--help", "-h"]);
 
 const MAX_SEED = 0xffff_ffff;
 
-/** Returns the options, or an error message ("" for help). */
-function parseArgs(args: readonly string[]): Options | string {
-  let draft: Partial<Options> = {};
+/** Returns the flag values, or an error message ("" for help). */
+function parseArgs(args: readonly string[]): FlagValues | string {
+  let draft: Partial<FlagValues> = {};
   for (let i = 0; i < args.length; i += 2) {
     const parsed = parseFlag({ flag: String(args[i]), value: args[i + 1] });
     if (typeof parsed === "string") return parsed;

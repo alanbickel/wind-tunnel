@@ -11,7 +11,7 @@ import type {
 } from "./component-behavior";
 import type { ComponentDefinition } from "./component-definition";
 
-export interface ContractOptions<Config> {
+export interface ContractInput<Config> {
   /** Config to test with; defaults to the definition's `defaultConfig`. */
   readonly config?: Config;
   readonly seed?: number;
@@ -65,18 +65,18 @@ const MAX_VIOLATIONS = 20;
  */
 export function checkComponentContract<Config>(
   definition: ComponentDefinition<Config>,
-  options: ContractOptions<Config> = {},
+  input: ContractInput<Config> = {},
 ): ContractReport {
   const problems = checkDefinition(definition);
   if (problems.length > 0) return { violations: problems, stats: emptyStats() };
 
-  const input: ContractHarnessInput<Config> = {
+  const dependencies: ContractHarnessDependencies<Config> = {
     definition,
-    config: options.config ?? definition.defaultConfig,
-    settings: scenarioSettings(options),
+    config: input.config ?? definition.defaultConfig,
+    scenario: contractScenario(input),
   };
-  const first = new ContractHarness(input).run();
-  const second = new ContractHarness(input).run();
+  const first = new ContractHarness(dependencies).run();
+  const second = new ContractHarness(dependencies).run();
   const violations =
     first.violations.length > 0
       ? first.violations
@@ -148,18 +148,18 @@ interface ArrivalPlan {
   readonly quietMs: number;
 }
 
-/** `ContractOptions` with the defaults filled in. */
-interface ScenarioSettings {
+/** `ContractInput` with the defaults filled in. */
+interface ContractScenario {
   readonly seed: number;
   readonly arrivals: ArrivalPlan;
   readonly maxHoldMs: number;
   readonly dispatchFailureRate: number;
 }
 
-interface ContractHarnessInput<Config> {
+interface ContractHarnessDependencies<Config> {
   readonly definition: ComponentDefinition<Config>;
   readonly config: Config;
-  readonly settings: ScenarioSettings;
+  readonly scenario: ContractScenario;
 }
 
 interface ScenarioResult {
@@ -197,7 +197,7 @@ interface Load {
  */
 class ContractHarness<Config> {
   private readonly definition: ComponentDefinition<Config>;
-  private readonly settings: ScenarioSettings;
+  private readonly scenario: ContractScenario;
   /** Separate from the component's source, so the harness's draws don't change the component's. */
   private readonly random: SeededRandom;
   private readonly behavior: ComponentBehavior<number>;
@@ -214,16 +214,20 @@ class ContractHarness<Config> {
   /** Set when the behavior can't go on; skips the end-of-run checks. */
   private aborted = false;
 
-  constructor({ definition, config, settings }: ContractHarnessInput<Config>) {
+  constructor({
+    definition,
+    config,
+    scenario,
+  }: ContractHarnessDependencies<Config>) {
     this.definition = definition;
-    this.settings = settings;
+    this.scenario = scenario;
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.6 (ADR-0009)
-    this.random = new SeededRandom(settings.seed);
+    this.random = new SeededRandom(scenario.seed);
     this.behavior = definition.build<number>(config, {
       // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.6 (ADR-0009)
-      random: new SeededRandom(settings.seed + 1),
+      random: new SeededRandom(scenario.seed + 1),
     });
-    this.maxEvents = settings.arrivals.requests * 1000;
+    this.maxEvents = scenario.arrivals.requests * 1000;
   }
 
   run(): ScenarioResult {
@@ -234,7 +238,7 @@ class ContractHarness<Config> {
   }
 
   private scheduleArrivals(): void {
-    const { requests, meanGapMs, quietMs } = this.settings.arrivals;
+    const { requests, meanGapMs, quietMs } = this.scenario.arrivals;
     const { actions } = this.definition;
     let timeMs = 0;
     for (let request = 0; request < requests; request++) {
@@ -370,7 +374,7 @@ class ContractHarness<Config> {
       return;
     }
     state.phase = "started";
-    const holdMs = this.random.next() * this.settings.maxHoldMs;
+    const holdMs = this.random.next() * this.scenario.maxHoldMs;
     this.events.schedule(this.nowMs + serviceMs + holdMs, {
       kind: "finish",
       request,
@@ -403,8 +407,8 @@ class ContractHarness<Config> {
       return;
     }
     state.delivery = "in-flight";
-    const deliveryMs = this.random.next() * this.settings.maxHoldMs;
-    const succeeded = this.random.next() >= this.settings.dispatchFailureRate;
+    const deliveryMs = this.random.next() * this.scenario.maxHoldMs;
+    const succeeded = this.random.next() >= this.scenario.dispatchFailureRate;
     this.events.schedule(this.nowMs + deliveryMs, {
       kind: "dispatch-finished",
       request,
@@ -489,20 +493,20 @@ class ContractHarness<Config> {
   }
 }
 
-/** `ContractOptions` with every default filled in. */
-function scenarioSettings<Config>(
-  options: ContractOptions<Config>,
-): ScenarioSettings {
+/** `ContractInput` with every default filled in. */
+function contractScenario<Config>(
+  input: ContractInput<Config>,
+): ContractScenario {
   // Complexity 6, one `??` per default; there's nothing else to branch on.
   return {
-    seed: options.seed ?? 1,
+    seed: input.seed ?? 1,
     arrivals: {
-      requests: options.requests ?? 400,
-      meanGapMs: options.meanGapMs ?? 1,
-      quietMs: options.quietMs ?? 60 * 60 * 1000,
+      requests: input.requests ?? 400,
+      meanGapMs: input.meanGapMs ?? 1,
+      quietMs: input.quietMs ?? 60 * 60 * 1000,
     },
-    maxHoldMs: options.maxHoldMs ?? 20,
-    dispatchFailureRate: options.dispatchFailureRate ?? 0.2,
+    maxHoldMs: input.maxHoldMs ?? 20,
+    dispatchFailureRate: input.dispatchFailureRate ?? 0.2,
   };
 }
 

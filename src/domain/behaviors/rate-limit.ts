@@ -1,4 +1,4 @@
-export interface RateLimitOptions {
+export interface RateLimitInput {
   /** Tokens added per second: the sustained request rate. */
   ratePerSec: number;
   /** Bucket size: how many requests can arrive at once after a quiet period. */
@@ -21,13 +21,13 @@ export class RateLimit {
   private tokens: number;
   private lastRefillMs = 0;
 
-  constructor(options: RateLimitOptions) {
-    if (!(options.ratePerSec >= 0))
+  constructor(input: RateLimitInput) {
+    if (!(input.ratePerSec >= 0))
       throw new RangeError("ratePerSec must be >= 0");
-    if (!(options.burst >= 1)) throw new RangeError("burst must be >= 1");
-    this.ratePerSec = options.ratePerSec;
-    this.burst = options.burst;
-    this.tokens = options.burst;
+    if (!(input.burst >= 1)) throw new RangeError("burst must be >= 1");
+    this.ratePerSec = input.ratePerSec;
+    this.burst = input.burst;
+    this.tokens = input.burst;
   }
 
   /** Takes a token at simulated time `nowMs`. Returns false when throttled. */

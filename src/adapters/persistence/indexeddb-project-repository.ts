@@ -13,7 +13,7 @@ import { loadProject, type LoadResult } from "./load-project";
 import type { ProjectDatabase } from "./project-database";
 import { toProjectDocument } from "./project-document-mapper";
 
-export interface IndexedDbProjectRepositoryInput {
+export interface IndexedDbProjectRepositoryDependencies {
   /** From `openProjectDatabase`. */
   readonly database: ProjectDatabase;
   /** Checks each component's config when a project is read. */
@@ -30,7 +30,7 @@ export class IndexedDbProjectRepository implements ProjectRepository {
   private readonly database: ProjectDatabase;
   private readonly registry: ComponentRegistry;
 
-  constructor({ database, registry }: IndexedDbProjectRepositoryInput) {
+  constructor({ database, registry }: IndexedDbProjectRepositoryDependencies) {
     this.database = database;
     this.registry = registry;
   }

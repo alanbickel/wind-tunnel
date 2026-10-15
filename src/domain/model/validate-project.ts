@@ -87,7 +87,7 @@ interface EdgeContext {
 }
 
 /** An edge and where it is in the project. */
-interface EdgeAt {
+interface EdgeInput {
   readonly edge: Edge;
   readonly path: IssuePath;
 }
@@ -102,14 +102,14 @@ interface TargetContext {
 function checkEdges(edges: readonly Edge[], context: EdgeContext): EdgeTargets {
   const targets = new Map<string, Set<string>>();
   edges.forEach((edge, index) => {
-    const at: EdgeAt = { edge, path: ["architecture", "edges", index] };
+    const at: EdgeInput = { edge, path: ["architecture", "edges", index] };
     checkEndpoints(at, context);
     addTarget(at, { targets, report: context.report });
   });
   return targets;
 }
 
-function checkEndpoints({ edge, path }: EdgeAt, context: EdgeContext): void {
+function checkEndpoints({ edge, path }: EdgeInput, context: EdgeContext): void {
   const { componentIds, report } = context;
   for (const end of ["from", "to"] as const) {
     if (!componentIds.has(edge[end])) {
@@ -124,7 +124,7 @@ function checkEndpoints({ edge, path }: EdgeAt, context: EdgeContext): void {
   }
 }
 
-function addTarget({ edge, path }: EdgeAt, context: TargetContext): void {
+function addTarget({ edge, path }: EdgeInput, context: TargetContext): void {
   const { targets, report } = context;
   const fromTargets = targets.get(edge.from) ?? new Set<string>();
   if (fromTargets.has(edge.to)) {
@@ -146,7 +146,7 @@ interface StepContext {
 }
 
 /** A step, where it is in the project, and the component that calls it. */
-interface StepAt {
+interface StepInput {
   readonly step: Step;
   readonly path: IssuePath;
   /** `undefined` for a workflow's root, which the user calls. */
@@ -163,7 +163,7 @@ function checkWorkflows(
   });
 }
 
-function checkStep(at: StepAt, context: StepContext): void {
+function checkStep(at: StepInput, context: StepContext): void {
   const { step, path } = at;
   checkTarget(at, context);
   step.calls?.forEach((child, index) => {
@@ -177,7 +177,7 @@ function checkStep(at: StepAt, context: StepContext): void {
 }
 
 /** The step's component exists, and its caller has an edge to it. */
-function checkTarget(at: StepAt, context: StepContext): void {
+function checkTarget(at: StepInput, context: StepContext): void {
   const { step, path, callerId } = at;
   const { componentIds, edgeTargets, report } = context;
   if (!componentIds.has(step.componentId)) {
@@ -195,7 +195,7 @@ function checkTarget(at: StepAt, context: StepContext): void {
   );
 }
 
-function checkAsync({ step, path }: StepAt, context: StepContext): void {
+function checkAsync({ step, path }: StepInput, context: StepContext): void {
   if (step.async === undefined) return;
   const asyncPath = [...path, "async"];
   if (step.action !== "enqueue") {
@@ -217,7 +217,7 @@ interface WorkloadContext {
 }
 
 /** A workload and where it is in the project. */
-interface WorkloadAt {
+interface WorkloadInput {
   readonly workload: Workload;
   readonly path: IssuePath;
 }
@@ -227,14 +227,14 @@ function checkWorkloads(
   context: WorkloadContext,
 ): void {
   workloads.forEach((workload, index) => {
-    const at: WorkloadAt = { workload, path: ["workloads", index] };
+    const at: WorkloadInput = { workload, path: ["workloads", index] };
     checkMix(at, context);
     checkProfile(at, context.report);
   });
 }
 
 function checkMix(
-  { workload, path }: WorkloadAt,
+  { workload, path }: WorkloadInput,
   context: WorkloadContext,
 ): void {
   const { workflowIds, report } = context;
@@ -263,7 +263,7 @@ function checkMix(
   });
 }
 
-function checkProfile({ workload, path }: WorkloadAt, report: Report): void {
+function checkProfile({ workload, path }: WorkloadInput, report: Report): void {
   if (workload.profile.length === 0) {
     report([...path, "profile"], "The profile needs at least one point.");
   }

@@ -12,6 +12,8 @@ The starting point for maintainers. It lists every document in `docs/`, what eac
 6. [Implementation plan](implementation-plan.md): the current milestone and what's next. (~2 min)
 7. Skim the [ADR titles](#decisions-adrs) below. Read an ADR in full when you touch the area it covers.
 
+Before your first change, read the [contributing guide](../CONTRIBUTING.md): coding standards, testing, and commit conventions. (~12 min)
+
 The [MVP design](design/mvp-design.md) is the detailed reference behind all of this. Read the section you need, not the whole thing.
 
 ## Guides

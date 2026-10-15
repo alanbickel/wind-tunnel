@@ -128,6 +128,21 @@ const nondeterminismBans = {
 
 const TEST_FILES = "**/*.test.{ts,tsx}";
 
+// Coding standards (CONTRIBUTING.md). Warnings, not errors: existing code
+// predates them, and an exception is allowed when it's justified in writing.
+const codingStandards = {
+  "max-lines-per-function": [
+    "warn",
+    { max: 30, skipBlankLines: true, skipComments: true, IIFEs: true },
+  ],
+  "max-depth": ["warn", 2],
+  "no-nested-ternary": "warn",
+  "no-else-return": ["warn", { allowElseIf: false }],
+  "no-lonely-if": "warn",
+  complexity: ["warn", 8],
+  "max-params": ["warn", 2],
+};
+
 export default defineConfig([
   globalIgnores(["dist", "coverage"]),
 
@@ -204,6 +219,14 @@ export default defineConfig([
   {
     files: ["src/domain/**", "src/application/**"],
     rules: nondeterminismBans,
+  },
+
+  { files: ["src/**/*.{ts,tsx}", "tests/**/*.ts"], rules: codingStandards },
+  // A `describe` block groups many tests, so length and parameter counts
+  // don't apply to test files; keep each test itself within 30 lines.
+  {
+    files: [TEST_FILES],
+    rules: { "max-lines-per-function": "off", "max-params": "off" },
   },
 
   // Must be last: turns off rules that conflict with Prettier's formatting.

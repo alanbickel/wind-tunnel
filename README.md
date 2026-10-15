@@ -38,6 +38,7 @@ Start at the [documentation hub](docs/README.md). It lists every document and a 
 - [Architecture overview](docs/architecture/README.md): start here if you're new to the code
 - [How the simulation engine works](docs/architecture/simulation-engine.md)
 - [Implementation plan](docs/implementation-plan.md)
+- [Contributing](CONTRIBUTING.md): coding standards, tests, and commit conventions
 
 ## License
 

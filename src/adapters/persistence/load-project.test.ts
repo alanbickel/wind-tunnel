@@ -114,10 +114,10 @@ const issuesFor = (input: unknown) => {
 };
 
 describe("loadProject", () => {
-  it("maps a valid document to the domain, leaving document-only fields out", () => {
+  it("maps a valid document to a record, keeping document-only fields out of the domain", () => {
     const result = loadProject(document(), registry);
     if (!result.ok) throw new Error(JSON.stringify(result.issues));
-    const { project } = result;
+    const { project } = result.record;
     expect(Object.keys(project).sort()).toEqual([
       "architecture",
       "description",
@@ -131,7 +131,11 @@ describe("loadProject", () => {
       action: "enqueue",
       async: { componentId: "fn", action: "invoke" },
     });
-    expect(result.document.layout.nodes["fn"]).toEqual({ x: 200, y: 0 });
+    expect(result.record.layout.nodes["fn"]).toEqual({ x: 200, y: 0 });
+    expect(result.record.source).toEqual({
+      templateId: "template-a",
+      templateVersion: 1,
+    });
   });
 
   it("converts workload times from the document's seconds to milliseconds", () => {
@@ -146,7 +150,7 @@ describe("loadProject", () => {
     );
     const result = loadProject(doc, registry);
     if (!result.ok) throw new Error(JSON.stringify(result.issues));
-    const workload = result.project.workloads[0];
+    const workload = result.record.project.workloads[0];
     expect(workload?.durationMs).toBe(60_000);
     expect(workload?.profile).toEqual([
       { atMs: 0, requestsPerSec: 50 },

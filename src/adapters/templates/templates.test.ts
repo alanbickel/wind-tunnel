@@ -13,7 +13,7 @@ describe.each([
   it("loads through every validation stage", () => {
     const result = loadProject(template, registry);
     if (!result.ok) throw new Error(JSON.stringify(result.issues, null, 2));
-    expect(result.project.id).toBe(id);
+    expect(result.record.project.id).toBe(id);
   });
 
   it("places every component on the canvas", () => {

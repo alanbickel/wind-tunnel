@@ -38,14 +38,14 @@ Seeded randomness, event queue, behavior primitives, domain entities and validat
 
 Brought all existing code in line with the CONTRIBUTING coding standards, with no behavior change (trace and report snapshots unchanged apart from the `LatencySummary` unit renames), then made the ESLint coding-standard rules errors. Commits `236db0c`..`3f56a87`, plus the commit that closes R1.
 
-Decisions that still apply: rule 7 applies to component methods (no exception). Fields in seconds (`durationSec`, `atSec`, `idleTimeoutSec`, `burstSec`) stay as they are; the M2 document mapper converts to milliseconds for the domain.
+Decisions that still apply: rule 7 applies to component methods (no exception). Component config fields in seconds (`idleTimeoutSec`, `burstSec`) stay as they are; each component converts its own.
 
 ## M2: Application layer and persistence
 
 **Done when:** all MVP use cases pass tests against the IndexedDB adapter (`fake-indexeddb`) and the template catalog.
 
 - [x] Ports: `ProjectRepository`, `TemplateCatalog`, `Clock`, `IdGenerator`, `SimulationRunner`. Replace `src/application/layer.test.ts` with real tests
-- [ ] Document mapper, `ProjectRecord` ↔ document (ADR-0008): round-trips `sampleRecord` and both templates through `loadProject` unchanged
+- [x] Document mapper, `ProjectRecord` ↔ document (ADR-0008): round-trips `sampleRecord` and both templates through `loadProject` unchanged
 - [ ] Document migration scaffolding (`schemaVersion`), run by `loadProject` before the v1 schema
 - [ ] Template catalog adapter over `src/adapters/templates/*.json`; the CLI's `TEMPLATES` map should use it
 - [ ] IndexedDB adapter (`idb`), database `wind-tunnel` version 1, `projects` store with an `updatedAt` index
@@ -72,6 +72,12 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-15: M2 document mapper
+
+- **Workload times are milliseconds in the domain** (`durationMs`, `atMs`); the document keeps `durationSec`/`atSec`. `project-document-mapper.ts` converts both ways, and `toDocumentIssue` renames those fields in validation paths so users see document paths. Messages still say seconds.
+- **`loadProject` returns `{ ok: true, record }`** (a `ProjectRecord`), not `project` + `document`. `toProjectDocument(record)` is the way back; the IndexedDB adapter should store its output.
+- **Next:** migration scaffolding. `checkSchemaVersion` in `load-project.ts` is where migrations would slot in.
 
 ### 2026-10-15: R1 complete
 

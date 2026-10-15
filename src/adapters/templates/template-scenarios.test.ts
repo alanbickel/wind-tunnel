@@ -24,7 +24,7 @@ const AFTER = { fromSec: 50, toSec: 60 };
 function load(template: unknown): Project {
   const loaded = loadProject(template, registry);
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.issues));
-  return loaded.project;
+  return loaded.record.project;
 }
 
 function run(project: Project, seed: number) {

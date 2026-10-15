@@ -1,25 +1,14 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
 import { validateComponents } from "../../domain/components/validate-components";
-import type {
-  Architecture,
-  Project,
-  Step,
-  Workflow,
-  Workload,
-} from "../../domain/model/project";
+import type { Project } from "../../domain/model/project";
+import type { ProjectRecord } from "../../application/ports/project-record";
 import {
   validateProject,
   type ValidationIssue,
 } from "../../domain/model/validate-project";
 import { issuesFromZod } from "../../domain/model/zod-issues";
-import {
-  projectDocumentV1Schema,
-  type ArchitectureDocument,
-  type ProjectDocumentV1,
-  type StepDocument,
-  type WorkflowDocument,
-  type WorkloadDocument,
-} from "./project-document-v1";
+import { projectDocumentV1Schema } from "./project-document-v1";
+import { toDocumentIssue, toProjectRecord } from "./project-document-mapper";
 
 /** The schema versions this build can read. */
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -28,9 +17,7 @@ export type LoadResult = Loaded | LoadFailed;
 
 export interface Loaded {
   readonly ok: true;
-  readonly project: Project;
-  /** The parsed document, including the fields the domain doesn't keep. */
-  readonly document: ProjectDocumentV1;
+  readonly record: ProjectRecord;
 }
 
 export interface LoadFailed {
@@ -39,7 +26,7 @@ export interface LoadFailed {
 }
 
 /**
- * Turns stored or imported JSON into a domain `Project`, checking it in three
+ * Turns stored or imported JSON into a `ProjectRecord`, checking it in three
  * stages (MVP design §6, "Load-time checks"):
  *
  * 1. The document's shape and number ranges (`projectDocumentV1Schema`).
@@ -64,10 +51,10 @@ export function loadProject(
     return { ok: false, issues: issuesFromZod(parsed.error) };
   }
 
-  const project = toProject(parsed.data);
-  const issues = checkProject(project, registry).map(toDocumentIssue);
+  const record = toProjectRecord(parsed.data);
+  const issues = checkProject(record.project, registry).map(toDocumentIssue);
   if (issues.length > 0) return { ok: false, issues };
-  return { ok: true, project, document: parsed.data };
+  return { ok: true, record };
 }
 
 /** Stage 0: an issue if this build can't read the document's version. */
@@ -91,91 +78,6 @@ function checkProject(
   const issues = validateProject(project);
   if (issues.length > 0) return issues;
   return validateComponents(project, registry);
-}
-
-/**
- * Domain fields with a different name in the document. The document gives
- * workload times in seconds, which people find easier to write; the domain
- * keeps every time in milliseconds.
- */
-const DOCUMENT_FIELD_NAMES: Readonly<Record<string, string>> = {
-  atMs: "atSec",
-  durationMs: "durationSec",
-};
-
-/** The issue with its path pointing into the document, not the domain. */
-function toDocumentIssue(issue: ValidationIssue): ValidationIssue {
-  return {
-    ...issue,
-    path: issue.path.map((key) =>
-      typeof key === "string" ? (DOCUMENT_FIELD_NAMES[key] ?? key) : key,
-    ),
-  };
-}
-
-/**
- * Maps a parsed document to domain entities. The domain's structure mirrors
- * the document's, so validation paths point at the same places in both,
- * apart from the renamed fields in `DOCUMENT_FIELD_NAMES`. Document-only
- * fields (`layout`, timestamps, `source`) are left out.
- */
-export function toProject(document: ProjectDocumentV1): Project {
-  return {
-    id: document.id,
-    name: document.name,
-    ...(document.description === undefined
-      ? {}
-      : { description: document.description }),
-    architecture: toArchitecture(document.architecture),
-    workflows: document.workflows.map(toWorkflow),
-    workloads: document.workloads.map(toWorkload),
-  };
-}
-
-function toArchitecture(architecture: ArchitectureDocument): Architecture {
-  return {
-    components: architecture.components.map((c) => ({
-      id: c.id,
-      type: c.type,
-      name: c.name,
-      config: c.config,
-    })),
-    edges: architecture.edges.map((e) => ({
-      id: e.id,
-      from: e.from,
-      to: e.to,
-      latencyMs: e.latencyMs,
-      timeoutMs: e.timeoutMs,
-      retry: { ...e.retry },
-    })),
-  };
-}
-
-function toWorkflow(workflow: WorkflowDocument): Workflow {
-  return { id: workflow.id, name: workflow.name, root: toStep(workflow.root) };
-}
-
-function toWorkload(workload: WorkloadDocument): Workload {
-  return {
-    id: workload.id,
-    name: workload.name,
-    durationMs: workload.durationSec * 1000,
-    seed: workload.seed,
-    mix: workload.mix.map((m) => ({ ...m })),
-    profile: workload.profile.map((p) => ({
-      atMs: p.atSec * 1000,
-      requestsPerSec: p.requestsPerSec,
-    })),
-  };
-}
-
-function toStep(step: StepDocument): Step {
-  return {
-    componentId: step.componentId,
-    action: step.action,
-    ...(step.calls === undefined ? {} : { calls: step.calls.map(toStep) }),
-    ...(step.async === undefined ? {} : { async: toStep(step.async) }),
-  };
 }
 
 /** Any document, before its schema version says which schema applies. */

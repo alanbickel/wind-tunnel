@@ -15,7 +15,7 @@ const registry = createAwsComponentRegistry();
 function run(template: unknown) {
   const loaded = loadProject(template, registry);
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.issues));
-  const { project } = loaded;
+  const { project } = loaded.record;
   const workloadId = project.workloads[0]?.id ?? "";
   return { project, ...simulateWithMetrics({ project, workloadId, registry }) };
 }

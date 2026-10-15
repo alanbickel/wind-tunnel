@@ -45,7 +45,7 @@ Thick arrows are this workflow's calls; the dotted one is an edge this workflow 
 
 ## Validation: who checks what
 
-Projects are stored as JSON documents ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). [`loadProject`](../../src/adapters/persistence/load-project.ts) turns one into a domain `Project` in three stages. Each runs only if the one before passed, because the later checks assume the earlier ones hold:
+Projects are stored as JSON documents ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). [`loadProject`](../../src/adapters/persistence/load-project.ts) turns one into a `ProjectRecord` (the domain `Project` plus timestamps, `source`, and `layout`; [ADR-0008](../adr/0008-ports-exchange-project-records.md)) in three stages. Each runs only if the one before passed, because the later checks assume the earlier ones hold:
 
 | Stage | Where | Checks |
 |---|---|---|
@@ -59,15 +59,15 @@ flowchart LR
     V -->|no| X[Refused]
     V -->|yes| S[1. Schema]
     S -->|issues| I[Issues with paths]
-    S --> M["toProject()<br/>drops layout, timestamps, source"]
+    S --> M["toProjectRecord()<br/>layout, timestamps, source<br/>stay outside the Project"]
     M --> P[2. validateProject]
     P -->|issues| I
     P --> C[3. validateComponents]
     C -->|issues| I
-    C --> OK[Project ready to simulate]
+    C --> OK[Record ready to use]
 ```
 
-The document's structure mirrors the domain's, so an issue's path, like `["architecture", "edges", 2, "to"]`, points at the same place whichever stage found it. The one difference is units: the document gives workload times in seconds (`durationSec`, `atSec`), which are easier to write by hand, and the domain keeps every time in milliseconds (`durationMs`, `atMs`). `loadProject` converts them and renames those fields in issue paths, so the user always sees a path into the document. Objects in the schema are **strict**: an unknown key such as `latencyMS` is an error rather than being silently dropped, which catches typos in hand-written templates.
+The document's structure mirrors the domain's, so an issue's path, like `["architecture", "edges", 2, "to"]`, points at the same place whichever stage found it. The one difference is units: the document gives workload times in seconds (`durationSec`, `atSec`), which are easier to write by hand, and the domain keeps every time in milliseconds (`durationMs`, `atMs`). The [document mapper](../../src/adapters/persistence/project-document-mapper.ts) converts them in both directions (`toProjectRecord`, `toProjectDocument`), and `loadProject` renames those fields in issue paths (`toDocumentIssue`), so the user always sees a path into the document. Objects in the schema are **strict**: an unknown key such as `latencyMS` is an error rather than being silently dropped, which catches typos in hand-written templates.
 
 Consistency rules:
 

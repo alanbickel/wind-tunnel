@@ -56,7 +56,7 @@ function loadTemplate(
   if (template === undefined)
     return `Unknown template ${JSON.stringify(name)}.`;
   const loaded = loadProject(template, registry);
-  if (loaded.ok) return loaded.project;
+  if (loaded.ok) return loaded.record.project;
   const issues = loaded.issues.map(
     (i) => `  ${i.path.join(".")}: ${i.message}`,
   );

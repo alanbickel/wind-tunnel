@@ -67,6 +67,12 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
+### 2026-10-15: M2 started (ports)
+
+- **Ports** (`62e12f2`): the repository and catalog exchange `ProjectRecord`s (domain `Project` + `createdAt`, `updatedAt`, `source`, `layout`), never documents (ADR-0008). `Clock.now()` returns an ISO string in `toISOString` format, because ESLint bans `new Date` anywhere in `application/`, tests included. `ProjectRepository.get` returns `found`, `missing`, or `invalid` with a user-facing `reason` plus `issues`.
+- **Testing kit** in `src/application/testing/`: `InMemoryProjectRepository`, `FixedClock`, `SequentialIds`, `sampleRecord` (valid against the AWS registry, every optional field set), and `checkProjectRepositoryContract`, which returns a list of violations. The IndexedDB adapter's test must run it with `sampleRecord` and expect `[]`.
+- **Next:** the document mapper. Template JSON timestamps (`2026-10-14T00:00:00Z`) aren't in the `Clock` format; that's fine, because new projects take fresh timestamps from the clock. The CLI uses template keys `a`/`b`, while document IDs are `template-a`/`template-b`; settle which one the catalog uses in the catalog task.
+
 ### 2026-10-15: M1 complete
 
 - **Tuning:** only one setting changed. Template B's `orders-queue` consumer limit went from 40 to 15, so the backlog grows during the spike (peak about 1,900) and drains by 54 s, and writes land up to about 6 s late. Template A needed no change (44% of requests fail, all `too-many-connections`). Final numbers and the settings tried are in MVP design §7.

@@ -128,19 +128,19 @@ const nondeterminismBans = {
 
 const TEST_FILES = "**/*.test.{ts,tsx}";
 
-// Coding standards (CONTRIBUTING.md). Warnings, not errors: existing code
-// predates them, and an exception is allowed when it's justified in writing.
+// Coding standards (CONTRIBUTING.md). Errors: an exception needs a disable
+// comment with the reason after `--`.
 const codingStandards = {
   "max-lines-per-function": [
-    "warn",
+    "error",
     { max: 30, skipBlankLines: true, skipComments: true, IIFEs: true },
   ],
-  "max-depth": ["warn", 2],
-  "no-nested-ternary": "warn",
-  "no-else-return": ["warn", { allowElseIf: false }],
-  "no-lonely-if": "warn",
-  complexity: ["warn", 8],
-  "max-params": ["warn", 2],
+  "max-depth": ["error", 2],
+  "no-nested-ternary": "error",
+  "no-else-return": ["error", { allowElseIf: false }],
+  "no-lonely-if": "error",
+  complexity: ["error", 8],
+  "max-params": ["error", 2],
 };
 
 export default defineConfig([

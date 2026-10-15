@@ -34,22 +34,11 @@ Vite + React + strict TS, Vitest, ESLint layer rules, Prettier, `npm run check`,
 
 Seeded randomness, event queue, behavior primitives, domain entities and validation, component registry and contract suite, the five AWS types, the engine, metrics, the v1 document schema and `loadProject`, Templates A and B, `npm run simulate` with a reconciling text report, scenario tests, and a tuning pass (results in MVP design §7). Commits `ef21c6c`..`3791bb2`, plus the tuning commit that closes M1.
 
-## R1: Coding-standards refactor (interlude, before the rest of M2)
+## R1: Coding-standards refactor ✅
 
-**Done when:** `npm run lint` reports no warnings, the coding-standard rules are errors, and the trace and report snapshots are unchanged except for intended renames. Every phase is `refactor` commits only; no behavior changes.
+Brought all existing code in line with the CONTRIBUTING coding standards, with no behavior change (trace and report snapshots unchanged apart from the `LatencySummary` unit renames), then made the ESLint coding-standard rules errors. Commits `236db0c`..`3f56a87`, plus the commit that closes R1.
 
-- [x] 1. Foundations: a shared exhaustive handler-map type in `domain/`; name the anonymous union members (`SimulationEvent`, `Effect`, `EngineEvent`, `HarnessEvent`, `ProjectLookup`, `LoadResult`, and the inline types); a string comparator in place of the nested ternaries; remove duplicates (`summaryOf`/`toSummary`, `Path`, Zod issue mapping)
-- [x] 2. `backoffMs` and `sample` as lookup maps with input objects; `LatencySummary` fields become `p50Ms`, `p95Ms`, `p99Ms`, `maxMs` (snapshots and guides too)
-- [x] 3. Engine: split the constructor; `handle` and `apply` become handler maps; `call()` takes an input object
-- [x] 4. `ComponentBehavior` methods take one input object; each `build()` becomes a named class. Before/after timings from `npm run simulate`; a dated addendum to ADR-0006 for the signature
-- [x] 5. `MetricsCollector.observe` as an event-handler map
-- [x] 6. Contract checker: `runScenario` becomes a `ContractHarness` class
-- [x] 7. Validation: context objects; split `checkWorkload` and `validateComponents`
-- [x] 8. Adapters: `parseArgs` as a flag table; `formatReport` input object; report columns as data; `loadProject`/`toProject` in stages
-- [x] 9. Application testing kit and test files
-- [ ] 10. Coding-standard rules from `warn` to `error`; update CONTRIBUTING ("Enforcement", "Existing code") and the README to match
-
-Decisions: rule 7 applies to component methods (no exception). Fields in seconds (`durationSec`, `atSec`, `idleTimeoutSec`, `burstSec`) stay as they are; the M2 document mapper converts to milliseconds for the domain.
+Decisions that still apply: rule 7 applies to component methods (no exception). Fields in seconds (`durationSec`, `atSec`, `idleTimeoutSec`, `burstSec`) stay as they are; the M2 document mapper converts to milliseconds for the domain.
 
 ## M2: Application layer and persistence
 
@@ -84,12 +73,13 @@ Tasks will be refined at the end of M2.
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
-### 2026-10-15: R1 phases 1 to 7
+### 2026-10-15: R1 complete
 
-- **Helpers** in `src/domain/shared/kind-handlers.ts`: `KindHandlers`/`handleKind` for discriminated unions, and `lookup` for `Record` tables. Both throw on a key the table doesn't own (so `"toString"` can't find an inherited method). Use them for the remaining `switch` statements.
-- **Proof of no behavior change:** the trace snapshots (`src/domain/traces/`) and report snapshots (`src/adapters/cli/reports/`) must stay byte-for-byte unchanged.
-- **Measuring speed:** whole-template timings on this machine swing ±30% between runs. Compare the million-event test instead, alternating with `git stash`: `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`. Phases 1 to 4 showed no measurable cost.
-- **Scripted edits:** Git Bash strips backslashes inside heredocs, which breaks regexes. Write such scripts to a file first.
+- **Lint is strict now:** a coding-standard violation fails `npm run lint` and CI. An exception needs a disable comment with its reason after `--`.
+- **Helpers:** `src/domain/shared/kind-handlers.ts` has `KindHandlers`/`handleKind` for discriminated unions and `lookup` for `Record` tables; both throw on a key the table doesn't own. Tests can use `workflowIn`/`componentIn` (`src/domain/metrics/testing/`) instead of chains of `?.`, which count toward complexity.
+- **For M2:** the CLI's seed override is now `selectWorkload`/`withSeed` in `simulate-command.ts`; that's the logic to move into `RunSimulation`. `toProject` is split into `toArchitecture`/`toWorkflow`/`toWorkload`, a shape the document mapper can follow.
+- **Measuring speed:** whole-template timings swing ±30% between runs. Compare the million-event test instead, alternating with `git stash`: `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`.
+- **Scripted edits:** Python isn't installed, and Git Bash strips backslashes inside heredocs, which breaks regexes. Write such scripts to a file first.
 
 ### 2026-10-15: M2 started (ports)
 

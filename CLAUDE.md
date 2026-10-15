@@ -16,7 +16,7 @@ Read `docs/implementation-plan.md` at the start of every session. It records the
 ## Coding standards
 
 - Read the "Coding standards" section of `CONTRIBUTING.md` before writing code. All new and changed code follows it, tests included.
-- Run `npm run lint` before declaring work done. Treat a new warning as a failure: fix it, or justify the exception after `--` in the disable comment. ESLint checks rules 2, 5, 6, and 7 only. Check the rest yourself: single-responsibility functions (1), guard clauses (3), lookup maps instead of branching (4), named types (8), and units in names (9).
+- Run `npm run lint` before declaring work done. The coding-standard rules are errors: fix a violation, or justify the exception after `--` in the disable comment. ESLint checks rules 2, 5, 6, and 7 only. Check the rest yourself: single-responsibility functions (1), guard clauses (3), lookup maps instead of branching (4), named types (8), and units in names (9).
 - Don't fix existing violations in passing. If a function you need to change breaks a rule, bring it into line first in its own `refactor` commit.
 - Commit messages follow `CONTRIBUTING.md`: `type(scope): summary`.
 

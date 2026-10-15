@@ -32,7 +32,7 @@ The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architec
 
 These heuristics encourage healthy habits and steer away from shapes that invite defects. Be kind to your fellow maintainers: if you wouldn't want to maintain it, don't commit it.
 
-ESLint flags most violations as warnings (see [Enforcement](#enforcement)). Warnings don't fail CI; they're there to start a conversation, and an unexplained one shouldn't survive review.
+ESLint checks rules 2, 5, 6, and 7 (see [Enforcement](#enforcement)), and a violation fails `npm run lint` and CI. Reviewers check the rest.
 
 **Exceptions** are allowed but must be justified in writing. If the reason isn't worth writing, the exception isn't worth making. Put the reason after `--` in the disable comment:
 
@@ -42,7 +42,7 @@ ESLint flags most violations as warnings (see [Enforcement](#enforcement)). Warn
 
 **Scope:** code we own. Code and signatures we don't control follow their owners: callbacks for the platform (DOM events, `Array.prototype` methods, React, Vitest) take the parameters the platform passes, and generated or vendored code keeps its upstream form.
 
-**Existing code** was written before these rules and doesn't all meet them yet (`npm run lint` lists where). Don't fix it in passing as part of an unrelated change. When you need to change a function that breaks a rule, bring it into line first in its own `refactor` commit, then make your change. Reviewers can then check that the refactor changed no behavior.
+**Refactor first.** When a change would push a function over a limit, or the function already breaks a rule ESLint can't check, reshape it first in its own `refactor` commit, then make your change. Reviewers can then check that the refactor changed no behavior. Don't fix unrelated code in passing.
 
 ### 1. Single-responsibility functions
 
@@ -140,7 +140,7 @@ Nested conditionals, `else if` chains, and nested ternaries are red flags. There
 
 ### 6. Keep complexity low
 
-Count the decision points: each `if`, `?:`, `&&`/`||`/`??`, loop, `case`, and `catch` counts as one. 5 or fewer is ideal. 6 to 8 is a yellow flag: write down why. 9 or more is a red flag, and ESLint warns.
+Count the decision points: each `if`, `?:`, `&&`/`||`/`??`, loop, `case`, and `catch` counts as one. 5 or fewer is ideal. 6 to 8 is a yellow flag: write down why. 9 or more is a red flag, and ESLint fails.
 
 ### 7. At most two parameters
 
@@ -190,10 +190,10 @@ const timeoutMs = 30_000;
 
 | Rule | ESLint rule | Level |
 |---|---|---|
-| 2. Rule of 30 | `max-lines-per-function` (30, skipping blanks and comments) | warn; off in tests |
-| 5. Flat control flow | `max-depth` (2), `no-nested-ternary`, `no-else-return`, `no-lonely-if` | warn |
-| 6. Complexity | `complexity` (8) | warn |
-| 7. Two parameters | `max-params` (2) | warn; off in tests |
+| 2. Rule of 30 | `max-lines-per-function` (30, skipping blanks and comments) | error; off in tests |
+| 5. Flat control flow | `max-depth` (2), `no-nested-ternary`, `no-else-return`, `no-lonely-if` | error |
+| 6. Complexity | `complexity` (8) | error |
+| 7. Two parameters | `max-params` (2) | error; off in tests |
 | 1, 3, 4, 8, 9 | None; reviewers check | |
 
 ## Adding a component type
@@ -245,4 +245,4 @@ Write for a maintainer who is new to the codebase: say what something does and w
   - **type:** `feat`, `fix`, `refactor`, `test`, `docs`, or `chore`.
   - **scope:** the layer or area: `domain`, `application`, `adapters`, `ui`, `plan`. Leave it out when a change spans several.
   - For example: `feat(domain): add SQS visibility timeout`.
-- Refactors go in their own commit, separate from behavior changes (see [Existing code](#coding-standards)).
+- Refactors go in their own commit, separate from behavior changes (see [Refactor first](#coding-standards)).

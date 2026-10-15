@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../components/aws";
-import type { SimulationEvent } from "../engine/simulation";
+import type { SimulationEvent } from "../engine/simulation-events";
 import type { Edge, Project } from "../model/project";
 import { simulateWithMetrics } from "./metrics-collector";
 import { componentIn, workflowIn } from "./testing/snapshot-lookups";

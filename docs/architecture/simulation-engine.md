@@ -145,6 +145,7 @@ Under load, queries wait for one of the 16 workers while still holding a connect
 | `ArrivalProcess` | [`arrivals.ts`](../../src/domain/engine/arrivals.ts) | When users arrive (Poisson, following the profile's rate) and which workflow each runs |
 | `backoffMs` | [`backoff.ts`](../../src/domain/engine/backoff.ts) | Wait before a retry: fixed, exponential, or exponential with full jitter (capped at 20 s) |
 | `simulate` | [`simulation.ts`](../../src/domain/engine/simulation.ts) | The loop: calls, attempts, timeouts, retries, and turning component effects into events |
+| `SimulationEvent`, `SimulationInput` | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The public types: what a run takes, and the events it reports to the observer |
 
 A **call** goes from a caller to a step's component along an edge and is made of one or more **attempts**:
 

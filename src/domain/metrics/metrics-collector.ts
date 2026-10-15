@@ -8,7 +8,7 @@ import type {
   SimulationEvent,
   SimulationInput,
   WorkflowFinishedEvent,
-} from "../engine/simulation";
+} from "../engine/simulation-events";
 import { simulate } from "../engine/simulation";
 import type { Project } from "../model/project";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";

@@ -7,7 +7,8 @@ import type {
   Step,
   Workload,
 } from "../model/project";
-import { simulate, type SimulationEvent } from "./simulation";
+import { simulate } from "./simulation";
+import type { SimulationEvent } from "./simulation-events";
 
 // Small projects with constant timings, so latencies can be worked out by
 // hand. Edges take 1 ms each way unless a test says otherwise.

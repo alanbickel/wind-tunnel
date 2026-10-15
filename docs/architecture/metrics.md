@@ -30,7 +30,8 @@ const { snapshots, totals } = simulateWithMetrics({
 
 | Piece | File | Job |
 |---|---|---|
-| Ticks and peaks | [`simulation.ts`](../../src/domain/engine/simulation.ts) | `tickMs` input; the `tick` event and `ComponentSample` |
+| Tick events | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The `tickMs` input; the `tick` event and `ComponentSample` |
+| Peaks | [`simulation.ts`](../../src/domain/engine/simulation.ts) | Tracks each component's peak in-progress and queue depth between ticks |
 | `MetricsCollector` | [`metrics-collector.ts`](../../src/domain/metrics/metrics-collector.ts) | Events and ticks → snapshots and totals; `simulateWithMetrics` |
 | `LatencyHistogram` | [`latency-histogram.ts`](../../src/domain/metrics/latency-histogram.ts) | Fixed buckets, percentiles, merging |
 

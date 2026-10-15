@@ -9,12 +9,12 @@ import {
   lambdaDefinition,
   rdsDefinition,
 } from "../components/aws";
-import {
-  simulate,
-  type Failure,
-  type SimulationEvent,
-  type TickEvent,
-} from "../engine/simulation";
+import { simulate } from "../engine/simulation";
+import type {
+  Failure,
+  SimulationEvent,
+  TickEvent,
+} from "../engine/simulation-events";
 import { simulateWithMetrics } from "../metrics/metrics-collector";
 import { componentIn, workflowIn } from "../metrics/testing/snapshot-lookups";
 import type {

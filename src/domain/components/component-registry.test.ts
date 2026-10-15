@@ -44,12 +44,12 @@ describe("ComponentRegistry", () => {
       { workers: 1, serviceTime: { kind: "constant", valueMs: 5 } },
       { random: new SeededRandom(1) },
     );
-    expect(behavior?.arrive("a", "invoke", 0)).toEqual([
-      { kind: "started", request: "a", serviceMs: 5 },
-    ]);
-    expect(behavior?.arrive("b", "invoke", 0)).toEqual([
-      { kind: "queued", request: "b" },
-    ]);
+    expect(
+      behavior?.arrive({ request: "a", action: "invoke", nowMs: 0 }),
+    ).toEqual([{ kind: "started", request: "a", serviceMs: 5 }]);
+    expect(
+      behavior?.arrive({ request: "b", action: "invoke", nowMs: 0 }),
+    ).toEqual([{ kind: "queued", request: "b" }]);
   });
 
   it("throws when asked to build from an invalid config", () => {

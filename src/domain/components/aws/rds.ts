@@ -2,7 +2,11 @@ import { z } from "zod";
 import { ConcurrencyLimit } from "../../behaviors/concurrency-limit";
 import { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
-import type { ComponentBehavior } from "../component-behavior";
+import type {
+  ArriveInput,
+  ComponentBehavior,
+  Effect,
+} from "../component-behavior";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -46,44 +50,61 @@ export const rdsDefinition: ComponentDefinition<RdsConfig> = {
   },
   actions: ["read", "write"],
   deliversAsync: false,
-  build<T>(config: RdsConfig, { random }: BuildContext): ComponentBehavior<T> {
-    const connections = new ConcurrencyLimit<T>({
+  build<T>(config: RdsConfig, context: BuildContext): ComponentBehavior<T> {
+    return new RdsBehavior<T>(config, context);
+  },
+};
+
+/** RDS's run-time state: connections, and query workers behind them. */
+class RdsBehavior<T> implements ComponentBehavior<T> {
+  private readonly connections: ConcurrencyLimit<T>;
+  private readonly workers: ConcurrencyLimit<T>;
+  private readonly queryTime: ServiceTime;
+
+  constructor(config: RdsConfig, { random }: BuildContext) {
+    this.connections = new ConcurrencyLimit<T>({
       limit: config.maxConnections,
       whenFull: "reject",
     });
-    const workers = new ConcurrencyLimit<T>({
+    this.workers = new ConcurrencyLimit<T>({
       limit: config.queryWorkers,
       whenFull: "queue",
     });
-    const queryTime = new ServiceTime(config.queryTime, random);
-    const start = (request: T) =>
-      ({ kind: "started", request, serviceMs: queryTime.next() }) as const;
-    return {
-      arrive(request) {
-        if (connections.acquire(request) === "rejected") {
-          return [
-            { kind: "rejected", request, reason: "too-many-connections" },
-          ];
-        }
-        return workers.acquire(request) === "admitted"
-          ? [start(request)]
-          : [{ kind: "queued", request }];
-      },
-      finish() {
-        connections.release();
-        const next = workers.release();
-        return next === undefined ? [] : [start(next)];
-      },
-      get inProgress() {
-        return workers.inUse;
-      },
-      get queueDepth() {
-        return workers.queued;
-      },
-      /** Running plus waiting queries: each holds a connection. */
-      get gauges() {
-        return { connectionsHeld: connections.inUse };
-      },
-    };
-  },
-};
+    this.queryTime = new ServiceTime(config.queryTime, random);
+  }
+
+  get inProgress(): number {
+    return this.workers.inUse;
+  }
+
+  get queueDepth(): number {
+    return this.workers.queued;
+  }
+
+  /** Running plus waiting queries: each holds a connection. */
+  get gauges(): Readonly<Record<string, number>> {
+    return { connectionsHeld: this.connections.inUse };
+  }
+
+  arrive({ request }: ArriveInput<T>): Effect<T>[] {
+    if (this.connections.acquire(request) === "rejected") {
+      return [{ kind: "rejected", request, reason: "too-many-connections" }];
+    }
+    // The worker line is unbounded, so the query runs now or waits.
+    if (this.workers.acquire(request) !== "admitted") {
+      return [{ kind: "queued", request }];
+    }
+    return [this.start(request)];
+  }
+
+  finish(): Effect<T>[] {
+    this.connections.release();
+    const next = this.workers.release();
+    if (next === undefined) return [];
+    return [this.start(next)];
+  }
+
+  private start(request: T): Effect<T> {
+    return { kind: "started", request, serviceMs: this.queryTime.next() };
+  }
+}

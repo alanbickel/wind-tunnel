@@ -40,6 +40,29 @@ export interface DispatchedEffect<T> {
   readonly request: T;
 }
 
+/** A request arrives at the component. */
+export interface ArriveInput<T> {
+  readonly request: T;
+  /** What the step asks for; one of the definition's `actions`. */
+  readonly action: StepAction;
+  /** The current simulated time. */
+  readonly nowMs: number;
+}
+
+/** A started request's service time and nested calls are done. */
+export interface FinishInput<T> {
+  readonly request: T;
+  readonly nowMs: number;
+}
+
+/** A dispatched request's `async` work is done. */
+export interface DispatchFinishedInput<T> {
+  readonly request: T;
+  /** False if the async work failed and may need redelivering. */
+  readonly succeeded: boolean;
+  readonly nowMs: number;
+}
+
 /**
  * The run-time state of one component during a simulation, built from a
  * component definition and its config.
@@ -58,14 +81,14 @@ export interface DispatchedEffect<T> {
  * here carries on, as it does in AWS.
  */
 export interface ComponentBehavior<T> {
-  arrive(request: T, action: StepAction, nowMs: number): Effect<T>[];
-  finish(request: T, nowMs: number): Effect<T>[];
+  arrive(input: ArriveInput<T>): Effect<T>[];
+  finish(input: FinishInput<T>): Effect<T>[];
   /**
    * The `async` work of a dispatched request is done. On failure the
    * component may dispatch it again later (e.g. SQS redelivery). Only called
    * on components whose definition sets `deliversAsync`.
    */
-  dispatchFinished?(request: T, succeeded: boolean, nowMs: number): Effect<T>[];
+  dispatchFinished?(input: DispatchFinishedInput<T>): Effect<T>[];
   /** Requests started and not yet finished. */
   readonly inProgress: number;
   /**

@@ -507,7 +507,12 @@ class Simulation {
       componentId: target.id,
       action: step.action,
     });
-    this.apply(target, target.behavior.arrive(visit, step.action, this.nowMs));
+    const effects = target.behavior.arrive({
+      request: visit,
+      action: step.action,
+      nowMs: this.nowMs,
+    });
+    this.apply(target, effects);
   }
 
   /**
@@ -567,7 +572,10 @@ class Simulation {
       ...(failure === undefined ? {} : { failure }),
     });
     this.respondLater(visit, failure);
-    this.apply(target, target.behavior.finish(visit, this.nowMs));
+    this.apply(
+      target,
+      target.behavior.finish({ request: visit, nowMs: this.nowMs }),
+    );
   }
 
   /** Sends the answer back along the edge, which takes its latency again. */
@@ -661,7 +669,11 @@ class Simulation {
     });
     this.apply(
       queue,
-      queue.behavior.dispatchFinished?.(visit, succeeded, this.nowMs) ?? [],
+      queue.behavior.dispatchFinished?.({
+        request: visit,
+        succeeded,
+        nowMs: this.nowMs,
+      }) ?? [],
     );
   }
 }

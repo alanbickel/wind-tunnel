@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { checkComponentContract } from "./check-component-contract";
-import type { ComponentBehavior, Effect } from "./component-behavior";
+import type {
+  ComponentBehavior,
+  DispatchFinishedInput,
+  Effect,
+} from "./component-behavior";
 import type { BuildContext, ComponentDefinition } from "./component-definition";
 import {
   messageQueueDefinition,
@@ -29,11 +33,11 @@ function broken<Config>(
         p.dispatchFinished ??
         (inner.dispatchFinished === undefined
           ? undefined
-          : (r: number, ok: boolean, t: number) =>
-              inner.dispatchFinished?.(r, ok, t) ?? []);
+          : (input: DispatchFinishedInput<number>) =>
+              inner.dispatchFinished?.(input) ?? []);
       const behavior: Behavior = {
-        arrive: p.arrive ?? ((r, a, t) => inner.arrive(r, a, t)),
-        finish: p.finish ?? ((r, t) => inner.finish(r, t)),
+        arrive: p.arrive ?? ((input) => inner.arrive(input)),
+        finish: p.finish ?? ((input) => inner.finish(input)),
         ...(dispatchFinished === undefined ? {} : { dispatchFinished }),
         get inProgress() {
           return p.inProgress ?? inner.inProgress;
@@ -75,15 +79,14 @@ describe("checkComponentContract", () => {
   describe("catches broken definitions", () => {
     it("an arrival with no outcome", () => {
       const def = broken(workerPoolDefinition, (b) => ({
-        arrive: (r, a, t) =>
-          b.arrive(r, a, t).filter((e) => e.kind !== "rejected"),
+        arrive: (input) => b.arrive(input).filter((e) => e.kind !== "rejected"),
       }));
       expect(firstViolation(def)).toMatch(/gave no outcome/);
     });
 
     it("a request started twice", () => {
       const def = broken(workerPoolDefinition, (b) => ({
-        arrive: (r, a, t) => [...b.arrive(r, a, t), ...b.arrive(r, a, t)],
+        arrive: (input) => [...b.arrive(input), ...b.arrive(input)],
       }));
       expect(firstViolation(def)).toMatch(/started while started/);
     });
@@ -91,8 +94,8 @@ describe("checkComponentContract", () => {
     it("a queued request that is never started", () => {
       // Releases the slot but drops the waiter it was handed.
       const def = broken(workerPoolDefinition, (b) => ({
-        finish: (r, t) => {
-          b.finish(r, t);
+        finish: (input) => {
+          b.finish(input);
           return [];
         },
       }));
@@ -130,9 +133,9 @@ describe("checkComponentContract", () => {
 
     it("a negative service time", () => {
       const def = broken(workerPoolDefinition, (b) => ({
-        arrive: (r, a, t) =>
+        arrive: (input) =>
           b
-            .arrive(r, a, t)
+            .arrive(input)
             .map((e): Effect<number> =>
               e.kind === "started" ? { ...e, serviceMs: -1 } : e,
             ),
@@ -146,9 +149,9 @@ describe("checkComponentContract", () => {
         builds++;
         const extraMs = builds;
         return {
-          arrive: (r, a, t) =>
+          arrive: (input) =>
             b
-              .arrive(r, a, t)
+              .arrive(input)
               .map((e): Effect<number> =>
                 e.kind === "started"
                   ? { ...e, serviceMs: e.serviceMs + extraMs }
@@ -168,8 +171,8 @@ describe("checkComponentContract", () => {
 
     it("async work that is dropped instead of redelivered", () => {
       const def = broken(messageQueueDefinition, (b) => ({
-        dispatchFinished: (r, _succeeded, t) =>
-          b.dispatchFinished?.(r, true, t) ?? [],
+        dispatchFinished: (input) =>
+          b.dispatchFinished?.({ ...input, succeeded: true }) ?? [],
       }));
       expect(firstViolation(def)).toMatch(
         /queueDepth is|async work never delivered/,

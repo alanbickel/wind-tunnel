@@ -2,7 +2,11 @@ import { z } from "zod";
 import { RateLimit } from "../../behaviors/rate-limit";
 import { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
-import type { ComponentBehavior } from "../component-behavior";
+import type {
+  ArriveInput,
+  ComponentBehavior,
+  Effect,
+} from "../component-behavior";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -46,34 +50,65 @@ export const dynamoDbDefinition: ComponentDefinition<DynamoDbConfig> = {
   deliversAsync: false,
   build<T>(
     config: DynamoDbConfig,
-    { random }: BuildContext,
+    context: BuildContext,
   ): ComponentBehavior<T> {
-    const bucket = (unitsPerSec: number) =>
-      new RateLimit({
-        ratePerSec: unitsPerSec,
-        burst: Math.max(1, unitsPerSec * config.burstSec),
-      });
-    const reads = bucket(config.readUnitsPerSec);
-    const writes = bucket(config.writeUnitsPerSec);
-    const latency = new ServiceTime(config.latency, random);
-    let inProgress = 0;
-    return {
-      arrive(request, action, nowMs) {
-        const capacity = action === "write" ? writes : reads;
-        if (!capacity.tryTake(nowMs)) {
-          return [{ kind: "rejected", request, reason: "throttled" }];
-        }
-        inProgress++;
-        return [{ kind: "started", request, serviceMs: latency.next() }];
-      },
-      finish() {
-        inProgress--;
-        return [];
-      },
-      get inProgress() {
-        return inProgress;
-      },
-      queueDepth: 0,
-    };
+    return new DynamoDbBehavior<T>(config, context);
   },
 };
+
+/** DynamoDB's run-time state: read and write capacity, and requests in flight. */
+class DynamoDbBehavior<T> implements ComponentBehavior<T> {
+  readonly queueDepth = 0;
+  private readonly reads: RateLimit;
+  private readonly writes: RateLimit;
+  private readonly latency: ServiceTime;
+  private running = 0;
+
+  constructor(config: DynamoDbConfig, { random }: BuildContext) {
+    const { burstSec } = config;
+    this.reads = capacityBucket({
+      unitsPerSec: config.readUnitsPerSec,
+      burstSec,
+    });
+    this.writes = capacityBucket({
+      unitsPerSec: config.writeUnitsPerSec,
+      burstSec,
+    });
+    this.latency = new ServiceTime(config.latency, random);
+  }
+
+  get inProgress(): number {
+    return this.running;
+  }
+
+  arrive({ request, action, nowMs }: ArriveInput<T>): Effect<T>[] {
+    const capacity = action === "write" ? this.writes : this.reads;
+    if (!capacity.tryTake(nowMs)) {
+      return [{ kind: "rejected", request, reason: "throttled" }];
+    }
+    this.running++;
+    return [{ kind: "started", request, serviceMs: this.latency.next() }];
+  }
+
+  finish(): Effect<T>[] {
+    this.running--;
+    return [];
+  }
+}
+
+interface CapacityBucketInput {
+  readonly unitsPerSec: number;
+  /** Seconds of unused capacity the bucket can save up. */
+  readonly burstSec: number;
+}
+
+/** A token bucket for one kind of capacity, read or write. */
+function capacityBucket({
+  unitsPerSec,
+  burstSec,
+}: CapacityBucketInput): RateLimit {
+  return new RateLimit({
+    ratePerSec: unitsPerSec,
+    burst: Math.max(1, unitsPerSec * burstSec),
+  });
+}

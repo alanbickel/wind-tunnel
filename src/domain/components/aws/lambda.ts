@@ -2,7 +2,12 @@ import { z } from "zod";
 import { ConcurrencyLimit } from "../../behaviors/concurrency-limit";
 import { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
-import type { ComponentBehavior } from "../component-behavior";
+import type {
+  ArriveInput,
+  ComponentBehavior,
+  Effect,
+  FinishInput,
+} from "../component-behavior";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -50,59 +55,73 @@ export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
   },
   actions: ["invoke"],
   deliversAsync: false,
-  build<T>(
-    config: LambdaConfig,
-    { random }: BuildContext,
-  ): ComponentBehavior<T> {
-    const slots = new ConcurrencyLimit<T>({
+  build<T>(config: LambdaConfig, context: BuildContext): ComponentBehavior<T> {
+    return new LambdaBehavior<T>(config, context);
+  },
+};
+
+/** Lambda's run-time state: concurrency slots and warm environments. */
+class LambdaBehavior<T> implements ComponentBehavior<T> {
+  readonly queueDepth = 0;
+  private readonly slots: ConcurrencyLimit<T>;
+  private readonly coldStart: ServiceTime;
+  private readonly computeTime: ServiceTime;
+  private readonly idleTimeoutMs: number;
+  /**
+   * When each idle warm environment last finished, oldest first. Finishes
+   * happen in time order, so pushing keeps the array sorted.
+   */
+  private readonly idleSince: number[] = [];
+  private coldStarts = 0;
+
+  constructor(config: LambdaConfig, { random }: BuildContext) {
+    this.slots = new ConcurrencyLimit<T>({
       limit: config.concurrency,
       whenFull: "reject",
     });
-    const coldStart = new ServiceTime(config.coldStart, random);
-    const computeTime = new ServiceTime(config.computeTime, random);
-    const idleTimeoutMs = config.idleTimeoutSec * 1000;
-    // When each idle warm environment last finished, oldest first. Finishes
-    // happen in time order, so pushing keeps the array sorted.
-    const idleSince: number[] = [];
-    let coldStarts = 0;
+    this.coldStart = new ServiceTime(config.coldStart, random);
+    this.computeTime = new ServiceTime(config.computeTime, random);
+    this.idleTimeoutMs = config.idleTimeoutSec * 1000;
+  }
 
-    /** Takes the most recently used warm environment, if any is still warm. */
-    const takeWarm = (nowMs: number): boolean => {
-      let expired = 0;
-      for (const since of idleSince) {
-        if (nowMs - since < idleTimeoutMs) break;
-        expired++;
-      }
-      idleSince.splice(0, expired);
-      return idleSince.pop() !== undefined;
-    };
+  get inProgress(): number {
+    return this.slots.inUse;
+  }
 
-    return {
-      arrive(request, _action, nowMs) {
-        if (slots.acquire(request) === "rejected") {
-          return [{ kind: "rejected", request, reason: "throttled" }];
-        }
-        let initMs = 0;
-        if (!takeWarm(nowMs)) {
-          coldStarts++;
-          initMs = coldStart.next();
-        }
-        return [
-          { kind: "started", request, serviceMs: initMs + computeTime.next() },
-        ];
-      },
-      finish(_request, nowMs) {
-        slots.release();
-        idleSince.push(nowMs);
-        return [];
-      },
-      get inProgress() {
-        return slots.inUse;
-      },
-      queueDepth: 0,
-      get counters() {
-        return { coldStarts };
-      },
-    };
-  },
-};
+  get counters(): Readonly<Record<string, number>> {
+    return { coldStarts: this.coldStarts };
+  }
+
+  arrive({ request, nowMs }: ArriveInput<T>): Effect<T>[] {
+    if (this.slots.acquire(request) === "rejected") {
+      return [{ kind: "rejected", request, reason: "throttled" }];
+    }
+    // The cold start, if any, is drawn before the compute time.
+    const serviceMs = this.initMs(nowMs) + this.computeTime.next();
+    return [{ kind: "started", request, serviceMs }];
+  }
+
+  finish({ nowMs }: FinishInput<T>): Effect<T>[] {
+    this.slots.release();
+    this.idleSince.push(nowMs);
+    return [];
+  }
+
+  /** 0 in a warm environment; otherwise a cold start, which is counted. */
+  private initMs(nowMs: number): number {
+    if (this.takeWarm(nowMs)) return 0;
+    this.coldStarts++;
+    return this.coldStart.next();
+  }
+
+  /** Takes the most recently used warm environment, if any is still warm. */
+  private takeWarm(nowMs: number): boolean {
+    let expired = 0;
+    for (const since of this.idleSince) {
+      if (nowMs - since < this.idleTimeoutMs) break;
+      expired++;
+    }
+    this.idleSince.splice(0, expired);
+    return this.idleSince.pop() !== undefined;
+  }
+}

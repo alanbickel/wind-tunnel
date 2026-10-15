@@ -291,7 +291,7 @@ function runScenario<Config>(
     switch (event.kind) {
       case "arrive": {
         tracked.set(request, { phase: "arriving" });
-        apply(behavior.arrive(request, event.action, nowMs));
+        apply(behavior.arrive({ request, action: event.action, nowMs }));
         const state = tracked.get(request);
         if (state?.phase === "arriving") {
           violate(
@@ -308,7 +308,7 @@ function runScenario<Config>(
           state.phase = "finished";
           if (definition.deliversAsync) state.delivery = "waiting";
         }
-        apply(behavior.finish(request, nowMs));
+        apply(behavior.finish({ request, nowMs }));
         break;
       }
       case "dispatch-finished": {
@@ -323,7 +323,13 @@ function runScenario<Config>(
           );
           return { violations, log, stats };
         }
-        apply(behavior.dispatchFinished(request, event.succeeded, nowMs));
+        apply(
+          behavior.dispatchFinished({
+            request,
+            succeeded: event.succeeded,
+            nowMs,
+          }),
+        );
         break;
       }
     }

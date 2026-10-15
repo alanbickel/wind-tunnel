@@ -43,3 +43,15 @@ The definition interface adds `actions` (step actions the type accepts) and `del
 - Behaviors that need their own timers (e.g. SQS long-polling delays, Lambda instances expiring in the background) aren't expressible yet. Lazy evaluation on the next call covers the MVP (Lambda checks idle time when a request arrives). A `wake-at` effect can be added later if needed.
 - Wasted work after a timeout is simulated, which is realistic and important for retry storms, but it means a timed-out request still consumes capacity until it finishes.
 - Type-specific gauges (e.g. RDS connections held, separate from queries running) don't fit the two generic gauges; they'll need an extension when metrics are built.
+
+## Addendum, 2026-10-15
+
+The methods in the table above now take one input object instead of positional parameters, to follow the coding standards' limit of two parameters (CONTRIBUTING, rule 7):
+
+| Before | Now |
+|---|---|
+| `arrive(request, action, nowMs)` | `arrive({ request, action, nowMs })`, an `ArriveInput<T>` |
+| `finish(request, nowMs)` | `finish({ request, nowMs })`, a `FinishInput<T>` |
+| `dispatchFinished(request, succeeded, nowMs)` | `dispatchFinished({ request, succeeded, nowMs })`, a `DispatchFinishedInput<T>` |
+
+What each method may return, and every rule above, is unchanged. Measured with the engine's million-event test, the input objects cost nothing noticeable. At the same time, each definition's `build` started returning an instance of a named class (e.g. `LambdaBehavior`) instead of an object literal; that's a code-structure change and doesn't affect this decision.

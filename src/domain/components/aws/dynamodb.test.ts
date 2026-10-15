@@ -35,13 +35,15 @@ describe("dynamoDbDefinition", () => {
 
   it("throttles reads and writes separately", () => {
     const db = build();
-    expect(db.arrive("r1", "read", 0)).toEqual([
+    expect(db.arrive({ request: "r1", action: "read", nowMs: 0 })).toEqual([
       { kind: "started", request: "r1", serviceMs: 5 },
     ]);
-    expect(db.arrive("r2", "read", 0)).toEqual([
+    expect(db.arrive({ request: "r2", action: "read", nowMs: 0 })).toEqual([
       { kind: "rejected", request: "r2", reason: "throttled" },
     ]);
-    expect(db.arrive("w1", "write", 0)[0]?.kind).toBe("started");
+    expect(
+      db.arrive({ request: "w1", action: "write", nowMs: 0 })[0]?.kind,
+    ).toBe("started");
     expect(db.inProgress).toBe(2);
   });
 
@@ -49,7 +51,8 @@ describe("dynamoDbDefinition", () => {
     const db = build({ burstSec: 2 });
     const started = Array.from(
       { length: 25 },
-      (_, i) => db.arrive(String(i), "read", 0)[0]?.kind,
+      (_, i) =>
+        db.arrive({ request: String(i), action: "read", nowMs: 0 })[0]?.kind,
     ).filter((kind) => kind === "started");
     expect(started).toHaveLength(20);
   });

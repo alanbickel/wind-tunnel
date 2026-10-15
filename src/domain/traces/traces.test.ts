@@ -242,11 +242,15 @@ describe("traces", () => {
         String(pool.queueDepth),
       ]);
     for (const id of ["a", "b", "c", "d"]) {
-      onPool(0, `arrive ${id}`, pool.arrive(id, "invoke", 0));
+      onPool(
+        0,
+        `arrive ${id}`,
+        pool.arrive({ request: id, action: "invoke", nowMs: 0 }),
+      );
     }
-    onPool(10, "finish a", pool.finish("a", 10));
-    onPool(10, "finish b", pool.finish("b", 10));
-    onPool(20, "finish c", pool.finish("c", 20));
+    onPool(10, "finish a", pool.finish({ request: "a", nowMs: 10 }));
+    onPool(10, "finish b", pool.finish({ request: "b", nowMs: 10 }));
+    onPool(20, "finish c", pool.finish({ request: "c", nowMs: 20 }));
 
     const queue = messageQueueDefinition.build<string>(
       { consumers: 1, sendMs: 1 },
@@ -261,24 +265,38 @@ describe("traces", () => {
         String(queue.inProgress),
         String(queue.queueDepth),
       ]);
-    onQueue(0, "arrive m1 (enqueue)", queue.arrive("m1", "enqueue", 0));
-    onQueue(0, "arrive m2 (enqueue)", queue.arrive("m2", "enqueue", 0));
-    onQueue(1, "finish m1", queue.finish("m1", 1));
-    onQueue(1, "finish m2", queue.finish("m2", 1));
+    onQueue(
+      0,
+      "arrive m1 (enqueue)",
+      queue.arrive({ request: "m1", action: "enqueue", nowMs: 0 }),
+    );
+    onQueue(
+      0,
+      "arrive m2 (enqueue)",
+      queue.arrive({ request: "m2", action: "enqueue", nowMs: 0 }),
+    );
+    onQueue(1, "finish m1", queue.finish({ request: "m1", nowMs: 1 }));
+    onQueue(1, "finish m2", queue.finish({ request: "m2", nowMs: 1 }));
     onQueue(
       30,
       "dispatchFinished m1 ✗",
-      queue.dispatchFinished?.("m1", false, 30) ?? [],
+      queue.dispatchFinished?.({
+        request: "m1",
+        succeeded: false,
+        nowMs: 30,
+      }) ?? [],
     );
     onQueue(
       55,
       "dispatchFinished m2 ✓",
-      queue.dispatchFinished?.("m2", true, 55) ?? [],
+      queue.dispatchFinished?.({ request: "m2", succeeded: true, nowMs: 55 }) ??
+        [],
     );
     onQueue(
       80,
       "dispatchFinished m1 ✓",
-      queue.dispatchFinished?.("m1", true, 80) ?? [],
+      queue.dispatchFinished?.({ request: "m1", succeeded: true, nowMs: 80 }) ??
+        [],
     );
 
     const header = [
@@ -343,17 +361,47 @@ describe("traces", () => {
       { random },
     );
     const lambda = recorder(fn);
-    lambda.record(0, "arrive a", fn.arrive("a", "invoke", 0), "cold start");
-    lambda.record(0, "arrive b", fn.arrive("b", "invoke", 0), "cold start");
-    lambda.record(0, "arrive c", fn.arrive("c", "invoke", 0), "2 of 2 busy");
-    lambda.record(320, "finish a", fn.finish("a", 320), "a's env is warm");
-    lambda.record(320, "finish b", fn.finish("b", 320), "b's env is warm");
-    lambda.record(400, "arrive d", fn.arrive("d", "invoke", 400), "warm");
-    lambda.record(420, "finish d", fn.finish("d", 420));
+    lambda.record(
+      0,
+      "arrive a",
+      fn.arrive({ request: "a", action: "invoke", nowMs: 0 }),
+      "cold start",
+    );
+    lambda.record(
+      0,
+      "arrive b",
+      fn.arrive({ request: "b", action: "invoke", nowMs: 0 }),
+      "cold start",
+    );
+    lambda.record(
+      0,
+      "arrive c",
+      fn.arrive({ request: "c", action: "invoke", nowMs: 0 }),
+      "2 of 2 busy",
+    );
+    lambda.record(
+      320,
+      "finish a",
+      fn.finish({ request: "a", nowMs: 320 }),
+      "a's env is warm",
+    );
+    lambda.record(
+      320,
+      "finish b",
+      fn.finish({ request: "b", nowMs: 320 }),
+      "b's env is warm",
+    );
+    lambda.record(
+      400,
+      "arrive d",
+      fn.arrive({ request: "d", action: "invoke", nowMs: 400 }),
+      "warm",
+    );
+    lambda.record(420, "finish d", fn.finish({ request: "d", nowMs: 420 }));
     lambda.record(
       90_000,
       "arrive e",
-      fn.arrive("e", "invoke", 90_000),
+      fn.arrive({ request: "e", action: "invoke", nowMs: 90_000 }),
       "idle > 60 s: cold",
     );
 
@@ -366,15 +414,45 @@ describe("traces", () => {
       { random },
     );
     const rds = recorder(db);
-    rds.record(0, "arrive a", db.arrive("a", "read", 0), "connection 1");
-    rds.record(0, "arrive b", db.arrive("b", "read", 0), "connection 2");
-    rds.record(0, "arrive c", db.arrive("c", "read", 0), "connection 3");
-    rds.record(0, "arrive d", db.arrive("d", "read", 0), "no connection");
-    rds.record(15, "finish a", db.finish("a", 15), "worker passes to b");
-    rds.record(15, "arrive e", db.arrive("e", "read", 15), "a's connection");
-    rds.record(30, "finish b", db.finish("b", 30));
-    rds.record(45, "finish c", db.finish("c", 45));
-    rds.record(60, "finish e", db.finish("e", 60));
+    rds.record(
+      0,
+      "arrive a",
+      db.arrive({ request: "a", action: "read", nowMs: 0 }),
+      "connection 1",
+    );
+    rds.record(
+      0,
+      "arrive b",
+      db.arrive({ request: "b", action: "read", nowMs: 0 }),
+      "connection 2",
+    );
+    rds.record(
+      0,
+      "arrive c",
+      db.arrive({ request: "c", action: "read", nowMs: 0 }),
+      "connection 3",
+    );
+    rds.record(
+      0,
+      "arrive d",
+      db.arrive({ request: "d", action: "read", nowMs: 0 }),
+      "no connection",
+    );
+    rds.record(
+      15,
+      "finish a",
+      db.finish({ request: "a", nowMs: 15 }),
+      "worker passes to b",
+    );
+    rds.record(
+      15,
+      "arrive e",
+      db.arrive({ request: "e", action: "read", nowMs: 15 }),
+      "a's connection",
+    );
+    rds.record(30, "finish b", db.finish({ request: "b", nowMs: 30 }));
+    rds.record(45, "finish c", db.finish({ request: "c", nowMs: 45 }));
+    rds.record(60, "finish e", db.finish({ request: "e", nowMs: 60 }));
 
     await expect(
       [

@@ -2,7 +2,11 @@ import { z } from "zod";
 import { RateLimit } from "../../behaviors/rate-limit";
 import { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
-import type { ComponentBehavior } from "../component-behavior";
+import type {
+  ArriveInput,
+  ComponentBehavior,
+  Effect,
+} from "../component-behavior";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -37,30 +41,41 @@ export const apiGatewayDefinition: ComponentDefinition<ApiGatewayConfig> = {
   deliversAsync: false,
   build<T>(
     config: ApiGatewayConfig,
-    { random }: BuildContext,
+    context: BuildContext,
   ): ComponentBehavior<T> {
-    const limit = new RateLimit({
+    return new ApiGatewayBehavior<T>(config, context);
+  },
+};
+
+/** API Gateway's run-time state: its token bucket and requests in flight. */
+class ApiGatewayBehavior<T> implements ComponentBehavior<T> {
+  readonly queueDepth = 0;
+  private readonly limit: RateLimit;
+  private readonly overhead: ServiceTime;
+  private running = 0;
+
+  constructor(config: ApiGatewayConfig, { random }: BuildContext) {
+    this.limit = new RateLimit({
       ratePerSec: config.ratePerSec,
       burst: config.burst,
     });
-    const overhead = new ServiceTime(config.overhead, random);
-    let inProgress = 0;
-    return {
-      arrive(request, _action, nowMs) {
-        if (!limit.tryTake(nowMs)) {
-          return [{ kind: "rejected", request, reason: "throttled" }];
-        }
-        inProgress++;
-        return [{ kind: "started", request, serviceMs: overhead.next() }];
-      },
-      finish() {
-        inProgress--;
-        return [];
-      },
-      get inProgress() {
-        return inProgress;
-      },
-      queueDepth: 0,
-    };
-  },
-};
+    this.overhead = new ServiceTime(config.overhead, random);
+  }
+
+  get inProgress(): number {
+    return this.running;
+  }
+
+  arrive({ request, nowMs }: ArriveInput<T>): Effect<T>[] {
+    if (!this.limit.tryTake(nowMs)) {
+      return [{ kind: "rejected", request, reason: "throttled" }];
+    }
+    this.running++;
+    return [{ kind: "started", request, serviceMs: this.overhead.next() }];
+  }
+
+  finish(): Effect<T>[] {
+    this.running--;
+    return [];
+  }
+}

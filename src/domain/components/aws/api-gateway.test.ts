@@ -33,11 +33,13 @@ describe("apiGatewayDefinition", () => {
 
   it("starts requests with its overhead until the burst is used up", () => {
     const api = build();
-    expect(api.arrive("a", "invoke", 0)).toEqual([
+    expect(api.arrive({ request: "a", action: "invoke", nowMs: 0 })).toEqual([
       { kind: "started", request: "a", serviceMs: 10 },
     ]);
-    expect(api.arrive("b", "invoke", 0)).toHaveLength(1);
-    expect(api.arrive("c", "invoke", 0)).toEqual([
+    expect(
+      api.arrive({ request: "b", action: "invoke", nowMs: 0 }),
+    ).toHaveLength(1);
+    expect(api.arrive({ request: "c", action: "invoke", nowMs: 0 })).toEqual([
       { kind: "rejected", request: "c", reason: "throttled" },
     ]);
     expect(api.inProgress).toBe(2);
@@ -45,9 +47,13 @@ describe("apiGatewayDefinition", () => {
 
   it("lets requests through again at the steady rate", () => {
     const api = build();
-    api.arrive("a", "invoke", 0);
-    api.arrive("b", "invoke", 0);
-    expect(api.arrive("c", "invoke", 100)[0]?.kind).toBe("started");
-    expect(api.arrive("d", "invoke", 100)[0]?.kind).toBe("rejected");
+    api.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    api.arrive({ request: "b", action: "invoke", nowMs: 0 });
+    expect(
+      api.arrive({ request: "c", action: "invoke", nowMs: 100 })[0]?.kind,
+    ).toBe("started");
+    expect(
+      api.arrive({ request: "d", action: "invoke", nowMs: 100 })[0]?.kind,
+    ).toBe("rejected");
   });
 });

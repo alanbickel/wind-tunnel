@@ -35,53 +35,71 @@ describe("lambdaDefinition", () => {
 
   it("cold-starts the first invocation and reuses the warm environment", () => {
     const fn = build();
-    expect(serviceMs(fn.arrive("a", "invoke", 0))).toBe(320);
-    fn.finish("a", 320);
-    expect(serviceMs(fn.arrive("b", "invoke", 400))).toBe(20);
+    expect(
+      serviceMs(fn.arrive({ request: "a", action: "invoke", nowMs: 0 })),
+    ).toBe(320);
+    fn.finish({ request: "a", nowMs: 320 });
+    expect(
+      serviceMs(fn.arrive({ request: "b", action: "invoke", nowMs: 400 })),
+    ).toBe(20);
   });
 
   it("cold-starts when every warm environment is busy", () => {
     const fn = build();
-    fn.arrive("a", "invoke", 0);
-    fn.finish("a", 320);
-    expect(serviceMs(fn.arrive("b", "invoke", 400))).toBe(20);
-    expect(serviceMs(fn.arrive("c", "invoke", 400))).toBe(320);
+    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    fn.finish({ request: "a", nowMs: 320 });
+    expect(
+      serviceMs(fn.arrive({ request: "b", action: "invoke", nowMs: 400 })),
+    ).toBe(20);
+    expect(
+      serviceMs(fn.arrive({ request: "c", action: "invoke", nowMs: 400 })),
+    ).toBe(320);
   });
 
   it("goes cold after the idle timeout", () => {
     const fn = build();
-    fn.arrive("a", "invoke", 0);
-    fn.finish("a", 320);
-    expect(serviceMs(fn.arrive("b", "invoke", 60_320))).toBe(320);
+    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    fn.finish({ request: "a", nowMs: 320 });
+    expect(
+      serviceMs(fn.arrive({ request: "b", action: "invoke", nowMs: 60_320 })),
+    ).toBe(320);
   });
 
   it("expires only the environments that have been idle too long", () => {
     const fn = build();
-    fn.arrive("a", "invoke", 0);
-    fn.arrive("b", "invoke", 0);
-    fn.finish("a", 320);
-    fn.finish("b", 30_000);
+    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    fn.arrive({ request: "b", action: "invoke", nowMs: 0 });
+    fn.finish({ request: "a", nowMs: 320 });
+    fn.finish({ request: "b", nowMs: 30_000 });
     // At 61 s, the environment a used has been idle for over 60 s; b's hasn't.
-    expect(serviceMs(fn.arrive("c", "invoke", 61_000))).toBe(20);
-    expect(serviceMs(fn.arrive("d", "invoke", 61_000))).toBe(320);
+    expect(
+      serviceMs(fn.arrive({ request: "c", action: "invoke", nowMs: 61_000 })),
+    ).toBe(20);
+    expect(
+      serviceMs(fn.arrive({ request: "d", action: "invoke", nowMs: 61_000 })),
+    ).toBe(320);
   });
 
   it("throttles beyond its concurrency, counting cold starts", () => {
     const fn = build();
-    fn.arrive("a", "invoke", 0);
-    fn.arrive("b", "invoke", 0);
-    expect(fn.arrive("c", "invoke", 0)).toEqual([
+    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    fn.arrive({ request: "b", action: "invoke", nowMs: 0 });
+    expect(fn.arrive({ request: "c", action: "invoke", nowMs: 0 })).toEqual([
       { kind: "rejected", request: "c", reason: "throttled" },
     ]);
     expect(fn.inProgress).toBe(2);
-    fn.finish("a", 320);
-    expect(fn.arrive("c", "invoke", 320)[0]?.kind).toBe("started");
+    fn.finish({ request: "a", nowMs: 320 });
+    expect(
+      fn.arrive({ request: "c", action: "invoke", nowMs: 320 })[0]?.kind,
+    ).toBe("started");
     // a and b started cold; c reused a's warm environment.
     expect(fn.counters).toEqual({ coldStarts: 2 });
   });
 
   it("throttles everything with concurrency 0", () => {
     const fn = build({ concurrency: 0 });
-    expect(fn.arrive("a", "invoke", 0)[0]?.kind).toBe("rejected");
+    expect(
+      fn.arrive({ request: "a", action: "invoke", nowMs: 0 })[0]?.kind,
+    ).toBe("rejected");
   });
 });

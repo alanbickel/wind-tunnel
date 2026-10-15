@@ -41,7 +41,7 @@ Seeded randomness, event queue, behavior primitives, domain entities and validat
 - [x] 1. Foundations: a shared exhaustive handler-map type in `domain/`; name the anonymous union members (`SimulationEvent`, `Effect`, `EngineEvent`, `HarnessEvent`, `ProjectLookup`, `LoadResult`, and the inline types); a string comparator in place of the nested ternaries; remove duplicates (`summaryOf`/`toSummary`, `Path`, Zod issue mapping)
 - [x] 2. `backoffMs` and `sample` as lookup maps with input objects; `LatencySummary` fields become `p50Ms`, `p95Ms`, `p99Ms`, `maxMs` (snapshots and guides too)
 - [x] 3. Engine: split the constructor; `handle` and `apply` become handler maps; `call()` takes an input object
-- [ ] 4. `ComponentBehavior` methods take one input object; each `build()` becomes a named class. Before/after timings from `npm run simulate`; a dated addendum to ADR-0006 for the signature
+- [x] 4. `ComponentBehavior` methods take one input object; each `build()` becomes a named class. Before/after timings from `npm run simulate`; a dated addendum to ADR-0006 for the signature
 - [ ] 5. `MetricsCollector.observe` as an event-handler map
 - [ ] 6. Contract checker: `runScenario` becomes a `ContractHarness` class
 - [ ] 7. Validation: context objects; split `checkWorkload` and `validateComponents`
@@ -83,6 +83,13 @@ Tasks will be refined at the end of M2.
 ## Progress log
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
+
+### 2026-10-15: R1 phases 1 to 4
+
+- **Helpers** in `src/domain/shared/kind-handlers.ts`: `KindHandlers`/`handleKind` for discriminated unions, and `lookup` for `Record` tables. Both throw on a key the table doesn't own (so `"toString"` can't find an inherited method). Use them for the remaining `switch` statements.
+- **Proof of no behavior change:** the trace snapshots (`src/domain/traces/`) and report snapshots (`src/adapters/cli/reports/`) must stay byte-for-byte unchanged.
+- **Measuring speed:** whole-template timings on this machine swing ±30% between runs. Compare the million-event test instead, alternating with `git stash`: `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`. Phases 1 to 4 showed no measurable cost.
+- **Scripted edits:** Git Bash strips backslashes inside heredocs, which breaks regexes. Write such scripts to a file first.
 
 ### 2026-10-15: M2 started (ports)
 

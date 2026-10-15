@@ -186,6 +186,8 @@ const codingStandards = {
   "max-params": ["error", 2],
   // A warning, not an error: a long file is a prompt to consider splitting it.
   "max-lines": ["warn", { max: 400, skipBlankLines: true, skipComments: true }],
+  // Rule 11; tests/architecture/class-files.test.ts checks the file names.
+  "max-classes-per-file": ["error", 1],
 };
 
 export default defineConfig([
@@ -293,10 +295,16 @@ export default defineConfig([
 
   { files: ["src/**/*.{ts,tsx}", "tests/**/*.ts"], rules: codingStandards },
   // A `describe` block groups many tests, so length and parameter counts
-  // don't apply to test files; keep each test itself within 30 lines.
+  // don't apply to test files; keep each test itself within 30 lines. A test
+  // may keep its own small test doubles beside it, so one class per file
+  // doesn't apply either.
   {
     files: [TEST_FILES],
-    rules: { "max-lines-per-function": "off", "max-params": "off" },
+    rules: {
+      "max-lines-per-function": "off",
+      "max-params": "off",
+      "max-classes-per-file": "off",
+    },
   },
 
   // Must be last: turns off rules that conflict with Prettier's formatting.

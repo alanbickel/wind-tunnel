@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file -- one file per fake in R2.15 */
 import type {
   MetricsRun,
   MetricsSnapshot,

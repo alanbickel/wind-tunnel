@@ -32,7 +32,7 @@ The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architec
 
 These heuristics encourage healthy habits and steer away from shapes that invite defects. Be kind to your fellow maintainers: if you wouldn't want to maintain it, don't commit it.
 
-ESLint checks rules 2, 5, 6, 7, and 10 (see [Enforcement](#enforcement)), and a violation fails `npm run lint` and CI. Reviewers check the rest.
+ESLint and the architecture tests check rules 2, 5, 6, 7, 10, and 11 (see [Enforcement](#enforcement)), and a violation fails `npm run check` and CI. Reviewers check the rest.
 
 **Exceptions** are allowed but must be justified in writing. If the reason isn't worth writing, the exception isn't worth making. Put the reason after `--` in the disable comment:
 
@@ -214,6 +214,17 @@ build<T>(config: ApiGatewayConfig): ComponentBehavior<T> {
 }
 ```
 
+### 11. One class per file, named after it
+
+Each class gets its own file, named after the class in kebab case: `ComponentRegistryMap` lives in `component-registry-map.ts`, and `IndexedDbProjectRepository` in `indexed-db-project-repository.ts`. A reader who sees a class name knows which file to open.
+
+Interfaces follow what they're for:
+
+- **A role interface gets its own file**, named after the interface, even when it has one implementation: `ComponentRegistry` in `component-registry.ts`, the ports in `application/ports/`. The role often lives in an inner layer and its implementations in an outer one, so they can't share a file anyway.
+- **A class's own shapes stay in the class's file:** its `Input`, `Dependencies`, and result types. They mean nothing apart from the class.
+
+Shared test fakes in `testing/` folders follow the rule. A `*.test.ts` file is exempt: it may keep small test doubles used only by its own tests beside them.
+
 ### Enforcement
 
 | Rule | ESLint rule | Level |
@@ -224,6 +235,8 @@ build<T>(config: ApiGatewayConfig): ComponentBehavior<T> {
 | 7. Two parameters | `max-params` (2) | error; off in tests |
 | 10. Collaborators from factories | `no-restricted-syntax` (`new` inside a class body, except built-ins, `STATE_CLASSES`, and `*Factory`/`*Builder`) | error; off in tests. Misses dependencies built by a helper function the class calls, so reviewers check those |
 | 10. Dependencies are interfaces | Not ESLint: `tests/architecture/dependency-types.test.ts` fails if a `*Dependencies` property is typed as a class | test failure. Only sees types named `*Dependencies` |
+| 11. One class per file | `max-classes-per-file` (1) | error; off in tests |
+| 11. File named after its class | Not ESLint: `tests/architecture/class-files.test.ts` fails if a class's file isn't its name in kebab case | test failure; skips tests. Where a role interface lives is for reviewers |
 | 1, 3, 4, 8, 9 | None; reviewers check | |
 | File length | `max-lines` (400, skipping blanks and comments) | warning; tests included |
 

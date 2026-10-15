@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file -- each behavior moves to its own file in R2.8 */
 import { z } from "zod";
 import {
   ConcurrencyLimit,

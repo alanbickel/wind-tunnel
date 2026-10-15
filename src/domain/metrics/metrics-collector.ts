@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file -- the tallies move to their own files in R2.7 */
 import type {
   AsyncFinishedEvent,
   AttemptFailedEvent,

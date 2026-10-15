@@ -195,6 +195,9 @@ const timeoutMs = 30_000;
 | 6. Complexity | `complexity` (8) | error |
 | 7. Two parameters | `max-params` (2) | error; off in tests |
 | 1, 3, 4, 8, 9 | None; reviewers check | |
+| File length | `max-lines` (400, skipping blanks and comments) | warning; tests included |
+
+**File length** is only a warning: it means "consider splitting this file", not "must fix". A file past 400 lines usually holds more than one idea, and a newcomer has to read all of it to find the one they need. Split along those ideas when you can name them; when the file really is one idea, leave it and move on.
 
 ## Adding a component type
 

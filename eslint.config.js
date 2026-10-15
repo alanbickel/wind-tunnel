@@ -141,6 +141,8 @@ const codingStandards = {
   "no-lonely-if": "error",
   complexity: ["error", 8],
   "max-params": ["error", 2],
+  // A warning, not an error: a long file is a prompt to consider splitting it.
+  "max-lines": ["warn", { max: 400, skipBlankLines: true, skipComments: true }],
 };
 
 export default defineConfig([

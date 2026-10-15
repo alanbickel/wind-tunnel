@@ -103,6 +103,17 @@ const uiImports = {
 // `domain` and `application` must be deterministic (ADR-0002). Time and
 // randomness come in through ports / RandomSource. DOM, Worker, and Node APIs
 // are already rejected by tsconfig.core.json.
+const DETERMINISM_SELECTORS = [
+  {
+    selector: "NewExpression[callee.name='Date']",
+    message: "Use the Clock port instead.",
+  },
+  {
+    selector: "CallExpression[callee.name='Date']",
+    message: "Use the Clock port instead.",
+  },
+];
+
 const nondeterminismBans = {
   "no-restricted-properties": [
     "error",
@@ -113,18 +124,50 @@ const nondeterminismBans = {
     },
     { object: "Date", property: "now", message: "Use the Clock port instead." },
   ],
-  "no-restricted-syntax": [
-    "error",
-    {
-      selector: "NewExpression[callee.name='Date']",
-      message: "Use the Clock port instead.",
-    },
-    {
-      selector: "CallExpression[callee.name='Date']",
-      message: "Use the Clock port instead.",
-    },
-  ],
 };
+
+// ---------------------------------------------------------------------------
+// Collaborators come from factories (ADR-0009, CONTRIBUTING rule 10)
+//
+// A class may create state in place, but not the objects it delegates to.
+// Factory functions, `ComponentDefinition.build`, and composition roots sit
+// outside class bodies, so the selector leaves them alone.
+// ---------------------------------------------------------------------------
+
+/** Built-ins: platform containers, promises, errors, typed arrays. */
+const BUILT_INS = [
+  "Map",
+  "Set",
+  "WeakMap",
+  "WeakSet",
+  "Promise",
+  "\\w*Error",
+  "\\w+Array",
+];
+/** Our pure accumulators: they store data and delegate to nothing. */
+const STATE_CLASSES = [
+  "Queue",
+  "LatencyHistogram",
+  "Tally",
+  "ComponentTally",
+  "WorkflowTally",
+];
+/** Classes whose job is to build other objects. */
+const FACTORY_SUFFIXES = ["\\w+Factory", "\\w+Builder"];
+
+const ALLOWED_IN_CLASSES = [
+  ...BUILT_INS,
+  ...STATE_CLASSES,
+  ...FACTORY_SUFFIXES,
+];
+
+const FACTORY_SELECTORS = [
+  {
+    selector: `ClassBody NewExpression:not([callee.name=/^(${ALLOWED_IN_CLASSES.join("|")})$/])`,
+    message:
+      "Take this collaborator through the constructor; build it in a factory (ADR-0009). State classes go in STATE_CLASSES in eslint.config.js.",
+  },
+];
 
 const TEST_FILES = "**/*.test.{ts,tsx}";
 
@@ -221,6 +264,31 @@ export default defineConfig([
   {
     files: ["src/domain/**", "src/application/**"],
     rules: nondeterminismBans,
+  },
+
+  // `no-restricted-syntax` carries two sets of selectors. A later block
+  // replaces a rule's options rather than merging them, so each block lists
+  // every selector that applies to its files. Tests are composition roots:
+  // they may build collaborators directly.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [TEST_FILES],
+    rules: { "no-restricted-syntax": ["error", ...FACTORY_SELECTORS] },
+  },
+  {
+    files: ["src/domain/**", "src/application/**"],
+    ignores: [TEST_FILES],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...DETERMINISM_SELECTORS,
+        ...FACTORY_SELECTORS,
+      ],
+    },
+  },
+  {
+    files: [`src/domain/${TEST_FILES}`, `src/application/${TEST_FILES}`],
+    rules: { "no-restricted-syntax": ["error", ...DETERMINISM_SELECTORS] },
   },
 
   { files: ["src/**/*.{ts,tsx}", "tests/**/*.ts"], rules: codingStandards },

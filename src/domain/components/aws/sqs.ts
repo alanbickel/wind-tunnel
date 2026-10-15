@@ -63,6 +63,7 @@ class SqsBehavior<T> implements ComponentBehavior<T> {
   private delivering = 0;
 
   constructor(config: SqsConfig, { random }: BuildContext) {
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.sendLatency = new ServiceTime(config.sendLatency, random);
     this.consumerMaxConcurrency = config.consumerMaxConcurrency;
   }

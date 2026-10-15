@@ -69,11 +69,13 @@ class WorkerPoolBehavior<T> implements ComponentBehavior<T> {
   };
 
   constructor(config: WorkerPoolConfig, { random }: BuildContext) {
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.workers = new ConcurrencyLimit<T>({
       limit: config.workers,
       whenFull: "queue",
       queueCapacity: config.queueCapacity,
     });
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.serviceTime = new ServiceTime(config.serviceTime, random);
   }
 

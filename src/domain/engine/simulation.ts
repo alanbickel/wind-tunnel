@@ -285,6 +285,7 @@ interface CallInput {
 }
 
 class Simulation {
+  // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.5 (ADR-0009)
   private readonly events = new EventQueue<EngineEvent>();
   private readonly components: ReadonlyMap<string, RuntimeComponent>;
   /** Keyed by `edgeKey(from, to)`. */
@@ -307,6 +308,7 @@ class Simulation {
     this.components = buildComponents({ input, random });
     this.edges = indexEdges(project.architecture.edges);
     this.workflows = new Map(project.workflows.map((w) => [w.id, w]));
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.5 (ADR-0009)
     this.arrivals = new ArrivalProcess({
       workload,
       timing: random("arrivals"),

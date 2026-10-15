@@ -62,14 +62,17 @@ class RdsBehavior<T> implements ComponentBehavior<T> {
   private readonly queryTime: ServiceTime;
 
   constructor(config: RdsConfig, { random }: BuildContext) {
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.connections = new ConcurrencyLimit<T>({
       limit: config.maxConnections,
       whenFull: "reject",
     });
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.workers = new ConcurrencyLimit<T>({
       limit: config.queryWorkers,
       whenFull: "queue",
     });
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.queryTime = new ServiceTime(config.queryTime, random);
   }
 

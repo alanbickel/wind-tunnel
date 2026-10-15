@@ -201,6 +201,7 @@ class ContractHarness<Config> {
   /** Separate from the component's source, so the harness's draws don't change the component's. */
   private readonly random: SeededRandom;
   private readonly behavior: ComponentBehavior<number>;
+  // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.6 (ADR-0009)
   private readonly events = new EventQueue<HarnessEvent>();
   private readonly tracked = new Map<number, Tracked>();
   private readonly violations: string[] = [];
@@ -216,8 +217,10 @@ class ContractHarness<Config> {
   constructor({ definition, config, settings }: ContractHarnessInput<Config>) {
     this.definition = definition;
     this.settings = settings;
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.6 (ADR-0009)
     this.random = new SeededRandom(settings.seed);
     this.behavior = definition.build<number>(config, {
+      // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.6 (ADR-0009)
       random: new SeededRandom(settings.seed + 1),
     });
     this.maxEvents = settings.arrivals.requests * 1000;

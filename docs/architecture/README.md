@@ -88,8 +88,10 @@ The layer rules are checked by tooling, so a mistake fails `npm run check` (and 
 | `domain` and `application` use only approved pure libraries (currently `zod` in `domain`, [ADR-0005](../adr/0005-use-zod-for-schema-validation.md)); tests there may also import `vitest` | Same rule, with an allowlist of packages | [`eslint.config.js`](../../eslint.config.js) |
 | No DOM, `Worker`, timers, or Node APIs in `domain` and `application` | TypeScript: these folders are checked without the DOM lib or Node types | [`tsconfig.core.json`](../../tsconfig.core.json) |
 | No `Math.random`, `Date.now`, `new Date()`, or `Date()` in `domain` and `application` | `no-restricted-properties` and `no-restricted-syntax` | [`eslint.config.js`](../../eslint.config.js) |
+| A class doesn't build its own collaborators ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | `no-restricted-syntax`: `new` inside a class body, except built-ins and `STATE_CLASSES` | [`eslint.config.js`](../../eslint.config.js) |
+| Constructor collaborators (`*Dependencies` properties) are interfaces, not classes ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | An architecture test that resolves each property's type with the TypeScript compiler | [`dependency-types.test.ts`](../../tests/architecture/dependency-types.test.ts) |
 
-[`tests/architecture/layer-rules.test.ts`](../../tests/architecture/layer-rules.test.ts) lints sample snippets in each layer and asserts that the rules above fire. If you change the rules, update that test.
+[`tests/architecture/layer-rules.test.ts`](../../tests/architecture/layer-rules.test.ts) lints sample snippets in each layer and asserts that the lint rules above fire. If you change the rules, update that test.
 
 To approve a new library for `domain` or `application`, write an ADR, then add it to `DOMAIN_PACKAGES` or `APPLICATION_PACKAGES` in `eslint.config.js`.
 

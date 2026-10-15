@@ -92,6 +92,42 @@ describe("layer rules", () => {
     },
   );
 
+  describe("collaborators come from factories (ADR-0009)", () => {
+    const inClass = (expression: string) =>
+      `export class C { readonly v = ${expression}; }\n`;
+
+    it.each(["src/domain/x.ts", "src/adapters/x.ts"])(
+      "rejects building a collaborator inside a class in %s",
+      async (filePath) => {
+        expect(await violations(filePath, inClass("new EventQueue()"))).toEqual(
+          ["no-restricted-syntax"],
+        );
+      },
+    );
+
+    it.each([
+      "new Map()",
+      "new RangeError()",
+      "new Float64Array(4)",
+      "new Tally()",
+      "new QueueFactory()",
+    ])("allows %s inside a class", async (expression) => {
+      expect(await violations("src/domain/x.ts", inClass(expression))).toEqual(
+        [],
+      );
+    });
+
+    it("allows building a collaborator in a factory function", async () => {
+      const code = "export const make = () => new EventQueue();\n";
+      expect(await violations("src/domain/x.ts", code)).toEqual([]);
+    });
+
+    it("allows building a collaborator inside a class in a test", async () => {
+      const code = inClass("new EventQueue()");
+      expect(await violations("src/domain/x.test.ts", code)).toEqual([]);
+    });
+  });
+
   it("allows Math.random() outside the core layers", async () => {
     expect(
       await violations(

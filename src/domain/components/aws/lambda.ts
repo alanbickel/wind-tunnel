@@ -75,11 +75,14 @@ class LambdaBehavior<T> implements ComponentBehavior<T> {
   private coldStarts = 0;
 
   constructor(config: LambdaConfig, { random }: BuildContext) {
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.slots = new ConcurrencyLimit<T>({
       limit: config.concurrency,
       whenFull: "reject",
     });
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.coldStart = new ServiceTime(config.coldStart, random);
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.computeTime = new ServiceTime(config.computeTime, random);
     this.idleTimeoutMs = config.idleTimeoutSec * 1000;
   }

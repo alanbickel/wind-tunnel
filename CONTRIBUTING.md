@@ -32,7 +32,7 @@ The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architec
 
 These heuristics encourage healthy habits and steer away from shapes that invite defects. Be kind to your fellow maintainers: if you wouldn't want to maintain it, don't commit it.
 
-ESLint checks rules 2, 5, 6, and 7 (see [Enforcement](#enforcement)), and a violation fails `npm run lint` and CI. Reviewers check the rest.
+ESLint checks rules 2, 5, 6, 7, and 10 (see [Enforcement](#enforcement)), and a violation fails `npm run lint` and CI. Reviewers check the rest.
 
 **Exceptions** are allowed but must be justified in writing. If the reason isn't worth writing, the exception isn't worth making. Put the reason after `--` in the disable comment:
 
@@ -186,6 +186,34 @@ const timeout = 30;
 const timeoutMs = 30_000;
 ```
 
+### 10. Collaborators come from factories
+
+A class never creates the objects it delegates to. They come in through the constructor, typed as interfaces, and a factory function or composition root builds them ([ADR-0009](docs/adr/0009-collaborators-come-from-factories.md)). The constructor's signature then lists everything the class depends on, and a test can pass in a fake.
+
+- **Dependencies** have behavior the class delegates to: `EventQueue`, `RateLimit`, `ServiceTime`, `ConcurrencyLimit`, `SeededRandom`, and the like. They arrive in one `<Class>Dependencies` object, and each property is an interface, not a class. A class with `private` fields only accepts its own instances, so a test can't hand in a fake; an interface accepts any object of the right shape.
+- **Name the interface for the role; let the class name say how it works:** `ComponentRegistry` is implemented by `ComponentRegistryMap`, `RateLimit` by `TokenBucket`. No `I` prefix, and no abstract base classes.
+- **State** may be created in place: `Map`, `Set`, arrays, plain records, and pure accumulators that only store data (`Queue`, `LatencyHistogram`, `Tally`). A new accumulator goes in `STATE_CLASSES` in `eslint.config.js`.
+- **`new` belongs** in factories (`simulate`, `ComponentDefinition.build`, `createAwsComponentRegistry`) and composition roots (the CLI command, `main.tsx`, tests).
+
+```ts
+// ✗ the constructor hides what the behavior depends on, and a test can't swap it
+class ApiGatewayBehavior<T> {
+  constructor(config: ApiGatewayConfig) {
+    this.limit = new TokenBucket({ ratePerSec: config.ratePerSec, burst: config.burst });
+  }
+}
+
+// ✓ the behavior names the role it needs; build() is the factory that fills it
+interface ApiGatewayBehaviorDependencies {
+  readonly limit: RateLimit; // an interface; TokenBucket implements it
+}
+
+build<T>(config: ApiGatewayConfig): ComponentBehavior<T> {
+  const limit = new TokenBucket({ ratePerSec: config.ratePerSec, burst: config.burst });
+  return new ApiGatewayBehavior<T>({ limit });
+}
+```
+
 ### Enforcement
 
 | Rule | ESLint rule | Level |
@@ -194,6 +222,8 @@ const timeoutMs = 30_000;
 | 5. Flat control flow | `max-depth` (2), `no-nested-ternary`, `no-else-return`, `no-lonely-if` | error |
 | 6. Complexity | `complexity` (8) | error |
 | 7. Two parameters | `max-params` (2) | error; off in tests |
+| 10. Collaborators from factories | `no-restricted-syntax` (`new` inside a class body, except built-ins, `STATE_CLASSES`, and `*Factory`/`*Builder`) | error; off in tests. Misses dependencies built by a helper function the class calls, so reviewers check those |
+| 10. Dependencies are interfaces | Not ESLint: `tests/architecture/dependency-types.test.ts` fails if a `*Dependencies` property is typed as a class | test failure. Only sees types named `*Dependencies` |
 | 1, 3, 4, 8, 9 | None; reviewers check | |
 | File length | `max-lines` (400, skipping blanks and comments) | warning; tests included |
 

@@ -53,6 +53,7 @@ Architecture decision records explain *why* things are the way they are. Accepte
 | [0006](adr/0006-components-return-effects-to-the-engine.md) | Components return effects to the engine; they never schedule events |
 | [0007](adr/0007-metrics-observe-the-engine.md) | Metrics observe the engine through events and ticks; components expose named gauges and counters |
 | [0008](adr/0008-ports-exchange-project-records.md) | Ports exchange project records (domain project plus timestamps, source, and layout), not documents |
+| [0009](adr/0009-collaborators-come-from-factories.md) | Classes take their collaborators through the constructor, typed as interfaces; factories and composition roots build them |
 
 ## Learning
 

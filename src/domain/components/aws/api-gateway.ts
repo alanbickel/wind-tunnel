@@ -55,10 +55,12 @@ class ApiGatewayBehavior<T> implements ComponentBehavior<T> {
   private running = 0;
 
   constructor(config: ApiGatewayConfig, { random }: BuildContext) {
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.limit = new RateLimit({
       ratePerSec: config.ratePerSec,
       burst: config.burst,
     });
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.overhead = new ServiceTime(config.overhead, random);
   }
 

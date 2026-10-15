@@ -74,6 +74,7 @@ class DynamoDbBehavior<T> implements ComponentBehavior<T> {
       unitsPerSec: config.writeUnitsPerSec,
       burstSec,
     });
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
     this.latency = new ServiceTime(config.latency, random);
   }
 

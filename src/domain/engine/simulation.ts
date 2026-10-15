@@ -9,6 +9,7 @@ import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import { ArrivalProcess } from "./arrivals";
 import { backoffMs } from "./backoff";
 import { EventQueue } from "./event-queue";
+import { IntervalTickSampler } from "./interval-tick-sampler";
 import { buildTopology, findWorkload } from "./project-topology";
 import type {
   Attempt,
@@ -19,13 +20,13 @@ import type {
 } from "./runtime-records";
 import type {
   ComponentEventBase,
-  ComponentSample,
   Failure,
   RandomStreams,
   SimulationEvent,
   SimulationInput,
   SimulationResult,
 } from "./simulation-events";
+import type { TickSampler } from "./tick-sampler";
 import type { Topology } from "./topology";
 
 /**
@@ -105,8 +106,7 @@ class Simulation {
   private readonly retryRandom: RandomSource;
   private readonly observe: (event: SimulationEvent) => void;
   private readonly untilMs: number;
-  private readonly tickMs: number | undefined;
-  private nextTickMs: number;
+  private readonly ticks: TickSampler;
   private nowMs = 0;
   private nextRequestId = 0;
 
@@ -126,8 +126,13 @@ class Simulation {
     this.retryRandom = random("retries");
     this.observe = input.observer ?? ignoreEvent;
     this.untilMs = input.untilMs ?? workload.durationMs;
-    this.tickMs = checkTickMs(input.tickMs);
-    this.nextTickMs = this.tickMs ?? Infinity;
+    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.5 (ADR-0009)
+    this.ticks = new IntervalTickSampler({
+      topology: this.topology,
+      observe: this.observe,
+      tickMs: input.tickMs,
+      untilMs: this.untilMs,
+    });
   }
 
   run(): SimulationResult {
@@ -141,7 +146,7 @@ class Simulation {
       next = this.events.peek()
     ) {
       this.events.pop();
-      this.ticksBefore(next.timeMs);
+      this.ticks.ticksBefore(next.timeMs);
       atThisInstant = next.timeMs === instantMs ? atThisInstant + 1 : 1;
       instantMs = next.timeMs;
       if (atThisInstant > MAX_EVENTS_AT_ONE_INSTANT) throwStuck(next.timeMs);
@@ -149,7 +154,7 @@ class Simulation {
       handleKind(this.eventHandlers, next.payload);
       processed++;
     }
-    this.finalTick();
+    this.ticks.finalTick();
     return { eventsProcessed: processed };
   }
 
@@ -204,31 +209,6 @@ class Simulation {
       this.dispatch(visit);
     },
   };
-
-  /** Reports every tick due before `timeMs` and before the end of the run. */
-  private ticksBefore(timeMs: number): void {
-    if (this.tickMs === undefined) return;
-    while (this.nextTickMs <= timeMs && this.nextTickMs < this.untilMs) {
-      this.nowMs = this.nextTickMs;
-      this.tick();
-      this.nextTickMs += this.tickMs;
-    }
-  }
-
-  /** The ticks left before the end, then one at the end itself. */
-  private finalTick(): void {
-    this.ticksBefore(this.untilMs);
-    if (this.tickMs === undefined || this.untilMs <= 0) return;
-    this.nowMs = this.untilMs;
-    this.tick();
-  }
-
-  private tick(): void {
-    const components = [...this.topology.allComponents()].map(
-      sampleAndResetPeaks,
-    );
-    this.observe({ kind: "tick", timeMs: this.nowMs, components });
-  }
 
   private scheduleNextUser(): void {
     const timeMs = this.arrivals.next(this.nowMs);
@@ -319,7 +299,7 @@ class Simulation {
    * into a component, so it also tracks peaks for the metrics.
    */
   private apply(component: RuntimeComponent, effects: Effect<Visit>[]): void {
-    trackPeaks(component);
+    this.ticks.trackPeaks(component);
     for (const effect of effects) handleKind(this.effectHandlers, effect);
   }
 
@@ -482,13 +462,6 @@ function seededStreams(seed: number): RandomStreams {
   return (stream) => new SeededRandom(deriveSeed(seed, stream));
 }
 
-function checkTickMs(tickMs: number | undefined): number | undefined {
-  if (tickMs !== undefined && !(tickMs > 0)) {
-    throw new Error(`tickMs must be positive, got ${String(tickMs)}`);
-  }
-  return tickMs;
-}
-
 function ignoreEvent(): void {
   // No observer: events are dropped.
 }
@@ -497,34 +470,4 @@ function throwStuck(timeMs: number): never {
   throw new Error(
     `Simulation stuck: over ${String(MAX_EVENTS_AT_ONE_INSTANT)} events at t=${String(timeMs)} ms`,
   );
-}
-
-/** Raises the component's peaks to its current values. */
-function trackPeaks(component: RuntimeComponent): void {
-  const { behavior } = component;
-  component.peakInProgress = Math.max(
-    component.peakInProgress,
-    behavior.inProgress,
-  );
-  component.peakQueueDepth = Math.max(
-    component.peakQueueDepth,
-    behavior.queueDepth,
-  );
-}
-
-/** The component's state for a tick; its peaks start again from now. */
-function sampleAndResetPeaks(component: RuntimeComponent): ComponentSample {
-  const { behavior } = component;
-  const sample: ComponentSample = {
-    componentId: component.id,
-    inProgress: behavior.inProgress,
-    queueDepth: behavior.queueDepth,
-    peakInProgress: component.peakInProgress,
-    peakQueueDepth: component.peakQueueDepth,
-    gauges: { ...behavior.gauges },
-    counters: { ...behavior.counters },
-  };
-  component.peakInProgress = behavior.inProgress;
-  component.peakQueueDepth = behavior.queueDepth;
-  return sample;
 }

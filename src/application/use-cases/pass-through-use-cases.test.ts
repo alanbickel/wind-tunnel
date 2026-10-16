@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  InMemoryProjectRepository,
-  InMemoryTemplateCatalog,
-} from "../testing/fake-ports";
+import { InMemoryProjectRepository } from "../testing/in-memory-project-repository";
+import { InMemoryTemplateCatalog } from "../testing/in-memory-template-catalog";
 import { sampleRecord } from "../testing/sample-record";
 import { DeleteProject } from "./delete-project";
 import { ListProjects } from "./list-projects";

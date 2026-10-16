@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SeededRandom } from "../random/random-source";
+import { SeededRandom } from "../random/seeded-random";
 import { ComponentRegistryMap } from "./component-registry-map";
 import {
   messageQueueDefinition,

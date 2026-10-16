@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  FixedClock,
-  InMemoryProjectRepository,
-  InMemoryTemplateCatalog,
-  SequentialIds,
-} from "../testing/fake-ports";
+import { FixedClock } from "../testing/fixed-clock";
+import { InMemoryProjectRepository } from "../testing/in-memory-project-repository";
+import { InMemoryTemplateCatalog } from "../testing/in-memory-template-catalog";
+import { SequentialIds } from "../testing/sequential-ids";
 import { sampleRecord } from "../testing/sample-record";
 import { CreateProjectFromTemplate } from "./create-project-from-template";
 

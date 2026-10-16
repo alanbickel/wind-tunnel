@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Workload } from "../model/project";
-import { SeededRandom } from "../random/random-source";
+import { SeededRandom } from "../random/seeded-random";
 import type { ArrivalProcess } from "./arrival-process";
 import { rateAt } from "./arrivals";
 import { PoissonArrivalProcess } from "./poisson-arrival-process";

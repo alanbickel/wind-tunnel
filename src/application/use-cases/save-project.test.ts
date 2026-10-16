@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
-import { FixedClock, InMemoryProjectRepository } from "../testing/fake-ports";
+import { FixedClock } from "../testing/fixed-clock";
+import { InMemoryProjectRepository } from "../testing/in-memory-project-repository";
 import { sampleRecord } from "../testing/sample-record";
 import { SaveProject } from "./save-project";
 

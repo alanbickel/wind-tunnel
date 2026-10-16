@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RetryPolicy } from "../model/project";
-import { SeededRandom } from "../random/random-source";
+import { SeededRandom } from "../random/seeded-random";
 import { backoffMs, MAX_BACKOFF_MS } from "./backoff";
 
 const policy = (backoff: RetryPolicy["backoff"]): RetryPolicy => ({

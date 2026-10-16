@@ -9,7 +9,7 @@ import {
   IndexedDbProjectRepository,
   UNNAMED_PROJECT,
   UNREADABLE_PROJECT_REASON,
-} from "./indexeddb-project-repository";
+} from "./indexed-db-project-repository";
 import {
   PROJECT_DATABASE_NAME,
   PROJECT_DATABASE_VERSION,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SeededRandom } from "../random/random-source";
+import { SeededRandom } from "../random/seeded-random";
 import type { EventQueue } from "./event-queue";
 import { HeapEventQueue } from "./heap-event-queue";
 

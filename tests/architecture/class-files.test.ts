@@ -9,22 +9,6 @@ const FIXTURES = fileURLToPath(new URL("fixtures/", import.meta.url));
 
 const isSourceFile = (fileName: string) => !/\.test\.tsx?$/.test(fileName);
 
-/**
- * Classes that break the rule today, keyed `file: Class`, each with the R2
- * task that moves it. Remove an entry when its class moves; the last test
- * fails if an entry no longer matches anything.
- */
-const KNOWN_EXCEPTIONS: Record<string, string> = {
-  "adapters/persistence/indexeddb-project-repository.ts: IndexedDbProjectRepository":
-    "R2.15",
-  "application/testing/fake-ports.ts: FixedClock": "R2.15",
-  "application/testing/fake-ports.ts: SequentialIds": "R2.15",
-  "application/testing/fake-ports.ts: InMemoryProjectRepository": "R2.15",
-  "application/testing/fake-ports.ts: InMemoryTemplateCatalog": "R2.15",
-  "application/testing/fake-ports.ts: RecordingSimulationRunner": "R2.15",
-  "domain/random/random-source.ts: SeededRandom": "R2.15",
-};
-
 const misnamedInSrc = () =>
   findMisnamedClassFiles({ root: SRC, includes: isSourceFile }).map(
     ({ file, className }) => `${file}: ${className}`,
@@ -32,18 +16,7 @@ const misnamedInSrc = () =>
 
 describe("class files", () => {
   it("are named after their class in kebab case, everywhere in src/", () => {
-    const unexpected = misnamedInSrc().filter(
-      (key) => !(key in KNOWN_EXCEPTIONS),
-    );
-    expect(unexpected).toEqual([]);
-  });
-
-  it("have no stale known exceptions", () => {
-    const misnamed = new Set(misnamedInSrc());
-    const stale = Object.keys(KNOWN_EXCEPTIONS).filter(
-      (key) => !misnamed.has(key),
-    );
-    expect(stale).toEqual([]);
+    expect(misnamedInSrc()).toEqual([]);
   });
 
   // The check can fail: the fixture's class doesn't match its file name.

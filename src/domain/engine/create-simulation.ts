@@ -1,4 +1,5 @@
-import { deriveSeed, SeededRandom } from "../random/random-source";
+import { deriveSeed } from "../random/random-source";
+import { SeededRandom } from "../random/seeded-random";
 import { HeapEventQueue } from "./heap-event-queue";
 import {
   IntervalTickSampler,

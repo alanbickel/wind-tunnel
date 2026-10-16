@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
 import type { Project } from "../../domain/model/project";
-import { FAKE_RUN, RecordingSimulationRunner } from "../testing/fake-ports";
+import {
+  FAKE_RUN,
+  RecordingSimulationRunner,
+} from "../testing/recording-simulation-runner";
 import { sampleRecord } from "../testing/sample-record";
 import { RunSimulation } from "./run-simulation";
 

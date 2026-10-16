@@ -25,17 +25,15 @@ import type {
   TemplateCatalog,
   TemplateSummary,
 } from "../../application/ports/template-catalog";
-import {
-  FixedClock,
-  SequentialIds,
-} from "../../application/testing/fake-ports";
+import { FixedClock } from "../../application/testing/fixed-clock";
+import { SequentialIds } from "../../application/testing/sequential-ids";
 import { CreateProjectFromTemplate } from "../../application/use-cases/create-project-from-template";
 import { DeleteProject } from "../../application/use-cases/delete-project";
 import { ListProjects } from "../../application/use-cases/list-projects";
 import { OpenProject } from "../../application/use-cases/open-project";
 import { RunSimulation } from "../../application/use-cases/run-simulation";
 import { SaveProject } from "../../application/use-cases/save-project";
-import { IndexedDbProjectRepository } from "../persistence/indexeddb-project-repository";
+import { IndexedDbProjectRepository } from "../persistence/indexed-db-project-repository";
 import {
   openProjectDatabase,
   type ProjectDatabase,

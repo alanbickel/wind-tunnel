@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { distributionSchema, sample, type Distribution } from "./distribution";
-import { SeededRandom, type RandomSource } from "./random-source";
+import { type RandomSource } from "./random-source";
+import { SeededRandom } from "./seeded-random";
 
 const draw = (distribution: Distribution, count: number, seed = 1) => {
   const random = new SeededRandom(seed);

@@ -2,7 +2,8 @@ import type { EventQueue } from "../engine/event-queue";
 import { HeapEventQueue } from "../engine/heap-event-queue";
 import type { StepAction } from "../model/project";
 import { sample } from "../random/distribution";
-import { SeededRandom, type RandomSource } from "../random/random-source";
+import { type RandomSource } from "../random/random-source";
+import { SeededRandom } from "../random/seeded-random";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import type {
   ComponentBehavior,

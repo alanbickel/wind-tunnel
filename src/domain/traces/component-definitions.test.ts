@@ -8,7 +8,7 @@ import {
   messageQueueDefinition,
   workerPoolDefinition,
 } from "../components/testing/fake-definitions";
-import { SeededRandom } from "../random/random-source";
+import { SeededRandom } from "../random/seeded-random";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import { table } from "./format";
 

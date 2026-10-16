@@ -4,10 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
 import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
 import type { Project } from "../../domain/model/project";
-import {
-  FixedClock,
-  SequentialIds,
-} from "../../application/testing/fake-ports";
+import { FixedClock } from "../../application/testing/fixed-clock";
+import { SequentialIds } from "../../application/testing/sequential-ids";
 import { CreateProjectFromTemplate } from "../../application/use-cases/create-project-from-template";
 import { DeleteProject } from "../../application/use-cases/delete-project";
 import { ListProjects } from "../../application/use-cases/list-projects";
@@ -17,7 +15,7 @@ import { RunSimulation } from "../../application/use-cases/run-simulation";
 import { SaveProject } from "../../application/use-cases/save-project";
 import { InProcessSimulationRunner } from "../simulation/in-process-simulation-runner";
 import { createBundledTemplateCatalog } from "../templates/bundled-template-catalog";
-import { IndexedDbProjectRepository } from "./indexeddb-project-repository";
+import { IndexedDbProjectRepository } from "./indexed-db-project-repository";
 import { openProjectDatabase, type ProjectDatabase } from "./project-database";
 
 // The MVP use cases wired to the real adapters: IndexedDB (through

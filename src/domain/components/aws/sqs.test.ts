@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SeededRandom } from "../../random/random-source";
+import { SeededRandom } from "../../random/seeded-random";
 import { checkComponentContract } from "../check-component-contract";
 import { sqsDefinition } from "./sqs";
 

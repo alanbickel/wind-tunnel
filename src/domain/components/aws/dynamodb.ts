@@ -2,17 +2,13 @@ import { z } from "zod";
 import type { RateLimit } from "../../behaviors/rate-limit";
 import { TokenBucket } from "../../behaviors/token-bucket";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
-import type { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
-import type {
-  ArriveInput,
-  ComponentBehavior,
-  Effect,
-} from "../component-behavior";
+import type { ComponentBehavior } from "../component-behavior";
 import type {
   BuildContext,
   ComponentDefinition,
 } from "../component-definition";
+import { DynamoDbBehavior } from "./dynamo-db-behavior";
 
 const dynamoDbConfig = z.object({
   /** Provisioned read capacity units per second; each read uses one. */
@@ -52,52 +48,19 @@ export const dynamoDbDefinition: ComponentDefinition<DynamoDbConfig> = {
   deliversAsync: false,
   build<T>(
     config: DynamoDbConfig,
-    context: BuildContext,
+    { random }: BuildContext,
   ): ComponentBehavior<T> {
-    return new DynamoDbBehavior<T>(config, context);
+    const { burstSec } = config;
+    return new DynamoDbBehavior<T>({
+      reads: capacityBucket({ unitsPerSec: config.readUnitsPerSec, burstSec }),
+      writes: capacityBucket({
+        unitsPerSec: config.writeUnitsPerSec,
+        burstSec,
+      }),
+      latency: new SampledServiceTime(config.latency, random),
+    });
   },
 };
-
-/** DynamoDB's run-time state: read and write capacity, and requests in flight. */
-class DynamoDbBehavior<T> implements ComponentBehavior<T> {
-  readonly queueDepth = 0;
-  private readonly reads: RateLimit;
-  private readonly writes: RateLimit;
-  private readonly latency: ServiceTime;
-  private running = 0;
-
-  constructor(config: DynamoDbConfig, { random }: BuildContext) {
-    const { burstSec } = config;
-    this.reads = capacityBucket({
-      unitsPerSec: config.readUnitsPerSec,
-      burstSec,
-    });
-    this.writes = capacityBucket({
-      unitsPerSec: config.writeUnitsPerSec,
-      burstSec,
-    });
-    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.latency = new SampledServiceTime(config.latency, random);
-  }
-
-  get inProgress(): number {
-    return this.running;
-  }
-
-  arrive({ request, action, nowMs }: ArriveInput<T>): Effect<T>[] {
-    const capacity = action === "write" ? this.writes : this.reads;
-    if (!capacity.tryTake(nowMs)) {
-      return [{ kind: "rejected", request, reason: "throttled" }];
-    }
-    this.running++;
-    return [{ kind: "started", request, serviceMs: this.latency.next() }];
-  }
-
-  finish(): Effect<T>[] {
-    this.running--;
-    return [];
-  }
-}
 
 interface CapacityBucketInput {
   readonly unitsPerSec: number;

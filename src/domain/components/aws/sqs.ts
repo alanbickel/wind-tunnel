@@ -1,19 +1,12 @@
 import { z } from "zod";
-import { Queue } from "../../behaviors/queue";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
-import type { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
-import type {
-  ArriveInput,
-  ComponentBehavior,
-  DispatchFinishedInput,
-  Effect,
-  FinishInput,
-} from "../component-behavior";
+import type { ComponentBehavior } from "../component-behavior";
 import type {
   BuildContext,
   ComponentDefinition,
 } from "../component-definition";
+import { SqsBehavior } from "./sqs-behavior";
 
 const sqsConfig = z.object({
   /**
@@ -50,62 +43,10 @@ export const sqsDefinition: ComponentDefinition<SqsConfig> = {
   },
   actions: ["enqueue"],
   deliversAsync: true,
-  build<T>(config: SqsConfig, context: BuildContext): ComponentBehavior<T> {
-    return new SqsBehavior<T>(config, context);
+  build<T>(config: SqsConfig, { random }: BuildContext): ComponentBehavior<T> {
+    return new SqsBehavior<T>({
+      sendLatency: new SampledServiceTime(config.sendLatency, random),
+      consumerMaxConcurrency: config.consumerMaxConcurrency,
+    });
   },
 };
-
-/** SQS's run-time state: messages being sent, the backlog, and deliveries. */
-class SqsBehavior<T> implements ComponentBehavior<T> {
-  private readonly backlog = new Queue<T>();
-  private readonly sendLatency: ServiceTime;
-  private readonly consumerMaxConcurrency: number;
-  private sending = 0;
-  private delivering = 0;
-
-  constructor(config: SqsConfig, { random }: BuildContext) {
-    // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.sendLatency = new SampledServiceTime(config.sendLatency, random);
-    this.consumerMaxConcurrency = config.consumerMaxConcurrency;
-  }
-
-  get inProgress(): number {
-    return this.sending;
-  }
-
-  get queueDepth(): number {
-    return this.backlog.size;
-  }
-
-  arrive({ request }: ArriveInput<T>): Effect<T>[] {
-    this.sending++;
-    return [{ kind: "started", request, serviceMs: this.sendLatency.next() }];
-  }
-
-  finish({ request }: FinishInput<T>): Effect<T>[] {
-    this.sending--;
-    this.backlog.offer(request);
-    return this.deliver();
-  }
-
-  dispatchFinished({
-    request,
-    succeeded,
-  }: DispatchFinishedInput<T>): Effect<T>[] {
-    this.delivering--;
-    if (!succeeded) this.backlog.offer(request);
-    return this.deliver();
-  }
-
-  /** Dispatches waiting messages to every free consumer slot. */
-  private deliver(): Effect<T>[] {
-    const effects: Effect<T>[] = [];
-    while (this.delivering < this.consumerMaxConcurrency) {
-      const request = this.backlog.poll();
-      if (request === undefined) break;
-      this.delivering++;
-      effects.push({ kind: "dispatched", request });
-    }
-    return effects;
-  }
-}

@@ -23,13 +23,6 @@ const KNOWN_EXCEPTIONS: Record<string, string> = {
   "application/testing/fake-ports.ts: InMemoryTemplateCatalog": "R2.15",
   "application/testing/fake-ports.ts: RecordingSimulationRunner": "R2.15",
   "domain/random/random-source.ts: SeededRandom": "R2.15",
-  "domain/components/aws/api-gateway.ts: ApiGatewayBehavior": "R2.8",
-  "domain/components/aws/dynamodb.ts: DynamoDbBehavior": "R2.8",
-  "domain/components/aws/lambda.ts: LambdaBehavior": "R2.8",
-  "domain/components/aws/rds.ts: RdsBehavior": "R2.8",
-  "domain/components/aws/sqs.ts: SqsBehavior": "R2.8",
-  "domain/components/testing/fake-definitions.ts: WorkerPoolBehavior": "R2.8",
-  "domain/components/testing/fake-definitions.ts: MessageQueueBehavior": "R2.8",
 };
 
 const misnamedInSrc = () =>

@@ -163,7 +163,7 @@ The checker has its own tests, which feed it deliberately broken definitions to 
 
 1. Write a Zod `configSchema` and a `defaultConfig` that passes it.
 2. List the `actions` it accepts; set `deliversAsync` only for queue-like types.
-3. Write the run-time state as a class that implements `ComponentBehavior<T>`, and have `build` return a new instance (see `LambdaBehavior` in [`aws/lambda.ts`](../../src/domain/components/aws/lambda.ts)). Compose primitives from `src/domain/behaviors/`, and take randomness only from `context.random`.
+3. Write the run-time state as a class that implements `ComponentBehavior<T>`, in its own `<type>-behavior.ts` file. It takes a `<Class>Dependencies` object of primitive interfaces (`RateLimit`, `ConcurrencyLimit`, `ServiceTime`) and doesn't construct them itself (ADR-0009). `build` creates the primitives from the config (`TokenBucket`, `CountingSemaphore`, `SampledServiceTime`) and passes them in, taking randomness only from `context.random`. See [`aws/lambda.ts`](../../src/domain/components/aws/lambda.ts) and [`aws/lambda-behavior.ts`](../../src/domain/components/aws/lambda-behavior.ts).
 4. Return exactly one outcome from `arrive`; pass freed resources to waiters in `finish`. Each method takes one input object (`ArriveInput`, `FinishInput`, `DispatchFinishedInput`).
 5. Add a test that runs `checkComponentContract`, plus unit tests for the type's own behavior.
 6. Register it in `createAwsComponentRegistry` ([`aws/index.ts`](../../src/domain/components/aws/index.ts)), or in a new registry function for another provider.

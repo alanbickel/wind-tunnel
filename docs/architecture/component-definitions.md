@@ -138,7 +138,7 @@ t(ms)  engine calls  effects returned                  inProgress  queueDepth  w
 
 ## The contract every definition must pass
 
-[`checkComponentContract`](../../src/domain/components/check-component-contract.ts) plays the engine's part against any definition: two overload bursts separated by a long quiet period (so warm instances go cold), random hold times standing in for nested calls, and 20% failed async deliveries. It checks that:
+[`checkComponentContract`](../../src/domain/components/check-component-contract.ts) plays the engine's part against any definition, using the small event loop in [`ContractHarness`](../../src/domain/components/contract-harness.ts) rather than the real engine, so an engine bug can't hide a component bug. Its scenario has two overload bursts separated by a long quiet period (so warm instances go cold), random hold times standing in for nested calls, and 20% failed async deliveries. It checks that:
 
 - every arrival gets exactly one outcome, and nothing is started twice or after a rejection;
 - every queued request eventually starts, and all async work is eventually delivered;

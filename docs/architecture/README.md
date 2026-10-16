@@ -10,16 +10,7 @@ Wind Tunnel lets you model a cloud application's architecture (e.g. API Gateway 
 
 ## Core concepts
 
-The vocabulary below is used throughout the code and docs.
-
-| Term | Meaning | Example |
-|---|---|---|
-| **Component** | One cloud service instance in the model, with capacity behavior | A Lambda function, a DynamoDB table |
-| **Edge** | A connection between two components, with latency, timeout, and retry policy | Lambda → DynamoDB |
-| **Architecture** | The graph of components and edges | The whole diagram |
-| **Workflow** | A named, ordered list of steps a request takes through the architecture | "Checkout": API GW → OrderFn → DynamoDB write ×2 → SQS publish |
-| **Workload** | Which workflows run, in what mix, at what rate over time | 80% browse / 20% checkout, ramping 100 → 5,000 users |
-| **Run** | One execution of a workload against an architecture, producing metrics | p99 latency, throttles, queue depth over time |
+A **project** describes an architecture of **components** joined by **edges**, the **workflows** a request takes through it, and the **workloads** that send requests. A **run** plays a workload against the architecture and produces metrics. Every term is defined in the [glossary](../glossary.md).
 
 ```mermaid
 flowchart LR

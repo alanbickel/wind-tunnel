@@ -4,14 +4,15 @@ The starting point for maintainers. It lists every document in `docs/`, what eac
 
 ## New to the codebase? Read in this order
 
-1. [Architecture overview](architecture/README.md): vocabulary, layers, where code goes, and how the rules are enforced. (~10 min)
-2. [The domain model](architecture/domain-model.md): projects, architectures, workflows as call trees, and how documents are loaded and validated. (~7 min)
-3. [How the simulation engine works](architecture/simulation-engine.md): the event queue, behavior primitives, and the engine loop (calls, timeouts, retries), with diagrams and example timelines. (~14 min)
-4. [Component definitions](architecture/component-definitions.md): how a service type plugs into the engine through effects, the contract every type must pass, and the five AWS types. (~11 min)
-5. [How metrics work](architecture/metrics.md): ticks, per-second snapshots, run totals, type-specific gauges and counters, and latency histograms, with a worked example. (~9 min)
-6. [The application layer and persistence](architecture/application-layer.md): use cases, ports and their adapters, records vs. documents, and a project traced end to end through IndexedDB. (~10 min)
-7. [Implementation plan](implementation-plan.md): the current milestone and what's next. (~2 min)
-8. Skim the [ADR titles](#decisions-adrs) below. Read an ADR in full when you touch the area it covers.
+1. [Glossary](glossary.md): every domain term in a line or two, and how the runtime nouns nest. Keep it open while you read the rest. (~4 min)
+2. [Architecture overview](architecture/README.md): layers, where code goes, and how the rules are enforced. (~10 min)
+3. [The domain model](architecture/domain-model.md): projects, architectures, workflows as call trees, and how documents are loaded and validated. (~7 min)
+4. [How the simulation engine works](architecture/simulation-engine.md): the event queue, behavior primitives, and the engine loop (calls, timeouts, retries), with diagrams and example timelines. (~14 min)
+5. [Component definitions](architecture/component-definitions.md): how a service type plugs into the engine through effects, the contract every type must pass, and the five AWS types. (~11 min)
+6. [How metrics work](architecture/metrics.md): ticks, per-second snapshots, run totals, type-specific gauges and counters, and latency histograms, with a worked example. (~9 min)
+7. [The application layer and persistence](architecture/application-layer.md): use cases, ports and their adapters, records vs. documents, and a project traced end to end through IndexedDB. (~10 min)
+8. [Implementation plan](implementation-plan.md): the current milestone and what's next. (~2 min)
+9. Skim the [ADR titles](#decisions-adrs) below. Read an ADR in full when you touch the area it covers.
 
 Before your first change, read the [contributing guide](../CONTRIBUTING.md): coding standards, testing, and commit conventions. (~12 min)
 
@@ -35,6 +36,7 @@ Short, visual introductions to one part of the system. They explain how somethin
 
 | Document | Purpose |
 |---|---|
+| [Glossary](glossary.md) | Every domain term, with the type that holds it |
 | [MVP design](design/mvp-design.md) | Domain model, engine, project document format, templates, and testing strategy for the MVP |
 | [Fidelity: where Wind Tunnel differs from AWS](design/fidelity.md) | Every known simplification, what AWS actually does (cited or marked as an assumption), and which way it skews results |
 | [Implementation plan](implementation-plan.md) | Milestones, task status, and a progress log. Updated every session. |

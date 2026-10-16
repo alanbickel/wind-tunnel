@@ -36,6 +36,7 @@ Other scripts:
 Start at the [documentation hub](docs/README.md). It lists every document and a reading order for new maintainers. The most-used ones:
 
 - [Architecture overview](docs/architecture/README.md): start here if you're new to the code
+- [Glossary](docs/glossary.md): what the domain terms mean
 - [How the simulation engine works](docs/architecture/simulation-engine.md)
 - [Implementation plan](docs/implementation-plan.md)
 - [Contributing](CONTRIBUTING.md): coding standards, tests, and commit conventions

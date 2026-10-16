@@ -33,6 +33,8 @@ const { snapshots, totals } = simulateWithMetrics({
 | Tick events | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The `tickMs` input; the `tick` event and `ComponentSample` |
 | `TickSampler` | [`tick-sampler.ts`](../../src/domain/engine/tick-sampler.ts), [`interval-tick-sampler.ts`](../../src/domain/engine/interval-tick-sampler.ts), [`no-tick-sampler.ts`](../../src/domain/engine/no-tick-sampler.ts) (runs without `tickMs`) | Reports a `tick` every `tickMs`; tracks each component's peak in-progress and queue depth between ticks |
 | `MetricsCollector` | [`metrics-collector.ts`](../../src/domain/metrics/metrics-collector.ts) | Events and ticks → snapshots and totals; `simulateWithMetrics` |
+| `MetricsSnapshot` | [`metrics-snapshot.ts`](../../src/domain/metrics/metrics-snapshot.ts) | The snapshot types: `ComponentMetrics` and `WorkflowMetrics` for one window |
+| `Tally` | [`tally.ts`](../../src/domain/metrics/tally.ts), [`component-tally.ts`](../../src/domain/metrics/component-tally.ts), [`workflow-tally.ts`](../../src/domain/metrics/workflow-tally.ts) | Running counts per component and workflow; the collector keeps one for the current window and one for the run's totals |
 | `LatencyHistogram` | [`latency-histogram.ts`](../../src/domain/metrics/latency-histogram.ts) | Fixed buckets, percentiles, merging |
 
 ## Windows and ticks

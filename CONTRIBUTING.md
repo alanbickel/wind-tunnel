@@ -280,7 +280,7 @@ Some docs quote output that a test generates or checks. Change them together:
 
 | Doc | Test |
 |---|---|
-| Excerpts in the [engine](docs/architecture/simulation-engine.md), [component](docs/architecture/component-definitions.md), [domain model](docs/architecture/domain-model.md), and [metrics](docs/architecture/metrics.md) guides Snapshot traces in `src/domain/traces/`, from `traces.test.ts`. Accept an intended change with `npx vitest run -u src/domain/traces`, then update the excerpt in the guide |
+| Excerpts in the [engine](docs/architecture/simulation-engine.md), [component](docs/architecture/component-definitions.md), [domain model](docs/architecture/domain-model.md), and [metrics](docs/architecture/metrics.md) guides | Snapshot traces in `src/domain/traces/`, one test file per guide; refresh with `npx vitest run -u src/domain/traces`, then update the excerpt in the guide |
 | The sample reports in the [headless runner guide](docs/architecture/headless-runner.md) | Snapshots in `src/adapters/cli/reports/`; refresh with `npx vitest run -u src/adapters/cli` and read the diff |
 | Each template's lesson in [MVP design §7](docs/design/mvp-design.md) | `src/adapters/templates/template-scenarios.test.ts` |
 

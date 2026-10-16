@@ -271,7 +271,7 @@ A new AWS service (or any other component type) touches these places, all in the
 - Use the seed, not luck. Anything random runs from a fixed seed. Scenario tests that assert a template's lesson check several seeds (`src/adapters/templates/template-scenarios.test.ts`) with loose thresholds, so they pin the lesson rather than one run's numbers.
 - **Contract suites** check that an implementation keeps the promises of its interface. Every component type must pass `checkComponentContract`, and every `ProjectRepository` adapter must pass `checkProjectRepositoryContract` with an empty list of violations.
 - **Outputs must reconcile.** Totals in metrics and reports add up: started = succeeded + failed + in progress, and so on. Show work that's still in progress rather than dropping it, and test the remainders (see `src/adapters/cli/report-reconciles.test.ts`). Add a check when you add a column or a counter.
-- Latencies carry floating-point drift (`49.000000000000014`): compare them with `toBeCloseTo`.
+- Latencies carry floating-point drift (`49.000000000000014`): compare them with `toBeCloseTo`. Percentiles are bucket upper bounds, up to 5% high ([metrics guide](docs/architecture/metrics.md)).
 - Model changes come with before/after numbers from `npm run simulate`.
 
 ### Docs backed by tests
@@ -283,6 +283,11 @@ Some docs quote output that a test generates or checks. Change them together:
 | Excerpts in the [engine](docs/architecture/simulation-engine.md), [component](docs/architecture/component-definitions.md), [domain model](docs/architecture/domain-model.md), and [metrics](docs/architecture/metrics.md) guides | Snapshot traces in `src/domain/traces/`, one test file per guide; refresh with `npx vitest run -u src/domain/traces`, then update the excerpt in the guide |
 | The sample reports in the [headless runner guide](docs/architecture/headless-runner.md) | Snapshots in `src/adapters/cli/reports/`; refresh with `npx vitest run -u src/adapters/cli` and read the diff |
 | Each template's lesson in [MVP design §7](docs/design/mvp-design.md) | `src/adapters/templates/template-scenarios.test.ts` |
+
+## Gotchas
+
+- **No constructor parameter properties.** `erasableSyntaxOnly` is on, so `constructor(private readonly queue: EventQueue)` doesn't compile. Declare the field and assign it in the constructor.
+- **TypeScript is pinned to `~6.0`** because typescript-eslint doesn't support TypeScript 7 yet. For the same reason, the layer rules use typescript-eslint's `no-restricted-imports`, not ESLint's.
 
 ## Documentation
 
@@ -310,6 +315,7 @@ Record a significant decision as an ADR in `docs/adr/`, copying [the template](d
 
 - **Never edit an accepted ADR's body or decision.** To note how a later change affects it (a signature it quotes has changed, a file it links has moved), append a dated addendum.
 - **To change the decision,** write a new ADR that supersedes it, and update only the old one's status line.
+- **One exception:** ADRs 0002, 0003, and 0005 were edited in place when the project was renamed from Cloud Builder to Wind Tunnel, as a one-off.
 
 ## Commits
 

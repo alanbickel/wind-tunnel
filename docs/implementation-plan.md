@@ -6,7 +6,7 @@ Tracks milestone progress for the MVP described in [`design/mvp-design.md`](desi
 
 1. Read `CLAUDE.md`, then this file.
 2. Find the current milestone (the first one not marked ✅) and the first unchecked task in it.
-3. Read the [Progress log](#progress-log) for decisions and gotchas from earlier sessions.
+3. Read the [Progress log](#progress-log) for decisions from earlier sessions, and CONTRIBUTING's [Gotchas](../CONTRIBUTING.md#gotchas).
 4. Read only the docs the current task needs; don't re-derive settled decisions (see `docs/adr/`).
 
 ## How to finish a milestone
@@ -97,7 +97,9 @@ Ports, `ProjectRecord`s and the document mapper (ADR-0008), document migration s
 - [x] **R2.13 One map for the docs.** Rewritten with the user: the root README is the map of every document; a `docs/` folder may have one `<folder>-overview.md`, and the root README links only to that overview; `docs/README.md` became [`getting-started.md`](getting-started.md) (setup, reading order, first change); all curation guidance lives in CONTRIBUTING §Documentation, and CLAUDE.md points to it.
 
   *Done:* `architecture/README.md` → `architecture-overview.md`, which now lists its guides; the ADR table moved to `adr/adr-overview.md`; ADR-0002 got an addendum for the moved overview. The "I want to…" routes weren't added: the overview's "Where does my code go?" table already does that job, and getting started points to it. Stale text cut: the README's status, the overview's status blurb and its "Planned" section's intro, and a "What Wind Tunnel does" section that repeated the README.
-- [ ] **R2.14 Move the gotchas.** Move the progress log's "Gotchas (still apply)" into a CONTRIBUTING "Gotchas" section, and delete it from this file.
+- [x] **R2.14 Move the gotchas.** Move the progress log's "Gotchas (still apply)" into a CONTRIBUTING "Gotchas" section, and delete it from this file.
+
+  *Done:* only two needed the new section (`erasableSyntaxOnly`, the TypeScript pin). The rest were already written down: Vitest in §Setup, float drift in §Tests (percentiles added beside it), and effects without timers or cancellation in the engine and component guides. The ADR rename exception went to §ADRs.
 - [ ] **R2.15 One class per file** (rule 11). Move the classes still listed under R2.15 in `tests/architecture/class-files.test.ts`: the five fakes in `application/testing/fake-ports.ts` to a file each, `SeededRandom` to `seeded-random.ts` (`RandomSource` stays in `random-source.ts`), and `indexeddb-project-repository.ts` to `indexed-db-project-repository.ts`. Remove the R2.15 exceptions and disable comment. Moves and renames only.
 
 ## M3: Minimal UI
@@ -140,12 +142,3 @@ Newest first. Record what was built, what differs from the plan, and what the ne
 - **Templates:** `template-scenarios.test.ts` asserts each template's lesson by phase on seeds 42, 7, and 2026; a template change that alters its lesson must update it. Tuning results are in MVP design §7. Refresh the report snapshots with `npx vitest run -u src/adapters/cli`; every total in the report reconciles (`report-reconciles.test.ts`).
 - **Headless runner:** `scripts/simulate.js` loads TypeScript with Vite's experimental `runnerImport` (about 2 s startup), not `tsx`.
 - **Known model gaps** (in TODO.md and `docs/design/fidelity.md`): SQS has no visibility timeout, Lambda cold starts are checked lazily on arrival, and Template A understates AWS (LMB-8, RDS-2, RDS-4).
-
-### Gotchas (still apply)
-
-- Vitest doesn't type-check: run `npx tsc -b` (or `npm run check`) before trusting a green test run.
-- `erasableSyntaxOnly` is on: no constructor parameter properties; declare fields explicitly.
-- Latencies carry float drift (49.000000000000014): assert with `toBeCloseTo`. Percentiles are bucket upper bounds, up to 5% high.
-- Components talk to the engine through effects (ADR-0006); there's no timer effect yet, and no cancellation (a timed-out callee still finishes).
-- TypeScript is pinned to `~6.0` because typescript-eslint doesn't support TS 7 yet. Layer rules use typescript-eslint's `no-restricted-imports`.
-- The project was renamed from Cloud Builder; ADRs 0002, 0003, and 0005 were edited in place for the rename with the user's approval, a one-off exception to ADR immutability.

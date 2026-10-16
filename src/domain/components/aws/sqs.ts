@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Queue } from "../../behaviors/queue";
-import { ServiceTime } from "../../behaviors/service-time";
+import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import type { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
 import type {
   ArriveInput,
@@ -64,7 +65,7 @@ class SqsBehavior<T> implements ComponentBehavior<T> {
 
   constructor(config: SqsConfig, { random }: BuildContext) {
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.sendLatency = new ServiceTime(config.sendLatency, random);
+    this.sendLatency = new SampledServiceTime(config.sendLatency, random);
     this.consumerMaxConcurrency = config.consumerMaxConcurrency;
   }
 

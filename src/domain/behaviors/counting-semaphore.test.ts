@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ConcurrencyLimit } from "./concurrency-limit";
+import { CountingSemaphore } from "./counting-semaphore";
 
-describe("ConcurrencyLimit", () => {
+describe("CountingSemaphore", () => {
   describe("when full, rejects", () => {
     it("admits up to the limit, then rejects", () => {
-      const limit = new ConcurrencyLimit<string>({
+      const limit = new CountingSemaphore<string>({
         limit: 2,
         whenFull: "reject",
       });
@@ -16,7 +16,7 @@ describe("ConcurrencyLimit", () => {
     });
 
     it("frees a slot on release", () => {
-      const limit = new ConcurrencyLimit<string>({
+      const limit = new CountingSemaphore<string>({
         limit: 1,
         whenFull: "reject",
       });
@@ -29,7 +29,7 @@ describe("ConcurrencyLimit", () => {
 
   describe("when full, queues", () => {
     it("queues waiters and hands freed slots to them in order", () => {
-      const limit = new ConcurrencyLimit<string>({
+      const limit = new CountingSemaphore<string>({
         limit: 1,
         whenFull: "queue",
       });
@@ -46,7 +46,7 @@ describe("ConcurrencyLimit", () => {
     });
 
     it("rejects when the wait queue is full", () => {
-      const limit = new ConcurrencyLimit<string>({
+      const limit = new CountingSemaphore<string>({
         limit: 1,
         whenFull: "queue",
         queueCapacity: 1,
@@ -58,7 +58,7 @@ describe("ConcurrencyLimit", () => {
   });
 
   it("rejects everything with a limit of zero", () => {
-    const limit = new ConcurrencyLimit<string>({
+    const limit = new CountingSemaphore<string>({
       limit: 0,
       whenFull: "reject",
     });
@@ -66,7 +66,7 @@ describe("ConcurrencyLimit", () => {
   });
 
   it("throws when releasing more than was acquired", () => {
-    const limit = new ConcurrencyLimit<string>({
+    const limit = new CountingSemaphore<string>({
       limit: 1,
       whenFull: "reject",
     });

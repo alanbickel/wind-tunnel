@@ -1,11 +1,13 @@
 /* eslint-disable max-classes-per-file -- each behavior moves to its own file in R2.8 */
 import { z } from "zod";
-import {
+import type {
+  AcquireResult,
   ConcurrencyLimit,
-  type AcquireResult,
 } from "../../behaviors/concurrency-limit";
+import { CountingSemaphore } from "../../behaviors/counting-semaphore";
 import { Queue } from "../../behaviors/queue";
-import { ServiceTime } from "../../behaviors/service-time";
+import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import type { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
 import { lookup } from "../../shared/kind-handlers";
 import type {
@@ -71,13 +73,13 @@ class WorkerPoolBehavior<T> implements ComponentBehavior<T> {
 
   constructor(config: WorkerPoolConfig, { random }: BuildContext) {
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.workers = new ConcurrencyLimit<T>({
+    this.workers = new CountingSemaphore<T>({
       limit: config.workers,
       whenFull: "queue",
       queueCapacity: config.queueCapacity,
     });
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.serviceTime = new ServiceTime(config.serviceTime, random);
+    this.serviceTime = new SampledServiceTime(config.serviceTime, random);
   }
 
   get inProgress(): number {

@@ -1,6 +1,8 @@
 import { z } from "zod";
-import { ConcurrencyLimit } from "../../behaviors/concurrency-limit";
-import { ServiceTime } from "../../behaviors/service-time";
+import type { ConcurrencyLimit } from "../../behaviors/concurrency-limit";
+import { CountingSemaphore } from "../../behaviors/counting-semaphore";
+import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import type { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
 import type {
   ArriveInput,
@@ -76,14 +78,14 @@ class LambdaBehavior<T> implements ComponentBehavior<T> {
 
   constructor(config: LambdaConfig, { random }: BuildContext) {
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.slots = new ConcurrencyLimit<T>({
+    this.slots = new CountingSemaphore<T>({
       limit: config.concurrency,
       whenFull: "reject",
     });
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.coldStart = new ServiceTime(config.coldStart, random);
+    this.coldStart = new SampledServiceTime(config.coldStart, random);
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.computeTime = new ServiceTime(config.computeTime, random);
+    this.computeTime = new SampledServiceTime(config.computeTime, random);
     this.idleTimeoutMs = config.idleTimeoutSec * 1000;
   }
 

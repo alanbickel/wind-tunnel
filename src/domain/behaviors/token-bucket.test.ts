@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { RateLimit } from "./rate-limit";
+import type { RateLimit } from "./rate-limit";
+import { TokenBucket } from "./token-bucket";
 
 const takeMany = (limit: RateLimit, nowMs: number, count: number) =>
   Array.from({ length: count }, () => limit.tryTake(nowMs)).filter(Boolean)
     .length;
 
-describe("RateLimit", () => {
+describe("TokenBucket", () => {
   it("allows a burst up to the bucket size, then throttles", () => {
-    const limit = new RateLimit({ ratePerSec: 10, burst: 5 });
+    const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
     expect(takeMany(limit, 0, 8)).toBe(5);
   });
 
   it("refills at the steady rate", () => {
-    const limit = new RateLimit({ ratePerSec: 10, burst: 5 });
+    const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
     takeMany(limit, 0, 5);
     expect(limit.tryTake(50)).toBe(false); // half a token so far
     expect(limit.tryTake(100)).toBe(true); // one token after 100 ms
@@ -21,12 +22,12 @@ describe("RateLimit", () => {
   });
 
   it("never holds more than the burst size", () => {
-    const limit = new RateLimit({ ratePerSec: 1000, burst: 5 });
+    const limit = new TokenBucket({ ratePerSec: 1000, burst: 5 });
     expect(limit.available(60_000)).toBe(5);
   });
 
   it("sustains its rate over a long period", () => {
-    const limit = new RateLimit({ ratePerSec: 100, burst: 1 });
+    const limit = new TokenBucket({ ratePerSec: 100, burst: 1 });
     let admitted = 0;
     for (let ms = 0; ms <= 10_000; ms++) {
       if (limit.tryTake(ms)) admitted++;
@@ -37,16 +38,16 @@ describe("RateLimit", () => {
   });
 
   it("rejects time going backwards", () => {
-    const limit = new RateLimit({ ratePerSec: 1, burst: 1 });
+    const limit = new TokenBucket({ ratePerSec: 1, burst: 1 });
     limit.tryTake(100);
     expect(() => limit.tryTake(50)).toThrow(RangeError);
   });
 
   it("rejects invalid options", () => {
-    expect(() => new RateLimit({ ratePerSec: -1, burst: 1 })).toThrow(
+    expect(() => new TokenBucket({ ratePerSec: -1, burst: 1 })).toThrow(
       RangeError,
     );
-    expect(() => new RateLimit({ ratePerSec: 1, burst: 0 })).toThrow(
+    expect(() => new TokenBucket({ ratePerSec: 1, burst: 0 })).toThrow(
       RangeError,
     );
   });

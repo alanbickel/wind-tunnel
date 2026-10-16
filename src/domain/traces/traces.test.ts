@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ConcurrencyLimit } from "../behaviors/concurrency-limit";
-import { RateLimit } from "../behaviors/rate-limit";
+import { CountingSemaphore } from "../behaviors/counting-semaphore";
+import { TokenBucket } from "../behaviors/token-bucket";
 import { HeapEventQueue } from "../engine/heap-event-queue";
 import type { Edge, Project } from "../model/project";
 import { validateProject } from "../model/validate-project";
@@ -133,7 +133,7 @@ describe("traces", () => {
   });
 
   it("RateLimit: burst, then the steady rate", async () => {
-    const limit = new RateLimit({ ratePerSec: 10, burst: 5 });
+    const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
     const rows: string[][] = [];
     const step = (timeMs: number, requests: number) => {
       const before = limit.available(timeMs);
@@ -157,7 +157,7 @@ describe("traces", () => {
   });
 
   it("ConcurrencyLimit: queueing hands freed slots to waiters", async () => {
-    const limit = new ConcurrencyLimit<string>({
+    const limit = new CountingSemaphore<string>({
       limit: 2,
       whenFull: "queue",
       queueCapacity: 2,

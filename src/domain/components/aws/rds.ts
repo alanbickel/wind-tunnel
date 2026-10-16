@@ -1,6 +1,8 @@
 import { z } from "zod";
-import { ConcurrencyLimit } from "../../behaviors/concurrency-limit";
-import { ServiceTime } from "../../behaviors/service-time";
+import type { ConcurrencyLimit } from "../../behaviors/concurrency-limit";
+import { CountingSemaphore } from "../../behaviors/counting-semaphore";
+import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import type { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
 import type {
   ArriveInput,
@@ -63,17 +65,17 @@ class RdsBehavior<T> implements ComponentBehavior<T> {
 
   constructor(config: RdsConfig, { random }: BuildContext) {
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.connections = new ConcurrencyLimit<T>({
+    this.connections = new CountingSemaphore<T>({
       limit: config.maxConnections,
       whenFull: "reject",
     });
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.workers = new ConcurrencyLimit<T>({
+    this.workers = new CountingSemaphore<T>({
       limit: config.queryWorkers,
       whenFull: "queue",
     });
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.queryTime = new ServiceTime(config.queryTime, random);
+    this.queryTime = new SampledServiceTime(config.queryTime, random);
   }
 
   get inProgress(): number {

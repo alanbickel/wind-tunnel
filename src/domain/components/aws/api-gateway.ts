@@ -1,6 +1,8 @@
 import { z } from "zod";
-import { RateLimit } from "../../behaviors/rate-limit";
-import { ServiceTime } from "../../behaviors/service-time";
+import type { RateLimit } from "../../behaviors/rate-limit";
+import { TokenBucket } from "../../behaviors/token-bucket";
+import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import type { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
 import type {
   ArriveInput,
@@ -56,12 +58,12 @@ class ApiGatewayBehavior<T> implements ComponentBehavior<T> {
 
   constructor(config: ApiGatewayConfig, { random }: BuildContext) {
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.limit = new RateLimit({
+    this.limit = new TokenBucket({
       ratePerSec: config.ratePerSec,
       burst: config.burst,
     });
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.overhead = new ServiceTime(config.overhead, random);
+    this.overhead = new SampledServiceTime(config.overhead, random);
   }
 
   get inProgress(): number {

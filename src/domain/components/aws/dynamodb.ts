@@ -1,6 +1,8 @@
 import { z } from "zod";
-import { RateLimit } from "../../behaviors/rate-limit";
-import { ServiceTime } from "../../behaviors/service-time";
+import type { RateLimit } from "../../behaviors/rate-limit";
+import { TokenBucket } from "../../behaviors/token-bucket";
+import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import type { ServiceTime } from "../../behaviors/service-time";
 import { distributionSchema } from "../../random/distribution";
 import type {
   ArriveInput,
@@ -75,7 +77,7 @@ class DynamoDbBehavior<T> implements ComponentBehavior<T> {
       burstSec,
     });
     // eslint-disable-next-line no-restricted-syntax -- moves to a factory in R2.8 (ADR-0009)
-    this.latency = new ServiceTime(config.latency, random);
+    this.latency = new SampledServiceTime(config.latency, random);
   }
 
   get inProgress(): number {
@@ -108,7 +110,7 @@ function capacityBucket({
   unitsPerSec,
   burstSec,
 }: CapacityBucketInput): RateLimit {
-  return new RateLimit({
+  return new TokenBucket({
     ratePerSec: unitsPerSec,
     burst: Math.max(1, unitsPerSec * burstSec),
   });

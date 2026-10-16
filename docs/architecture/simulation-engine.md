@@ -37,14 +37,14 @@ t(ms)  seq  event
 
 ## Behavior primitives
 
-The engine doesn't know what "Lambda" or "RDS" are. Each component type is assembled from four small primitives in [`src/domain/behaviors/`](../../src/domain/behaviors/). Each one holds state; none of them schedules events or knows about the clock, except that `RateLimit` is told the current time.
+The engine doesn't know what "Lambda" or "RDS" are. Each component type is assembled from four small primitives in [`src/domain/behaviors/`](../../src/domain/behaviors/). Each one holds state; none of them schedules events or knows about the clock, except that `RateLimit` is told the current time. Three of them are interfaces (ADR-0009), each with one implementation.
 
-| Primitive | Question it answers | Models |
-|---|---|---|
-| `RateLimit` | "Is this request allowed right now?" | API Gateway throttling, DynamoDB capacity |
-| `ConcurrencyLimit` | "Is there a free slot? If not, wait or fail?" | Lambda concurrency, RDS connections and query workers |
-| `Queue` | "Who's next?" | SQS, and the wait line inside `ConcurrencyLimit` |
-| `ServiceTime` | "How long does this piece of work take?" | Compute time, query time, network overhead |
+| Primitive | Implemented by | Question it answers | Models |
+|---|---|---|---|
+| `RateLimit` | `TokenBucket` | "Is this request allowed right now?" | API Gateway throttling, DynamoDB capacity |
+| `ConcurrencyLimit` | `CountingSemaphore` | "Is there a free slot? If not, wait or fail?" | Lambda concurrency, RDS connections and query workers |
+| `Queue` | (a class) | "Who's next?" | SQS, and the wait line inside `CountingSemaphore` |
+| `ServiceTime` | `SampledServiceTime` | "How long does this piece of work take?" | Compute time, query time, network overhead |
 
 ### RateLimit: a token bucket
 

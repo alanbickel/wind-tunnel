@@ -2,6 +2,72 @@
 
 How the code is organized: the layers, the dependency rule, where new code goes, and how tooling enforces it. Decisions behind it are recorded in the [ADRs](../adr/adr-overview.md). The browser UI and the Web Worker runner are still to come (M3).
 
+## The system at a glance
+
+These are [C4](https://c4model.com/) diagrams. The context diagram (level 1) shows who uses Wind Tunnel; the container diagram (level 2) shows the programs and data stores it's made of. There's no server and no AWS account: everything runs on the user's machine. Each [guide](#the-guides-in-this-folder) adds a component diagram (level 3) for its part of the code, and a class diagram (level 4) where a factory wires a class's collaborators.
+
+Each box names its kind in brackets. A dashed boundary groups what's inside a system, container, or folder.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart LR
+    p["<b>Person</b>"]:::person
+    s["<b>System or container</b><br/>the diagram's subject"]:::system
+    c["<b>Component</b><br/>inside the boundary"]:::component
+    x["<b>Outside the boundary</b><br/>shown for context"]:::external
+    f["<b>Planned</b><br/>not built yet"]:::planned
+    p ~~~ s ~~~ c ~~~ x ~~~ f
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
+```
+
+### Context
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart TB
+    user["<b>User</b><br/>[Person]<br/>Designs a cloud architecture<br/>and stress-tests it"]:::person
+    dev["<b>Maintainer</b><br/>[Person]<br/>Changes the engine, the<br/>component types, or templates"]:::person
+    wt["<b>Wind Tunnel</b><br/>[Software System]<br/>Plays a workload against an<br/>architecture and shows how it behaves"]:::system
+    user -->|"Builds projects, runs<br/>workloads, reads charts"| wt
+    dev -->|"Runs templates from<br/>the terminal"| wt
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
+```
+
+### Containers
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart TB
+    user["<b>User</b><br/>[Person]"]:::person
+    dev["<b>Maintainer</b><br/>[Person]"]:::person
+    subgraph wt["Wind Tunnel [Software System]"]
+        app["<b>Browser app</b><br/>[Container: React, TypeScript]<br/>Edits projects, starts runs,<br/>shows charts. UI comes in M3"]:::system
+        worker["<b>Simulation Worker</b><br/>[Container: Web Worker]<br/>Runs the engine off<br/>the UI thread"]:::planned
+        db[("<b>Project store</b><br/>[Container: IndexedDB]<br/>Saved projects as<br/>versioned documents")]:::system
+        cli["<b>Headless runner</b><br/>[Container: Node, npm run simulate]<br/>Runs a template and<br/>prints a text report"]:::system
+    end
+    user -->|"Uses<br/>[browser]"| app
+    app -->|"Reads and writes projects<br/>[idb]"| db
+    app -->|"Starts runs, receives snapshots<br/>[postMessage]"| worker
+    dev -->|"Runs<br/>[terminal]"| cli
+    style wt fill:none,stroke:#666,stroke-dasharray:5 5
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
+```
+
+The browser app, the Worker, and the headless runner run the same `domain/` and `application/` code, organized as in [Layers and the dependency rule](#layers-and-the-dependency-rule). The browser app is a shell until M3 wires it up.
+
 ## Core concepts
 
 A **project** describes an architecture of **components** joined by **edges**, the **workflows** a request takes through it, and the **workloads** that send requests. A **run** plays a workload against the architecture and produces metrics. Every term is defined in the [glossary](../glossary.md).

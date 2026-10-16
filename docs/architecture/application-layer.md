@@ -8,22 +8,39 @@ An introduction to the use cases, the ports they work through, and the adapters 
 
 A **use case** is one thing a user can do: create a project from a template, save it, run it. It lives in `src/application/use-cases/` and knows nothing about IndexedDB, Web Workers, or the system clock. Anything it needs from the outside world, it asks for through a **port**: an interface in `src/application/ports/`. An **adapter** in `src/adapters/` implements the port. Tests plug in in-memory fakes instead.
 
+How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-glance) explains the colors):
+
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
 flowchart LR
+    cli["<b>runSimulateCommand</b><br/>[adapters/cli]"]:::external
+    ui["<b>React UI</b><br/>[ui, M3]"]:::planned
     subgraph app["application/"]
-        UC["Use cases<br/>CreateProjectFromTemplate, SaveProject, ..."]
-        P["Ports<br/>ProjectRepository, TemplateCatalog,<br/>SimulationRunner, Clock, IdGenerator,<br/>StoragePersistence"]
-        F["testing/<br/>InMemoryProjectRepository, FixedClock,<br/>SequentialIds, RecordingSimulationRunner, ..."]
+        uc["<b>Use cases</b><br/>[Component: use-cases/]<br/>CreateProjectFromTemplate, SaveProject,<br/>OpenProject, RunSimulation, ..."]:::component
+        ports["<b>Ports</b><br/>[Component: ports/, interfaces]<br/>ProjectRepository, TemplateCatalog,<br/>SimulationRunner, Clock, IdGenerator,<br/>StoragePersistence"]:::component
+        fakes["<b>Fakes</b><br/>[Component: testing/]<br/>InMemoryProjectRepository, FixedClock,<br/>SequentialIds, ..."]:::component
     end
     subgraph ad["adapters/"]
-        IDB["persistence/<br/>IndexedDbProjectRepository"]
-        TC["templates/<br/>BundledTemplateCatalog"]
-        RUN["simulation/<br/>InProcessSimulationRunner"]
-        SP["persistence/<br/>BrowserStoragePersistence"]
+        repo["<b>IndexedDbProjectRepository</b><br/>[Component: persistence/]"]:::component
+        cat["<b>BundledTemplateCatalog</b><br/>[Component: templates/]"]:::component
+        run["<b>InProcessSimulationRunner</b><br/>[Component: simulation/]"]:::component
+        sp["<b>BrowserStoragePersistence</b><br/>[Component: persistence/]"]:::component
     end
-    UC --> P
-    F -.->|implements, in tests| P
-    IDB & TC & RUN & SP -.->|implements| P
+    db[("<b>Project store</b><br/>[Container: IndexedDB]")]:::system
+    dom["<b>domain/</b><br/>simulateWithMetrics, Project"]:::external
+    cli & ui -->|"execute()"| uc
+    uc -->|"calls"| ports
+    fakes -.->|"implements, in tests"| ports
+    ad -.->|"each implements a port"| ports
+    repo -->|"reads and writes documents"| db
+    run -->|"runs"| dom
+    style app fill:none,stroke:#666,stroke-dasharray:5 5
+    style ad fill:none,stroke:#666,stroke-dasharray:5 5
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
 ```
 
 Because the use cases see only ports, the same use case runs against fakes in a unit test, against IndexedDB in an integration test, and inside the CLI, unchanged.

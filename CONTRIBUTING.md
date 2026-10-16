@@ -293,6 +293,7 @@ Write for a maintainer who is new to the codebase: say what something does and w
 - **Keep the [architecture overview](docs/architecture/architecture-overview.md)** and its Mermaid diagrams current in the same change that alters the structure.
 - **AWS claims** go through the fidelity catalog, as in [Adding a component type](#adding-a-component-type).
 - **Diagrams** are [Mermaid](https://mermaid.js.org/), so they live in the Markdown and show up in diffs. In VS Code, the "Markdown Preview Mermaid Support" extension renders them.
+- **C4 diagrams** show the code at four levels, one diagram per level per place: context and containers (levels 1 and 2) in the architecture overview, one component diagram (level 3) in each guide, and a `classDiagram` (level 4) in the guide for a class whose collaborators a factory wires. Draw levels 1–3 as flowcharts styled like the [legend](docs/architecture/architecture-overview.md#the-system-at-a-glance), copying its `classDef` lines; Mermaid's own C4 diagrams don't lay out legibly.
 
 ### Where a document goes, and how it's found
 

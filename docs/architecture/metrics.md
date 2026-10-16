@@ -6,15 +6,32 @@ How a run's events become per-second snapshots and run totals, for maintainers n
 
 The engine knows nothing about metrics. It reports everything that happens to an **observer** as `SimulationEvent`s, and, when asked, reports a **tick** every simulated second with each component's current state. [`MetricsCollector`](../../src/domain/metrics/metrics-collector.ts) is that observer. It counts events into the current **window**, and on each tick it closes the window into a `MetricsSnapshot`.
 
+How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-glance) explains the colors):
+
 ```mermaid
-flowchart LR
-    E[simulate<br/>engine loop] -->|"arrived, rejected, finished,<br/>workflow-finished, ..."| C[MetricsCollector]
-    E -->|"tick (every tickMs):<br/>a ComponentSample per component"| C
-    B[ComponentBehavior<br/>inProgress, queueDepth,<br/>gauges, counters] -.->|read at each tick| E
-    C -->|on each tick| S[MetricsSnapshot<br/>one per second]
-    C -->|at the end| T[Run totals]
-    S --> O[UI charts, text report,<br/>scenario tests]
-    T --> O
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart TB
+    caller["<b>InProcessSimulationRunner, scenario tests</b><br/>[adapters, tests]"]:::external
+    subgraph met["domain/metrics"]
+        swm["<b>simulateWithMetrics</b><br/>[Component: factory]<br/>Runs simulate with a collector attached,<br/>ticking every 1,000 ms"]:::component
+        coll["<b>MetricsCollector</b><br/>[Component]<br/>Counts events into the window,<br/>closes a snapshot on each tick"]:::component
+        tally["<b>Tally</b><br/>[Component]<br/>Running counts per component and workflow"]:::component
+        hist["<b>LatencyHistogram</b><br/>[Component]<br/>Fixed buckets, percentiles"]:::component
+    end
+    eng["<b>simulate</b><br/>[domain/engine]"]:::external
+    beh["<b>ComponentBehavior</b><br/>[domain/components]<br/>inProgress, queueDepth,<br/>gauges, counters"]:::external
+    caller -->|"simulateWithMetrics(input);<br/>gets each snapshot and the totals"| swm
+    swm -->|"simulate, with the<br/>collector as observer"| eng
+    eng -->|"SimulationEvents; metrics-tick with<br/>a ComponentSample per component"| coll
+    eng -.->|"reads at each tick"| beh
+    coll -->|"counts into a window<br/>tally and a totals tally"| tally
+    tally -->|"latencies into"| hist
+    style met fill:none,stroke:#666,stroke-dasharray:5 5
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
 ```
 
 Usually you don't wire this up yourself; `simulateWithMetrics` does it and ticks every 1,000 ms:
@@ -36,6 +53,33 @@ const { snapshots, totals } = simulateWithMetrics({
 | `MetricsSnapshot` | [`metrics-snapshot.ts`](../../src/domain/metrics/metrics-snapshot.ts) | The snapshot types: `ComponentMetrics` and `WorkflowMetrics` for one window |
 | `Tally` | [`tally.ts`](../../src/domain/metrics/tally.ts), [`component-tally.ts`](../../src/domain/metrics/component-tally.ts), [`workflow-tally.ts`](../../src/domain/metrics/workflow-tally.ts) | Running counts per component and workflow; the collector keeps one for the current window and one for the run's totals |
 | `LatencyHistogram` | [`latency-histogram.ts`](../../src/domain/metrics/latency-histogram.ts) | Fixed buckets, percentiles, merging |
+
+The collector builds its two `Tally`s itself, because they only store data; a factory builds the collector ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)):
+
+```mermaid
+classDiagram
+    direction TB
+    class simulateWithMetrics {
+        <<factory>>
+        simulateWithMetrics(input) MetricsRun
+    }
+    class MetricsCollector {
+        snapshots
+        observe(event)
+        totals() MetricsSnapshot
+    }
+    class Tally {
+        snapshot(startMs, endMs) MetricsSnapshot
+    }
+    simulateWithMetrics ..> MetricsCollector : creates
+    simulateWithMetrics ..> simulate : calls, with observe
+    MetricsCollector *-- "2" Tally : window, total
+    Tally *-- "per component" ComponentTally
+    Tally *-- "per workflow" WorkflowTally
+    ComponentTally *-- LatencyHistogram : latency, asyncLatency
+    WorkflowTally *-- LatencyHistogram : latency
+    MetricsCollector ..> MetricsSnapshot : produces
+```
 
 ## Windows and ticks
 

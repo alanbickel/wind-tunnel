@@ -154,6 +154,98 @@ Two kinds of "event" meet in the loop, and the code names them apart. What `Simu
 | `Call`, `Attempt`, `Visit` | [`runtime-records.ts`](../../src/domain/engine/runtime-records.ts) | The records a run creates: a request makes calls, a call makes attempts, an attempt becomes a visit |
 | `TickSampler` | [`tick-sampler.ts`](../../src/domain/engine/tick-sampler.ts), [`interval-tick-sampler.ts`](../../src/domain/engine/interval-tick-sampler.ts), [`no-tick-sampler.ts`](../../src/domain/engine/no-tick-sampler.ts) (runs without `tickMs`) | Reports a `metrics-tick` with every component's state every `tickMs`, and tracks peaks between ticks |
 
+How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-glance) explains the colors):
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart TB
+    caller["<b>simulateWithMetrics, tests</b><br/>[domain/metrics, tests]"]:::external
+    subgraph eng["domain/engine"]
+        create["<b>createSimulation</b><br/>[Component: factory]<br/>Builds a run's collaborators<br/>and random streams"]:::component
+        sim["<b>Simulation</b><br/>[Component]<br/>The loop: calls, attempts,<br/>visits, timeouts, retries"]:::component
+        queue["<b>EventQueue</b><br/>[Component]<br/>ScheduledWork, earliest first"]:::component
+        topo["<b>Topology</b><br/>[Component]<br/>Components, edges, workflows"]:::component
+        arr["<b>ArrivalProcess</b><br/>[Component]<br/>When users arrive,<br/>which workflow they run"]:::component
+        ticks["<b>TickSampler</b><br/>[Component]<br/>A metrics-tick every tickMs"]:::component
+    end
+    reg["<b>ComponentRegistry</b><br/>[domain/components]"]:::external
+    beh["<b>ComponentBehavior</b><br/>[domain/components]<br/>one per component"]:::external
+    obs["<b>Observer</b><br/>[e.g. MetricsCollector]"]:::external
+    caller -->|"simulate(input)"| create
+    create -->|"builds and wires"| sim
+    sim -->|"schedules, pops"| queue
+    sim -->|"looks up"| topo
+    sim -->|"next arrival"| arr
+    sim -->|"ticks due, peaks"| ticks
+    topo -->|"build() per component"| reg
+    sim -->|"arrive, finish;<br/>effects back"| beh
+    sim -->|"SimulationEvent"| obs
+    ticks -->|"metrics-tick"| obs
+    style eng fill:none,stroke:#666,stroke-dasharray:5 5
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
+```
+
+`createSimulation` is the only place these are built ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)). `Simulation` sees only the interfaces; the factory picks each implementation:
+
+```mermaid
+classDiagram
+    direction TB
+    class createSimulation {
+        <<factory>>
+        createSimulation(input) Simulation
+    }
+    class Simulation {
+        run() SimulationResult
+    }
+    class EventQueue~T~ {
+        <<interface>>
+        schedule(timeMs, payload)
+        pop()
+    }
+    class Topology {
+        <<interface>>
+        component(id)
+        edgeFor(fromId, toId)
+        workflow(id)
+    }
+    class ArrivalProcess {
+        <<interface>>
+        next(afterMs)
+        pickWorkflow()
+    }
+    class TickSampler {
+        <<interface>>
+        ticksBefore(timeMs)
+        finalTick()
+        trackPeaks(component)
+    }
+    class RandomSource {
+        <<interface>>
+    }
+    Simulation --> EventQueue : events
+    Simulation --> Topology : topology
+    Simulation --> ArrivalProcess : arrivals
+    Simulation --> TickSampler : ticks
+    Simulation --> RandomSource : retryRandom
+    HeapEventQueue ..|> EventQueue
+    ProjectTopology ..|> Topology
+    PoissonArrivalProcess ..|> ArrivalProcess
+    IntervalTickSampler ..|> TickSampler
+    NoTickSampler ..|> TickSampler
+    SeededRandom ..|> RandomSource
+    createSimulation ..> Simulation : creates
+    createSimulation ..> HeapEventQueue : creates
+    createSimulation ..> ProjectTopology : creates, via buildTopology
+    createSimulation ..> PoissonArrivalProcess : creates
+    createSimulation ..> IntervalTickSampler : creates if tickMs is set
+    createSimulation ..> NoTickSampler : creates otherwise
+    createSimulation ..> SeededRandom : creates, one per stream
+```
+
 A **call** goes from a caller to a step's component along an edge and is made of one or more **attempts**:
 
 ```mermaid

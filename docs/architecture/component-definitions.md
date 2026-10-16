@@ -8,12 +8,37 @@ Code: [`src/domain/components/`](../../src/domain/components/).
 
 ## Three pieces
 
+How they connect to the rest of the code (the [legend](architecture-overview.md#the-system-at-a-glance) explains the colors):
+
 ```mermaid
-flowchart LR
-    DEF["ComponentDefinition<br/>type, displayName, configSchema,<br/>defaultConfig, actions, deliversAsync,<br/>build()"] -->|register| REG[(ComponentRegistry)]
-    REG -->|"validateComponents()<br/>(load time)"| V[Issues with paths]
-    REG -->|"build(config) per run"| B["ComponentBehavior<br/>run-time state"]
-    ENG[Engine] <-->|"calls in, effects out"| B
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart TB
+    eng["<b>Engine</b><br/>[domain/engine]<br/>Topology, Simulation"]:::external
+    load["<b>loadProject, SaveProject</b><br/>[adapters, application]"]:::external
+    tests["<b>Each definition's tests</b>"]:::external
+    subgraph comp["domain/components"]
+        def["<b>ComponentDefinition</b><br/>[Component: one per type, aws/*.ts]<br/>Config schema, defaults, actions, build()"]:::component
+        reg["<b>ComponentRegistry</b><br/>[Component: ComponentRegistryMap]<br/>Looks definitions up by type, parses configs"]:::component
+        beh["<b>ComponentBehavior</b><br/>[Component: aws/*-behavior.ts]<br/>One component's state during one run"]:::component
+        val["<b>validateComponents</b><br/>[Component]<br/>Type-specific checks at load time"]:::component
+        contract["<b>checkComponentContract</b><br/>[Component: with ContractHarness]<br/>Plays the engine's part against a definition"]:::component
+    end
+    prim["<b>Behavior primitives</b><br/>[domain/behaviors]<br/>RateLimit, ConcurrencyLimit, Queue, ServiceTime"]:::external
+    def -->|"registered in"| reg
+    eng -->|"build(config) per run"| reg
+    reg -->|"definition.build()"| beh
+    eng -->|"arrive, finish;<br/>effects back"| beh
+    load -->|"findProjectIssues"| val
+    val -->|"looks up types, parses configs"| reg
+    tests -->|"checkComponentContract(definition)"| contract
+    contract -->|"build() per run"| def
+    beh -->|"built from"| prim
+    style comp fill:none,stroke:#666,stroke-dasharray:5 5
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
 ```
 
 | Piece | What it is | File |
@@ -146,6 +171,51 @@ t(ms)  engine calls  effects returned                  inProgress  queueDepth  w
 - `inProgress` and `queueDepth` match what the effects imply, after every call;
 - `gauges` and `counters` are finite, and counters never decrease;
 - the same seed produces exactly the same effects (no state shared between runs).
+
+`checkComponentContract` runs the scenario twice through `createContractHarness`, the factory that builds each run's harness ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)):
+
+```mermaid
+classDiagram
+    direction TB
+    class checkComponentContract {
+        <<function>>
+        checkComponentContract(definition) ContractReport
+    }
+    class createContractHarness {
+        <<factory>>
+        createContractHarness(input) ContractHarness
+    }
+    class ContractHarness {
+        run() ScenarioResult
+    }
+    class ComponentDefinition~Config~ {
+        <<interface>>
+        build(config, context)
+    }
+    class ComponentBehavior~T~ {
+        <<interface>>
+        arrive(input)
+        finish(input)
+        dispatchFinished(input)
+    }
+    class EventQueue~T~ {
+        <<interface>>
+    }
+    class RandomSource {
+        <<interface>>
+    }
+    checkComponentContract ..> createContractHarness : twice, same seed
+    createContractHarness ..> ContractHarness : creates
+    createContractHarness ..> HeapEventQueue : creates
+    createContractHarness ..> SeededRandom : creates two
+    createContractHarness ..> ComponentDefinition : calls build()
+    ContractHarness --> ComponentDefinition : definition
+    ContractHarness --> ComponentBehavior : behavior
+    ContractHarness --> EventQueue : events
+    ContractHarness --> RandomSource : random
+    HeapEventQueue ..|> EventQueue
+    SeededRandom ..|> RandomSource
+```
 
 Every definition's test file includes:
 

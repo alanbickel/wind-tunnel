@@ -1,6 +1,6 @@
 # How the Simulation Engine Works
 
-A visual introduction to the engine's building blocks, for maintainers new to the code. Read the [architecture overview](README.md) first, and keep the [glossary](../glossary.md) handy for terms like call, attempt, and visit. The full design is in the [MVP design](../design/mvp-design.md) (§3 and §4); this page explains the moving parts.
+A visual introduction to the engine's building blocks, for maintainers new to the code. Read the [architecture overview](architecture-overview.md) first, and keep the [glossary](../glossary.md) handy for terms like call, attempt, and visit. The full design is in the [MVP design](../design/mvp-design.md) (§3 and §4); this page explains the moving parts.
 
 > **Status:** the event queue, behavior primitives, [component definitions](component-definitions.md), the engine loop, and [metrics](metrics.md) exist.
 

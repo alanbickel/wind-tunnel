@@ -1,6 +1,6 @@
 # The Application Layer and Persistence
 
-An introduction to the use cases, the ports they work through, and the adapters that store projects, for maintainers new to the code. Read the [architecture overview](README.md) and [the domain model](domain-model.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§5 and §6).
+An introduction to the use cases, the ports they work through, and the adapters that store projects, for maintainers new to the code. Read the [architecture overview](architecture-overview.md) and [the domain model](domain-model.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§5 and §6).
 
 > **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, and the in-process simulation runner exist. Nothing in the browser calls them yet: the UI, the Web Worker runner, and the `Clock` and `IdGenerator` adapters come in M3. Today the [headless runner](headless-runner.md) is the only real caller.
 

@@ -2,9 +2,9 @@
 
 - **Status:** Draft
 - **Date:** 2026-10-13
-- **Related:** [Architecture overview](../architecture/README.md), [ADR-0002](../adr/0002-use-clean-architecture-layering.md), [ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)
+- **Related:** [Architecture overview](../architecture/architecture-overview.md), [ADR-0002](../adr/0002-use-clean-architecture-layering.md), [ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)
 
-This document describes what the first working version of Wind Tunnel contains and how its core works. It is written for maintainers who are new to the codebase. Read the [architecture overview](../architecture/README.md) first for vocabulary and layering.
+This document describes what the first working version of Wind Tunnel contains and how its core works. It is written for maintainers who are new to the codebase. Read the [glossary](../glossary.md) and the [architecture overview](../architecture/architecture-overview.md) first.
 
 ## 1. MVP goal
 

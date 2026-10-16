@@ -1,0 +1,17 @@
+# Architecture Decision Records
+
+Each ADR records one significant decision: the context, what was decided, and its consequences. They explain *why* the code is the way it is. Skim the titles, and read an ADR in full when you touch the area it covers.
+
+To write one, or to change a decision, follow [ADRs in the contributing guide](../../CONTRIBUTING.md#adrs). [ADR-0001](0001-record-architecture-decisions.md) explains the format.
+
+| ADR | Decision |
+|---|---|
+| [0001](0001-record-architecture-decisions.md) | Record architecture decisions |
+| [0002](0002-use-clean-architecture-layering.md) | Use Clean Architecture layering with an enforced dependency rule |
+| [0003](0003-browser-only-react-typescript-app.md) | Build a browser-only app with TypeScript, React, and Vite |
+| [0004](0004-persist-projects-in-indexeddb.md) | Persist projects in IndexedDB as versioned documents; ship templates as bundled data |
+| [0005](0005-use-zod-for-schema-validation.md) | Use Zod for schema validation, including in the domain layer |
+| [0006](0006-components-return-effects-to-the-engine.md) | Components return effects to the engine; they never schedule events |
+| [0007](0007-metrics-observe-the-engine.md) | Metrics observe the engine through events and ticks; components expose named gauges and counters |
+| [0008](0008-ports-exchange-project-records.md) | Ports exchange project records (domain project plus timestamps, source, and layout), not documents |
+| [0009](0009-collaborators-come-from-factories.md) | Classes take their collaborators through the constructor, typed as interfaces; factories and composition roots build them |

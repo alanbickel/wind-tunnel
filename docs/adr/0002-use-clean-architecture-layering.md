@@ -44,3 +44,7 @@ We apply SOLID principles within this structure, most visibly:
 - Importers for CloudFormation/CDK/Terraform become adapters that produce domain objects; they don't need engine changes.
 - There is more boilerplate (ports, adapters, wiring) than a typical React app. To keep that cost reasonable, we apply the layering **strictly** to `domain` and `application`, and **pragmatically** in `ui`: ordinary React patterns are fine inside the UI layer.
 - Contributors need to learn where code belongs. [`docs/architecture/README.md`](../architecture/README.md) contains a "where does my code go?" guide.
+
+## Addendum (2026-10-16): overview moved
+
+The architecture overview, with its "where does my code go?" guide, moved from `docs/architecture/README.md` to [`docs/architecture/architecture-overview.md`](../architecture/architecture-overview.md). The decision is unchanged.

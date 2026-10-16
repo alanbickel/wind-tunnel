@@ -12,7 +12,7 @@ Tracks milestone progress for the MVP described in [`design/mvp-design.md`](desi
 ## How to finish a milestone
 
 1. All tasks checked, and the milestone's "done when" criteria verified.
-2. Docs updated: the architecture overview, the design doc if reality differs from it, new ADRs for significant decisions, a short onboarding guide for each new subsystem, and the [docs hub](README.md) listing any new documents.
+2. Docs updated: the architecture overview, the design doc if reality differs from it, new ADRs for significant decisions, a short onboarding guide for each new subsystem, and every new document listed in its folder's overview or the [root README](../README.md#documentation).
 3. A short entry added to the [Progress log](#progress-log): what was built, what differs from the plan, and anything the next session needs to know.
 4. **Compact this file:**
    - Replace the finished milestone's task list with a one-line summary and its commit range.
@@ -92,11 +92,9 @@ Ports, `ProjectRecord`s and the document mapper (ADR-0008), document migration s
   - Level 3 (components): one per guide (engine, component definitions, metrics, application layer).
   - Level 4 (code): a Mermaid `classDiagram` for each split from R2.5–R2.7, showing the class, its collaborators, and the factory that wires them.
   Add a line to CONTRIBUTING §Documentation saying which level goes where.
-- [ ] **R2.13 Task-oriented docs hub.** Write for a reader who doesn't yet know what anything does or where it lives.
-  - Add a short "Start here" page: what Wind Tunnel does, the level 1–2 diagram, a map of `src/`, and a link to the glossary.
-  - Restructure the hub around "I want to…" routes, for example: add a component type, change engine behavior, add a metric, work on the UI, change the document format. Each route names the two or three docs to read, in order.
-  - Keep the full document list as a reference index below the routes.
-  - Audit for stale or duplicated text and cut it rather than adding more. Known stale spots: the root README's "engine and UI not built yet", and the architecture overview's "Planned: how a simulation run works".
+- [x] **R2.13 One map for the docs.** Rewritten with the user: the root README is the map of every document; a `docs/` folder may have one `<folder>-overview.md`, and the root README links only to that overview; `docs/README.md` became [`getting-started.md`](getting-started.md) (setup, reading order, first change); all curation guidance lives in CONTRIBUTING §Documentation, and CLAUDE.md points to it.
+
+  *Done:* `architecture/README.md` → `architecture-overview.md`, which now lists its guides; the ADR table moved to `adr/adr-overview.md`; ADR-0002 got an addendum for the moved overview. The "I want to…" routes weren't added: the overview's "Where does my code go?" table already does that job, and getting started points to it. Stale text cut: the README's status, the overview's status blurb and its "Planned" section's intro, and a "What Wind Tunnel does" section that repeated the README.
 - [ ] **R2.14 Move the gotchas.** Move the progress log's "Gotchas (still apply)" into a CONTRIBUTING "Gotchas" section, and delete it from this file.
 - [ ] **R2.15 One class per file** (rule 11). Move the classes still listed under R2.15 in `tests/architecture/class-files.test.ts`: the five fakes in `application/testing/fake-ports.ts` to a file each, `SeededRandom` to `seeded-random.ts` (`RandomSource` stays in `random-source.ts`), and `indexeddb-project-repository.ts` to `indexed-db-project-repository.ts`. Remove the R2.15 exceptions and disable comment. Moves and renames only.
 

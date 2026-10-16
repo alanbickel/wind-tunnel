@@ -8,7 +8,7 @@ Wind Tunnel runs entirely in the browser. There is no backend, no server calls, 
 
 ## Status
 
-Early development. The project scaffolding is in place; the simulation engine and UI are not built yet. See [`docs/implementation-plan.md`](docs/implementation-plan.md) for the current milestone.
+Early development. The simulation engine, metrics, persistence, and a headless runner work; the browser UI is next. See the [implementation plan](docs/implementation-plan.md) for the current milestone.
 
 ## Running it
 
@@ -29,17 +29,23 @@ Other scripts:
 | `npm run lint` | ESLint, including the architecture layer rules and the coding standards |
 | `npm run format` | Format code with Prettier |
 | `npm run typecheck` | TypeScript checks for all projects (`tsc -b`) |
-| `npm run simulate -- --template template-a` | Run a template headlessly and print a text report ([guide](docs/architecture/headless-runner.md)) |
+| `npm run simulate -- --template template-a` | Run a template headlessly and print a text report |
 
 ## Documentation
 
-Start at the [documentation hub](docs/README.md). It lists every document and a reading order for new maintainers. The most-used ones:
+This is the map of every document. New to the code? Start with [Getting started](docs/getting-started.md).
 
-- [Architecture overview](docs/architecture/README.md): start here if you're new to the code
-- [Glossary](docs/glossary.md): what the domain terms mean
-- [How the simulation engine works](docs/architecture/simulation-engine.md)
-- [Implementation plan](docs/implementation-plan.md)
-- [Contributing](CONTRIBUTING.md): coding standards, tests, and commit conventions
+| Document | What it's for |
+|---|---|
+| [Getting started](docs/getting-started.md) | From a fresh clone to your first change: what to read, in what order |
+| [Glossary](docs/glossary.md) | Every domain term, with the type that holds it |
+| [Architecture overview](docs/architecture/architecture-overview.md) | Layers, where code goes, how the rules are enforced, and the guide to each subsystem |
+| [Decisions (ADRs)](docs/adr/adr-overview.md) | Why things are the way they are, one decision per record |
+| [MVP design](docs/design/mvp-design.md) | The detailed reference: domain model, engine, document format, templates, and testing strategy |
+| [Fidelity](docs/design/fidelity.md) | Where Wind Tunnel differs from AWS, and which way each difference skews results |
+| [Implementation plan](docs/implementation-plan.md) | The current milestone, what's next, and a progress log |
+| [AWS: Did you know?](docs/learning/aws-did-you-know.md) | AWS limits and at-scale behaviors the simulation models, with sources |
+| [Contributing](CONTRIBUTING.md) | Setup, coding standards, tests, docs, and commit conventions |
 
 ## License
 

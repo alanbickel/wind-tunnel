@@ -27,3 +27,7 @@ The engine already reports everything that happens as `SimulationEvent`s to an o
 - Gauges are sampled, so a gauge can miss a spike between ticks. `inProgress` and `queueDepth` have true peaks because the engine tracks them; type-specific gauges don't. If one needs a peak, the definition can track it and expose it as its own gauge.
 - Snapshots hold percentile summaries, not histograms, so they stay small enough to post from a Web Worker each second. Percentiles over a custom range of seconds can't be recomputed from snapshots; only the run totals have whole-run percentiles.
 - Runs without `tickMs` are unaffected, so existing traces and tests don't see ticks.
+
+## Addendum (2026-10-16): event names
+
+`SimulationEvent` kinds were renamed to name their subject. The `tick` event in decision 2 is now `metrics-tick` (type `MetricsTickEvent`). The events the collector counts are now `component-arrived`, `component-rejected`, `component-finished`, `component-async-finished`, and `edge-attempt-failed`. What the engine puts on its event queue is now called `ScheduledWork`, so a type ending in `Event` is always one the observer sees. The decision is unchanged.

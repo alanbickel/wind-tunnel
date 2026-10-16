@@ -181,7 +181,7 @@ Arrivals are random (a Poisson process), following the profile's rate. Requests 
 
 The engine does not advance in fixed time steps. It keeps a **priority queue of future events** ordered by simulated time, repeatedly takes the earliest one, and processes it, which may schedule new events. Simulated time jumps directly from one event to the next, so idle periods cost nothing.
 
-Internal event types: `user-arrives`, `attempt-arrives` (after edge latency), `service-done`, `response` (after edge latency), `timeout`, `retry`. Metrics ticks are emitted by the loop itself, outside the queue, when `tickMs` is set ([ADR-0007](../adr/0007-metrics-observe-the-engine.md)). What happens is reported to an observer as `SimulationEvent`s; see the [engine guide](../architecture/simulation-engine.md#the-engine-loop-a-requests-journey).
+Internal event types (`ScheduledWork` in code): `user-due`, `attempt-reaches-target` (after edge latency), `visit-service-done`, `attempt-answered` (after edge latency), `attempt-timed-out`, `call-retry-due`, and `visit-nothing-to-deliver`. Metrics ticks are emitted by the loop itself, outside the queue, when `tickMs` is set ([ADR-0007](../adr/0007-metrics-observe-the-engine.md)). What happens is reported to an observer as `SimulationEvent`s; see the [engine guide](../architecture/simulation-engine.md#the-engine-loop-a-requests-journey).
 
 ```mermaid
 stateDiagram-v2

@@ -7,7 +7,8 @@ import {
 import { NoTickSampler } from "./no-tick-sampler";
 import { PoissonArrivalProcess } from "./poisson-arrival-process";
 import { buildTopology, findWorkload } from "./project-topology";
-import { Simulation, type EngineEvent } from "./simulation";
+import type { ScheduledWork } from "./scheduled-work";
+import { Simulation } from "./simulation";
 import type { TickSampler } from "./tick-sampler";
 import type {
   RandomStreams,
@@ -45,7 +46,7 @@ export function createSimulation(input: SimulationInput): Simulation {
     tickMs: input.tickMs,
     untilMs,
   });
-  const events = new HeapEventQueue<EngineEvent>();
+  const events = new HeapEventQueue<ScheduledWork>();
   return new Simulation({
     events,
     topology,

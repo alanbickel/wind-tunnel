@@ -32,21 +32,22 @@ interface Tracked {
 }
 
 /** What the harness schedules, playing the engine's part. */
-type HarnessEvent = ArriveEvent | FinishEvent | DispatchFinishedEvent;
+type HarnessScheduledWork =
+  HarnessRequestDue | HarnessVisitServiceDone | HarnessDeliveryFinished;
 
-interface ArriveEvent {
-  readonly kind: "arrive";
+interface HarnessRequestDue {
+  readonly kind: "request-due";
   readonly request: number;
   readonly action: StepAction;
 }
 
-interface FinishEvent {
-  readonly kind: "finish";
+interface HarnessVisitServiceDone {
+  readonly kind: "visit-service-done";
   readonly request: number;
 }
 
-interface DispatchFinishedEvent {
-  readonly kind: "dispatch-finished";
+interface HarnessDeliveryFinished {
+  readonly kind: "delivery-finished";
   readonly request: number;
   readonly succeeded: boolean;
 }
@@ -77,7 +78,7 @@ export interface ContractHarnessDependencies<Config> {
   readonly scenario: ContractScenario;
   /** The component under test, built from `definition`. */
   readonly behavior: ComponentBehavior<number>;
-  readonly events: EventQueue<HarnessEvent>;
+  readonly events: EventQueue<HarnessScheduledWork>;
   /** Separate from the component's source, so the harness's draws don't change the component's. */
   readonly random: RandomSource;
 }
@@ -123,7 +124,7 @@ export function createContractHarness<Config>({
     behavior: definition.build<number>(config, {
       random: new SeededRandom(scenario.seed + 1),
     }),
-    events: new HeapEventQueue<HarnessEvent>(),
+    events: new HeapEventQueue<HarnessScheduledWork>(),
     random: new SeededRandom(scenario.seed),
   });
 }
@@ -144,7 +145,7 @@ export class ContractHarness<Config> {
   private readonly scenario: ContractScenario;
   private readonly random: RandomSource;
   private readonly behavior: ComponentBehavior<number>;
-  private readonly events: EventQueue<HarnessEvent>;
+  private readonly events: EventQueue<HarnessScheduledWork>;
   private readonly tracked = new Map<number, Tracked>();
   private readonly violations: string[] = [];
   private readonly log: string[] = [];
@@ -187,7 +188,7 @@ export class ContractHarness<Config> {
       timeMs += sample({ kind: "exponential", meanMs: meanGapMs }, this.random);
       const action =
         actions[Math.floor(this.random.next() * actions.length)] ?? "invoke";
-      this.events.schedule(timeMs, { kind: "arrive", request, action });
+      this.events.schedule(timeMs, { kind: "request-due", request, action });
     }
   }
 
@@ -208,20 +209,20 @@ export class ContractHarness<Config> {
     }
   }
 
-  /** What the harness does when each scheduled event comes due. */
-  private readonly eventHandlers: KindHandlers<HarnessEvent, void> = {
-    arrive: (event) => {
+  /** What the harness does when each piece of scheduled work comes due. */
+  private readonly eventHandlers: KindHandlers<HarnessScheduledWork, void> = {
+    "request-due": (event) => {
       this.arrive(event);
     },
-    finish: (event) => {
+    "visit-service-done": (event) => {
       this.finish(event);
     },
-    "dispatch-finished": (event) => {
+    "delivery-finished": (event) => {
       this.dispatchFinished(event);
     },
   };
 
-  private arrive({ request, action }: ArriveEvent): void {
+  private arrive({ request, action }: HarnessRequestDue): void {
     const state: Tracked = { phase: "arriving" };
     this.tracked.set(request, state);
     this.apply(this.behavior.arrive({ request, action, nowMs: this.nowMs }));
@@ -233,7 +234,7 @@ export class ContractHarness<Config> {
     state.phase = "rejected";
   }
 
-  private finish({ request }: FinishEvent): void {
+  private finish({ request }: HarnessVisitServiceDone): void {
     const state = this.tracked.get(request);
     if (state !== undefined) {
       state.phase = "finished";
@@ -245,7 +246,7 @@ export class ContractHarness<Config> {
   private dispatchFinished({
     request,
     succeeded,
-  }: DispatchFinishedEvent): void {
+  }: HarnessDeliveryFinished): void {
     const state = this.tracked.get(request);
     if (state !== undefined)
       state.delivery = succeeded ? "delivered" : "waiting";
@@ -317,7 +318,7 @@ export class ContractHarness<Config> {
     state.phase = "started";
     const holdMs = this.random.next() * this.scenario.maxHoldMs;
     this.events.schedule(this.nowMs + serviceMs + holdMs, {
-      kind: "finish",
+      kind: "visit-service-done",
       request,
     });
   }
@@ -351,7 +352,7 @@ export class ContractHarness<Config> {
     const deliveryMs = this.random.next() * this.scenario.maxHoldMs;
     const succeeded = this.random.next() >= this.scenario.dispatchFailureRate;
     this.events.schedule(this.nowMs + deliveryMs, {
-      kind: "dispatch-finished",
+      kind: "delivery-finished",
       request,
       succeeded,
     });

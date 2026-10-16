@@ -1,11 +1,11 @@
 import type { RuntimeComponent } from "./runtime-records";
-import type { ComponentSample, TickEvent } from "./simulation-events";
+import type { ComponentSample, MetricsTickEvent } from "./simulation-events";
 import type { TickSampler } from "./tick-sampler";
 import type { Topology } from "./topology";
 
 export interface IntervalTickSamplerDependencies {
   readonly topology: Topology;
-  readonly observe: (event: TickEvent) => void;
+  readonly observe: (event: MetricsTickEvent) => void;
   /** Report a tick every `tickMs`; must be positive. */
   readonly tickMs: number;
   readonly untilMs: number;
@@ -14,7 +14,7 @@ export interface IntervalTickSamplerDependencies {
 /** A `TickSampler` that reports every `tickMs`, plus once at the end. */
 export class IntervalTickSampler implements TickSampler {
   private readonly topology: Topology;
-  private readonly observe: (event: TickEvent) => void;
+  private readonly observe: (event: MetricsTickEvent) => void;
   private readonly tickMs: number;
   private readonly untilMs: number;
   private nextTickMs: number;
@@ -56,7 +56,7 @@ export class IntervalTickSampler implements TickSampler {
     const components = [...this.topology.allComponents()].map(
       sampleAndResetPeaks,
     );
-    this.observe({ kind: "tick", timeMs, components });
+    this.observe({ kind: "metrics-tick", timeMs, components });
   }
 }
 

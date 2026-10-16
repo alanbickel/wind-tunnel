@@ -138,7 +138,9 @@ Under load, queries wait for one of the 16 workers while still holding a connect
 
 ## The engine loop: a request's journey
 
-[`simulate()`](../../src/domain/engine/create-simulation.ts) runs one workload against a project. `createSimulation` builds each component's behavior from the registry, along with the run's other collaborators, and passes them all to `Simulation`, which pops events until the workload's duration is over. What happens is reported to an **observer** callback as `SimulationEvent`s (`workflow-started`, `arrived`, `started`, `rejected`, `attempt-failed`, …). The [metrics collector](metrics.md) is such an observer; with `tickMs` set, the engine also reports a `tick` with every component's state each simulated second.
+[`simulate()`](../../src/domain/engine/create-simulation.ts) runs one workload against a project. `createSimulation` builds each component's behavior from the registry, along with the run's other collaborators, and passes them all to `Simulation`, which pops events until the workload's duration is over. What happens is reported to an **observer** callback as `SimulationEvent`s (`workflow-started`, `component-arrived`, `component-started`, `component-rejected`, `edge-attempt-failed`, …). The [metrics collector](metrics.md) is such an observer; with `tickMs` set, the engine also reports a `metrics-tick` with every component's state each simulated second.
+
+Two kinds of "event" meet in the loop, and the code names them apart. What `Simulation` puts on its own queue is **`ScheduledWork`** (`user-due`, `attempt-reaches-target`, `attempt-timed-out`, …): internal, and never seen outside the engine. What it reports to the observer is a **`SimulationEvent`**, whose kind names its subject (`component-…`, `edge-…`, `workflow-…`, `metrics-tick`). In code, a type ending in `Event` is always one the observer sees.
 
 | Piece | File | Job |
 |---|---|---|
@@ -146,10 +148,11 @@ Under load, queries wait for one of the 16 workers while still holding a connect
 | `backoffMs` | [`backoff.ts`](../../src/domain/engine/backoff.ts) | Wait before a retry: fixed, exponential, or exponential with full jitter (capped at 20 s) |
 | `simulate`, `createSimulation` | [`create-simulation.ts`](../../src/domain/engine/create-simulation.ts) | Builds a run's collaborators (random streams, `Topology`, `TickSampler`, `EventQueue`, `ArrivalProcess`) and runs it |
 | `Simulation` | [`simulation.ts`](../../src/domain/engine/simulation.ts) | The loop: calls, attempts, timeouts, retries, and turning component effects into events |
+| `ScheduledWork` | [`scheduled-work.ts`](../../src/domain/engine/scheduled-work.ts) | What the loop schedules on its `EventQueue` and handles when it falls due |
 | `SimulationEvent`, `SimulationInput` | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The public types: what a run takes, and the events it reports to the observer |
 | `Topology` | [`topology.ts`](../../src/domain/engine/topology.ts), [`project-topology.ts`](../../src/domain/engine/project-topology.ts) | Looks up a run's components, edges, and workflows; builds each component's behavior from the registry |
 | `Call`, `Attempt`, `Visit` | [`runtime-records.ts`](../../src/domain/engine/runtime-records.ts) | The records a run creates: a request makes calls, a call makes attempts, an attempt becomes a visit |
-| `TickSampler` | [`tick-sampler.ts`](../../src/domain/engine/tick-sampler.ts), [`interval-tick-sampler.ts`](../../src/domain/engine/interval-tick-sampler.ts), [`no-tick-sampler.ts`](../../src/domain/engine/no-tick-sampler.ts) (runs without `tickMs`) | Reports a `tick` with every component's state every `tickMs`, and tracks peaks between ticks |
+| `TickSampler` | [`tick-sampler.ts`](../../src/domain/engine/tick-sampler.ts), [`interval-tick-sampler.ts`](../../src/domain/engine/interval-tick-sampler.ts), [`no-tick-sampler.ts`](../../src/domain/engine/no-tick-sampler.ts) (runs without `tickMs`) | Reports a `metrics-tick` with every component's state every `tickMs`, and tracks peaks between ticks |
 
 A **call** goes from a caller to a step's component along an edge and is made of one or more **attempts**:
 
@@ -175,7 +178,7 @@ Rules worth knowing:
 - **Timeouts don't cancel anything.** The caller stops waiting, and the target's work runs to the end and holds its resources (ADR-0006).
 - **Every failure is retryable:** a rejection, a timeout, or an error from further down. Retries happen at each edge, so they multiply across layers.
 - **The user's call to the root step has no edge:** no latency, no timeout, no retries.
-- **Async work** starts when a queue-like component returns `dispatched`. The user already has an answer by then; `async-finished` reports when the work landed.
+- **Async work** starts when a queue-like component returns `dispatched`. The user already has an answer by then; `component-async-finished` reports when the work landed.
 - **Each part has its own random stream** (`arrivals`, `workflows`, `retries`, `component:<id>`), seeded from the workload's seed. Changing one component's config doesn't move the arrival times, so two runs are comparable.
 - **A run that loops without advancing time is stopped** with an error after 1,000,000 events at one instant.
 

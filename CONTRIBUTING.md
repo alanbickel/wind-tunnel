@@ -165,13 +165,13 @@ No anonymous object types in parameters, return types, properties, generic argum
 ```ts
 // ✗ each member is anonymous; easy to break one without noticing
 type SimulationEvent =
-  | { kind: "arrived"; timeMs: number; componentId: string }
-  | { kind: "rejected"; timeMs: number; componentId: string; reason: string };
+  | { kind: "component-arrived"; timeMs: number; componentId: string }
+  | { kind: "component-rejected"; timeMs: number; componentId: string; reason: string };
 
 // ✓
-interface ArrivedEvent { kind: "arrived"; timeMs: number; componentId: string }
-interface RejectedEvent { kind: "rejected"; timeMs: number; componentId: string; reason: string }
-type SimulationEvent = ArrivedEvent | RejectedEvent;
+interface ComponentArrivedEvent { kind: "component-arrived"; timeMs: number; componentId: string }
+interface ComponentRejectedEvent { kind: "component-rejected"; timeMs: number; componentId: string; reason: string }
+type SimulationEvent = ComponentArrivedEvent | ComponentRejectedEvent;
 ```
 
 **Parameter objects** take one of three suffixes, so the type name says what kind of thing is being passed:

@@ -13,7 +13,7 @@ import { simulate } from "../engine/create-simulation";
 import type {
   Failure,
   SimulationEvent,
-  TickEvent,
+  MetricsTickEvent,
 } from "../engine/simulation-events";
 import { simulateWithMetrics } from "../metrics/metrics-collector";
 import { componentIn, workflowIn } from "../metrics/testing/snapshot-lookups";
@@ -60,7 +60,7 @@ function showEffects(effects: Effect<string>[]): string {
 }
 
 /** Every event but ticks: the ones that belong to a request. */
-type RequestEvent = Exclude<SimulationEvent, TickEvent>;
+type RequestEvent = Exclude<SimulationEvent, MetricsTickEvent>;
 
 /** One line of a request's journey, after its time. */
 type JourneyLine = [where: string, what: string];
@@ -77,28 +77,28 @@ function journeyText(startMs: number): KindHandlers<RequestEvent, JourneyLine> {
         ? `gets an answer after ${String(e.latencyMs)} ms`
         : `gets an error after ${String(e.latencyMs)} ms (${cause(e.failure)})`,
     ],
-    arrived: (e) => [e.componentId, `arrived (${e.action})`],
-    queued: (e) => [e.componentId, "queued"],
-    started: (e) => [
+    "component-arrived": (e) => [e.componentId, `arrived (${e.action})`],
+    "component-queued": (e) => [e.componentId, "queued"],
+    "component-started": (e) => [
       e.componentId,
       `started, ${String(e.serviceMs)} ms of work`,
     ],
-    rejected: (e) => [e.componentId, `rejected: ${e.reason}`],
-    finished: (e) => [
+    "component-rejected": (e) => [e.componentId, `rejected: ${e.reason}`],
+    "component-finished": (e) => [
       e.componentId,
       e.failure === undefined
         ? "finished, answer sent"
         : `finished with error (${cause(e.failure)})`,
     ],
-    "attempt-failed": (e) => [
+    "edge-attempt-failed": (e) => [
       e.edgeId,
       `attempt ${String(e.attempt)} failed (${cause(e.failure)})` +
         (e.retryAtMs === undefined
           ? ", no retries left"
           : `, retry at ${(e.retryAtMs - startMs).toFixed(0)}`),
     ],
-    dispatched: (e) => [e.componentId, "dispatched"],
-    "async-finished": (e) => [
+    "component-dispatched": (e) => [e.componentId, "dispatched"],
+    "component-async-finished": (e) => [
       e.componentId,
       `async work done (${String(e.succeeded)})`,
     ],
@@ -601,7 +601,7 @@ describe("traces", () => {
         workloadId: "one",
         registry: createAwsComponentRegistry(),
         observer: (e) => {
-          if (e.kind !== "tick" && e.requestId === 0) events.push(e);
+          if (e.kind !== "metrics-tick" && e.requestId === 0) events.push(e);
         },
         untilMs: 20_000,
       });

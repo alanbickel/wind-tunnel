@@ -12,6 +12,7 @@ import type {
   UserRequest,
   Visit,
 } from "./runtime-records";
+import type { ScheduledWork } from "./scheduled-work";
 import type {
   ComponentEventBase,
   Failure,
@@ -28,51 +29,6 @@ import type { Topology } from "./topology";
  */
 export const MAX_EVENTS_AT_ONE_INSTANT = 1_000_000;
 
-/** What the engine schedules on its own event queue. */
-export type EngineEvent =
-  | UserArrivesEvent
-  | AttemptArrivesEvent
-  | ServiceDoneEvent
-  | ResponseEvent
-  | TimeoutEvent
-  | RetryEvent
-  | NothingToDeliverEvent;
-
-interface UserArrivesEvent {
-  readonly kind: "user-arrives";
-}
-
-interface AttemptArrivesEvent {
-  readonly kind: "attempt-arrives";
-  readonly attempt: Attempt;
-}
-
-interface ServiceDoneEvent {
-  readonly kind: "service-done";
-  readonly visit: Visit;
-}
-
-interface ResponseEvent {
-  readonly kind: "response";
-  readonly attempt: Attempt;
-  readonly failure: Failure | undefined;
-}
-
-interface TimeoutEvent {
-  readonly kind: "timeout";
-  readonly attempt: Attempt;
-}
-
-interface RetryEvent {
-  readonly kind: "retry";
-  readonly call: Call;
-}
-
-interface NothingToDeliverEvent {
-  readonly kind: "nothing-to-deliver";
-  readonly visit: Visit;
-}
-
 interface CallInput {
   readonly step: Step;
   /** The calling component, or undefined for the user. */
@@ -82,7 +38,7 @@ interface CallInput {
 }
 
 export interface SimulationDependencies {
-  readonly events: EventQueue<EngineEvent>;
+  readonly events: EventQueue<ScheduledWork>;
   readonly topology: Topology;
   readonly arrivals: ArrivalProcess;
   readonly ticks: TickSampler;
@@ -99,7 +55,7 @@ export interface SimulationDependencies {
  * builds it.
  */
 export class Simulation {
-  private readonly events: EventQueue<EngineEvent>;
+  private readonly events: EventQueue<ScheduledWork>;
   private readonly topology: Topology;
   private readonly arrivals: ArrivalProcess;
   private readonly retryRandom: RandomSource;
@@ -142,28 +98,28 @@ export class Simulation {
     return { eventsProcessed: processed };
   }
 
-  /** What each kind of engine event does when its time comes. */
-  private readonly eventHandlers: KindHandlers<EngineEvent, void> = {
-    "user-arrives": () => {
+  /** What each kind of scheduled work does when its time comes. */
+  private readonly eventHandlers: KindHandlers<ScheduledWork, void> = {
+    "user-due": () => {
       this.startUserRequest();
       this.scheduleNextUser();
     },
-    "attempt-arrives": ({ attempt }) => {
+    "attempt-reaches-target": ({ attempt }) => {
       this.arrive(attempt);
     },
-    "service-done": ({ visit }) => {
+    "visit-service-done": ({ visit }) => {
       this.continueVisit(visit);
     },
-    response: ({ attempt, failure }) => {
+    "attempt-answered": ({ attempt, failure }) => {
       this.respond(attempt, failure);
     },
-    timeout: ({ attempt }) => {
+    "attempt-timed-out": ({ attempt }) => {
       this.timeOut(attempt);
     },
-    retry: ({ call }) => {
+    "call-retry-due": ({ call }) => {
       this.sendAttempt(call);
     },
-    "nothing-to-deliver": ({ visit }) => {
+    "visit-nothing-to-deliver": ({ visit }) => {
       this.dispatchFinished(visit, true);
     },
   };
@@ -174,22 +130,30 @@ export class Simulation {
    */
   private readonly effectHandlers: KindHandlers<Effect<Visit>, void> = {
     started: ({ request: visit, serviceMs }) => {
-      this.observe({ kind: "started", ...this.eventBase(visit), serviceMs });
+      this.observe({
+        kind: "component-started",
+        ...this.eventBase(visit),
+        serviceMs,
+      });
       this.events.schedule(this.nowMs + serviceMs, {
-        kind: "service-done",
+        kind: "visit-service-done",
         visit,
       });
     },
     queued: ({ request: visit }) => {
-      this.observe({ kind: "queued", ...this.eventBase(visit) });
+      this.observe({ kind: "component-queued", ...this.eventBase(visit) });
     },
     rejected: ({ request: visit, reason }) => {
-      this.observe({ kind: "rejected", ...this.eventBase(visit), reason });
+      this.observe({
+        kind: "component-rejected",
+        ...this.eventBase(visit),
+        reason,
+      });
       const componentId = visit.attempt.call.target.id;
       this.respondLater(visit, { componentId, reason });
     },
     dispatched: ({ request: visit }) => {
-      this.observe({ kind: "dispatched", ...this.eventBase(visit) });
+      this.observe({ kind: "component-dispatched", ...this.eventBase(visit) });
       this.dispatch(visit);
     },
   };
@@ -197,7 +161,7 @@ export class Simulation {
   private scheduleNextUser(): void {
     const timeMs = this.arrivals.next(this.nowMs);
     if (timeMs === undefined) return;
-    this.events.schedule(timeMs, { kind: "user-arrives" });
+    this.events.schedule(timeMs, { kind: "user-due" });
   }
 
   private startUserRequest(): void {
@@ -250,12 +214,12 @@ export class Simulation {
     const attempt: Attempt = { call, number: call.attempts, settled: false };
     const { edge } = call;
     this.events.schedule(this.nowMs + (edge?.latencyMs ?? 0), {
-      kind: "attempt-arrives",
+      kind: "attempt-reaches-target",
       attempt,
     });
     if (edge === undefined) return;
     this.events.schedule(this.nowMs + edge.timeoutMs, {
-      kind: "timeout",
+      kind: "attempt-timed-out",
       attempt,
     });
   }
@@ -264,7 +228,7 @@ export class Simulation {
     const { target, step, request } = attempt.call;
     const visit: Visit = { attempt, arrivedMs: this.nowMs, nextCall: 0 };
     this.observe({
-      kind: "arrived",
+      kind: "component-arrived",
       timeMs: this.nowMs,
       requestId: request.id,
       componentId: target.id,
@@ -329,7 +293,7 @@ export class Simulation {
   private completeVisit(visit: Visit, failure: Failure | undefined): void {
     const { target } = visit.attempt.call;
     this.observe({
-      kind: "finished",
+      kind: "component-finished",
       ...this.eventBase(visit),
       latencyMs: this.nowMs - visit.arrivedMs,
       ...(failure === undefined ? {} : { failure }),
@@ -345,7 +309,7 @@ export class Simulation {
   private respondLater(visit: Visit, failure: Failure | undefined): void {
     const { attempt } = visit;
     this.events.schedule(this.nowMs + (attempt.call.edge?.latencyMs ?? 0), {
-      kind: "response",
+      kind: "attempt-answered",
       attempt,
       failure,
     });
@@ -376,7 +340,7 @@ export class Simulation {
     const retryAtMs = this.retryAtMs(call);
     if (call.edge !== undefined) {
       this.observe({
-        kind: "attempt-failed",
+        kind: "edge-attempt-failed",
         timeMs: this.nowMs,
         requestId: call.request.id,
         edgeId: call.edge.id,
@@ -389,7 +353,7 @@ export class Simulation {
       call.onSettled(failure);
       return;
     }
-    this.events.schedule(retryAtMs, { kind: "retry", call });
+    this.events.schedule(retryAtMs, { kind: "call-retry-due", call });
   }
 
   /** When to try `call` again, or undefined if it has no attempts left. */
@@ -409,7 +373,10 @@ export class Simulation {
     if (step.async === undefined) {
       // Nothing to run. Report success from a fresh event rather than
       // recursively, so a long backlog can't overflow the stack.
-      this.events.schedule(this.nowMs, { kind: "nothing-to-deliver", visit });
+      this.events.schedule(this.nowMs, {
+        kind: "visit-nothing-to-deliver",
+        visit,
+      });
       return;
     }
     this.call({
@@ -425,7 +392,7 @@ export class Simulation {
   private dispatchFinished(visit: Visit, succeeded: boolean): void {
     const { target: queue, request } = visit.attempt.call;
     this.observe({
-      kind: "async-finished",
+      kind: "component-async-finished",
       ...this.eventBase(visit),
       latencyMs: this.nowMs - request.startMs,
       succeeded,

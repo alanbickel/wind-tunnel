@@ -1,6 +1,6 @@
 import type {
-  AttemptFailedEvent,
   ComponentSample,
+  EdgeAttemptFailedEvent,
   SimulationEvent,
   SimulationInput,
 } from "../engine/simulation-events";
@@ -65,34 +65,34 @@ export class MetricsCollector {
     "workflow-finished": (event) => {
       this.window.workflow(event.workflowId).finish(event);
     },
-    arrived: ({ componentId }) => {
+    "component-arrived": ({ componentId }) => {
       this.window.component(componentId).arrivals++;
     },
-    rejected: ({ componentId }) => {
+    "component-rejected": ({ componentId }) => {
       this.window.component(componentId).rejected++;
     },
-    finished: (event) => {
+    "component-finished": (event) => {
       this.window.component(event.componentId).finish(event);
     },
-    "attempt-failed": (event) => {
+    "edge-attempt-failed": (event) => {
       this.countTimeout(event);
     },
-    "async-finished": (event) => {
+    "component-async-finished": (event) => {
       this.window.component(event.componentId).finishAsync(event);
     },
-    tick: ({ timeMs, components }) => {
+    "metrics-tick": ({ timeMs, components }) => {
       this.tick(timeMs, components);
     },
-    queued: ignore,
-    started: ignore,
-    dispatched: ignore,
+    "component-queued": ignore,
+    "component-started": ignore,
+    "component-dispatched": ignore,
   };
 
   /**
    * A timeout also fails each caller further up the chain; count it only on
    * the edge where it happened, against the component called.
    */
-  private countTimeout({ edgeId, failure }: AttemptFailedEvent): void {
+  private countTimeout({ edgeId, failure }: EdgeAttemptFailedEvent): void {
     if (failure.reason !== "timeout") return;
     if (this.edgeTargets.get(edgeId) !== failure.componentId) return;
     this.window.component(failure.componentId).timeouts++;

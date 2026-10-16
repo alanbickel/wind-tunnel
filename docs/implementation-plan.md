@@ -78,22 +78,9 @@ Ports, `ProjectRecord`s and the document mapper (ADR-0008), document migration s
 - [x] **R2.8 AWS behaviors receive their primitives.** Each `definition.build()` constructs the `RateLimit`/`ServiceTime`/`ConcurrencyLimit` instances and passes them to the behavior's constructor, so behaviors no longer create them. The same goes for the test fakes in `components/testing/fake-definitions.ts` and DynamoDB's `capacityBucket` helper (which the lint selector can't see). Move each behavior class to its own file (`lambda-behavior.ts`, and so on, rule 11). Remove the R2.8 disable comments and exceptions. Behaviors take `<Behavior>Dependencies` of interfaces: `RateLimit`, `ServiceTime`, and `ConcurrencyLimit` become interfaces, and the classes take mechanism names (for example `TokenBucket implements RateLimit`; confirm the names with the user). The contract suite and template scenarios must stay green.
 
   *Done, in two commits:* first the interfaces, implemented by `TokenBucket`, `SampledServiceTime`, and `CountingSemaphore`; then the wiring and the moves. Lambda's `build` now converts `idleTimeoutSec` to the behavior's `idleTimeoutMs`. `MessageQueueBehavior` has no collaborators, so it takes a `MessageQueueBehaviorInput`. Rule 11 named DynamoDB's file `dynamo-db-behavior.ts`. The trace text still says `RateLimit {…}` and `ConcurrencyLimit {…}`, naming the role.
-- [ ] **R2.9 Name events by their subject.** Proposed mapping (confirm with the user before starting):
-  - Public `SimulationEvent` kinds and types get a subject prefix:
-    - `workflow-started`/`workflow-finished` stay as they are.
-    - `arrived`/`queued`/`started`/`rejected`/`finished`/`dispatched`/`async-finished` become `component-arrived`, `component-queued`, and so on, with types `ComponentArrivedEvent` and so on.
-    - `attempt-failed` becomes `edge-attempt-failed`.
-    - `tick` becomes `metrics-tick`.
-  - The engine's internal `EngineEvent` becomes `ScheduledWork`, so `*Event` only ever means something reported to an observer. Move it and its member types from `simulation.ts` to `scheduled-work.ts` in the same change (deferred from R2.5; it brings `simulation.ts` to about 320 lines). Its kinds:
-    - `user-arrives` → `user-due`
-    - `attempt-arrives` → `attempt-reaches-target`
-    - `service-done` → `visit-service-done`
-    - `response` → `attempt-answered`
-    - `timeout` → `attempt-timed-out`
-    - `retry` → `call-retry-due`
-    - `nothing-to-deliver` → `visit-nothing-to-deliver`
-  - The contract harness's `HarnessEvent` becomes `HarnessScheduledWork`, under the same convention.
-  - Update the guides, the ADRs (by dated addendum only, for ADR-0006 and ADR-0007), and any snapshot text that changes.
+- [x] **R2.9 Name events by their subject.** Public `SimulationEvent` kinds name their subject (`component-arrived`, …, `edge-attempt-failed`, `metrics-tick`; `workflow-*` unchanged), with types to match (`ComponentArrivedEvent`, `MetricsTickEvent`). The engine's internal `EngineEvent` became `ScheduledWork` in `scheduled-work.ts` (`user-due`, `attempt-reaches-target`, `visit-service-done`, `attempt-answered`, `attempt-timed-out`, `call-retry-due`, `visit-nothing-to-deliver`), so a type ending in `Event` is always one the observer sees.
+
+  *Done:* the harness's `HarnessEvent` became `HarnessScheduledWork`, and its kinds were renamed too (`request-due`, `visit-service-done`, `delivery-finished`). Component effect kinds (`started`, `queued`, …) are unchanged. The trace rows are prose written by the trace test, not kind strings, so every snapshot is byte-identical. Only ADR-0007 got an addendum, since ADR-0006 quotes no event kinds. `simulation.ts` is 415 lines.
 - [ ] **R2.10 Split the trace tests** (`traces.test.ts`, 761 lines). One test file per subsystem in `src/domain/traces/`, with the shared formatters in `traces/format.ts`. The `.txt` outputs stay byte-identical. Update the guides' "refresh with" commands.
 - [ ] **R2.11 Glossary.** Add `docs/glossary.md`: every domain term in one or two lines (Project, Architecture, Component, Edge, Workflow, Step, Workload, Request, Call, Attempt, Visit, Effect, Behavior, Definition, Registry, Tick, Snapshot, Record, Document). Include one diagram of how the runtime nouns nest (a request makes calls, a call makes attempts, an attempt becomes a visit at a component, a visit returns effects). Link it from the docs hub, the root README, and the top of the engine guide.
 - [ ] **R2.12 C4 diagrams.** First check that Mermaid's `C4Context`/`C4Container`/`C4Component` render legibly on GitHub and in the VS Code preview. If they don't, draw `flowchart`s that follow C4's conventions (each box labeled with its kind, plus a legend). Add one diagram per level, no more:

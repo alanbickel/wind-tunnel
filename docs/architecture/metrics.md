@@ -30,8 +30,8 @@ const { snapshots, totals } = simulateWithMetrics({
 
 | Piece | File | Job |
 |---|---|---|
-| Tick events | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The `tickMs` input; the `tick` event and `ComponentSample` |
-| `TickSampler` | [`tick-sampler.ts`](../../src/domain/engine/tick-sampler.ts), [`interval-tick-sampler.ts`](../../src/domain/engine/interval-tick-sampler.ts), [`no-tick-sampler.ts`](../../src/domain/engine/no-tick-sampler.ts) (runs without `tickMs`) | Reports a `tick` every `tickMs`; tracks each component's peak in-progress and queue depth between ticks |
+| Tick events | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The `tickMs` input; the `metrics-tick` event and `ComponentSample` |
+| `TickSampler` | [`tick-sampler.ts`](../../src/domain/engine/tick-sampler.ts), [`interval-tick-sampler.ts`](../../src/domain/engine/interval-tick-sampler.ts), [`no-tick-sampler.ts`](../../src/domain/engine/no-tick-sampler.ts) (runs without `tickMs`) | Reports a `metrics-tick` every `tickMs`; tracks each component's peak in-progress and queue depth between ticks |
 | `MetricsCollector` | [`metrics-collector.ts`](../../src/domain/metrics/metrics-collector.ts) | Events and ticks → snapshots and totals; `simulateWithMetrics` |
 | `MetricsSnapshot` | [`metrics-snapshot.ts`](../../src/domain/metrics/metrics-snapshot.ts) | The snapshot types: `ComponentMetrics` and `WorkflowMetrics` for one window |
 | `Tally` | [`tally.ts`](../../src/domain/metrics/tally.ts), [`component-tally.ts`](../../src/domain/metrics/component-tally.ts), [`workflow-tally.ts`](../../src/domain/metrics/workflow-tally.ts) | Running counts per component and workflow; the collector keeps one for the current window and one for the run's totals |
@@ -61,13 +61,13 @@ Per **component**:
 
 | Field | From | Meaning |
 |---|---|---|
-| `arrivals`, `rejected` | `arrived`, `rejected` events | Attempts that reached it; attempts it refused |
-| `completed`, `failed` | `finished` events | Work that finished, and work that finished because a nested call failed |
-| `timeouts` | `attempt-failed` events | Callers that gave up waiting on *this* component (see below) |
-| `latency` | `finished` events | p50/p95/p99/max of `completed` work, from arrival to finish |
+| `arrivals`, `rejected` | `component-arrived`, `component-rejected` events | Attempts that reached it; attempts it refused |
+| `completed`, `failed` | `component-finished` events | Work that finished, and work that finished because a nested call failed |
+| `timeouts` | `edge-attempt-failed` events | Callers that gave up waiting on *this* component (see below) |
+| `latency` | `component-finished` events | p50/p95/p99/max of `completed` work, from arrival to finish |
 | `inProgress`, `queueDepth` | tick | At the window's end |
 | `peakInProgress`, `peakQueueDepth` | tick | Highest during the window; the engine tracks them after every call into the component |
-| `asyncSucceeded`, `asyncFailed`, `asyncLatency` | `async-finished` events | Queue-like components: deliveries of async work, timed from the user's request |
+| `asyncSucceeded`, `asyncFailed`, `asyncLatency` | `component-async-finished` events | Queue-like components: deliveries of async work, timed from the user's request |
 | `gauges` | tick | Type-specific values at the window's end, e.g. RDS `connectionsHeld` |
 | `counters` | tick | Type-specific counts during the window, e.g. Lambda `coldStarts` |
 

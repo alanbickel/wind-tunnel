@@ -1,7 +1,7 @@
 import type {
-  AsyncFinishedEvent,
+  ComponentAsyncFinishedEvent,
   ComponentSample,
-  FinishedEvent,
+  ComponentFinishedEvent,
 } from "../engine/simulation-events";
 import { LatencyHistogram } from "./latency-histogram";
 import type { ComponentMetrics } from "./metrics-snapshot";
@@ -27,7 +27,7 @@ export class ComponentTally {
   countersSoFar: Readonly<Record<string, number>> = {};
 
   /** Records work that finished here, successfully or not. */
-  finish({ latencyMs, failure }: FinishedEvent): void {
+  finish({ latencyMs, failure }: ComponentFinishedEvent): void {
     if (failure !== undefined) {
       this.failed++;
       return;
@@ -37,7 +37,7 @@ export class ComponentTally {
   }
 
   /** Records a delivery of async work that ended. */
-  finishAsync({ latencyMs, succeeded }: AsyncFinishedEvent): void {
+  finishAsync({ latencyMs, succeeded }: ComponentAsyncFinishedEvent): void {
     if (!succeeded) {
       this.asyncFailed++;
       return;

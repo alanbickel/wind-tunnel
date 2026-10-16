@@ -167,7 +167,7 @@ describe("simulate", () => {
       ],
     };
     const events = run({ root, edges: [edge("fn", "db")] });
-    const first = ofKind(events, "arrived").filter(
+    const first = ofKind(events, "component-arrived").filter(
       (e) => e.requestId === 0 && e.componentId === "db",
     );
     expect(first.map((e) => e.action)).toEqual(["read", "write"]);
@@ -187,7 +187,7 @@ describe("simulate", () => {
       ],
       overrides: { fn: { concurrency: 0 } },
     });
-    const failures = ofKind(events, "attempt-failed").filter(
+    const failures = ofKind(events, "edge-attempt-failed").filter(
       (e) => e.requestId === 0,
     );
     const start = ofKind(events, "workflow-started")[0]?.timeMs ?? 0;
@@ -222,7 +222,7 @@ describe("simulate", () => {
       failure: { componentId: "db", reason: "timeout" },
     });
     // The query still runs to the end: it arrived at 32 and takes 500 ms.
-    const query = ofKind(events, "finished").find(
+    const query = ofKind(events, "component-finished").find(
       (e) => e.requestId === 0 && e.componentId === "db",
     );
     expect(query && query.timeMs - start).toBe(532);
@@ -262,7 +262,7 @@ describe("simulate", () => {
     // api 10 + (1 + fn 20 + (1 + send 5 + 1) + 1) = 39 ms
     expect(ofKind(events, "workflow-finished")[0]?.latencyMs).toBe(39);
     // Sent at 37; writer 1 + 20 + (1 + 15 + 1) + 1 = 39 more: 76 ms from the start.
-    expect(ofKind(events, "async-finished")[0]).toMatchObject({
+    expect(ofKind(events, "component-async-finished")[0]).toMatchObject({
       requestId: 0,
       componentId: "queue",
       latencyMs: 76,
@@ -313,11 +313,13 @@ describe("simulate", () => {
         untilMs: 2_500,
         tickMs: 1_000,
       });
-      const ticks = ofKind(events, "tick");
+      const ticks = ofKind(events, "metrics-tick");
       expect(ticks.map((t) => t.timeMs)).toEqual([1_000, 2_000, 2_500]);
       for (const tick of ticks) {
         const at = events.indexOf(tick);
-        const before = events.slice(0, at).filter((e) => e.kind !== "tick");
+        const before = events
+          .slice(0, at)
+          .filter((e) => e.kind !== "metrics-tick");
         const isLast = tick.timeMs === 2_500;
         for (const e of before)
           expect(e.timeMs).toBeLessThanOrEqual(tick.timeMs);
@@ -341,7 +343,7 @@ describe("simulate", () => {
         overrides: { db: { queryWorkers: 1, queryTime: constant(400) } },
         tickMs: 1_000,
       });
-      const samples = ofKind(events, "tick").map((t) => {
+      const samples = ofKind(events, "metrics-tick").map((t) => {
         const of = (id: string) =>
           t.components.find((c) => c.componentId === id);
         return { db: of("db"), fn: of("fn") };

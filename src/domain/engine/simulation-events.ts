@@ -31,15 +31,15 @@ export interface ComponentSample {
 export type SimulationEvent =
   | WorkflowStartedEvent
   | WorkflowFinishedEvent
-  | ArrivedEvent
-  | QueuedEvent
-  | StartedEvent
-  | RejectedEvent
-  | FinishedEvent
-  | AttemptFailedEvent
-  | DispatchedEvent
-  | AsyncFinishedEvent
-  | TickEvent;
+  | ComponentArrivedEvent
+  | ComponentQueuedEvent
+  | ComponentStartedEvent
+  | ComponentRejectedEvent
+  | ComponentFinishedEvent
+  | EdgeAttemptFailedEvent
+  | ComponentDispatchedEvent
+  | ComponentAsyncFinishedEvent
+  | MetricsTickEvent;
 
 /** Fields every event about one user request has. */
 export interface RequestEventBase {
@@ -65,48 +65,48 @@ export interface WorkflowFinishedEvent extends RequestEventBase {
   readonly failure?: Failure;
 }
 
-export interface ArrivedEvent extends ComponentEventBase {
-  readonly kind: "arrived";
+export interface ComponentArrivedEvent extends ComponentEventBase {
+  readonly kind: "component-arrived";
   readonly action: StepAction;
 }
 
-export interface QueuedEvent extends ComponentEventBase {
-  readonly kind: "queued";
+export interface ComponentQueuedEvent extends ComponentEventBase {
+  readonly kind: "component-queued";
 }
 
-export interface StartedEvent extends ComponentEventBase {
-  readonly kind: "started";
+export interface ComponentStartedEvent extends ComponentEventBase {
+  readonly kind: "component-started";
   readonly serviceMs: number;
 }
 
-export interface RejectedEvent extends ComponentEventBase {
-  readonly kind: "rejected";
+export interface ComponentRejectedEvent extends ComponentEventBase {
+  readonly kind: "component-rejected";
   readonly reason: string;
 }
 
 /** Work at a component ended; `latencyMs` counts from its arrival. */
-export interface FinishedEvent extends ComponentEventBase {
-  readonly kind: "finished";
+export interface ComponentFinishedEvent extends ComponentEventBase {
+  readonly kind: "component-finished";
   readonly latencyMs: number;
   readonly failure?: Failure;
 }
 
 /** One attempt along an edge failed. `retryAtMs` is set if another follows. */
-export interface AttemptFailedEvent extends RequestEventBase {
-  readonly kind: "attempt-failed";
+export interface EdgeAttemptFailedEvent extends RequestEventBase {
+  readonly kind: "edge-attempt-failed";
   readonly edgeId: string;
   readonly attempt: number;
   readonly failure: Failure;
   readonly retryAtMs?: number;
 }
 
-export interface DispatchedEvent extends ComponentEventBase {
-  readonly kind: "dispatched";
+export interface ComponentDispatchedEvent extends ComponentEventBase {
+  readonly kind: "component-dispatched";
 }
 
 /** A delivery of async work ended; `latencyMs` counts from the workflow's start. */
-export interface AsyncFinishedEvent extends ComponentEventBase {
-  readonly kind: "async-finished";
+export interface ComponentAsyncFinishedEvent extends ComponentEventBase {
+  readonly kind: "component-async-finished";
   readonly latencyMs: number;
   readonly succeeded: boolean;
 }
@@ -117,8 +117,8 @@ export interface AsyncFinishedEvent extends ComponentEventBase {
  * events strictly before `timeMs`. The last tick is at the end of the run and
  * also covers events at exactly that time.
  */
-export interface TickEvent {
-  readonly kind: "tick";
+export interface MetricsTickEvent {
+  readonly kind: "metrics-tick";
   readonly timeMs: number;
   readonly components: readonly ComponentSample[];
 }
@@ -141,7 +141,7 @@ export interface SimulationInput {
   /** Stop at this simulated time. Defaults to the workload's duration. */
   readonly untilMs?: number;
   /**
-   * Report a `tick` every `tickMs` of simulated time, plus one at the end.
+   * Report a `metrics-tick` every `tickMs` of simulated time, plus one at the end.
    * Off by default.
    */
   readonly tickMs?: number;

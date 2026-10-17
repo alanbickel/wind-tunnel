@@ -1,19 +1,36 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { sampleRecord } from "../application/testing/sample-record";
 import { App } from "./App";
-import { fakeUseCases } from "./app/testing/fake-use-cases";
+import { inMemoryUseCases } from "./app/testing/in-memory-use-cases";
 import { UseCasesProvider } from "./app/UseCasesProvider";
 import { StartupFailure } from "./StartupFailure";
 
 describe("App", () => {
-  it("renders the app title", () => {
-    const html = renderToString(
-      <UseCasesProvider useCases={fakeUseCases()}>
+  afterEach(cleanup);
+
+  it("opens a project from the list and goes back to the list", async () => {
+    const { useCases, projects } = inMemoryUseCases([]);
+    await projects.save(sampleRecord);
+    render(
+      <UseCasesProvider useCases={useCases}>
         <App />
       </UseCasesProvider>,
     );
 
-    expect(html).toContain("Wind Tunnel");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Sample project" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Sample project" }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "← All projects" }));
+    expect(
+      await screen.findByRole("heading", { name: "Your projects" }),
+    ).toBeTruthy();
   });
 });
 

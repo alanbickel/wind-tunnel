@@ -265,6 +265,7 @@ A new AWS service (or any other component type) touches these places, all in the
 ## Tests
 
 - Unit tests sit next to the code (`foo.ts` → `foo.test.ts`) and run in Node. Architecture tests live in `tests/architecture/`.
+- **UI tests** start with `// @vitest-environment jsdom`, render with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and call `cleanup` in `afterEach`. Give components use cases through `UseCasesProvider`: `fakeUseCases()` rejects every call you don't override, and `inMemoryUseCases()` runs the real project use cases over in-memory adapters (both in `src/ui/app/testing/`).
 - The coding standards apply to tests too. ESLint skips the length and parameter checks there, because a `describe` block groups many tests; keep each test itself within the rule of 30.
 - A regression test says which bug it guards against.
 - Tests should be able to fail. When you write one, break the code it covers and watch it go red at least once.

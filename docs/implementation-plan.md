@@ -57,7 +57,7 @@ Each task is a GitHub issue in the [M3 milestone](https://github.com/alanbickel/
 - [x] ADRs: canvas library and chart library (React Flow, ADR-0010; Recharts, ADR-0011; each behind our own components, enforced by ESLint)
 - [x] Browser `Clock` (`new Date().toISOString()`) and `IdGenerator` (`crypto.randomUUID()`) adapters
 - [x] [#3](https://github.com/alanbickel/wind-tunnel/issues/3) Composition root and an app shell that provides the use cases
-- [ ] [#4](https://github.com/alanbickel/wind-tunnel/issues/4) Project list and new-from-template
+- [x] [#4](https://github.com/alanbickel/wind-tunnel/issues/4) Project list and new-from-template
 - [ ] [#5](https://github.com/alanbickel/wind-tunnel/issues/5) Read-only architecture view
 - [ ] [#6](https://github.com/alanbickel/wind-tunnel/issues/6) Web Worker `SimulationRunner` with cancellation
 - [ ] [#7](https://github.com/alanbickel/wind-tunnel/issues/7) Run controls and metric charts

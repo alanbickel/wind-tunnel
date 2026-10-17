@@ -5,7 +5,7 @@ Tracks milestone progress for the MVP described in [`design/mvp-design.md`](desi
 ## How to resume work (read this first)
 
 1. Read `CLAUDE.md`, then this file.
-2. Find the current milestone (the first one not marked ✅) and the first unchecked task in it.
+2. Find the current milestone (the first one not marked ✅) and the first unchecked task in it, then read its GitHub issue.
 3. Read the [Progress log](#progress-log) for decisions from earlier sessions, and CONTRIBUTING's [Gotchas](../CONTRIBUTING.md#gotchas).
 4. Read only the docs the current task needs; don't re-derive settled decisions (see `docs/adr/`).
 
@@ -52,15 +52,17 @@ Made the code and docs easier to navigate before the UI: a `max-lines` warning; 
 
 **Done when:** in the browser, a user can create a project from a template, view its architecture, run its workload, and see charts.
 
+Each task is a GitHub issue in the [M3 milestone](https://github.com/alanbickel/wind-tunnel/milestone/1); the issue holds its scope and dependencies.
+
 - [x] ADRs: canvas library and chart library (React Flow, ADR-0010; Recharts, ADR-0011; each behind our own components, enforced by ESLint)
 - [x] Browser `Clock` (`new Date().toISOString()`) and `IdGenerator` (`crypto.randomUUID()`) adapters
-- [ ] Composition root in `src/main.tsx` (open the database, build the adapters and use cases) and an app shell that provides the use cases through React context
-- [ ] Project list and "new from template"; opening an `invalid` project shows its `reason` and issues
-- [ ] Read-only architecture view
-- [ ] Web Worker `SimulationRunner` adapter. Add cancellation to the port (stop a run, terminate the Worker); M2's port has none because `AbortSignal` isn't in the ECMAScript-only lib `application/` is checked with
-- [ ] Run controls and metric charts
-- [ ] Call `StoragePersistence.request()` after the user's first project is created (Firefox prompts, so not at startup); if it isn't `persisted`, point to export
-- [ ] Onboarding guide for the UI, with its level 3 (component) diagram: the composition root, how components reach use cases, the Worker runner, and a run traced from click to chart. Add the Worker to the overview's container diagram, where it's marked planned
+- [x] [#3](https://github.com/alanbickel/wind-tunnel/issues/3) Composition root and an app shell that provides the use cases
+- [ ] [#4](https://github.com/alanbickel/wind-tunnel/issues/4) Project list and new-from-template
+- [ ] [#5](https://github.com/alanbickel/wind-tunnel/issues/5) Read-only architecture view
+- [ ] [#6](https://github.com/alanbickel/wind-tunnel/issues/6) Web Worker `SimulationRunner` with cancellation
+- [ ] [#7](https://github.com/alanbickel/wind-tunnel/issues/7) Run controls and metric charts
+- [ ] [#8](https://github.com/alanbickel/wind-tunnel/issues/8) Request persistent storage after the first project is created
+- [ ] [#9](https://github.com/alanbickel/wind-tunnel/issues/9) UI onboarding guide and its component diagram
 
 ---
 

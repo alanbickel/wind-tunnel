@@ -2,7 +2,7 @@
 
 An introduction to the use cases, the ports they work through, and the adapters that store projects, for maintainers new to the code. Read the [architecture overview](architecture-overview.md) and [the domain model](domain-model.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§5 and §6).
 
-> **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, the in-process simulation runner, and the `Clock` and `IdGenerator` adapters exist. Nothing in the browser calls them yet: the UI and the Web Worker runner come in M3. Today the [headless runner](headless-runner.md) is the only real caller.
+> **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, the in-process simulation runner, and the `Clock` and `IdGenerator` adapters exist. The browser app wires them all up, but no screen calls them yet (M3 adds the screens and the Web Worker runner). Today the [headless runner](headless-runner.md) is the only caller that runs them.
 
 ## The big idea: use cases talk to ports, adapters fill them in
 
@@ -176,7 +176,10 @@ For an IndexedDB test, `import "fake-indexeddb/auto"`, give each test a fresh da
 
 ## Wiring it together
 
-Something has to build the adapters and hand them to the use cases. Today that's the CLI (`runSimulateCommand` in [`simulate-command.ts`](../../src/adapters/cli/simulate-command.ts)), which wires the catalog and the in-process runner to `RunSimulation`. In M3, `src/main.tsx` becomes the composition root: it opens the database, builds every adapter, and gives the use cases to the UI through React context.
+Something has to build the adapters and hand them to the use cases. There are two composition roots:
+
+- **The browser:** [`src/main.tsx`](../../src/main.tsx) opens the database, builds every adapter and the seven use cases, and renders `App` inside the provider tree. Every React context provider is set up there, so `App` takes no props. The use cases go to `UseCasesProvider` as one `UseCases` object ([`src/ui/app/use-cases.ts`](../../src/ui/app/use-cases.ts)), and a component reads them with `useUseCases()`. `UseCases` types each use case as `Pick<Class, "execute">`, so UI tests pass plain fakes (`fakeUseCases` in `src/ui/app/testing/`). If the database won't open, `main.tsx` shows `StartupFailure` instead. Until the Worker runner lands, runs use the in-process runner and block the page.
+- **The CLI:** `runSimulateCommand` in [`simulate-command.ts`](../../src/adapters/cli/simulate-command.ts) wires the catalog and the in-process runner to `RunSimulation`.
 
 ## Adding to it
 

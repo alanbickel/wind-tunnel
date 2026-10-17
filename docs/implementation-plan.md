@@ -15,10 +15,10 @@ Tracks milestone progress for the MVP described in [`design/mvp-design.md`](desi
 2. Docs updated: the architecture overview, the design doc if reality differs from it, new ADRs for significant decisions, a short onboarding guide for each new subsystem, and every new document listed in its folder's overview or the [root README](../README.md#documentation).
 3. A short entry added to the [Progress log](#progress-log): what was built, what differs from the plan, and anything the next session needs to know.
 4. **Compact this file:**
-   - Replace the finished milestone's task list with a one-line summary and its commit range.
+   - Replace the finished milestone's task list with a one-line summary and its PR numbers.
    - Trim older progress log entries to what a future session still needs. Anything already recorded in ADRs, design docs, or git history can go.
 5. Refine the next milestone's tasks if what we learned changes them.
-6. Commit, with the user's approval. The session can then be cleared.
+6. Push the milestone's last branch and open its PR ([CONTRIBUTING](../CONTRIBUTING.md#branches-and-pull-requests)). The session can then be cleared.
 
 ## What belongs in this file
 

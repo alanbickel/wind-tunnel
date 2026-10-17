@@ -18,7 +18,7 @@ In scope:
 - IndexedDB persistence and two bundled templates.
 - A minimal UI: project list, read-only architecture view, a Run button, and metric charts.
 
-Out of scope for the MVP (see the local `TODO.md`): editing architectures on the canvas, animated request particles, run comparison, cost estimates, IaC import/export, DynamoDB partition modeling.
+Out of scope for the MVP: editing architectures on the canvas, animated request particles, run comparison, cost estimates, IaC import/export, DynamoDB partition modeling.
 
 ## 2. Milestones
 

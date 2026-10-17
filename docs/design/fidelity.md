@@ -2,11 +2,11 @@
 
 Wind Tunnel simplifies AWS on purpose: a small model that shows the right failure modes is more useful early on than a large one that's hard to reason about. But every simplification shifts the results, and some can change a template's lesson. This page lists each known difference, what AWS actually does, how sure we are, and which way it skews the results, so we can decide what to improve as the project matures.
 
-For the model itself, see the [MVP design](mvp-design.md) and the [component definitions guide](../architecture/component-definitions.md). Ideas for closing gaps are also tracked in `TODO.md`; this page holds the detail.
+For the model itself, see the [MVP design](mvp-design.md) and the [component definitions guide](../architecture/component-definitions.md). Work to close a gap is tracked as a GitHub issue; this page holds the detail.
 
 ## How to read an entry
 
-Each entry has an ID (e.g. `LMB-2`) so code comments, commits, and TODO items can refer to it.
+Each entry has an ID (e.g. `LMB-2`) so code comments, commits, and issues can refer to it.
 
 - **Wind Tunnel:** what the model does today.
 - **AWS:** what the real service does.

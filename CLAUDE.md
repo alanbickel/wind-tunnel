@@ -17,8 +17,8 @@ Read `docs/implementation-plan.md` at the start of every session. It records the
 
 - Read the "Coding standards" section of `CONTRIBUTING.md` before writing code. All new and changed code follows it, tests included.
 - Run `npm run check` before declaring work done. The coding-standard rules are errors: fix a violation, or justify the exception after `--` in the disable comment. ESLint and the architecture tests (`tests/architecture/`) check rules 2, 5, 6, 7, 10, and 11 only. Check the rest yourself: single-responsibility functions (1), guard clauses (3), lookup maps instead of branching (4), named types (8), units in names (9), dependencies built by helper functions that rule 10's lint selector can't see, and where role interfaces live (11).
-- Don't fix existing violations in passing. If a function you need to change breaks a rule, bring it into line first in its own `refactor` commit.
-- Commit messages follow `CONTRIBUTING.md`: `type(scope): summary`.
+- Don't fix existing violations in passing. If a function you need to change breaks a rule, bring it into line first in its own `refactor` PR.
+- Branches, PRs, and commit messages follow `CONTRIBUTING.md` ("Branches and pull requests"; titles are `type(scope): summary`). Review PRs with `/pr-review <number>`.
 
 ## Documentation rules
 

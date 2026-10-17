@@ -1,6 +1,6 @@
 # Contributing
 
-This guide covers how to set up, the rules the code follows, and how to test, document, and commit a change. If you're new to the codebase, start with [Getting started](docs/getting-started.md); its reading order takes about an hour.
+This guide covers how to set up, the rules the code follows, and how to test, document, and merge a change. If you're new to the codebase, start with [Getting started](docs/getting-started.md); its reading order takes about an hour.
 
 ## Setup
 
@@ -42,7 +42,7 @@ ESLint and the architecture tests check rules 2, 5, 6, 7, 10, and 11 (see [Enfor
 
 **Scope:** code we own. Code and signatures we don't control follow their owners: callbacks for the platform (DOM events, `Array.prototype` methods, React, Vitest) take the parameters the platform passes, and generated or vendored code keeps its upstream form.
 
-**Refactor first.** When a change would push a function over a limit, or the function already breaks a rule ESLint can't check, reshape it first in its own `refactor` commit, then make your change. Reviewers can then check that the refactor changed no behavior. Don't fix unrelated code in passing.
+**Refactor first.** When a change would push a function over a limit, or the function already breaks a rule ESLint can't check, reshape it first in its own `refactor` PR, then make your change. Reviewers can then check that the refactor changed no behavior. Don't fix unrelated code in passing.
 
 ### 1. Single-responsibility functions
 
@@ -317,11 +317,42 @@ Record a significant decision as an ADR in `docs/adr/`, copying [the template](d
 - **To change the decision,** write a new ADR that supersedes it, and update only the old one's status line.
 - **One exception:** ADRs 0002, 0003, and 0005 were edited in place when the project was renamed from Cloud Builder to Wind Tunnel, as a one-off.
 
+## Branches and pull requests
+
+Every change reaches `main` through a pull request. People and Claude sessions follow the same steps:
+
+1. **Open an issue** and label it with the change's type: `feat`, `fix`, `refactor`, `test`, `docs`, or `chore` (the [commit types](#commits)).
+2. **Branch from `main`** as `<label>/issue-<number>-short-slug`, for example `feat/issue-12-composition-root`.
+3. **Commit on the branch** as often as you like. Branch commits don't need tidying, because the PR is squash-merged. Check off finished tasks in [`docs/implementation-plan.md`](docs/implementation-plan.md) on the branch.
+4. **Push and open a PR.** Its title becomes the commit message on `main`, so write it in the [commit style](#commits). Put `Closes #<number>` in the description. CI runs `npm run check` on every PR.
+5. **Review.** Run `/pr-review <number>` in a separate Claude Code session for an independent review (see [Reviews](#reviews)). The author answers every finding in its comment thread.
+6. **Merge.** The maintainer approves a PR by squash-merging it. GitHub deletes the branch.
+
+While a PR is open:
+
+- Only sync with `main` when you need to (a conflict, or CI needs a change from `main`), and do it by merging `main` into the branch. Don't rebase or force-push a branch that's under review: reviewers and review replies point at its commits.
+- If your branch was cut from another PR's branch and that PR is merged first, merge `main` into your branch as usual. The squash commit holds the same changes as the parent's commits your branch already has, so they usually merge cleanly; if the parent changed after you branched, resolve the conflicts in the merge.
+
+The repository allows only squash merges, and a ruleset stops `main` from being deleted or force-pushed.
+
+### Reviews
+
+[`/pr-review`](.claude/commands/pr-review.md) is a project command for Claude Code. It checks the PR in its own worktree against this guide, tries to make each new test fail, and posts one review whose comments start with `🤖 Claude review:`. Each finding is tagged **[blocking]**, **[should fix]**, or **[nit]**, and **confirmed** or **suspected**. Run it again after the author answers: a follow-up round checks each answer and reviews only the commits pushed since. The reviewer never pushes, approves, or merges.
+
+The author answers each finding in its thread with the commit that fixes it, or a reason not to. Claude authors start each reply with `🤖 Claude (author):`, because every comment posts under the maintainer's account.
+
+A PR is done when CI is green, every finding is answered, where a test applies the tests check the success case and the invariants and fail when the code they cover breaks, and the maintainer has merged it.
+
+### Claude sessions
+
+- On an issue branch, Claude commits, pushes, and opens or updates the PR without asking first. The PR is where the maintainer reviews the work. Claude never commits to `main` directly.
+- Use `/pr-review` from a different session than the one that wrote the PR, so the review starts from a clean context.
+
 ## Commits
 
-- One logical change per commit, with its tests and docs. `npm run check` passes at every commit.
-- One-line messages in the form `type(scope): summary`, in the imperative:
+- One logical change per PR, with its tests and docs. Each PR becomes one commit on `main`, and `npm run check` passes on every PR.
+- PR titles, and so the commits on `main`, are one line in the form `type(scope): summary`, in the imperative. Branch commits use the same form.
   - **type:** `feat`, `fix`, `refactor`, `test`, `docs`, or `chore`.
   - **scope:** the layer or area: `domain`, `application`, `adapters`, `ui`, `plan`. Leave it out when a change spans several.
   - For example: `feat(domain): add SQS visibility timeout`.
-- Refactors go in their own commit, separate from behavior changes (see [Refactor first](#coding-standards)).
+- Refactors go in their own PR, merged before the behavior change (see [Refactor first](#coding-standards)), so `main` shows the refactor on its own.

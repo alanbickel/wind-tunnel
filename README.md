@@ -45,7 +45,7 @@ This is the map of every document. New to the code? Start with [Getting started]
 | [Fidelity](docs/design/fidelity.md) | Where Wind Tunnel differs from AWS, and which way each difference skews results |
 | [Implementation plan](docs/implementation-plan.md) | The current milestone, what's next, and a progress log |
 | [AWS: Did you know?](docs/learning/aws-did-you-know.md) | AWS limits and at-scale behaviors the simulation models, with sources |
-| [Contributing](CONTRIBUTING.md) | Setup, coding standards, tests, docs, and commit conventions |
+| [Contributing](CONTRIBUTING.md) | Setup, coding standards, tests, docs, and the branch, PR, and review workflow |
 
 ## License
 

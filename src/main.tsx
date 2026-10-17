@@ -1,6 +1,7 @@
 // Composition root: the only module allowed to import from every layer.
 // It creates the adapters, wires them to the application's ports, and starts
-// the UI. See docs/architecture/application-layer.md.
+// the UI inside the provider tree (every React context provider lives here).
+// See docs/architecture/application-layer.md.
 import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserStoragePersistence } from "./adapters/persistence/browser-storage-persistence";
@@ -23,6 +24,7 @@ import { SaveProject } from "./application/use-cases/save-project";
 import { createAwsComponentRegistry } from "./domain/components/aws";
 import { App } from "./ui/App";
 import type { UseCases } from "./ui/app/use-cases";
+import { UseCasesProvider } from "./ui/app/UseCasesProvider";
 import { StartupFailure } from "./ui/StartupFailure";
 
 const rootElement = document.getElementById("root");
@@ -65,7 +67,11 @@ function createUseCases(database: ProjectDatabase): UseCases {
 
 openProjectDatabase().then(
   (database) => {
-    render(<App useCases={createUseCases(database)} />);
+    render(
+      <UseCasesProvider useCases={createUseCases(database)}>
+        <App />
+      </UseCasesProvider>,
+    );
   },
   (error: unknown) => {
     console.error(error);

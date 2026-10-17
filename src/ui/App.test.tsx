@@ -2,13 +2,18 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
 import { fakeUseCases } from "./app/testing/fake-use-cases";
+import { UseCasesProvider } from "./app/UseCasesProvider";
 import { StartupFailure } from "./StartupFailure";
 
 describe("App", () => {
   it("renders the app title", () => {
-    expect(renderToString(<App useCases={fakeUseCases()} />)).toContain(
-      "Wind Tunnel",
+    const html = renderToString(
+      <UseCasesProvider useCases={fakeUseCases()}>
+        <App />
+      </UseCasesProvider>,
     );
+
+    expect(html).toContain("Wind Tunnel");
   });
 });
 

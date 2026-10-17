@@ -1,19 +1,12 @@
-import type { UseCases } from "./app/use-cases";
-import { UseCasesProvider } from "./app/UseCasesProvider";
-
-export interface AppProps {
-  /** Built by the composition root, `main.tsx`. */
-  readonly useCases: UseCases;
-}
-
-/** The app shell: provides the use cases to every screen below it. */
-export function App({ useCases }: AppProps) {
+/**
+ * The app shell: the layout every screen sits in. It reads the use cases
+ * with `useUseCases`; `main.tsx` puts the providers above it.
+ */
+export function App() {
   return (
-    <UseCasesProvider useCases={useCases}>
-      <main>
-        <h1>Wind Tunnel</h1>
-        <p>Cloud architecture workload simulator. Under construction.</p>
-      </main>
-    </UseCasesProvider>
+    <main>
+      <h1>Wind Tunnel</h1>
+      <p>Cloud architecture workload simulator. Under construction.</p>
+    </main>
   );
 }

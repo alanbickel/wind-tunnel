@@ -178,7 +178,7 @@ For an IndexedDB test, `import "fake-indexeddb/auto"`, give each test a fresh da
 
 Something has to build the adapters and hand them to the use cases. There are two composition roots:
 
-- **The browser:** [`src/main.tsx`](../../src/main.tsx) opens the database, builds every adapter and the seven use cases, and passes them to `App` as one `UseCases` object ([`src/ui/app/use-cases.ts`](../../src/ui/app/use-cases.ts)). `App` puts it in React context, and a component reads it with `useUseCases()`. `UseCases` types each use case as `Pick<Class, "execute">`, so UI tests pass plain fakes (`fakeUseCases` in `src/ui/app/testing/`). If the database won't open, `main.tsx` shows `StartupFailure` instead. Until the Worker runner lands, runs use the in-process runner and block the page.
+- **The browser:** [`src/main.tsx`](../../src/main.tsx) opens the database, builds every adapter and the seven use cases, and renders `App` inside the provider tree. Every React context provider is set up there, so `App` takes no props. The use cases go to `UseCasesProvider` as one `UseCases` object ([`src/ui/app/use-cases.ts`](../../src/ui/app/use-cases.ts)), and a component reads them with `useUseCases()`. `UseCases` types each use case as `Pick<Class, "execute">`, so UI tests pass plain fakes (`fakeUseCases` in `src/ui/app/testing/`). If the database won't open, `main.tsx` shows `StartupFailure` instead. Until the Worker runner lands, runs use the in-process runner and block the page.
 - **The CLI:** `runSimulateCommand` in [`simulate-command.ts`](../../src/adapters/cli/simulate-command.ts) wires the catalog and the in-process runner to `RunSimulation`.
 
 ## Adding to it

@@ -1,12 +1,35 @@
+import { useState } from "react";
+import { ProjectScreen } from "./project/ProjectScreen";
+import { ProjectsScreen } from "./projects/ProjectsScreen";
+
 /**
- * The app shell: the layout every screen sits in. It reads the use cases
- * with `useUseCases`; `main.tsx` puts the providers above it.
+ * The app shell: the layout every screen sits in, and which screen shows.
+ * `main.tsx` puts the providers above it.
  */
 export function App() {
+  const [openId, setOpenId] = useState<string>();
+  // Back on the list, focus returns to the project the user had open.
+  const [lastOpenedId, setLastOpenedId] = useState<string>();
+
+  const open = (id: string) => {
+    setOpenId(id);
+    setLastOpenedId(id);
+  };
+
   return (
     <main>
       <h1>Wind Tunnel</h1>
-      <p>Cloud architecture workload simulator. Under construction.</p>
+      {openId === undefined ? (
+        <ProjectsScreen onOpen={open} focusId={lastOpenedId} />
+      ) : (
+        <ProjectScreen
+          key={openId}
+          id={openId}
+          onClose={() => {
+            setOpenId(undefined);
+          }}
+        />
+      )}
     </main>
   );
 }

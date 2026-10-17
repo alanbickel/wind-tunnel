@@ -1,19 +1,60 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { sampleRecord } from "../application/testing/sample-record";
 import { App } from "./App";
-import { fakeUseCases } from "./app/testing/fake-use-cases";
+import { inMemoryUseCases } from "./app/testing/in-memory-use-cases";
 import { UseCasesProvider } from "./app/UseCasesProvider";
 import { StartupFailure } from "./StartupFailure";
 
 describe("App", () => {
-  it("renders the app title", () => {
-    const html = renderToString(
-      <UseCasesProvider useCases={fakeUseCases()}>
+  afterEach(cleanup);
+
+  async function renderAppWithSample() {
+    const { useCases, projects } = inMemoryUseCases([]);
+    await projects.save(sampleRecord);
+    render(
+      <UseCasesProvider useCases={useCases}>
         <App />
       </UseCasesProvider>,
     );
+  }
 
-    expect(html).toContain("Wind Tunnel");
+  it("leaves focus alone when the list first loads", async () => {
+    await renderAppWithSample();
+
+    await screen.findByRole("button", { name: "Sample project" });
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("opens a project with focus on its heading", async () => {
+    await renderAppWithSample();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Sample project" }),
+    );
+
+    const heading = await screen.findByRole("heading", {
+      name: "Sample project",
+    });
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it("goes back to the list with focus on the project that was open", async () => {
+    await renderAppWithSample();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Sample project" }),
+    );
+    await screen.findByRole("heading", { name: "Sample project" });
+
+    fireEvent.click(screen.getByRole("button", { name: "← All projects" }));
+
+    const button = await screen.findByRole("button", {
+      name: "Sample project",
+    });
+    expect(document.activeElement).toBe(button);
   });
 });
 

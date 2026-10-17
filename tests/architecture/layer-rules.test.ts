@@ -46,6 +46,13 @@ describe("layer rules", () => {
     ["src/adapters/x.ts", "../ui/x"],
     ["src/ui/x.ts", "../adapters/x"],
     ["src/ui/x.ts", "../domain/x"],
+    ["src/ui/x.ts", "@xyflow/react"],
+    ["src/ui/charts/x.ts", "@xyflow/react"],
+    ["src/adapters/x.ts", "@xyflow/react"],
+    ["src/ui/x.ts", "recharts"],
+    ["src/ui/diagram/x.ts", "recharts"],
+    ["src/adapters/x.ts", "recharts"],
+    ["src/ui/diagram/x.ts", "../../adapters/x"],
   ])("in %s", (filePath, specifier) => {
     it(`rejects import from "${specifier}"`, async () => {
       expect(
@@ -69,6 +76,9 @@ describe("layer rules", () => {
     ["src/ui/x.ts", `import { y } from "../application/y";`],
     ["src/ui/x.ts", `import type { Y } from "../domain/y";`],
     ["src/ui/x.ts", `import { useState } from "react";`],
+    ["src/ui/diagram/x.ts", `import { ReactFlow } from "@xyflow/react";`],
+    ["src/ui/diagram/sub/x.ts", `import "@xyflow/react/dist/style.css";`],
+    ["src/ui/charts/x.ts", `import { LineChart } from "recharts";`],
     ["src/main.tsx", `import { y } from "./adapters/y";`],
   ])("in %s", (filePath, importLine) => {
     it(`allows ${importLine}`, async () => {

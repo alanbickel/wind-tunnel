@@ -52,7 +52,7 @@ Made the code and docs easier to navigate before the UI: a `max-lines` warning; 
 
 **Done when:** in the browser, a user can create a project from a template, view its architecture, run its workload, and see charts.
 
-- [ ] ADRs: canvas library and chart library
+- [x] ADRs: canvas library and chart library (React Flow, ADR-0010; Recharts, ADR-0011; each behind our own components, enforced by ESLint)
 - [ ] Browser `Clock` (`new Date().toISOString()`) and `IdGenerator` (`crypto.randomUUID()`) adapters
 - [ ] Composition root in `src/main.tsx` (open the database, build the adapters and use cases) and an app shell that provides the use cases through React context
 - [ ] Project list and "new from template"; opening an `invalid` project shows its `reason` and issues

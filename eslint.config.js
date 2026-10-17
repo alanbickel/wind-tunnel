@@ -73,6 +73,24 @@ const applicationImports = (/** @type {string[]} */ extraPackages) => ({
   ],
 });
 
+/**
+ * Third-party UI libraries that only their wrapper folder may import, so
+ * replacing one means rewriting that folder alone (ADR-0010, ADR-0011).
+ */
+const WRAPPED_LIBRARIES = [
+  { name: "@xyflow/react", folder: "src/ui/diagram", adr: "ADR-0010" },
+  { name: "recharts", folder: "src/ui/charts", adr: "ADR-0011" },
+];
+
+/** Matches imports of every wrapped library, except the one `folder` wraps (if any). */
+const wrappedLibrariesOutside = (/** @type {string} */ folder = "") =>
+  WRAPPED_LIBRARIES.filter((library) => library.folder !== folder).map(
+    (library) => ({
+      regex: `^${library.name}(/|$)`,
+      message: `Only ${library.folder}/ may import ${library.name}; use its components (${library.adr}).`,
+    }),
+  );
+
 const adaptersImports = {
   patterns: [
     {
@@ -80,10 +98,11 @@ const adaptersImports = {
       message: "adapters/ must not import from ui/ (ADR-0002).",
     },
     MAIN,
+    ...wrappedLibrariesOutside(),
   ],
 };
 
-const uiImports = {
+const uiImports = (/** @type {string} */ folder = "") => ({
   patterns: [
     {
       regex: layerPattern(["adapters"]),
@@ -97,8 +116,9 @@ const uiImports = {
         "ui/ may import only types from domain/; use `import type` (ADR-0002).",
     },
     MAIN,
+    ...wrappedLibrariesOutside(folder),
   ],
-};
+});
 
 // `domain` and `application` must be deterministic (ADR-0002). Time and
 // randomness come in through ports / RandomSource. DOM, Worker, and Node APIs
@@ -261,8 +281,19 @@ export default defineConfig([
   },
   {
     files: ["src/ui/**"],
-    rules: { "@typescript-eslint/no-restricted-imports": ["error", uiImports] },
+    rules: {
+      "@typescript-eslint/no-restricted-imports": ["error", uiImports()],
+    },
   },
+  ...WRAPPED_LIBRARIES.map((library) => ({
+    files: [`${library.folder}/**`],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        uiImports(library.folder),
+      ],
+    },
+  })),
   {
     files: ["src/domain/**", "src/application/**"],
     rules: nondeterminismBans,

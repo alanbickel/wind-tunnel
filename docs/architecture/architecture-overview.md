@@ -140,6 +140,7 @@ flowchart TB
 | A new IndexedDB store or index (e.g. `runs`) | `project-database.ts` in `src/adapters/persistence/` | Raise `PROJECT_DATABASE_VERSION` and add an upgrade step for it; keep the old steps, so a database at any older version catches up. This is separate from a document's `schemaVersion` ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). |
 | A CloudFormation/CDK/Terraform importer or exporter | `src/adapters/iac/` | Converts between file formats and domain objects. |
 | A React component | `src/ui/` | Ordinary React patterns are fine here. Get use cases via context, not by importing adapters. |
+| A diagram or chart feature | `src/ui/diagram/` or `src/ui/charts/` | Only these folders import React Flow and Recharts ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)). Add what you need to their props, in our own types; consumers never see a library type. |
 | Wiring adapters to ports | `src/main.tsx` | The only place that knows about every layer. |
 
 ## How the rules are enforced
@@ -150,6 +151,7 @@ The layer rules are checked by tooling, so a mistake fails `npm run check` (and 
 |---|---|---|
 | Imports point inward only; `ui` imports only *types* from `domain`; nothing imports `main.tsx` | `@typescript-eslint/no-restricted-imports`, configured per layer | [`eslint.config.js`](../../eslint.config.js) |
 | `domain` and `application` use only approved pure libraries (currently `zod` in `domain`, [ADR-0005](../adr/0005-use-zod-for-schema-validation.md)); tests there may also import `vitest` | Same rule, with an allowlist of packages | [`eslint.config.js`](../../eslint.config.js) |
+| Only `src/ui/diagram/` imports `@xyflow/react`, and only `src/ui/charts/` imports `recharts` ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) | Same rule, with `WRAPPED_LIBRARIES` | [`eslint.config.js`](../../eslint.config.js) |
 | No DOM, `Worker`, timers, or Node APIs in `domain` and `application` | TypeScript: these folders are checked without the DOM lib or Node types | [`tsconfig.core.json`](../../tsconfig.core.json) |
 | No `Math.random`, `Date.now`, `new Date()`, or `Date()` in `domain` and `application` | `no-restricted-properties` and `no-restricted-syntax` | [`eslint.config.js`](../../eslint.config.js) |
 | A class doesn't build its own collaborators ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | `no-restricted-syntax`: `new` inside a class body, except built-ins and `STATE_CLASSES` | [`eslint.config.js`](../../eslint.config.js) |

@@ -394,4 +394,4 @@ Template A's p99 rises less than you might expect, because refused requests fail
 
 - **Validation:** Zod, per [ADR-0005](../adr/0005-use-zod-for-schema-validation.md).
 - **Headless runner:** M1 includes a small Node script (`npm run simulate -- --template template-a`) that prints a text report. It stays useful after M1 for debugging and benchmarks.
-- **Open: canvas library for M3.** React Flow is the leading candidate. Decide (with an ADR) when M3 starts.
+- **Canvas and charts:** React Flow ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md)) and Recharts ([ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)), each imported only by the folder that wraps it.

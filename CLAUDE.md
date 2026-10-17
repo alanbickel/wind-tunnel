@@ -1,6 +1,6 @@
 # Wind Tunnel
 
-A workload simulator for exploring how application workflows behave under real-world stress. (Formerly "Cloud Builder"; the local folder still uses that name.) The vision (`cloud-builder-concept.md`) and future ideas (`TODO.md`) are local-only files, deliberately excluded from git; they may not exist in other clones.
+A workload simulator for exploring how application workflows behave under real-world stress. (Formerly "Cloud Builder"; the local folder still uses that name.) The vision (`cloud-builder-concept.md`) is a local-only file, deliberately excluded from git; it may not exist in other clones. The work backlog is the repository's GitHub issues.
 
 ## Current work
 
@@ -23,4 +23,4 @@ Read `docs/implementation-plan.md` at the start of every session. It records the
 ## Documentation rules
 
 - Follow the "Documentation" section of `CONTRIBUTING.md`: guides for new subsystems, keeping the architecture overview current, where a document goes (the root README is the map), ADRs, and AWS claims in `docs/design/fidelity.md`.
-- Add ideas for future work to `TODO.md`.
+- File ideas for future work as labeled GitHub issues, not in `TODO.md` (a local file kept only as a temporary reference until its items move to issues).

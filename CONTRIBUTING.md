@@ -319,6 +319,8 @@ Record a significant decision as an ADR in `docs/adr/`, copying [the template](d
 
 ## Branches and pull requests
 
+The backlog is the repository's [GitHub issues](https://github.com/alanbickel/wind-tunnel/issues). File an idea for future work as an issue with its type label; an issue joins a milestone once it's scheduled.
+
 Every change reaches `main` through a pull request. People and Claude sessions follow the same steps:
 
 1. **Open an issue** and label it with the change's type: `feat`, `fix`, `refactor`, `test`, `docs`, or `chore` (the [commit types](#commits)).

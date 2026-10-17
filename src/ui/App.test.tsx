@@ -11,7 +11,7 @@ import { StartupFailure } from "./StartupFailure";
 describe("App", () => {
   afterEach(cleanup);
 
-  it("opens a project from the list and goes back to the list", async () => {
+  async function renderAppWithSample() {
     const { useCases, projects } = inMemoryUseCases([]);
     await projects.save(sampleRecord);
     render(
@@ -19,18 +19,42 @@ describe("App", () => {
         <App />
       </UseCasesProvider>,
     );
+  }
+
+  it("leaves focus alone when the list first loads", async () => {
+    await renderAppWithSample();
+
+    await screen.findByRole("button", { name: "Sample project" });
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("opens a project with focus on its heading", async () => {
+    await renderAppWithSample();
 
     fireEvent.click(
       await screen.findByRole("button", { name: "Sample project" }),
     );
-    expect(
-      await screen.findByRole("heading", { name: "Sample project" }),
-    ).toBeTruthy();
+
+    const heading = await screen.findByRole("heading", {
+      name: "Sample project",
+    });
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it("goes back to the list with focus on the project that was open", async () => {
+    await renderAppWithSample();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Sample project" }),
+    );
+    await screen.findByRole("heading", { name: "Sample project" });
 
     fireEvent.click(screen.getByRole("button", { name: "← All projects" }));
-    expect(
-      await screen.findByRole("heading", { name: "Your projects" }),
-    ).toBeTruthy();
+
+    const button = await screen.findByRole("button", {
+      name: "Sample project",
+    });
+    expect(document.activeElement).toBe(button);
   });
 });
 

@@ -15,16 +15,21 @@ export function NewFromTemplate({ onCreated }: NewFromTemplateProps) {
   const { listTemplates } = useUseCases();
   const load = useCallback(() => listTemplates.execute(), [listTemplates]);
   const { loadable } = useLoad(load);
-  const { create, problem } = useCreateFromTemplate(onCreated);
+  const { create, problem, pending } = useCreateFromTemplate(onCreated);
 
   return (
     <section aria-labelledby="new-project-heading">
       <h2 id="new-project-heading">New from template</h2>
       <LoadableView loadable={loadable} what="the templates">
         {(templates) => (
-          <TemplateList templates={templates} onCreate={create} />
+          <TemplateList
+            templates={templates}
+            onCreate={create}
+            pending={pending}
+          />
         )}
       </LoadableView>
+      {pending && <p role="status">Creating the project…</p>}
       {problem && <p role="alert">{problem}</p>}
     </section>
   );

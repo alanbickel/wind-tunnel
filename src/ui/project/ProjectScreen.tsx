@@ -2,10 +2,11 @@ import { useCallback, type ReactNode } from "react";
 import type { ProjectLookup } from "../../application/ports/project-repository";
 import { useUseCases } from "../app/useUseCases";
 import { LoadableView } from "../shared/LoadableView";
-import { viewFor, type StatusViews } from "../shared/status-views";
+import { handleStatus, type StatusHandlers } from "../shared/status-handlers";
 import { useLoad } from "../shared/useLoad";
 import { InvalidProject } from "./InvalidProject";
 import { OpenedProject } from "./OpenedProject";
+import { ScreenHeading } from "../shared/ScreenHeading";
 
 export interface ProjectScreenProps {
   readonly id: string;
@@ -25,14 +26,21 @@ export function ProjectScreen({ id, onClose }: ProjectScreenProps) {
         ← All projects
       </button>
       <LoadableView loadable={loadable} what="the project">
-        {(lookup) => viewFor<ProjectLookup, ReactNode>(LOOKUP_VIEWS, lookup)}
+        {(lookup) =>
+          handleStatus<ProjectLookup, ReactNode>(LOOKUP_VIEWS, lookup)
+        }
       </LoadableView>
     </section>
   );
 }
 
-const LOOKUP_VIEWS: StatusViews<ProjectLookup, ReactNode> = {
+const LOOKUP_VIEWS: StatusHandlers<ProjectLookup, ReactNode> = {
   found: ({ record }) => <OpenedProject record={record} />,
-  missing: () => <p role="alert">This project no longer exists.</p>,
+  missing: () => (
+    <>
+      <ScreenHeading>Project not found</ScreenHeading>
+      <p role="alert">This project no longer exists.</p>
+    </>
+  ),
   invalid: (lookup) => <InvalidProject lookup={lookup} />,
 };

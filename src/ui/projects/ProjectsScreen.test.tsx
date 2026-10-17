@@ -94,4 +94,59 @@ describe("ProjectsScreen", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("That template no longer exists.");
   });
+
+  it("says why when creating a project fails", async () => {
+    const { useCases } = inMemoryUseCases([sampleRecord]);
+    renderScreen({
+      ...useCases,
+      createProjectFromTemplate: {
+        execute: () => Promise.reject(new Error("quota exceeded")),
+      },
+    });
+
+    fireEvent.click(await screen.findByLabelText(CREATE_SAMPLE));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe(
+      "Couldn't create the project: Error: quota exceeded",
+    );
+  });
+
+  it("clears the last problem when the next create succeeds", async () => {
+    const { useCases } = inMemoryUseCases([sampleRecord]);
+    const real = useCases.createProjectFromTemplate;
+    let calls = 0;
+    renderScreen({
+      ...useCases,
+      createProjectFromTemplate: {
+        execute: (templateId) =>
+          calls++ === 0
+            ? Promise.resolve({ status: "template-missing" })
+            : real.execute(templateId),
+      },
+    });
+    fireEvent.click(await screen.findByLabelText(CREATE_SAMPLE));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByLabelText(CREATE_SAMPLE));
+
+    await screen.findByRole("button", { name: "Sample project" });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("creates one project when Create is clicked twice in a row", async () => {
+    const { useCases, projects } = inMemoryUseCases([sampleRecord]);
+    renderScreen(useCases);
+    const create = await screen.findByLabelText(CREATE_SAMPLE);
+
+    fireEvent.click(create);
+    fireEvent.click(create);
+
+    expect(screen.getByRole("status").textContent).toBe(
+      "Creating the project…",
+    );
+    expect(create.getAttribute("aria-disabled")).toBe("true");
+    await screen.findByRole("button", { name: "Sample project" });
+    expect(await projects.list()).toHaveLength(1);
+  });
 });

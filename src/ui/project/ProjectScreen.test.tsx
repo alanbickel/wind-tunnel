@@ -44,6 +44,9 @@ describe("ProjectScreen", () => {
     expect(alert.textContent).toContain(
       "Saved in a form this version can't open.",
     );
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: "This project can't be opened" }),
+    );
     const items = screen.getAllByRole("listitem").map((li) => li.textContent);
     expect(items).toEqual([
       "workflows.0.root: Unknown component",
@@ -56,6 +59,9 @@ describe("ProjectScreen", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("This project no longer exists.");
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: "Project not found" }),
+    );
   });
 
   it("goes back to the list", async () => {

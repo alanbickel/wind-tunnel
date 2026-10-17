@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { viewFor } from "./status-views";
+import { handleStatus } from "./status-handlers";
 import type { Loadable } from "./useLoad";
 
 export interface LoadableViewProps<T> {
@@ -16,9 +16,9 @@ export function LoadableView<T>({
   what,
   children,
 }: LoadableViewProps<T>) {
-  return viewFor<Loadable<T>, ReactNode>(
+  return handleStatus<Loadable<T>, ReactNode>(
     {
-      loading: () => <p>Loading {what}…</p>,
+      loading: () => <p role="status">Loading {what}…</p>,
       failed: ({ error }) => (
         <p role="alert">
           Couldn&apos;t load {what}: {String(error)}

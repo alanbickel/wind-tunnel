@@ -8,12 +8,19 @@ import { ProjectsScreen } from "./projects/ProjectsScreen";
  */
 export function App() {
   const [openId, setOpenId] = useState<string>();
+  // Back on the list, focus returns to the project the user had open.
+  const [lastOpenedId, setLastOpenedId] = useState<string>();
+
+  const open = (id: string) => {
+    setOpenId(id);
+    setLastOpenedId(id);
+  };
 
   return (
     <main>
       <h1>Wind Tunnel</h1>
       {openId === undefined ? (
-        <ProjectsScreen onOpen={setOpenId} />
+        <ProjectsScreen onOpen={open} focusId={lastOpenedId} />
       ) : (
         <ProjectScreen
           key={openId}

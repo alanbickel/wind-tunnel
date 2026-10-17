@@ -1,4 +1,5 @@
 import type { ProjectRecord } from "../../application/ports/project-record";
+import { ScreenHeading } from "../shared/ScreenHeading";
 
 export interface OpenedProjectProps {
   readonly record: ProjectRecord;
@@ -9,7 +10,7 @@ export function OpenedProject({ record }: OpenedProjectProps) {
   const { project } = record;
   return (
     <div>
-      <h2>{project.name}</h2>
+      <ScreenHeading>{project.name}</ScreenHeading>
       {project.description && <p>{project.description}</p>}
       <p>
         Components: {project.architecture.components.length} · Workflows:{" "}

@@ -1,5 +1,6 @@
 import type { ProjectInvalid } from "../../application/ports/project-repository";
 import type { ValidationIssue } from "../../domain/model/validate-project";
+import { ScreenHeading } from "../shared/ScreenHeading";
 
 export interface InvalidProjectProps {
   readonly lookup: ProjectInvalid;
@@ -9,7 +10,7 @@ export interface InvalidProjectProps {
 export function InvalidProject({ lookup }: InvalidProjectProps) {
   return (
     <div role="alert">
-      <h2>This project can&apos;t be opened</h2>
+      <ScreenHeading>This project can&apos;t be opened</ScreenHeading>
       <p>{lookup.reason}</p>
       <ul>
         {lookup.issues.map((issue, index) => (

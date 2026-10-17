@@ -22,6 +22,7 @@
     "simulate": "node scripts/simulate.js"
   },
   "dependencies": {
+    "@xyflow/react": "^12.12.0",
     "idb": "^8.0.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

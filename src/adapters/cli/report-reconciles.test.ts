@@ -72,8 +72,11 @@ describe.each([
 });
 
 describe("template-b's queue", () => {
+  // Run while collecting, as above: a whole-template run inside `it` counts
+  // against the 5 s test timeout, which a busy parallel run can exceed (#15).
+  const { totals } = run(templateB);
+
   it("is delivering exactly the messages its consumer is working on", () => {
-    const { totals } = run(templateB);
     const queue = totals.components["orders-queue"];
     const consumer = totals.components["fn-writer"];
     if (queue === undefined || consumer === undefined) throw new Error();

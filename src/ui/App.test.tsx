@@ -1,15 +1,20 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleRecord } from "../application/testing/sample-record";
 import { App } from "./App";
 import { inMemoryUseCases } from "./app/testing/in-memory-use-cases";
 import { UseCasesProvider } from "./app/UseCasesProvider";
 import { StartupFailure } from "./StartupFailure";
+import { stubDiagramBrowserApis } from "./diagram/testing/stub-diagram-browser-apis";
 
 describe("App", () => {
-  afterEach(cleanup);
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   async function renderAppWithSample() {
     const { useCases, projects } = inMemoryUseCases([]);

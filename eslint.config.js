@@ -154,12 +154,16 @@ const nondeterminismBans = {
 // outside class bodies, so the selector leaves them alone.
 // ---------------------------------------------------------------------------
 
-/** Built-ins: platform containers, promises, errors, typed arrays. */
+/**
+ * Built-ins: platform containers, values, promises, errors, typed arrays.
+ * `domain/` and `application/` still ban `new Date` (see the Clock port).
+ */
 const BUILT_INS = [
   "Map",
   "Set",
   "WeakMap",
   "WeakSet",
+  "Date",
   "Promise",
   "\\w*Error",
   "\\w+Array",

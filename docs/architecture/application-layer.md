@@ -2,7 +2,7 @@
 
 An introduction to the use cases, the ports they work through, and the adapters that store projects, for maintainers new to the code. Read the [architecture overview](architecture-overview.md) and [the domain model](domain-model.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§5 and §6).
 
-> **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, and the in-process simulation runner exist. Nothing in the browser calls them yet: the UI, the Web Worker runner, and the `Clock` and `IdGenerator` adapters come in M3. Today the [headless runner](headless-runner.md) is the only real caller.
+> **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, the in-process simulation runner, and the `Clock` and `IdGenerator` adapters exist. Nothing in the browser calls them yet: the UI and the Web Worker runner come in M3. Today the [headless runner](headless-runner.md) is the only real caller.
 
 ## The big idea: use cases talk to ports, adapters fill them in
 
@@ -25,6 +25,7 @@ flowchart LR
         cat["<b>BundledTemplateCatalog</b><br/>[Component: templates/]"]:::component
         run["<b>InProcessSimulationRunner</b><br/>[Component: simulation/]"]:::component
         sp["<b>BrowserStoragePersistence</b><br/>[Component: persistence/]"]:::component
+        sys["<b>SystemClock, RandomUuidIds</b><br/>[Component: system/]"]:::component
     end
     db[("<b>Project store</b><br/>[Container: IndexedDB]")]:::system
     dom["<b>domain/</b><br/>simulateWithMetrics, Project"]:::external
@@ -52,8 +53,8 @@ Because the use cases see only ports, the same use case runs against fakes in a 
 | `ProjectRepository` | `list`, `get`, `save`, `delete` the user's projects | `IndexedDbProjectRepository` | `InMemoryProjectRepository` |
 | `TemplateCatalog` | `list` the starter templates, `get` one as a record | `BundledTemplateCatalog` | `InMemoryTemplateCatalog` |
 | `SimulationRunner` | Run a workload, stream per-second snapshots through `onSnapshot` | `InProcessSimulationRunner` (a Worker version in M3) | `RecordingSimulationRunner` |
-| `Clock` | The current time as an ISO string (`2026-10-15T12:00:00.000Z`) | M3 | `FixedClock` |
-| `IdGenerator` | New unique IDs | M3 (`crypto.randomUUID()`) | `SequentialIds` (`project-1`, `project-2`, ...) |
+| `Clock` | The current time as an ISO string (`2026-10-15T12:00:00.000Z`) | `SystemClock` | `FixedClock` |
+| `IdGenerator` | New unique IDs | `RandomUuidIds` (`crypto.randomUUID()`) | `SequentialIds` (`project-1`, `project-2`, ...) |
 | `StoragePersistence` | Ask the browser not to evict saved projects | `BrowserStoragePersistence` | none needed yet |
 
 Two rules shape them:

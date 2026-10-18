@@ -28,6 +28,26 @@ describe("ArchitectureView", () => {
     expect(diagram.querySelectorAll(".react-flow__node")).toHaveLength(3);
   });
 
+  it("offers nothing to move, select, connect, or tab to", () => {
+    render(<ArchitectureView record={sampleRecord} />);
+    const diagram = screen.getByRole("group", {
+      name: "Architecture diagram of Sample project",
+    });
+
+    for (const node of diagram.querySelectorAll(".react-flow__node")) {
+      expect(node.classList.contains("draggable")).toBe(false);
+      expect(node.classList.contains("selectable")).toBe(false);
+      expect(node.hasAttribute("tabindex")).toBe(false);
+      const description = node.getAttribute("aria-describedby") ?? "";
+      expect(document.getElementById(description)?.textContent).toBe(
+        "Read-only. The text version after the diagram lists the same items.",
+      );
+    }
+    expect(
+      diagram.querySelectorAll(".react-flow__handle.connectable"),
+    ).toHaveLength(0);
+  });
+
   it("lists the components and connections as text", () => {
     render(<ArchitectureView record={sampleRecord} />);
 

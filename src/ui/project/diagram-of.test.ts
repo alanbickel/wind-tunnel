@@ -43,8 +43,20 @@ describe("diagramOf", () => {
 
     const table = diagramOf(record).nodes.find((node) => node.id === "table");
 
-    // Third component, so third column; 150 px below the lowest (y = 100).
-    expect(table?.position).toEqual({ x: 500, y: 250 });
+    // The only unplaced one, so the first column; 150 px below the lowest (y = 100).
+    expect(table?.position).toEqual({ x: 0, y: 250 });
+  });
+
+  it("numbers the spare row's columns among the unplaced components only", () => {
+    const record = withLayout({ fn: { x: 250, y: 0 } });
+
+    const positions = diagramOf(record).nodes.map((n) => [n.id, n.position]);
+
+    expect(positions).toEqual([
+      ["api", { x: 0, y: 150 }],
+      ["fn", { x: 250, y: 0 }],
+      ["table", { x: 250, y: 150 }],
+    ]);
   });
 
   it("starts the spare row at the top when nothing is placed", () => {

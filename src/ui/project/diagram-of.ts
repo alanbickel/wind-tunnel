@@ -15,20 +15,21 @@ const SPARE_ROW_GAP_PX = 150;
 
 /**
  * A project's architecture as a diagram: a node per component, at its place
- * in the layout, and an arrow per edge. A component the layout doesn't place
- * goes in a row under all the others, so it's still shown.
+ * in the layout, and an arrow per edge. Components the layout doesn't place
+ * go in a row of their own under all the others, so they're still shown.
  */
 export function diagramOf({ project, layout }: ProjectRecord): DiagramContent {
   const { components, edges } = project.architecture;
   const spareRowY = spareRowYOf(layout);
-  const positionOf = (component: Component, index: number): DiagramPoint =>
+  const unplaced = components.filter((c) => !Object.hasOwn(layout.nodes, c.id));
+  const positionOf = (component: Component): DiagramPoint =>
     layout.nodes[component.id] ?? {
-      x: index * SPARE_COLUMN_WIDTH_PX,
+      x: unplaced.indexOf(component) * SPARE_COLUMN_WIDTH_PX,
       y: spareRowY,
     };
   return {
-    nodes: components.map((component, index) =>
-      nodeOf({ component, position: positionOf(component, index) }),
+    nodes: components.map((component) =>
+      nodeOf({ component, position: positionOf(component) }),
     ),
     edges: edges.map(({ id, from, to }) => ({ id, source: from, target: to })),
   };

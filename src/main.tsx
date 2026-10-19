@@ -26,6 +26,12 @@ import { App } from "./ui/App";
 import type { UseCases } from "./ui/app/use-cases";
 import { UseCasesProvider } from "./ui/app/UseCasesProvider";
 import { StartupFailure } from "./ui/StartupFailure";
+import { applyThemeChoice, savedThemeChoice } from "./ui/theme/theme-choice";
+import "./ui/theme/tokens.css";
+import "./ui/theme/base.css";
+
+// Before the first render, so the page starts in the user's theme.
+applyThemeChoice(savedThemeChoice());
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

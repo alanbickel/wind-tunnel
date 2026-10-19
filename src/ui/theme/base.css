@@ -1,0 +1,22 @@
+/*
+ * The page's defaults, from the tokens (ADR-0012). Components style
+ * themselves with CSS Modules; this sheet holds only what every screen
+ * shares.
+ */
+
+html {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  line-height: var(--line-height);
+}
+
+a {
+  color: var(--color-accent);
+}
+
+/* One focus ring for every control, shown for keyboard focus only. */
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}

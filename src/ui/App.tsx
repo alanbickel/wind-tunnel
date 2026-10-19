@@ -3,6 +3,7 @@ import { ProjectScreen } from "./project/ProjectScreen";
 import { ProjectsScreen } from "./projects/ProjectsScreen";
 import { StorageHint } from "./storage/StorageHint";
 import { useStoragePersistence } from "./storage/useStoragePersistence";
+import { ThemeControl } from "./theme/ThemeControl";
 
 /**
  * The app shell: the layout every screen sits in, and which screen shows.
@@ -23,6 +24,7 @@ export function App() {
   return (
     <main>
       <h1>Wind Tunnel</h1>
+      <ThemeControl />
       <StorageHint status={storage.status} />
       {openId === undefined ? (
         <ProjectsScreen

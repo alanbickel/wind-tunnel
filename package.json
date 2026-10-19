@@ -2,7 +2,7 @@
   "name": "wind-tunnel",
   "private": true,
   "version": "0.0.0",
-  "description": "A workload simulator for exploring how application workflows behave under real-world stress.",
+  "description": "A workload simulator for exploring how your application's cloud architecture behaves under real-world usage.",
   "license": "MIT",
   "type": "module",
   "engines": {

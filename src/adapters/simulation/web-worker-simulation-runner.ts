@@ -74,8 +74,8 @@ function asError(error: unknown): Error {
 
 /**
  * Settles the run on its first ending: the last reply, a Worker failure,
- * a throwing `onSnapshot`, or the stop signal. Whichever comes first terminates the Worker; anything
- * after it is ignored.
+ * a throwing `onSnapshot`, or the stop signal. Whichever comes first
+ * terminates the Worker; anything after it is ignored.
  */
 function watchRun(input: WatchRunInput): void {
   const { worker, stopSignal } = input;

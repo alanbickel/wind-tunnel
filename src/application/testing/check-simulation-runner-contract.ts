@@ -125,19 +125,31 @@ async function checkSnapshotErrorRejects({
     throw thrown;
   };
 
-  // Called inside `then`, so a runner that throws instead of rejecting is
-  // caught here and reported, not left to fail the caller.
-  const rejection = await Promise.resolve()
-    .then(() => runner.run({ request, onSnapshot }))
-    .then(
-      () => undefined,
-      (error: unknown) => error,
-    );
+  const settled = runWithoutThrowing(() => runner.run({ request, onSnapshot }));
+  expect(
+    settled !== undefined,
+    "an onSnapshot that throws rejects the run, rather than throwing from run",
+  );
+  const rejection = await settled?.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
 
   expect(
     rejection === thrown,
     "an onSnapshot that throws rejects the run with that error",
   );
+}
+
+/** The promise `start` returns, or undefined if it threw instead. */
+function runWithoutThrowing<T>(
+  start: () => Promise<T>,
+): Promise<T> | undefined {
+  try {
+    return start();
+  } catch {
+    return undefined;
+  }
 }
 
 function sameData(a: unknown, b: unknown): boolean {

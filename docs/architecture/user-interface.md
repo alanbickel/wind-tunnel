@@ -1,0 +1,182 @@
+# The User Interface
+
+An introduction to the browser UI in `src/ui/`, for maintainers new to the code: how it's wired, how components reach the use cases, how a run gets from the Run button to the charts, and how to test a component. Read the [architecture overview](architecture-overview.md) and [the application layer guide](application-layer.md) first.
+
+## The big idea: components call use cases, nothing else
+
+The UI never touches IndexedDB, the Worker, or the engine. A component asks for a **use case** (`openProject`, `runSimulation`, ...) and calls its `execute`; the use case works through its ports, and the adapters behind them were chosen in one place, `main.tsx`. ESLint enforces this: `ui/` can't import from `adapters/`, and imports only *types* from `domain/`.
+
+How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-glance) explains the colors):
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart TB
+    main["<b>main.tsx</b><br/>[composition root]<br/>Builds the adapters and use cases"]:::external
+    subgraph ui["ui/"]
+        app["<b>App</b><br/>[Component: App.tsx]<br/>The shell: which screen shows"]:::component
+        provider["<b>UseCasesProvider, useUseCases</b><br/>[Component: app/]<br/>Hands the use cases to any component"]:::component
+        projects["<b>ProjectsScreen</b><br/>[Component: projects/]<br/>The project list, new from template"]:::component
+        project["<b>ProjectScreen</b><br/>[Component: project/]<br/>One project: its architecture and runs"]:::component
+        run["<b>RunPanel, useSimulationRun</b><br/>[Component: run/]<br/>Run controls, totals, chart content"]:::component
+        storage["<b>useStoragePersistence</b><br/>[Component: storage/]<br/>Asks to keep the projects"]:::component
+        diagram["<b>Diagram</b><br/>[Component: diagram/]<br/>Boxes and arrows, over React Flow"]:::component
+        charts["<b>TimeSeriesChart</b><br/>[Component: charts/]<br/>Lines over time, over Recharts"]:::component
+    end
+    uc["<b>Use cases</b><br/>[application/use-cases]"]:::external
+    runner["<b>WebWorkerSimulationRunner</b><br/>[adapters/simulation]"]:::external
+    worker["<b>Simulation Worker</b><br/>[Container: Web Worker]"]:::system
+    main -->|"renders App inside"| provider
+    provider -.->|"useUseCases()"| projects & project & run & storage
+    app --> projects & project & storage
+    project -->|"diagramOf(record)"| diagram
+    project --> run
+    run -->|"runCharts(snapshots)"| charts
+    projects & project & run -->|"execute()"| uc
+    uc -->|"SimulationRunner port"| runner
+    runner -->|"postMessage"| worker
+    style ui fill:none,stroke:#666,stroke-dasharray:5 5
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
+```
+
+The folders under `src/ui/`:
+
+| Folder | Holds |
+|---|---|
+| `App.tsx`, `StartupFailure.tsx` | The shell (which screen shows, the storage hint) and the page shown when IndexedDB won't open |
+| `app/` | `UseCases`, `UseCasesProvider`, `useUseCases`, and the test helpers in `app/testing/` |
+| `projects/` | The first screen: the user's projects, and the template list with its `useCreateFromTemplate` hook |
+| `project/` | One opened project: `ProjectScreen` (open, or say why it can't), `ArchitectureView`, and `diagramOf` |
+| `run/` | `RunPanel`, `useSimulationRun`, the totals tables, and `runCharts`, which turns snapshots into chart content |
+| `diagram/`, `charts/` | Our wrappers around React Flow and Recharts. Only these folders import those libraries ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) |
+| `storage/` | Asks the browser for persistent storage after the first create, and warns if it says no |
+| `shared/` | `useLoad` and `LoadableView`, `handleStatus`, `ScreenHeading`, `useFocusOnMount` |
+
+## How a component reaches a use case
+
+[`src/main.tsx`](../../src/main.tsx) is the composition root. It opens the database, builds every adapter, builds the use cases over them, and renders:
+
+```tsx
+<UseCasesProvider useCases={createUseCases(database)}>
+  <App />
+</UseCasesProvider>
+```
+
+`UseCases` ([`app/use-cases.ts`](../../src/ui/app/use-cases.ts)) is one object holding every use case, plus the `StoragePersistence` port, the one port the UI calls directly (when to ask is a UI decision). A component reads it with `useUseCases()`:
+
+```tsx
+const { openProject } = useUseCases();
+const load = useCallback(() => openProject.execute(id), [openProject, id]);
+const { loadable } = useLoad(load);
+```
+
+Each use case is typed as `Pick<Class, "execute">`. A class with private fields accepts only its own instances, so this lets a test pass a plain object with an `execute` ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)).
+
+To give a component a new use case: add it to `UseCases`, build it in `main.tsx`'s `createUseCases`, and add a rejecting default to `fakeUseCases`.
+
+## Patterns you'll see
+
+- **Loading.** `useLoad(load)` runs a promise when the component mounts and drops a result that arrives after it unmounts; `LoadableView` shows "Loading…", the error, or the value. Wrap `load` in `useCallback`, or it runs on every render.
+- **Results with a `status`.** Use cases return unions keyed by `status` (`found`, `missing`, `invalid`). Render them with `handleStatus` and a `StatusHandlers` map, the UI's twin of the domain's `KindHandlers` (CONTRIBUTING rule 4): a new status stops the map compiling until it has a view.
+- **Double clicks.** State lags a render behind, so a hook that must run something once (`useCreateFromTemplate`, `useSimulationRun`, `useStoragePersistence`) guards with a `useRef`, which changes at once.
+- **Keyboard and screen readers.** A button that can't be used now is `aria-disabled` and ignores clicks rather than `disabled`, which would drop the focus. A new screen focuses its heading (`ScreenHeading`). Mount a live region (`role="status"`) from the start, empty, as `RunPanel` and `StorageHint` do, so screen readers announce what appears in it; the older ones that mount with their message are [#14](https://github.com/alanbickel/wind-tunnel/issues/14). The diagram and every chart have a text or table version.
+- **Wrapped libraries.** `Diagram` and `TimeSeriesChart` take our own types (`DiagramContent`, `TimeSeriesContent`). The rest of the UI builds those (`diagramOf`, `runCharts`) and never sees a React Flow or Recharts type, so either library can be swapped in one folder.
+
+## A run, from click to chart
+
+`RunPanel` owns a run through the `useSimulationRun` hook. Clicking Run makes an `AbortController`, calls `runSimulation.execute` with the workload, its signal, and an `onSnapshot` that appends each snapshot to state, then records how the run ended as a `RunPhase` (`running`, `finished`, `stopped`, `failed`). Stop, or leaving the screen, aborts the controller.
+
+In the browser, the use case's runner is `WebWorkerSimulationRunner`. It starts a fresh Worker for each run, posts it the project, and passes each snapshot the Worker posts back to `onSnapshot`. Stopping terminates the Worker, so snapshots still queued are dropped:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as RunPanel, useSimulationRun (ui)
+    participant UC as RunSimulation (application)
+    participant WB as WebWorkerSimulationRunner (adapter)
+    participant W as Web Worker
+    participant E as Engine (domain)
+
+    User->>UI: Click "Run"
+    UI->>UC: execute({ project, workloadId, onSnapshot, stopSignal })
+    UC->>WB: run({ request, onSnapshot, stopSignal }) via SimulationRunner port
+    WB->>W: new Worker, then postMessage({ kind: "run", request })
+    W->>E: simulateWithMetrics, seeded from the workload
+    loop every simulated second
+        E-->>W: metrics snapshot
+        W-->>WB: postMessage({ kind: "snapshot" })
+        WB-->>UI: onSnapshot(snapshot), appended to state
+    end
+    E-->>W: final results
+    W-->>WB: postMessage({ kind: "finished", run })
+    WB->>W: terminate()
+    WB-->>UC: resolves finished
+    UC-->>UI: finished; phase becomes "finished"
+    Note over UI,W: If the stop signal fires first, the runner terminates the Worker at once<br/>and resolves stopped; snapshots still queued are dropped.
+```
+
+From the snapshots so far, `RunPanel` draws a progress bar, the totals (`RunTotals`), and four charts (`runCharts`): requests per second, p99 latency, and each component's work in progress and queue. Charts take far longer to draw than a snapshot takes to arrive, so they draw from `useDeferredValue(snapshots)`: React puts clicks such as Stop first and skips snapshots it falls behind on, while the progress bar stays current.
+
+### Worked example
+
+[`src/ui/traces/user-interface.test.tsx`](../../src/ui/traces/user-interface.test.tsx) renders the whole app the way `main.tsx` does and follows a user from a template to a finished run. It records each click, each use case call, and what the screen shows, in [`user-interface.txt`](../../src/ui/traces/user-interface.txt). `ui/` can't import adapters, so the test's runner stands in for the Worker runner and sends two snapshots itself; the Worker's side is tested in `src/adapters/simulation/`.
+
+Opening the app loads both lists. Creating a project saves it, asks for persistent storage (the first create only), and reloads the list:
+
+```text
+App renders inside UseCasesProvider, as main.tsx does
+  call     listTemplates.execute() → [sample]
+  call     listProjects.execute() → []
+  screen   projects screen: your projects, and the templates
+
+User clicks "Create a project from Sample project"
+  call     createProjectFromTemplate.execute("sample") → created project-1
+  call     storagePersistence.request() → persisted
+  call     listProjects.execute() → [project-1 "Sample project"]
+  screen   the list now has "Sample project"
+```
+
+Running it: each snapshot moves the progress bar, the totals, and every chart on by a second. The totals reconcile at every step: started = succeeded + failed + in progress.
+
+```text
+User clicks "Run"
+  call     runSimulation.execute({ project: project-1, workloadId: "steady", onSnapshot, stopSignal })
+  call     runner.run({ request: { project: project-1, workloadId: "steady" }, onSnapshot, stopSignal })
+  screen   status "Running Steady…"
+
+Worker posts the snapshot for 0–1000 ms
+  screen   status "Running Steady…"
+  screen   progress 1 of 2 simulated seconds
+  screen   requests so far: started 20 = succeeded 18 + failed 0 + in progress 2
+  screen   chart "Requests per second, all workflows": 1 s of points
+  screen   chart "Latency of successful requests, p99": 1 s of points
+  ...
+
+Worker posts finished
+  call     runSimulation.execute → finished
+  screen   status "Finished Steady."
+```
+
+If the flow changes, that test fails and the diff shows the new timeline. If the change is intended, run `npx vitest run src/ui/traces --update`, then update the excerpts on this page.
+
+## How it's tested
+
+UI tests start with `// @vitest-environment jsdom`, render with Testing Library, and call `cleanup` in `afterEach` (see [CONTRIBUTING](../../CONTRIBUTING.md#tests)).
+
+| Helper | Use it for |
+|---|---|
+| `fakeUseCases(overrides)` ([`app/testing/`](../../src/ui/app/testing/)) | A component that calls one or two use cases. Every call you don't override rejects, so an unexpected call fails the test |
+| `inMemoryUseCases(templates)` | Following a user through several steps: the real project use cases over in-memory adapters |
+| `new RunSimulation({ runner })` with a test runner | Run tests. `RunPanel.test.tsx` has a `ManualSimulationRunner` that sends snapshots and ends the run when the test says |
+| `stubDiagramBrowserApis()` ([`diagram/testing/`](../../src/ui/diagram/testing/)) | Any test that renders a `Diagram`, `ProjectScreen`, or `App`: jsdom lacks the `ResizeObserver` and `DOMMatrixReadOnly` that React Flow needs. Undo it with `vi.unstubAllGlobals()` |
+
+Keep logic out of components where you can: `diagramOf`, `runCharts`, and `run-totals` are plain functions with plain tests, and the component tests check what the user sees and can do.
+
+## Adding to it
+
+- **A new screen or panel:** a folder under `src/ui/`, reading use cases with `useUseCases()`. Load with `useLoad`, render results with `handleStatus`, and give the screen a `ScreenHeading`.
+- **A new chart:** add a `TimeSeriesContent` to `runCharts`. Keep every series present from the first snapshot, in a fixed order, so lines keep their colors as the run fills in. A chart that needs something `TimeSeriesChart` can't draw gets a new prop in our own types, in `src/ui/charts/`.
+- **A new use case for the UI:** see [How a component reaches a use case](#how-a-component-reaches-a-use-case).

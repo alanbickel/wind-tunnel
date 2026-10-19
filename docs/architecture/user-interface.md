@@ -14,6 +14,7 @@ flowchart TB
     main["<b>main.tsx</b><br/>[composition root]<br/>Builds the adapters and use cases"]:::external
     subgraph ui["ui/"]
         app["<b>App</b><br/>[Component: App.tsx]<br/>The shell: which screen shows"]:::component
+        shell["<b>TopBar, Breadcrumb</b><br/>[Component: shell/]<br/>Where you are, the theme control"]:::component
         provider["<b>UseCasesProvider, useUseCases</b><br/>[Component: app/]<br/>Hands the use cases to any component"]:::component
         projects["<b>ProjectsScreen</b><br/>[Component: projects/]<br/>The project list, new from template"]:::component
         project["<b>ProjectScreen</b><br/>[Component: project/]<br/>One project: its architecture and runs"]:::component
@@ -28,7 +29,8 @@ flowchart TB
     worker["<b>Simulation Worker</b><br/>[Container: Web Worker]"]:::system
     main -->|"renders App inside"| provider
     provider -.->|"useUseCases()"| projects & project & run & storage
-    app --> projects & project & storage & theme
+    app --> shell & projects & project & storage
+    shell --> theme
     project -->|"diagramOf(record)"| diagram
     project --> run
     run -->|"runCharts(snapshots)"| charts
@@ -47,7 +49,8 @@ The folders under `src/ui/`:
 
 | Folder | Holds |
 |---|---|
-| `App.tsx`, `useOpenProject.ts`, `StartupFailure.tsx` | The shell (which screen shows, the storage hint), the hook that tracks which project is open, and the page shown when IndexedDB won't open |
+| `App.tsx`, `useOpenProject.ts`, `StartupFailure.tsx` | The shell (the top bar, the storage hint, which screen shows), the hook that tracks which project is open, and the page shown when IndexedDB won't open |
+| `shell/` | The top bar: the app's name, the breadcrumb (Projects › the open project), and the theme control |
 | `app/` | `UseCases`, `UseCasesProvider`, `useUseCases`, and the test helpers in `app/testing/` |
 | `projects/` | The first screen: the user's projects, and the template list with its `useCreateFromTemplate` hook |
 | `project/` | One opened project: `ProjectScreen` (open, or say why it can't), `ArchitectureView`, and `diagramOf` |
@@ -55,7 +58,7 @@ The folders under `src/ui/`:
 | `diagram/`, `charts/` | Our wrappers around React Flow and Recharts. Only these folders import those libraries ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) |
 | `storage/` | Asks the browser for persistent storage after the first create, and warns if it says no |
 | `theme/` | The design tokens (`tokens.css`), the page's base styles, and the theme control, which saves the choice ([ADR-0012](../adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) |
-| `shared/` | `useLoad` and `LoadableView`, `handleStatus`, `ScreenHeading`, `useFocusOnMount` |
+| `shared/` | `useLoad` and `LoadableView`, `handleStatus`, `ScreenHeading`, `useFocusOnMount`, and the building blocks every screen styles with: `Button`, `Panel`, `CardList` |
 
 ## How a component reaches a use case
 
@@ -84,8 +87,8 @@ To give a component a new use case: add it to `UseCases`, build it in `main.tsx`
 - **Loading.** `useLoad(load)` runs a promise when the component mounts and drops a result that arrives after it unmounts; `LoadableView` shows "Loading…", the error, or the value. Wrap `load` in `useCallback`, or it runs on every render.
 - **Results with a `status`.** Use cases return unions keyed by `status` (`found`, `missing`, `invalid`). Render them with `handleStatus` and a `StatusHandlers` map, the UI's twin of the domain's `KindHandlers` (CONTRIBUTING rule 4): a new status stops the map compiling until it has a view.
 - **Double clicks.** State lags a render behind, so a hook that must run something once (`useCreateFromTemplate`, `useSimulationRun`, `useStoragePersistence`) guards with a `useRef`, which changes at once.
-- **Keyboard and screen readers.** A button that can't be used now is `aria-disabled` and ignores clicks rather than `disabled`, which would drop the focus. A new screen focuses its heading (`ScreenHeading`). Mount a live region (`role="status"`) from the start, empty, as `RunPanel` and `StorageHint` do, so screen readers announce what appears in it; the older ones that mount with their message are [#14](https://github.com/alanbickel/wind-tunnel/issues/14). The diagram and every chart have a text or table version.
-- **Styling.** Colors, spacing, type sizes, and radii come from the tokens in `theme/tokens.css`, through `var()`: never a literal (the chart axes and series keep theirs until [#30](https://github.com/alanbickel/wind-tunnel/issues/30)). Each color token holds both themes with `light-dark()`, and the browser picks one by the `color-scheme` on `<html>`, so changing the theme re-renders nothing. `main.tsx` applies the saved choice before the first render.
+- **Keyboard and screen readers.** A button that can't be used now is `aria-disabled` and ignores clicks rather than `disabled`, which would drop the focus: `<Button usable={false}>` does both. A new screen focuses its heading (`ScreenHeading`). Mount a live region (`role="status"`) from the start, empty, as `RunPanel` and `StorageHint` do, so screen readers announce what appears in it; the older ones that mount with their message are [#14](https://github.com/alanbickel/wind-tunnel/issues/14). The diagram and every chart have a text or table version.
+- **Styling.** Each component's styles sit next to it in a CSS Module (`RunPanel.module.css`), and every color and length in them comes from the tokens in `theme/tokens.css`, through `var()`. `theme/base.css` holds the defaults every screen shares, with element selectors only: headings, form controls, tables, the focus ring, and reduced motion. [`tests/architecture/stylesheets.test.ts`](../../tests/architecture/stylesheets.test.ts) fails on a color literal anywhere in `ui/`, a length literal in a stylesheet, or `outline: none`; the charts' colors are its listed exceptions until the charts are themed. Each color token holds both themes with `light-dark()`, and the browser picks one by the `color-scheme` on `<html>`, so changing the theme re-renders nothing. `main.tsx` applies the saved choice before the first render.
 - **Wrapped libraries.** `Diagram` and `TimeSeriesChart` take our own types (`DiagramContent`, `TimeSeriesContent`). The rest of the UI builds those (`diagramOf`, `runCharts`) and never sees a React Flow or Recharts type, so either library can be swapped in one folder.
 
 ## A run, from click to chart
@@ -134,6 +137,7 @@ App renders inside UseCasesProvider, as main.tsx does
   call     listTemplates.execute() → [sample]
   call     listProjects.execute() → []
   screen   projects screen: your projects, and the templates
+  screen   breadcrumb "Projects"
 
 User clicks "Create a project from Sample project"
   call     createProjectFromTemplate.execute("sample") → created project-1
@@ -180,7 +184,7 @@ Keep logic out of components where you can: `diagramOf`, `runCharts`, and `run-t
 
 ## Adding to it
 
-- **A new screen or panel:** a folder under `src/ui/`, reading use cases with `useUseCases()`. Load with `useLoad`, render results with `handleStatus`, and give the screen a `ScreenHeading`.
+- **A new screen or panel:** a folder under `src/ui/`, reading use cases with `useUseCases()`. Load with `useLoad`, render results with `handleStatus`, and give the screen a `ScreenHeading`. Build it from `Panel`, `CardList`, and `Button`, and lay it out in its own CSS Module. A size the tokens don't have yet (like `--diagram-height`) becomes a token.
 - **A new chart:** add a `TimeSeriesContent` to `runCharts`. Keep every series present from the first snapshot, in a fixed order, so lines keep their colors as the run fills in. A chart that needs something `TimeSeriesChart` can't draw gets a new prop in our own types, in `src/ui/charts/`.
 - **A new color:** add a token named for its role to `tokens.css`, as `light-dark(<light>, <dark>)` with two `#rrggbb` values, and add it to `CONTRAST_RULES` in `theme/tokens.test.ts` with each background it sits on. A color that carries no information goes in `DECORATIVE` with the reason instead. The test fails until you do one or the other, and fails if a pair is below its WCAG ratio. The test can't tell whether neighboring chart series stay distinct for color-blind readers: for a series color, run the palette validator from Claude Code's dataviz skill on all eight, in each theme, against `--color-surface`. Series colors are for graphics only, never text: they're held to 3:1, so a tooltip row or legend label uses `--color-text`, with the hue on the line and the swatch.
 - **A new use case for the UI:** see [How a component reaches a use case](#how-a-component-reaches-a-use-case).

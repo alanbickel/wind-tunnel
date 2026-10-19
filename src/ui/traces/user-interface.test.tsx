@@ -212,6 +212,15 @@ function requestTotals(): string {
   return `requests so far: started ${String(started)} = succeeded ${String(succeeded)} + failed ${String(failed)} + in progress ${String(inProgress)}`;
 }
 
+/** The top bar's breadcrumb, crumb by crumb, without the drawn separators. */
+function breadcrumb(): string {
+  const nav = screen.getByRole("navigation", { name: "Breadcrumb" });
+  const crumbs = within(nav)
+    .getAllByRole("listitem")
+    .map((item) => item.textContent.replace("›", ""));
+  return `breadcrumb "${crumbs.join(" › ")}"`;
+}
+
 /** Each chart's title and how many seconds its table holds. */
 function traceCharts(trace: Trace): void {
   for (const figure of screen.getAllByRole("figure")) {
@@ -236,6 +245,7 @@ async function createAndOpen(trace: Trace): Promise<void> {
     name: "Create a project from Sample project",
   });
   trace.screen("projects screen: your projects, and the templates");
+  trace.screen(breadcrumb());
 
   trace.action('User clicks "Create a project from Sample project"');
   fireEvent.click(
@@ -253,6 +263,7 @@ async function createAndOpen(trace: Trace): Promise<void> {
   trace.screen(
     `project screen: heading, architecture (${String(within(components).getAllByRole("listitem").length)} components), run controls`,
   );
+  trace.screen(breadcrumb());
 }
 
 async function runAndChart(

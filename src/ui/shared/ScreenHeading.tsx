@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import styles from "./ScreenHeading.module.css";
 import { useFocusOnMount } from "./useFocusOnMount";
 
 export interface ScreenHeadingProps {
@@ -12,7 +13,7 @@ export interface ScreenHeadingProps {
 export function ScreenHeading({ children }: ScreenHeadingProps) {
   const ref = useFocusOnMount<HTMLHeadingElement>();
   return (
-    <h2 ref={ref} tabIndex={-1}>
+    <h2 ref={ref} tabIndex={-1} className={styles.heading}>
       {children}
     </h2>
   );

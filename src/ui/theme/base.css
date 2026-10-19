@@ -1,7 +1,8 @@
 /*
  * The page's defaults, from the tokens (ADR-0012). Components style
  * themselves with CSS Modules; this sheet holds only what every screen
- * shares.
+ * shares: the page, headings, form controls, tables, the focus ring, and
+ * reduced motion. Element selectors only, so a module's class always wins.
  */
 
 html {
@@ -9,14 +10,112 @@ html {
   color: var(--color-text);
   font-family: var(--font-family-sans);
   line-height: var(--line-height);
+  /* Native widgets that take a color, such as <progress>. */
+  accent-color: var(--color-accent);
+}
+
+body {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 var(--space-3);
+  line-height: var(--line-height-tight);
+}
+
+h1 {
+  font-size: var(--font-size-lg);
+}
+
+h2 {
+  font-size: var(--font-size-xl);
+}
+
+h3 {
+  font-size: var(--font-size-lg);
+}
+
+h4 {
+  font-size: var(--font-size-md);
+}
+
+p {
+  margin: 0 0 var(--space-3);
 }
 
 a {
   color: var(--color-accent);
 }
 
-/* One focus ring for every control, shown for keyboard focus only. */
+figure {
+  margin: 0;
+}
+
+pre,
+code {
+  font-family: var(--font-family-mono);
+}
+
+/* Controls take the page's font, which browsers don't pass to them. */
+button,
+select {
+  font: inherit;
+}
+
+select {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: var(--line-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+select:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+summary {
+  cursor: pointer;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+caption {
+  text-align: start;
+  font-weight: var(--font-weight-bold);
+  padding-bottom: var(--space-2);
+}
+
+th,
+td {
+  padding: var(--space-1) var(--space-3);
+  border-bottom: var(--line-width) solid var(--color-divider);
+  text-align: start;
+}
+
+/* One focus ring for every control, shown for keyboard focus only. No
+   stylesheet of ours removes it (tests/architecture/stylesheets.test.ts). */
 :focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
+  outline: var(--line-width-thick) solid var(--color-focus-ring);
+  outline-offset: var(--line-width-thick);
+}
+
+/* Motion is decoration here, so turn all of it off, the libraries' too.
+   Near zero rather than zero, so transitionend and animationend still fire
+   for code that waits on them. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -64,12 +64,27 @@ describe("App", () => {
     );
     await screen.findByRole("heading", { name: "Sample project" });
 
-    fireEvent.click(screen.getByRole("button", { name: "← All projects" }));
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
 
     const button = await screen.findByRole("button", {
       name: "Sample project",
     });
     expect(document.activeElement).toBe(button);
+  });
+
+  // Fails if App stops passing the open project's name to the top bar: the
+  // breadcrumb stays at "Projects" on the project screen.
+  it("names the open project in the breadcrumb", async () => {
+    await renderAppWithSample();
+    const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(breadcrumb.textContent).toBe("Projects");
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Sample project" }),
+    );
+    await screen.findByRole("heading", { name: "Sample project" });
+
+    expect(breadcrumb.textContent).toBe("Projects›Sample project");
   });
 });
 

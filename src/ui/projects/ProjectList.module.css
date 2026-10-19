@@ -1,0 +1,10 @@
+.name {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--space-1);
+}
+
+.updated {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-2);
+}

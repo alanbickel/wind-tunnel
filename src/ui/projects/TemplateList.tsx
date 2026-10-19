@@ -1,4 +1,7 @@
 import type { TemplateSummary } from "../../application/ports/template-catalog";
+import { Button } from "../shared/Button";
+import { Card, CardList } from "../shared/CardList";
+import styles from "./TemplateList.module.css";
 
 export interface TemplateListProps {
   readonly templates: readonly TemplateSummary[];
@@ -14,25 +17,24 @@ export function TemplateList({
   pending,
 }: TemplateListProps) {
   return (
-    <ul>
+    <CardList>
       {templates.map((template) => (
-        <li key={template.id}>
-          <strong>{template.name}</strong>{" "}
-          <button
-            type="button"
-            // Not `disabled`: that would drop focus to <body> for a keyboard user
-            // who just pressed it. useCreateFromTemplate ignores the click instead.
-            aria-disabled={pending}
-            aria-label={`Create a project from ${template.name}`}
-            onClick={() => {
-              onCreate(template.id);
-            }}
-          >
-            Create
-          </button>
+        <Card key={template.id}>
+          <div className={styles.header}>
+            <h3 className={styles.name}>{template.name}</h3>
+            <Button
+              usable={!pending}
+              label={`Create a project from ${template.name}`}
+              onClick={() => {
+                onCreate(template.id);
+              }}
+            >
+              Create
+            </Button>
+          </div>
           {template.description && <p>{template.description}</p>}
-        </li>
+        </Card>
       ))}
-    </ul>
+    </CardList>
   );
 }

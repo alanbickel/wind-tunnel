@@ -157,6 +157,7 @@ The layer rules are checked by tooling, so a mistake fails `npm run check` (and 
 | No `Math.random`, `Date.now`, `new Date()`, or `Date()` in `domain` and `application` | `no-restricted-properties` and `no-restricted-syntax` | [`eslint.config.js`](../../eslint.config.js) |
 | A class doesn't build its own collaborators ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | `no-restricted-syntax`: `new` inside a class body, except built-ins and `STATE_CLASSES` | [`eslint.config.js`](../../eslint.config.js) |
 | Constructor collaborators (`*Dependencies` properties) are interfaces, not classes ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | An architecture test that resolves each property's type with the TypeScript compiler | [`dependency-types.test.ts`](../../tests/architecture/dependency-types.test.ts) |
+| Colors and lengths come from the design tokens, stylesheets live only in `src/ui/`, and nothing hides the focus ring ([ADR-0012](../adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) | An architecture test that scans `src/` for literals, stray stylesheets, and `outline: none` | [`stylesheets.test.ts`](../../tests/architecture/stylesheets.test.ts) |
 
 [`tests/architecture/layer-rules.test.ts`](../../tests/architecture/layer-rules.test.ts) lints sample snippets in each layer and asserts that the lint rules above fire. If you change the rules, update that test.
 

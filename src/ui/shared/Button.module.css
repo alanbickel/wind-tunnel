@@ -1,0 +1,59 @@
+.primary,
+.secondary {
+  border: var(--line-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  transition: background-color var(--duration-fast);
+}
+
+.primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+.primary:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
+.secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.secondary:hover {
+  background: var(--color-surface-raised);
+}
+
+/* Looks like a link: for moving between screens, not for doing things. */
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-accent);
+  cursor: pointer;
+  text-align: start;
+}
+
+.link:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+/* Unavailable, in any look: muted text on the plain surface, no hover. */
+.primary[aria-disabled="true"],
+.secondary[aria-disabled="true"] {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.link[aria-disabled="true"] {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}

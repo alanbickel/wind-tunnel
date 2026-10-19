@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLookup } from "../../application/ports/project-repository";
 import { sampleRecord } from "../../application/testing/sample-record";
@@ -8,13 +8,13 @@ import { UseCasesProvider } from "../app/UseCasesProvider";
 import { ProjectScreen } from "./ProjectScreen";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 
-function renderLookup(lookup: ProjectLookup, onClose = vi.fn()) {
+function renderLookup(lookup: ProjectLookup) {
   const useCases = fakeUseCases({
     openProject: { execute: () => Promise.resolve(lookup) },
   });
   return render(
     <UseCasesProvider useCases={useCases}>
-      <ProjectScreen id="p1" onClose={onClose} />
+      <ProjectScreen id="p1" />
     </UseCasesProvider>,
   );
 }
@@ -67,15 +67,5 @@ describe("ProjectScreen", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("heading", { name: "Project not found" }),
     );
-  });
-
-  it("goes back to the list", async () => {
-    const onClose = vi.fn();
-    renderLookup({ status: "missing" }, onClose);
-    await screen.findByRole("alert");
-
-    fireEvent.click(screen.getByRole("button", { name: "← All projects" }));
-
-    expect(onClose).toHaveBeenCalledOnce();
   });
 });

@@ -1,0 +1,10 @@
+.project {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.description {
+  color: var(--color-text-muted);
+  margin-bottom: 0;
+}

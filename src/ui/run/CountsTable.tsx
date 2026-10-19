@@ -1,3 +1,5 @@
+import styles from "./CountsTable.module.css";
+
 /** A row of counts, named for its first column. */
 export interface CountsRow {
   readonly id: string;
@@ -26,13 +28,13 @@ export function CountsTable<Row extends CountsRow>(
 ) {
   const { caption, labelHeader, columns, rows, footer } = props;
   return (
-    <table>
+    <table className={styles.table}>
       <caption>{caption}</caption>
       <thead>
         <tr>
           <th scope="col">{labelHeader}</th>
           {columns.map((column) => (
-            <th key={column.header} scope="col">
+            <th key={column.header} scope="col" className={styles.count}>
               {column.header}
             </th>
           ))}
@@ -44,7 +46,7 @@ export function CountsTable<Row extends CountsRow>(
         ))}
       </tbody>
       {footer && (
-        <tfoot>
+        <tfoot className={styles.footer}>
           <CountsTableRow row={footer} columns={columns} />
         </tfoot>
       )}
@@ -65,7 +67,9 @@ function CountsTableRow<Row extends CountsRow>({
     <tr>
       <th scope="row">{row.label}</th>
       {columns.map((column) => (
-        <td key={column.header}>{column.value(row).toLocaleString("en-US")}</td>
+        <td key={column.header} className={styles.count}>
+          {column.value(row).toLocaleString("en-US")}
+        </td>
       ))}
     </tr>
   );

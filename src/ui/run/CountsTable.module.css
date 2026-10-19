@@ -1,0 +1,20 @@
+.table {
+  font-size: var(--font-size-sm);
+}
+
+.table thead th {
+  color: var(--color-text-muted);
+}
+
+/* Counts line up by place value, so they read down a column. */
+.count {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.footer th,
+.footer td {
+  font-weight: var(--font-weight-bold);
+  border-bottom: none;
+  border-top: var(--line-width) solid var(--color-border);
+}

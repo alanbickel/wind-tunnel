@@ -1,6 +1,8 @@
 /*
- * Design tokens: every color, spacing, type size, and corner radius the UI
- * uses (ADR-0012). Names say the role, not the value. Each color holds both
+ * Design tokens: every color, spacing, type size, corner radius, line width,
+ * layout size, and duration the UI uses (ADR-0012). No other stylesheet
+ * holds a color or length literal (tests/architecture/stylesheets.test.ts).
+ * Names say the role, not the value. Each color holds both
  * themes, light first, with light-dark(); it must be an opaque #rrggbb pair
  * so its contrast can be computed. A new color token needs its pairs in
  * tokens.test.ts, or that test fails.
@@ -30,8 +32,10 @@
   --color-text: light-dark(#1b1f24, #e6e8eb);
   --color-text-muted: light-dark(#59606b, #a2a8b3);
 
-  /* Links, selection, and primary buttons; on-accent is text on an accent fill. */
+  /* Links, selection, and primary buttons; on-accent is text on an accent
+     fill. Hover moves away from the background in each theme. */
   --color-accent: light-dark(#0b62d6, #6ea8fe);
+  --color-accent-hover: light-dark(#0a52b3, #9cc4ff);
   --color-on-accent: light-dark(#ffffff, #0d1117);
 
   /* Lines. A border marks a control's edge; a divider only separates
@@ -74,9 +78,22 @@
   --font-size-md: 1rem;
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.5rem;
+  --font-weight-bold: 600;
   --line-height: 1.5;
+  --line-height-tight: 1.25;
 
   /* Corner radius. */
   --radius-sm: 4px;
   --radius-md: 8px;
+
+  /* Line widths: borders and rules; thick for the focus ring and accents. */
+  --line-width: 1px;
+  --line-width-thick: 2px;
+
+  /* Layout. Content stops widening here, so lines of text stay readable. */
+  --content-max-width: 72rem;
+  --diagram-height: 25rem;
+
+  /* Motion. base.css cuts it to nothing under prefers-reduced-motion. */
+  --duration-fast: 120ms;
 }

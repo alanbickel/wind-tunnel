@@ -4,11 +4,16 @@
  * custom properties inherit, so setting them here themes the whole diagram.
  */
 .diagram {
+  height: var(--diagram-height);
+  border: var(--line-width) solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  /* The canvas's corners follow the border's. */
+  overflow: hidden;
   --xy-background-color: var(--color-bg);
   --xy-background-pattern-color: var(--color-divider);
   --xy-node-background-color: var(--color-surface);
   --xy-node-color: var(--color-text);
-  --xy-node-border: 1px solid var(--color-border);
+  --xy-node-border: var(--line-width) solid var(--color-border);
   --xy-handle-background-color: var(--color-border);
   --xy-handle-border-color: var(--color-surface);
   /* Edges and their arrowheads. */
@@ -18,4 +23,11 @@
   --xy-controls-button-color: var(--color-text);
   --xy-controls-button-color-hover: var(--color-text);
   --xy-controls-button-border-color: var(--color-divider);
+  /* The "React Flow" link, which its maintainers ask free users to keep. */
+  --xy-attribution-background-color: var(--color-surface);
+}
+
+/* React Flow colors the attribution link itself, with no custom property. */
+.diagram :global(.react-flow__attribution a) {
+  color: var(--color-text-muted);
 }

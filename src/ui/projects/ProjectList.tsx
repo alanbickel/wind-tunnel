@@ -1,9 +1,12 @@
 import type { ProjectSummary } from "../../application/ports/project-record";
+import { Button } from "../shared/Button";
+import { Card, CardList } from "../shared/CardList";
 import { useFocusOnMount } from "../shared/useFocusOnMount";
+import styles from "./ProjectList.module.css";
 
 export interface ProjectListProps {
   readonly projects: readonly ProjectSummary[];
-  readonly onOpen: (id: string) => void;
+  readonly onOpen: (project: ProjectSummary) => void;
   /** The project whose button gets focus, e.g. the one the user just closed. */
   readonly focusId: string | undefined;
 }
@@ -15,22 +18,26 @@ export function ProjectList({ projects, onOpen, focusId }: ProjectListProps) {
     return <p>No projects yet. Create one from a template below.</p>;
   }
   return (
-    <ul>
+    <CardList>
       {projects.map((project) => (
-        <li key={project.id}>
-          <button
-            ref={project.id === focusId ? focusRef : undefined}
-            type="button"
-            onClick={() => {
-              onOpen(project.id);
-            }}
-          >
-            {project.name}
-          </button>{" "}
-          <small>updated {new Date(project.updatedAt).toLocaleString()}</small>
+        <Card key={project.id}>
+          <h3 className={styles.name}>
+            <Button
+              ref={project.id === focusId ? focusRef : undefined}
+              variant="link"
+              onClick={() => {
+                onOpen(project);
+              }}
+            >
+              {project.name}
+            </Button>
+          </h3>
+          <p className={styles.updated}>
+            Updated {new Date(project.updatedAt).toLocaleString()}
+          </p>
           {project.description && <p>{project.description}</p>}
-        </li>
+        </Card>
       ))}
-    </ul>
+    </CardList>
   );
 }

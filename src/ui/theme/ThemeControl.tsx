@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { THEME_CHOICES, toThemeChoice, type ThemeChoice } from "./theme-choice";
+import styles from "./ThemeControl.module.css";
 import { useThemeChoice } from "./useThemeChoice";
 
 const LABELS: Record<ThemeChoice, string> = {
@@ -14,8 +15,8 @@ export function ThemeControl() {
   const { choice, choose } = useThemeChoice();
 
   return (
-    <div>
-      <label htmlFor={id}>Theme</label>{" "}
+    <div className={styles.control}>
+      <label htmlFor={id}>Theme</label>
       <select
         id={id}
         value={choice}

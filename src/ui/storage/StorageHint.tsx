@@ -1,4 +1,5 @@
 import type { PersistenceStatus } from "../../application/ports/storage-persistence";
+import styles from "./StorageHint.module.css";
 
 export interface StorageHintProps {
   /** The browser's answer; undefined until it has been asked. */
@@ -20,5 +21,9 @@ const HINTS: Record<PersistenceStatus, string> = {
  * when it appears.
  */
 export function StorageHint({ status }: StorageHintProps) {
-  return <p role="status">{status === undefined ? "" : HINTS[status]}</p>;
+  return (
+    <p role="status" className={styles.hint}>
+      {status === undefined ? "" : HINTS[status]}
+    </p>
+  );
 }

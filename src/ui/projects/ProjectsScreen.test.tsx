@@ -55,6 +55,8 @@ describe("ProjectsScreen", () => {
     expect(await projects.list()).toHaveLength(1);
   });
 
+  // Fails if ProjectList passes onOpen another project, or only its id: the
+  // breadcrumb needs the name.
   it("opens a project when its name is clicked", async () => {
     const { useCases, projects } = inMemoryUseCases([]);
     await projects.save(sampleRecord);
@@ -65,7 +67,9 @@ describe("ProjectsScreen", () => {
       await screen.findByRole("button", { name: "Sample project" }),
     );
 
-    expect(onOpen).toHaveBeenCalledWith("sample");
+    expect(onOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sample", name: "Sample project" }),
+    );
   });
 
   it("says why when the projects can't be listed", async () => {

@@ -1,0 +1,4 @@
+/* As wide as its text, so the focus ring it gets on arrival hugs the words. */
+.heading {
+  width: fit-content;
+}

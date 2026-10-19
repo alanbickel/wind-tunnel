@@ -1,0 +1,10 @@
+.panel {
+  background: var(--color-surface);
+  border: var(--line-width) solid var(--color-divider);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}

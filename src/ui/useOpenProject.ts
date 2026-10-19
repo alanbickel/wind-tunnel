@@ -1,26 +1,27 @@
 import { useState } from "react";
+import type { ProjectSummary } from "../application/ports/project-record";
 
 export interface OpenProjectState {
   /** The project on screen; undefined while the project list shows. */
-  readonly openId: string | undefined;
+  readonly opened: ProjectSummary | undefined;
   /** The project the user last had open, so the list can focus it again. */
   readonly lastOpenedId: string | undefined;
-  readonly open: (id: string) => void;
+  readonly open: (project: ProjectSummary) => void;
   /** Back to the project list. */
   readonly close: () => void;
 }
 
 /** Which project is open, and which was open last. */
 export function useOpenProject(): OpenProjectState {
-  const [openId, setOpenId] = useState<string>();
+  const [opened, setOpened] = useState<ProjectSummary>();
   const [lastOpenedId, setLastOpenedId] = useState<string>();
 
-  const open = (id: string) => {
-    setOpenId(id);
-    setLastOpenedId(id);
+  const open = (project: ProjectSummary) => {
+    setOpened(project);
+    setLastOpenedId(project.id);
   };
   const close = () => {
-    setOpenId(undefined);
+    setOpened(undefined);
   };
-  return { openId, lastOpenedId, open, close };
+  return { opened, lastOpenedId, open, close };
 }

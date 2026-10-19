@@ -10,21 +10,16 @@ import { ScreenHeading } from "../shared/ScreenHeading";
 
 export interface ProjectScreenProps {
   readonly id: string;
-  /** Goes back to the project list. */
-  readonly onClose: () => void;
 }
 
 /** One saved project, or why it can't be opened. */
-export function ProjectScreen({ id, onClose }: ProjectScreenProps) {
+export function ProjectScreen({ id }: ProjectScreenProps) {
   const { openProject } = useUseCases();
   const load = useCallback(() => openProject.execute(id), [openProject, id]);
   const { loadable } = useLoad(load);
 
   return (
     <section>
-      <button type="button" onClick={onClose}>
-        ← All projects
-      </button>
       <LoadableView loadable={loadable} what="the project">
         {(lookup) =>
           handleStatus<ProjectLookup, ReactNode>(LOOKUP_VIEWS, lookup)

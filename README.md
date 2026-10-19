@@ -1,6 +1,6 @@
 # Wind Tunnel
 
-A workload simulator for exploring how application workflows behave under real-world stress. Wind Tunnel lets you replicate your application architecture and workflows to explore how it behaves under realistic stress. Easily detect failure points and explore mitigation options.
+A workload simulator for exploring how your application's cloud architecture behaves under real-world usage. Wind Tunnel lets you replicate your application architecture and workflows to explore how it behaves under realistic stress. Easily detect failure points and explore mitigation options.
 
 You model an application's architecture (for example API Gateway → Lambda → RDS), describe what its users do, and simulate concurrent load to see where bottlenecks form: throttling, exhausted connection pools, growing queues, and rising latency.
 

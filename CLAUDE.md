@@ -1,6 +1,6 @@
 # Wind Tunnel
 
-A workload simulator for exploring how application workflows behave under real-world stress. (Formerly "Cloud Builder"; the local folder still uses that name.) The vision (`cloud-builder-concept.md`) is a local-only file, deliberately excluded from git; it may not exist in other clones. The work backlog is the repository's GitHub issues.
+A workload simulator for exploring how your application's cloud architecture behaves under real-world usage. (Formerly "Cloud Builder"; the local folder still uses that name.) The vision (`cloud-builder-concept.md`) is a local-only file, deliberately excluded from git; it may not exist in other clones. The work backlog is the repository's GitHub issues.
 
 ## Current work
 

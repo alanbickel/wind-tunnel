@@ -267,13 +267,17 @@ A new AWS service (or any other component type) touches these places, all in the
 - Unit tests sit next to the code (`foo.ts` → `foo.test.ts`) and run in Node. Architecture tests live in `tests/architecture/`.
 - **UI tests** start with `// @vitest-environment jsdom`, render with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and call `cleanup` in `afterEach`. Give components use cases through `UseCasesProvider`: `fakeUseCases()` rejects every call you don't override, and `inMemoryUseCases()` runs the real project use cases over in-memory adapters (both in `src/ui/app/testing/`).
 - The coding standards apply to tests too. ESLint skips the length and parameter checks there, because a `describe` block groups many tests; keep each test itself within the rule of 30.
-- A regression test says which bug it guards against.
-- Tests should be able to fail. When you write one, break the code it covers and watch it go red at least once.
+- Tests should be able to fail. When you write or change one, break the code it covers and watch it go red at least once. Then say how you broke it in a comment above the test, so a reviewer can check it without rerunning it and a later reader knows what the test guards:
+  ```ts
+  // Fails if the queue drops messages that are still in flight when the run ends.
+  it("counts in-flight messages in the totals", () => {
+  ```
+  Write one comment per `it` or `it.each`. For a change to a shared suite (`checkComponentContract` and the other contract checkers), put it on the check you changed. A regression test's comment names the bug it guards against: the change that turns it red is the bug coming back.
 - Use the seed, not luck. Anything random runs from a fixed seed. Scenario tests that assert a template's lesson check several seeds (`src/adapters/templates/template-scenarios.test.ts`) with loose thresholds, so they pin the lesson rather than one run's numbers.
 - **Contract suites** check that an implementation keeps the promises of its interface. Every component type must pass `checkComponentContract`, every `ProjectRepository` adapter must pass `checkProjectRepositoryContract`, and every `SimulationRunner` must pass `checkSimulationRunnerContract`, each with an empty list of violations.
 - **Outputs must reconcile.** Totals in metrics and reports add up: started = succeeded + failed + in progress, and so on. Show work that's still in progress rather than dropping it, and test the remainders (see `src/adapters/cli/report-reconciles.test.ts`). Add a check when you add a column or a counter.
 - Latencies carry floating-point drift (`49.000000000000014`): compare them with `toBeCloseTo`. Percentiles are bucket upper bounds, up to 5% high ([metrics guide](docs/architecture/metrics.md)).
-- Model changes come with before/after numbers from `npm run simulate`.
+- Model changes come with before/after numbers from `npm run simulate` in the PR description.
 
 ### Docs backed by tests
 
@@ -340,11 +344,11 @@ The repository allows only squash merges, and a ruleset stops `main` from being 
 
 ### Reviews
 
-[`/pr-review`](.claude/commands/pr-review.md) is a project command for Claude Code. It checks the PR in its own worktree against this guide, tries to make each new test fail, and posts one review whose comments start with `🤖 Claude review:`. Each finding is tagged **[blocking]**, **[should fix]**, or **[nit]**, and **confirmed** or **suspected**. Run it again after the author answers: a follow-up round checks each answer and reviews only the commits pushed since. The reviewer never pushes, approves, or merges.
+[`/pr-review`](.claude/commands/pr-review.md) is a project command for Claude Code. It reads the PR in its own worktree, checks it against this guide, and posts one review whose comments start with `🤖 Claude review:`. Each finding is tagged **[blocking]**, **[should fix]**, or **[nit]**, and **confirmed** or **suspected**. Run it again after the author answers: a follow-up round checks each answer and reviews only the commits pushed since. The reviewer never pushes, approves, or merges. It doesn't run tests either: CI runs `npm run check`, and each test's `// Fails if` comment (see [Tests](#tests)) is the author's record that it can fail.
 
 The author answers each finding in its thread with the commit that fixes it, or a reason not to. Claude authors start each reply with `🤖 Claude (author):`, because every comment posts under the maintainer's account.
 
-A PR is done when CI is green, every finding is answered, where a test applies the tests check the success case and the invariants and fail when the code they cover breaks, and the maintainer has merged it.
+A PR is done when CI is green, every finding is answered, where a test applies the tests check the success case and the invariants and each new or changed test has a `// Fails if` comment naming a change that provably turns it red, and the maintainer has merged it.
 
 ### Claude sessions
 

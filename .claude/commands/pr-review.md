@@ -5,6 +5,8 @@ argument-hint: <pr-number>
 
 You're reviewing pull request #$ARGUMENTS on Wind Tunnel as an independent reviewer. Another Claude session or a human wrote it. Review it with fresh eyes, and don't assume the author's checks were complete.
 
+This is a reading review. CI runs `npm run check`, and the author proves their tests can fail, so don't install dependencies, run the suite, or break code to test the tests. Spend the time reading the change and the code around it.
+
 ## Setup
 
 1. Look up the PR, its head branch, the issues it closes, and earlier reviews, then the inline comment threads (author replies appear only there):
@@ -21,15 +23,14 @@ You're reviewing pull request #$ARGUMENTS on Wind Tunnel as an independent revie
    git fetch origin
    git worktree add ../wind-tunnel-review-$ARGUMENTS <headRefOid>
    ```
-   Use the `headRefOid` from step 1, not the branch, so the worktree and the posted review are at the same commit even if the author pushes meanwhile.
-   In the worktree, run `npm ci`.
-   When you're done, remove it with `rm -rf ../wind-tunnel-review-$ARGUMENTS; git worktree prune`. (On Windows, `git worktree remove` fails on long `node_modules` paths and leaves the directory behind.)
+   Use the `headRefOid` from step 1, not the branch, so the worktree and the posted review are at the same commit even if the author pushes meanwhile. The worktree is for reading code outside the diff, so it doesn't need `npm ci`.
+   When you're done, remove it with `rm -rf ../wind-tunnel-review-$ARGUMENTS; git worktree prune`.
 
 ## Follow-up mode
 
 If the PR already has a review whose body starts with `🤖 Claude review:`, this is a follow-up round:
 
-- For each earlier finding, read the author's reply in its comment thread and the commit the reply names. Check that the fix works and that it has a test where one applies (see "Definition of done" below).
+- For each earlier finding, read the author's reply in its comment thread and the commit the reply names. Trace the code to check that the fix works, and that it has a test where one applies (see "Definition of done" below).
 - Review only what changed since the latest Claude review. Get the commit it reviewed (a full SHA):
   ```
   gh pr view $ARGUMENTS --json reviews --jq '[.reviews[] | select(.body | startswith("🤖 Claude review:"))] | last | .commit.oid'
@@ -50,14 +51,14 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
 5. **Tests and docs** (CONTRIBUTING §Tests and §Documentation):
    - Outputs reconcile: any new counter or column has a check that the totals add up.
    - A doc that quotes test output ("Docs backed by tests") is updated with the snapshot it quotes.
-   - Model changes come with before/after numbers from `npm run simulate`; rerun it to confirm them.
+   - Model changes come with before/after numbers from `npm run simulate` in the PR description, and the change in the numbers fits the change in the code. Don't rerun it.
    - AWS claims go through `docs/design/fidelity.md`.
    - New subsystems have a guide; the architecture overview and its diagrams match the new structure; every new document is reachable from the root README's map; exported `domain/` and `application/` code has doc comments with units and defaults.
    - `docs/implementation-plan.md` reflects the tasks the PR finishes.
    - Code reads like the surrounding code: same naming, comment density and idioms.
-6. **Tests must be able to fail.** For each new or changed test, break the code it covers in the worktree (revert the fix, or violate the invariant) and confirm the test goes red. A test that stays green is a finding.
+6. **Tests must be able to fail.** Every new or changed test has a `// Fails if <change>.` comment saying how the author broke the code to watch it go red (CONTRIBUTING §Tests). A missing comment is a finding. For each comment, trace the change it names through the code to the assertion it would break, and name that assertion. Don't rate a comment as plausible: if you can't complete the trace, that's a finding. Mark the finding confirmed if the trace shows the test would stay green, and suspected if you couldn't finish the trace.
 7. **Accessibility** of any UI change: semantics, keyboard, and what a screen reader would announce.
-8. **Verify, don't guess.** Run `npm run check`. Mark each finding as **confirmed** (reproduced, or traced in the code) or **suspected**.
+8. **Verify, don't guess.** Mark each finding as **confirmed** (traced in the code) or **suspected**.
 
 ## Definition of done
 
@@ -65,7 +66,7 @@ Say in the summary whether the PR meets each of these:
 
 - CI is green (`gh pr checks $ARGUMENTS`).
 - Every finding from earlier rounds is answered.
-- Where a test applies, tests assert the success case and the invariants that must hold, and they fail when the code they cover is broken.
+- Where a test applies, tests assert the success case and the invariants that must hold, and each new or changed test has a `// Fails if` comment naming a change that provably turns it red, traced to the assertion that breaks.
 
 The maintainer's approval is the last step, and you can't give it.
 
@@ -96,6 +97,6 @@ gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --method POST --input revie
 - For each finding, say what's wrong, give a way to reproduce it (steps, a command, or a test that fails), and suggest a fix.
 - Report at most 8 findings, the most important first.
 - Write `review.json` outside the repo (for example in the system temp directory) so it isn't left in a checkout.
-- Summary body: a verdict (ready to merge / merge after fixes / needs rework), the definition-of-done status, the commands you ran with their results, and anything you couldn't verify.
+- Summary body: a verdict (ready to merge / merge after fixes / needs rework), the definition-of-done status, and anything you couldn't verify by reading.
 
 Don't push commits, edit the branch, or merge. When you're done, tell the user the review URL and the verdict in two or three lines.

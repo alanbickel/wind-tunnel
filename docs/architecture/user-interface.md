@@ -46,7 +46,7 @@ The folders under `src/ui/`:
 
 | Folder | Holds |
 |---|---|
-| `App.tsx`, `StartupFailure.tsx` | The shell (which screen shows, the storage hint) and the page shown when IndexedDB won't open |
+| `App.tsx`, `useOpenProject.ts`, `StartupFailure.tsx` | The shell (which screen shows, the storage hint), the hook that tracks which project is open, and the page shown when IndexedDB won't open |
 | `app/` | `UseCases`, `UseCasesProvider`, `useUseCases`, and the test helpers in `app/testing/` |
 | `projects/` | The first screen: the user's projects, and the template list with its `useCreateFromTemplate` hook |
 | `project/` | One opened project: `ProjectScreen` (open, or say why it can't), `ArchitectureView`, and `diagramOf` |

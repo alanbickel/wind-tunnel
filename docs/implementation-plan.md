@@ -62,6 +62,8 @@ Newest first. Record what was built, what differs from the plan, and what the ne
 
 ### 2026-10-19: M3 complete
 
+- **Done-when verified** by the maintainer in Chrome and Firefox (dev and `npm run preview`): create from both templates, view, run, stop, reload, and charts that reconcile.
+
 - **Read [the user interface guide](architecture/user-interface.md)** before UI work: components reach use cases only through `useUseCases()`, `main.tsx` builds everything, and `fakeUseCases`/`inMemoryUseCases` drive UI tests. The trace in `src/ui/traces/` renders the whole `App`; refresh it with `npx vitest run src/ui/traces --update`.
 - **`ui/` can't import adapters or domain values, even in tests,** so UI tests stand in for the Worker runner with a test `SimulationRunner` under the real `RunSimulation`.
 - **Snapshot commands:** `-u` takes an optional value, so `npx vitest run -u <path>` swallows the path and updates every snapshot in the suite. Put the path first and `--update` after it. Older docs still show the broken form ([#25](https://github.com/alanbickel/wind-tunnel/issues/25)).

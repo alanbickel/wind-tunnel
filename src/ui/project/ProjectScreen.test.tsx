@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLookup } from "../../application/ports/project-repository";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import { ProjectScreen } from "./ProjectScreen";
+import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 
 function renderLookup(lookup: ProjectLookup, onClose = vi.fn()) {
   const useCases = fakeUseCases({
@@ -19,15 +20,19 @@ function renderLookup(lookup: ProjectLookup, onClose = vi.fn()) {
 }
 
 describe("ProjectScreen", () => {
-  afterEach(cleanup);
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
-  it("shows an opened project's name and what it's made of", async () => {
+  it("shows an opened project's name and its architecture", async () => {
     renderLookup({ status: "found", record: sampleRecord });
 
     expect(
       await screen.findByRole("heading", { name: "Sample project" }),
     ).toBeTruthy();
-    expect(screen.getByText("Components: 3 · Workflows: 1")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Architecture" })).toBeTruthy();
   });
 
   it("shows why an invalid project can't be opened, issue by issue", async () => {

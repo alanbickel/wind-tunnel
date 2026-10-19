@@ -2,7 +2,7 @@
 
 An introduction to the use cases, the ports they work through, and the adapters that store projects, for maintainers new to the code. Read the [architecture overview](architecture-overview.md) and [the domain model](domain-model.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§5 and §6).
 
-> **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, the in-process simulation runner, and the `Clock` and `IdGenerator` adapters exist. The browser app wires them all up, but no screen calls them yet (M3 adds the screens and the Web Worker runner). Today the [headless runner](headless-runner.md) is the only caller that runs them.
+> **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, the in-process and Web Worker simulation runners, and the `Clock` and `IdGenerator` adapters exist. The browser's screens list, create, and open projects; starting a run from the browser comes with the run controls in M3. Today the [headless runner](headless-runner.md) is the only caller that runs a simulation.
 
 ## The big idea: use cases talk to ports, adapters fill them in
 
@@ -14,7 +14,7 @@ How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-gl
 %%{init: {"flowchart": {"wrappingWidth": 320}}}%%
 flowchart LR
     cli["<b>runSimulateCommand</b><br/>[adapters/cli]"]:::external
-    ui["<b>React UI</b><br/>[ui, M3]"]:::planned
+    ui["<b>React UI</b><br/>[ui]"]:::external
     subgraph app["application/"]
         uc["<b>Use cases</b><br/>[Component: use-cases/]<br/>CreateProjectFromTemplate, SaveProject,<br/>OpenProject, RunSimulation, ..."]:::component
         ports["<b>Ports</b><br/>[Component: ports/, interfaces]<br/>ProjectRepository, TemplateCatalog,<br/>SimulationRunner, Clock, IdGenerator,<br/>StoragePersistence"]:::component
@@ -23,7 +23,7 @@ flowchart LR
     subgraph ad["adapters/"]
         repo["<b>IndexedDbProjectRepository</b><br/>[Component: persistence/]"]:::component
         cat["<b>BundledTemplateCatalog</b><br/>[Component: templates/]"]:::component
-        run["<b>InProcessSimulationRunner</b><br/>[Component: simulation/]"]:::component
+        run["<b>InProcessSimulationRunner,<br/>WebWorkerSimulationRunner</b><br/>[Component: simulation/]"]:::component
         sp["<b>BrowserStoragePersistence</b><br/>[Component: persistence/]"]:::component
         sys["<b>SystemClock, RandomUuidIds</b><br/>[Component: system/]"]:::component
     end
@@ -52,7 +52,7 @@ Because the use cases see only ports, the same use case runs against fakes in a 
 |---|---|---|---|
 | `ProjectRepository` | `list`, `get`, `save`, `delete` the user's projects | `IndexedDbProjectRepository` | `InMemoryProjectRepository` |
 | `TemplateCatalog` | `list` the starter templates, `get` one as a record | `BundledTemplateCatalog` | `InMemoryTemplateCatalog` |
-| `SimulationRunner` | Run a workload, stream per-second snapshots through `onSnapshot` | `InProcessSimulationRunner` (a Worker version in M3) | `RecordingSimulationRunner` |
+| `SimulationRunner` | Run a workload, stream per-second snapshots through `onSnapshot`, stop when a `StopSignal` fires | `WebWorkerSimulationRunner` in the browser, `InProcessSimulationRunner` in the CLI and tests | `RecordingSimulationRunner` |
 | `Clock` | The current time as an ISO string (`2026-10-15T12:00:00.000Z`) | `SystemClock` | `FixedClock` |
 | `IdGenerator` | New unique IDs | `RandomUuidIds` (`crypto.randomUUID()`) | `SequentialIds` (`project-1`, `project-2`, ...) |
 | `StoragePersistence` | Ask the browser not to evict saved projects | `BrowserStoragePersistence` | none needed yet |
@@ -61,6 +61,7 @@ Two rules shape them:
 
 - **`Clock` returns a string, not a `Date`.** ESLint bans `new Date` in `application/`, tests included, so nothing there can read the real clock. ISO strings in this one format also sort correctly as text, which the IndexedDB `updatedAt` index relies on.
 - **The runner takes plain data.** A `SimulationRequest` is a `Project` and a workload ID, so the browser version can post it to a Web Worker. The adapter owns the component registry.
+- **A run stops on a signal.** `run` takes an optional `StopSignal` ([`stop-signal.ts`](../../src/application/ports/stop-signal.ts)): the part of the DOM's `AbortSignal` a runner needs, declared in `application/` because that folder is checked without the DOM's types. In the browser, pass `new AbortController().signal`; in tests, `ManualStopSignal`. A stopped run resolves `stopped` rather than rejecting, and no snapshot follows the stop. The Worker runner stops by terminating its Worker. The in-process runner holds the thread, so only a signal that fired before the run, or from inside `onSnapshot`, can stop it. Every runner must pass `checkSimulationRunnerContract`.
 
 ## Use cases
 
@@ -74,7 +75,7 @@ Each use case is a class: ports go into the constructor as one object, and the w
 | `OpenProject` | projects | `found`, `missing`, or `invalid` with a `reason` for the user |
 | `SaveProject` | projects, clock, registry | `saved` with the new `updatedAt`, or `invalid` with the issues |
 | `DeleteProject` | projects | nothing; deleting a missing project does nothing |
-| `RunSimulation` | runner | `finished` with the run, or `workload-missing` |
+| `RunSimulation` | runner | `finished` with the run, `stopped`, or `workload-missing` |
 
 Most are a single call on a port. The ones with logic:
 
@@ -139,11 +140,11 @@ Running it streams a snapshot per simulated second before the run resolves. The 
 
 ```text
 RunSimulation.execute({ project (cut to 3 s), seed: 7, onSnapshot })
-  port     runner.run({ project: project-1, workloadId: "lunch-rush" })
+  port     runner.run({ request: { project: project-1, workloadId: "lunch-rush" } })
   onSnapshot  0–1000 ms
   onSnapshot  1000–2000 ms
   onSnapshot  2000–3000 ms
-  port     runner.run → 3 snapshots
+  port     runner.run → finished, 3 snapshots
   result   finished, workload "lunch-rush" with seed 7
   totals: started 619 = succeeded 613 + failed 0 + unfinished 6
 ```
@@ -178,7 +179,7 @@ For an IndexedDB test, `import "fake-indexeddb/auto"`, give each test a fresh da
 
 Something has to build the adapters and hand them to the use cases. There are two composition roots:
 
-- **The browser:** [`src/main.tsx`](../../src/main.tsx) opens the database, builds every adapter and the seven use cases, and renders `App` inside the provider tree. Every React context provider is set up there, so `App` takes no props. The use cases go to `UseCasesProvider` as one `UseCases` object ([`src/ui/app/use-cases.ts`](../../src/ui/app/use-cases.ts)), and a component reads them with `useUseCases()`. `UseCases` types each use case as `Pick<Class, "execute">`, so UI tests pass plain fakes (`fakeUseCases` in `src/ui/app/testing/`). If the database won't open, `main.tsx` shows `StartupFailure` instead. Until the Worker runner lands, runs use the in-process runner and block the page.
+- **The browser:** [`src/main.tsx`](../../src/main.tsx) opens the database, builds every adapter and the seven use cases, and renders `App` inside the provider tree. Every React context provider is set up there, so `App` takes no props. The use cases go to `UseCasesProvider` as one `UseCases` object ([`src/ui/app/use-cases.ts`](../../src/ui/app/use-cases.ts)), and a component reads them with `useUseCases()`. `UseCases` types each use case as `Pick<Class, "execute">`, so UI tests pass plain fakes (`fakeUseCases` in `src/ui/app/testing/`). If the database won't open, `main.tsx` shows `StartupFailure` instead. Runs go to `WebWorkerSimulationRunner`, which starts a fresh Worker from [`simulation-worker-entry.ts`](../../src/adapters/simulation/simulation-worker-entry.ts) for each run; the messages between them are in [`simulation-worker-protocol.ts`](../../src/adapters/simulation/simulation-worker-protocol.ts).
 - **The CLI:** `runSimulateCommand` in [`simulate-command.ts`](../../src/adapters/cli/simulate-command.ts) wires the catalog and the in-process runner to `RunSimulation`.
 
 ## Adding to it

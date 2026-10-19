@@ -2,10 +2,7 @@ import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
-import type {
-  MetricsRun,
-  MetricsSnapshot,
-} from "../../domain/metrics/metrics-collector";
+import type { MetricsRun } from "../../domain/metrics/metrics-collector";
 import type { Project } from "../../domain/model/project";
 import type { Clock } from "../../application/ports/clock";
 import type { IdGenerator } from "../../application/ports/id-generator";
@@ -18,7 +15,8 @@ import type {
   ProjectRepository,
 } from "../../application/ports/project-repository";
 import type {
-  SimulationRequest,
+  SimulationOutcome,
+  SimulationRunInput,
   SimulationRunner,
 } from "../../application/ports/simulation-runner";
 import type {
@@ -185,17 +183,18 @@ class TracedRunner implements SimulationRunner {
     this.trace = trace;
   }
 
-  async run(
-    request: SimulationRequest,
-    onSnapshot?: (snapshot: MetricsSnapshot) => void,
-  ): Promise<MetricsRun> {
-    const { project, workloadId } = request;
+  async run(input: SimulationRunInput): Promise<SimulationOutcome> {
+    const { project, workloadId } = input.request;
     this.trace.port(
-      `runner.run({ project: ${project.id}, workloadId: "${workloadId}" })`,
+      `runner.run({ request: { project: ${project.id}, workloadId: "${workloadId}" } })`,
     );
-    const run = await this.inner.run(request, onSnapshot);
-    this.trace.port(`runner.run → ${String(run.snapshots.length)} snapshots`);
-    return run;
+    const outcome = await this.inner.run(input);
+    const snapshots =
+      outcome.status === "finished" ? outcome.run.snapshots.length : 0;
+    this.trace.port(
+      `runner.run → ${outcome.status}, ${String(snapshots)} snapshots`,
+    );
+    return outcome;
   }
 }
 

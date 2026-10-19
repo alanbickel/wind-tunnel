@@ -1,0 +1,82 @@
+/*
+ * Design tokens: every color, spacing, type size, and corner radius the UI
+ * uses (ADR-0012). Names say the role, not the value. Each color holds both
+ * themes, light first, with light-dark(); it must be an opaque #rrggbb pair
+ * so its contrast can be computed. A new color token needs its pairs in
+ * tokens.test.ts, or that test fails.
+ */
+
+/* The theme: follow the operating system unless the user fixed one. */
+:root {
+  color-scheme: light dark;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root {
+  /* Backgrounds: the page (and the diagram's canvas), panels and cards on
+     it, and things raised above a panel (a hovered row, a badge). */
+  --color-bg: light-dark(#f6f7f9, #111318);
+  --color-surface: light-dark(#ffffff, #1a1d23);
+  --color-surface-raised: light-dark(#eef0f3, #252931);
+
+  /* Text, on any background. */
+  --color-text: light-dark(#1b1f24, #e6e8eb);
+  --color-text-muted: light-dark(#59606b, #a2a8b3);
+
+  /* Links, selection, and primary buttons; on-accent is text on an accent fill. */
+  --color-accent: light-dark(#0b62d6, #6ea8fe);
+  --color-on-accent: light-dark(#ffffff, #0d1117);
+
+  /* Lines. A border marks a control's edge; a divider only separates
+     (card outlines, table rules, chart gridlines) and is deliberately faint. */
+  --color-border: light-dark(#7d8590, #767e8b);
+  --color-divider: light-dark(#dde1e6, #2e333c);
+  --color-focus-ring: light-dark(#0b62d6, #8ab4ff);
+  --color-diagram-edge: light-dark(#7d8590, #7d8590);
+
+  /* Status, as text or as a dot beside a label: never color alone. */
+  --color-status-ok: light-dark(#15712f, #3fb950);
+  --color-status-warn: light-dark(#855900, #d29922);
+  --color-status-error: light-dark(#cf222e, #ff6b62);
+
+  /* Chart lines in a fixed order, each series taking the next. The order
+     keeps neighbors distinct for color-blind readers; checked with the
+     dataviz palette validator against --color-surface in each theme.
+     Graphics only, never text: they're held to 3:1, not 4.5:1. */
+  --color-series-1: light-dark(#2a78d6, #3987e5); /* blue */
+  --color-series-2: light-dark(#d95926, #d95926); /* orange */
+  --color-series-3: light-dark(#20917e, #199e70); /* aqua */
+  --color-series-4: light-dark(#be8210, #c98500); /* yellow */
+  --color-series-5: light-dark(#d55181, #d55181); /* magenta */
+  --color-series-6: light-dark(#008300, #008300); /* green */
+  --color-series-7: light-dark(#6250d6, #9085e9); /* violet */
+  --color-series-8: light-dark(#e34948, #e66767); /* red */
+
+  /* Spacing, a 4 px scale. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* Type. */
+  --font-family-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-family-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --line-height: 1.5;
+
+  /* Corner radius. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}

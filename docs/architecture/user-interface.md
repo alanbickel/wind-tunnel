@@ -19,6 +19,7 @@ flowchart TB
         project["<b>ProjectScreen</b><br/>[Component: project/]<br/>One project: its architecture and runs"]:::component
         run["<b>RunPanel, useSimulationRun</b><br/>[Component: run/]<br/>Run controls, totals, chart content"]:::component
         storage["<b>useStoragePersistence</b><br/>[Component: storage/]<br/>Asks to keep the projects"]:::component
+        theme["<b>ThemeControl, tokens.css</b><br/>[Component: theme/]<br/>System, dark, or light; every color"]:::component
         diagram["<b>Diagram</b><br/>[Component: diagram/]<br/>Boxes and arrows, over React Flow"]:::component
         charts["<b>TimeSeriesChart</b><br/>[Component: charts/]<br/>Lines over time, over Recharts"]:::component
     end
@@ -27,7 +28,7 @@ flowchart TB
     worker["<b>Simulation Worker</b><br/>[Container: Web Worker]"]:::system
     main -->|"renders App inside"| provider
     provider -.->|"useUseCases()"| projects & project & run & storage
-    app --> projects & project & storage
+    app --> projects & project & storage & theme
     project -->|"diagramOf(record)"| diagram
     project --> run
     run -->|"runCharts(snapshots)"| charts
@@ -53,6 +54,7 @@ The folders under `src/ui/`:
 | `run/` | `RunPanel`, `useSimulationRun`, the totals tables, and `runCharts`, which turns snapshots into chart content |
 | `diagram/`, `charts/` | Our wrappers around React Flow and Recharts. Only these folders import those libraries ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) |
 | `storage/` | Asks the browser for persistent storage after the first create, and warns if it says no |
+| `theme/` | The design tokens (`tokens.css`), the page's base styles, and the theme control, which saves the choice ([ADR-0012](../adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) |
 | `shared/` | `useLoad` and `LoadableView`, `handleStatus`, `ScreenHeading`, `useFocusOnMount` |
 
 ## How a component reaches a use case
@@ -83,6 +85,7 @@ To give a component a new use case: add it to `UseCases`, build it in `main.tsx`
 - **Results with a `status`.** Use cases return unions keyed by `status` (`found`, `missing`, `invalid`). Render them with `handleStatus` and a `StatusHandlers` map, the UI's twin of the domain's `KindHandlers` (CONTRIBUTING rule 4): a new status stops the map compiling until it has a view.
 - **Double clicks.** State lags a render behind, so a hook that must run something once (`useCreateFromTemplate`, `useSimulationRun`, `useStoragePersistence`) guards with a `useRef`, which changes at once.
 - **Keyboard and screen readers.** A button that can't be used now is `aria-disabled` and ignores clicks rather than `disabled`, which would drop the focus. A new screen focuses its heading (`ScreenHeading`). Mount a live region (`role="status"`) from the start, empty, as `RunPanel` and `StorageHint` do, so screen readers announce what appears in it; the older ones that mount with their message are [#14](https://github.com/alanbickel/wind-tunnel/issues/14). The diagram and every chart have a text or table version.
+- **Styling.** Colors, spacing, type sizes, and radii come from the tokens in `theme/tokens.css`, through `var()`: never a literal (the chart axes and series keep theirs until [#30](https://github.com/alanbickel/wind-tunnel/issues/30)). Each color token holds both themes with `light-dark()`, and the browser picks one by the `color-scheme` on `<html>`, so changing the theme re-renders nothing. `main.tsx` applies the saved choice before the first render.
 - **Wrapped libraries.** `Diagram` and `TimeSeriesChart` take our own types (`DiagramContent`, `TimeSeriesContent`). The rest of the UI builds those (`diagramOf`, `runCharts`) and never sees a React Flow or Recharts type, so either library can be swapped in one folder.
 
 ## A run, from click to chart
@@ -179,4 +182,5 @@ Keep logic out of components where you can: `diagramOf`, `runCharts`, and `run-t
 
 - **A new screen or panel:** a folder under `src/ui/`, reading use cases with `useUseCases()`. Load with `useLoad`, render results with `handleStatus`, and give the screen a `ScreenHeading`.
 - **A new chart:** add a `TimeSeriesContent` to `runCharts`. Keep every series present from the first snapshot, in a fixed order, so lines keep their colors as the run fills in. A chart that needs something `TimeSeriesChart` can't draw gets a new prop in our own types, in `src/ui/charts/`.
+- **A new color:** add a token named for its role to `tokens.css`, as `light-dark(<light>, <dark>)` with two `#rrggbb` values, and add it to `CONTRAST_RULES` in `theme/tokens.test.ts` with each background it sits on. A color that carries no information goes in `DECORATIVE` with the reason instead. The test fails until you do one or the other, and fails if a pair is below its WCAG ratio. The test can't tell whether neighboring chart series stay distinct for color-blind readers: for a series color, run the palette validator from Claude Code's dataviz skill on all eight, in each theme, against `--color-surface`. Series colors are for graphics only, never text: they're held to 3:1, so a tooltip row or legend label uses `--color-text`, with the hue on the line and the swatch.
 - **A new use case for the UI:** see [How a component reaches a use case](#how-a-component-reaches-a-use-case).

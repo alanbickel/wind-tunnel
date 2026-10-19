@@ -2,6 +2,7 @@ import { ProjectScreen } from "./project/ProjectScreen";
 import { ProjectsScreen } from "./projects/ProjectsScreen";
 import { StorageHint } from "./storage/StorageHint";
 import { useStoragePersistence } from "./storage/useStoragePersistence";
+import { ThemeControl } from "./theme/ThemeControl";
 import { useOpenProject } from "./useOpenProject";
 
 /**
@@ -16,6 +17,7 @@ export function App() {
   return (
     <main>
       <h1>Wind Tunnel</h1>
+      <ThemeControl />
       <StorageHint status={storage.status} />
       {openId === undefined ? (
         <ProjectsScreen

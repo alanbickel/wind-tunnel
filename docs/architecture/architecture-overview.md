@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-How the code is organized: the layers, the dependency rule, where new code goes, and how tooling enforces it. Decisions behind it are recorded in the [ADRs](../adr/adr-overview.md). The browser UI and the Web Worker runner are still to come (M3).
+How the code is organized: the layers, the dependency rule, where new code goes, and how tooling enforces it. Decisions behind it are recorded in the [ADRs](../adr/adr-overview.md). The browser UI is being built in M3.
 
 ## The system at a glance
 
@@ -50,7 +50,7 @@ flowchart TB
     dev["<b>Maintainer</b><br/>[Person]"]:::person
     subgraph wt["Wind Tunnel [Software System]"]
         app["<b>Browser app</b><br/>[Container: React, TypeScript]<br/>Edits projects, starts runs,<br/>shows charts. UI comes in M3"]:::system
-        worker["<b>Simulation Worker</b><br/>[Container: Web Worker]<br/>Runs the engine off<br/>the UI thread"]:::planned
+        worker["<b>Simulation Worker</b><br/>[Container: Web Worker]<br/>Runs the engine off<br/>the UI thread"]:::system
         db[("<b>Project store</b><br/>[Container: IndexedDB]<br/>Saved projects as<br/>versioned documents")]:::system
         cli["<b>Headless runner</b><br/>[Container: Node, npm run simulate]<br/>Runs a template and<br/>prints a text report"]:::system
     end
@@ -66,7 +66,7 @@ flowchart TB
     classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
 ```
 
-The browser app, the Worker, and the headless runner run the same `domain/` and `application/` code, organized as in [Layers and the dependency rule](#layers-and-the-dependency-rule). The browser app is a shell until M3 wires it up.
+The browser app, the Worker, and the headless runner run the same `domain/` and `application/` code, organized as in [Layers and the dependency rule](#layers-and-the-dependency-rule).
 
 ## Core concepts
 
@@ -94,7 +94,7 @@ Each guide is a short, visual introduction to one part of the system, with a wor
 | [How the simulation engine works](simulation-engine.md) | Discrete-event loop, `EventQueue`, `RateLimit`, `ConcurrencyLimit`, `Queue`, `ServiceTime`, distributions, `simulate`, `ArrivalProcess`, `backoffMs` |
 | [Component definitions](component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents`, the five AWS types |
 | [How metrics work](metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, gauges and counters, `LatencyHistogram` |
-| [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, `InProcessSimulationRunner`, the repository contract |
+| [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, the in-process and Web Worker runners, the repository and runner contracts |
 | [The headless runner](headless-runner.md) | `npm run simulate`, `runSimulateCommand`, the text report and how to read it, loading TypeScript through Vite |
 
 ## Layers and the dependency rule
@@ -183,23 +183,23 @@ To approve a new library for `domain` or `application`, write an ADR, then add i
 | [Prettier](https://prettier.io/) | Code formatting. Markdown is excluded so docs stay hand-formatted. |
 | GitHub Actions | CI runs `npm run check` on every push to `main` and on pull requests ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) |
 
-## How a simulation run will work in the browser
+## How a simulation run works in the browser
 
-Today the CLI runs a simulation in-process through `RunSimulation` ([the application layer guide](application-layer.md) traces one). In M3 the browser will run it in a Web Worker, like this:
+The CLI runs a simulation in-process through `RunSimulation` ([the application layer guide](application-layer.md) traces one). The browser runs it in a Web Worker, one Worker per run, like this:
 
 ```mermaid
 sequenceDiagram
     actor User
     participant UI as ui/
     participant UC as RunSimulation (application)
-    participant WB as WorkerSimulationRunner (adapter)
+    participant WB as WebWorkerSimulationRunner (adapter)
     participant W as Web Worker
     participant E as Engine (domain)
 
     User->>UI: Click "Run"
-    UI->>UC: execute({ project, workloadId, seed, onSnapshot })
-    UC->>WB: run(request, onSnapshot) via SimulationRunner port
-    WB->>W: postMessage(serialized inputs)
+    UI->>UC: execute({ project, workloadId, seed, onSnapshot, stopSignal })
+    UC->>WB: run({ request, onSnapshot, stopSignal }) via SimulationRunner port
+    WB->>W: new Worker, then postMessage({ kind: "run", request })
     W->>E: run with seeded RandomSource
     loop every snapshot tick
         E-->>W: metrics snapshot
@@ -207,7 +207,9 @@ sequenceDiagram
         WB-->>UI: snapshot via onSnapshot
     end
     E-->>W: final results
-    W-->>WB: done
-    WB-->>UC: run promise resolves
+    W-->>WB: postMessage(finished, with the run)
+    WB->>W: terminate()
+    WB-->>UC: resolves finished
     UC-->>UI: finished, with the run
+    Note over UI,W: If the stop signal fires first, the runner terminates the Worker at once<br/>and resolves stopped; snapshots still queued are dropped.
 ```

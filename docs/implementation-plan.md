@@ -59,7 +59,7 @@ Each task is a GitHub issue in the [M3 milestone](https://github.com/alanbickel/
 - [x] [#3](https://github.com/alanbickel/wind-tunnel/issues/3) Composition root and an app shell that provides the use cases
 - [x] [#4](https://github.com/alanbickel/wind-tunnel/issues/4) Project list and new-from-template
 - [x] [#5](https://github.com/alanbickel/wind-tunnel/issues/5) Read-only architecture view
-- [ ] [#6](https://github.com/alanbickel/wind-tunnel/issues/6) Web Worker `SimulationRunner` with cancellation
+- [x] [#6](https://github.com/alanbickel/wind-tunnel/issues/6) Web Worker `SimulationRunner` with cancellation
 - [ ] [#7](https://github.com/alanbickel/wind-tunnel/issues/7) Run controls and metric charts
 - [ ] [#8](https://github.com/alanbickel/wind-tunnel/issues/8) Request persistent storage after the first project is created
 - [ ] [#9](https://github.com/alanbickel/wind-tunnel/issues/9) UI onboarding guide and its component diagram

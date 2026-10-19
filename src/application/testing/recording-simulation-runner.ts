@@ -3,26 +3,39 @@ import type {
   MetricsSnapshot,
 } from "../../domain/metrics/metrics-collector";
 import type {
-  SimulationRequest,
+  SimulationOutcome,
+  SimulationRunInput,
   SimulationRunner,
 } from "../ports/simulation-runner";
 
 /**
- * Records each request instead of simulating it, and plays back
- * `FAKE_RUN`'s snapshots before resolving with it.
+ * Records each input instead of simulating it, and plays back `FAKE_RUN`'s
+ * snapshots before finishing with it. Stops before the first snapshot if the
+ * stop signal has already fired, and between snapshots if `onSnapshot`
+ * fires it.
  */
 export class RecordingSimulationRunner implements SimulationRunner {
-  readonly requests: SimulationRequest[] = [];
+  readonly inputs: SimulationRunInput[] = [];
 
-  run(
-    request: SimulationRequest,
-    onSnapshot?: (snapshot: MetricsSnapshot) => void,
-  ): Promise<MetricsRun> {
-    this.requests.push(request);
-    FAKE_RUN.snapshots.forEach((snapshot) => onSnapshot?.(snapshot));
-    return Promise.resolve(FAKE_RUN);
+  /** The request of each run, in order. */
+  get requests(): SimulationRunInput["request"][] {
+    return this.inputs.map((input) => input.request);
+  }
+
+  run(input: SimulationRunInput): Promise<SimulationOutcome> {
+    this.inputs.push(input);
+    for (const snapshot of FAKE_RUN.snapshots) {
+      if (input.stopSignal?.aborted) return STOPPED;
+      input.onSnapshot?.(snapshot);
+    }
+    if (input.stopSignal?.aborted) return STOPPED;
+    return Promise.resolve({ status: "finished", run: FAKE_RUN });
   }
 }
+
+const STOPPED: Promise<SimulationOutcome> = Promise.resolve({
+  status: "stopped",
+});
 
 function emptySnapshot(startMs: number, endMs: number): MetricsSnapshot {
   return { startMs, endMs, components: {}, workflows: {} };

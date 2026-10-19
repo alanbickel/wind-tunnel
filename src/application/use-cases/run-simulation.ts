@@ -3,7 +3,11 @@ import type {
   MetricsSnapshot,
 } from "../../domain/metrics/metrics-collector";
 import type { Project, Workload } from "../../domain/model/project";
-import type { SimulationRunner } from "../ports/simulation-runner";
+import type {
+  SimulationOutcome,
+  SimulationRunner,
+} from "../ports/simulation-runner";
+import type { StopSignal } from "../ports/stop-signal";
 
 export interface RunSimulationDependencies {
   readonly runner: SimulationRunner;
@@ -18,9 +22,14 @@ export interface RunSimulationInput {
   readonly seed?: number;
   /** Gets each per-second snapshot as the run produces it. */
   readonly onSnapshot?: (snapshot: MetricsSnapshot) => void;
+  /**
+   * Stops the run when it fires; the result is then `stopped`. In the
+   * browser, pass `new AbortController().signal`.
+   */
+  readonly stopSignal?: StopSignal;
 }
 
-export type RunSimulationResult = RunFinished | WorkloadMissing;
+export type RunSimulationResult = RunFinished | RunStopped | WorkloadMissing;
 
 /** The workload to run, and the project it runs in. */
 export interface RunTarget {
@@ -31,6 +40,11 @@ export interface RunTarget {
 export interface RunFinished extends RunTarget {
   readonly status: "finished";
   readonly run: MetricsRun;
+}
+
+/** The stop signal fired before the run finished. */
+export interface RunStopped extends RunTarget {
+  readonly status: "stopped";
 }
 
 export interface WorkloadMissing {
@@ -53,11 +67,22 @@ export class RunSimulation {
   async execute(input: RunSimulationInput): Promise<RunSimulationResult> {
     const target = selectWorkload(input);
     if (target === undefined) return workloadMissing(input);
-    const { project, workload } = target;
-    const request = { project, workloadId: workload.id };
-    const run = await this.runner.run(request, input.onSnapshot);
-    return { status: "finished", project, workload, run };
+    const outcome = await this.runner.run({
+      request: { project: target.project, workloadId: target.workload.id },
+      onSnapshot: input.onSnapshot,
+      stopSignal: input.stopSignal,
+    });
+    return resultOf(outcome, target);
   }
+}
+
+/** The use case's result for what the runner reported. */
+function resultOf(
+  outcome: SimulationOutcome,
+  target: RunTarget,
+): RunFinished | RunStopped {
+  if (outcome.status === "stopped") return { status: "stopped", ...target };
+  return { status: "finished", ...target, run: outcome.run };
 }
 
 /** The workload the input asks for, with its seed applied; undefined if none. */

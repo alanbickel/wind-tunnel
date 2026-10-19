@@ -75,6 +75,8 @@ async function reportFor({
     seed: flags.seed,
   });
   if (result.status === "workload-missing") return unknownWorkload(result);
+  // The CLI passes no stop signal, so this can't happen; the type allows it.
+  if (result.status === "stopped") return "The run was stopped.";
   return { text: formatReport(result) };
 }
 

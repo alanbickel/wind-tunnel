@@ -24,11 +24,11 @@ OpenProject.execute("project-1")
   result   found, record project-1 "Rush hour" (updatedAt 2026-10-15T12:05:00.000Z)
 
 RunSimulation.execute({ project (cut to 3 s), seed: 7, onSnapshot })
-  port     runner.run({ project: project-1, workloadId: "lunch-rush" })
+  port     runner.run({ request: { project: project-1, workloadId: "lunch-rush" } })
   onSnapshot  0–1000 ms
   onSnapshot  1000–2000 ms
   onSnapshot  2000–3000 ms
-  port     runner.run → 3 snapshots
+  port     runner.run → finished, 3 snapshots
   result   finished, workload "lunch-rush" with seed 7
   totals: started 619 = succeeded 613 + failed 0 + unfinished 6
 

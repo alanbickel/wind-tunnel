@@ -10,7 +10,7 @@ import {
   openProjectDatabase,
   type ProjectDatabase,
 } from "./adapters/persistence/project-database";
-import { InProcessSimulationRunner } from "./adapters/simulation/in-process-simulation-runner";
+import { WebWorkerSimulationRunner } from "./adapters/simulation/web-worker-simulation-runner";
 import { RandomUuidIds } from "./adapters/system/random-uuid-ids";
 import { SystemClock } from "./adapters/system/system-clock";
 import { createBundledTemplateCatalog } from "./adapters/templates/bundled-template-catalog";
@@ -37,6 +37,20 @@ function render(element: ReactNode): void {
   root.render(<StrictMode>{element}</StrictMode>);
 }
 
+/** Runs each simulation in a fresh Web Worker, which Vite bundles separately. */
+function createWorkerRunner(): WebWorkerSimulationRunner {
+  return new WebWorkerSimulationRunner({
+    createWorker: () =>
+      new Worker(
+        new URL(
+          "./adapters/simulation/simulation-worker-entry.ts",
+          import.meta.url,
+        ),
+        { type: "module" },
+      ),
+  });
+}
+
 /** Builds every adapter and the use cases over them. */
 function createUseCases(database: ProjectDatabase): UseCases {
   const registry = createAwsComponentRegistry();
@@ -44,8 +58,7 @@ function createUseCases(database: ProjectDatabase): UseCases {
   const templates = createBundledTemplateCatalog(registry);
   const clock = new SystemClock();
   const ids = new RandomUuidIds();
-  // In-process until the Web Worker runner lands (#6); it blocks the UI.
-  const runner = new InProcessSimulationRunner({ registry });
+  const runner = createWorkerRunner();
   return {
     listProjects: new ListProjects({ projects }),
     listTemplates: new ListTemplates({ templates }),

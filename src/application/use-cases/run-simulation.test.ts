@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
 import type { Project } from "../../domain/model/project";
+import { ManualStopSignal } from "../testing/manual-stop-signal";
 import {
   FAKE_RUN,
   RecordingSimulationRunner,
@@ -90,5 +91,32 @@ describe("RunSimulation", () => {
     expect(
       await runSimulation.execute({ project: { ...project, workloads: [] } }),
     ).toEqual({ status: "workload-missing" });
+  });
+
+  it("hands the stop signal to the runner", async () => {
+    const { runner, runSimulation } = setUp();
+    const stopSignal = new ManualStopSignal();
+
+    await runSimulation.execute({ project, stopSignal });
+
+    expect(runner.inputs[0]?.stopSignal).toBe(stopSignal);
+  });
+
+  it("reports a stopped run, with the workload it was running", async () => {
+    const { runSimulation } = setUp();
+    const stopSignal = new ManualStopSignal();
+    const seen: MetricsSnapshot[] = [];
+
+    const result = await runSimulation.execute({
+      project,
+      stopSignal,
+      onSnapshot: (snapshot) => {
+        seen.push(snapshot);
+        stopSignal.stop();
+      },
+    });
+
+    expect(result).toEqual({ status: "stopped", project, workload: steady });
+    expect(seen).toHaveLength(1);
   });
 });

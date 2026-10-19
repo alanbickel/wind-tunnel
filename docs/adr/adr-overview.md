@@ -17,3 +17,4 @@ To write one, or to change a decision, follow [ADRs in the contributing guide](.
 | [0009](0009-collaborators-come-from-factories.md) | Classes take their collaborators through the constructor, typed as interfaces; factories and composition roots build them |
 | [0010](0010-draw-diagrams-with-react-flow-behind-our-own-component.md) | Draw architecture diagrams with React Flow, imported only by `src/ui/diagram/`, which exposes our own `Diagram` component |
 | [0011](0011-draw-charts-with-recharts-behind-our-own-components.md) | Draw metric charts with Recharts, imported only by `src/ui/charts/`, which exposes our own chart components |
+| [0012](0012-style-the-ui-with-css-tokens-and-css-modules.md) | Style the UI with design tokens as CSS custom properties (both themes in one file, via `light-dark()`) and CSS Modules; tokens and styles live only in `src/ui/` |

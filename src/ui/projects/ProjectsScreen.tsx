@@ -7,15 +7,25 @@ import { ProjectList } from "./ProjectList";
 
 export interface ProjectsScreenProps {
   readonly onOpen: (id: string) => void;
+  /** Called after each project is created and saved. */
+  readonly onCreated?: () => void;
   /** The project whose button gets focus once the list loads, if any. */
   readonly focusId?: string;
 }
 
 /** The first screen: the user's projects, and new ones from templates. */
-export function ProjectsScreen({ onOpen, focusId }: ProjectsScreenProps) {
+export function ProjectsScreen({
+  onOpen,
+  onCreated,
+  focusId,
+}: ProjectsScreenProps) {
   const { listProjects } = useUseCases();
   const load = useCallback(() => listProjects.execute(), [listProjects]);
   const { loadable, reload } = useLoad(load);
+  const created = useCallback(() => {
+    reload();
+    onCreated?.();
+  }, [reload, onCreated]);
 
   return (
     <>
@@ -31,7 +41,7 @@ export function ProjectsScreen({ onOpen, focusId }: ProjectsScreenProps) {
           )}
         </LoadableView>
       </section>
-      <NewFromTemplate onCreated={reload} />
+      <NewFromTemplate onCreated={created} />
     </>
   );
 }

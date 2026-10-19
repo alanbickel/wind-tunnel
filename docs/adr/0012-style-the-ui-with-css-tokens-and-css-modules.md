@@ -64,3 +64,7 @@ The design tokens issue ([#29](https://github.com/alanbickel/wind-tunnel/issues/
 ## Addendum, 2026-10-19 (the restyled screens)
 
 The app shell issue ([#30](https://github.com/alanbickel/wind-tunnel/issues/30)) added the architecture test this ADR describes, `tests/architecture/stylesheets.test.ts`, and extended it in the same spirit. Besides color literals in `src/ui/` and stylesheets outside it, it fails on a length literal in any stylesheet but `tokens.css`, and on a rule that removes the focus ring (`outline: none`). So the tokens now also hold line widths, a bold weight, a tight line height, two layout sizes (the content's maximum width and the diagram's height), and a transition duration. `base.css` holds element defaults every screen shares (headings, form controls, tables) and one `prefers-reduced-motion` rule that cuts every transition and animation, the libraries' included. The chart files' color literals are the test's listed exceptions until the charts are themed.
+
+## Addendum, 2026-10-19 (the project screen layout)
+
+The project screen layout issue ([#42](https://github.com/alanbickel/wind-tunnel/issues/42)) needed a breakpoint, and `@media` can't read a custom property. So `tokens.css` declares breakpoints as `--breakpoint-*` tokens, a media query writes out the value, and `tests/architecture/stylesheets.test.ts` allows a length literal in a stylesheet only on an `@media` or `@container` line, and only if it equals a breakpoint token's value. Changing a breakpoint token without its media queries fails the test.

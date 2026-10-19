@@ -1,10 +1,31 @@
+/* Narrow windows: one column, never wider than the window. */
 .project {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
 
 .description {
+  max-width: var(--prose-max-width);
   color: var(--color-text-muted);
   margin-bottom: 0;
+}
+
+/* Wide windows: the canvas and run panel side by side, filling the height
+   the shell leaves. Each panel scrolls its own content. App.module.css
+   caps the shell's height from the same width. */
+@media (min-width: 64rem) {
+  .project {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(
+        var(--run-panel-min-width),
+        1fr
+      );
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .intro {
+    grid-column: 1 / -1;
+  }
 }

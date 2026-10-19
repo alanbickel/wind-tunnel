@@ -4,7 +4,11 @@
  * custom properties inherit, so setting them here themes the whole diagram.
  */
 .diagram {
-  height: var(--diagram-height);
+  /* In a flex column that sizes to its content, this tall. In one with a
+     fixed height, it takes the room left over, down to its least height. */
+  flex: 1 1 var(--diagram-height);
+  min-height: var(--diagram-min-height);
+  position: relative;
   border: var(--line-width) solid var(--color-divider);
   border-radius: var(--radius-sm);
   /* The canvas's corners follow the border's. */
@@ -25,6 +29,14 @@
   --xy-controls-button-border-color: var(--color-divider);
   /* The "React Flow" link, which its maintainers ask free users to keep. */
   --xy-attribution-background-color: var(--color-surface);
+}
+
+/* React Flow sizes itself to 100% of its parent, which resolves only
+   against a definite height. A grown flex item's isn't always definite, so
+   the canvas pins itself to the diagram's edges instead. */
+.canvas {
+  position: absolute;
+  inset: 0;
 }
 
 /* React Flow colors the attribution link itself, with no custom property. */

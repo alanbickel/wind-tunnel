@@ -90,9 +90,25 @@
   --line-width: 1px;
   --line-width-thick: 2px;
 
-  /* Layout. Content stops widening here, so lines of text stay readable. */
+  /* Layout. The project list's column stops widening at the content width.
+     Prose stops at a readable line length, however wide its container. */
   --content-max-width: 72rem;
+  --prose-max-width: 65ch;
+  /* The diagram's height when the project screen stacks. When the screen
+     fills the window, the diagram takes the panel's room, down to its
+     least height on a short window. */
   --diagram-height: 25rem;
+  --diagram-min-height: 12rem;
+  /* The run panel's least width beside the canvas, so its tables fit. */
+  --run-panel-min-width: 36rem;
+  /* The window's height, less any browser toolbars showing. */
+  --window-height: 100dvh;
+
+  /* Breakpoints. @media can't read a custom property, so a media query
+     writes the value out; tests/architecture/stylesheets.test.ts fails
+     unless it equals one of these. From the wide width up, the project
+     screen fills the window, with the canvas and run panel side by side. */
+  --breakpoint-wide: 64rem;
 
   /* Motion. base.css cuts it to nothing under prefers-reduced-motion. */
   --duration-fast: 120ms;

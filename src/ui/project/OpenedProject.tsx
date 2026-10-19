@@ -8,12 +8,15 @@ export interface OpenedProjectProps {
   readonly record: ProjectRecord;
 }
 
-/** A project that opened: its name, description, architecture, and runs. */
+/**
+ * A project that opened: its name and description, then its architecture
+ * and runs, side by side in a wide window and stacked in a narrow one.
+ */
 export function OpenedProject({ record }: OpenedProjectProps) {
   const { project } = record;
   return (
     <div className={styles.project}>
-      <div>
+      <div className={styles.intro}>
         <ScreenHeading>{project.name}</ScreenHeading>
         {project.description && (
           <p className={styles.description}>{project.description}</p>

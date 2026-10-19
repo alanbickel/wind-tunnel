@@ -1,10 +1,19 @@
-.panel {
+.panel,
+.scrolling {
+  display: flex;
+  flex-direction: column;
   background: var(--color-surface);
   border: var(--line-width) solid var(--color-divider);
   border-radius: var(--radius-md);
   padding: var(--space-4) var(--space-5);
 }
 
-.panel > :last-child {
+.panel > :last-child,
+.scrolling > :last-child {
   margin-bottom: 0;
+}
+
+/* Sideways too, so a table wider than the panel never widens the page. */
+.scrolling {
+  overflow: auto;
 }

@@ -119,6 +119,14 @@ describe("RunPanel", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 
+  // Fails if RunPanel stops passing `scrolls` to its Panel: in a wide
+  // window the panel scrolls on its own, and the keyboard couldn't scroll it.
+  it("is a region the keyboard can focus, to scroll it", () => {
+    renderPanel();
+
+    expect(screen.getByRole("region", { name: "Run" }).tabIndex).toBe(0);
+  });
+
   it("fills in totals and charts as snapshots arrive, then finishes", async () => {
     const { runner } = renderPanel();
 

@@ -31,7 +31,9 @@ export interface DiagramProps {
 /**
  * A read-only diagram of boxes and arrows (ADR-0010). The user can pan and
  * zoom, but not move, connect, select, or tab to anything. It isn't
- * readable by screen readers, so pair it with a text version.
+ * readable by screen readers, so pair it with a text version. Place it in
+ * a flex column, such as a `Panel`: it's `--diagram-height` tall, or it
+ * fills the room a fixed-height column leaves it.
  */
 export function Diagram({ content, label }: DiagramProps) {
   const nodes = useMemo(() => content.nodes.map(toFlowNode), [content.nodes]);
@@ -39,22 +41,24 @@ export function Diagram({ content, label }: DiagramProps) {
 
   return (
     <div role="group" aria-label={label} className={styles.diagram}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        // Otherwise each box and arrow is a tab stop whose description offers
-        // select, move, and delete, none of which a read-only view supports.
-        nodesFocusable={false}
-        edgesFocusable={false}
-        ariaLabelConfig={READ_ONLY_DESCRIPTIONS}
-        fitView
-      >
-        <Background />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+      <div className={styles.canvas}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          // Otherwise each box and arrow is a tab stop whose description offers
+          // select, move, and delete, none of which a read-only view supports.
+          nodesFocusable={false}
+          edgesFocusable={false}
+          ariaLabelConfig={READ_ONLY_DESCRIPTIONS}
+          fitView
+        >
+          <Background />
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </div>
     </div>
   );
 }

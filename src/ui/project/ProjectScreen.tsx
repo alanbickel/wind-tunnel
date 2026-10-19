@@ -7,6 +7,7 @@ import { useLoad } from "../shared/useLoad";
 import { InvalidProject } from "./InvalidProject";
 import { OpenedProject } from "./OpenedProject";
 import { ScreenHeading } from "../shared/ScreenHeading";
+import styles from "./ProjectScreen.module.css";
 
 export interface ProjectScreenProps {
   readonly id: string;
@@ -19,7 +20,7 @@ export function ProjectScreen({ id }: ProjectScreenProps) {
   const { loadable } = useLoad(load);
 
   return (
-    <section>
+    <section className={styles.screen}>
       <LoadableView loadable={loadable} what="the project">
         {(lookup) =>
           handleStatus<ProjectLookup, ReactNode>(LOOKUP_VIEWS, lookup)

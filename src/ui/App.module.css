@@ -1,5 +1,31 @@
 .content {
+  padding: var(--space-5);
+}
+
+/* The project list: a centered column. The page scrolls. */
+.list .content {
   max-width: var(--content-max-width);
   margin: 0 auto;
-  padding: var(--space-5);
+}
+
+/* A project: the screen takes the height left under the top bar. */
+.project {
+  display: flex;
+  flex-direction: column;
+}
+
+.project .content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Wide windows: the shell stops at the window's bottom edge, so the
+   project's panels scroll rather than the page. OpenedProject lays them
+   out side by side from the same width. */
+@media (min-width: 64rem) {
+  .project {
+    height: var(--window-height);
+  }
 }

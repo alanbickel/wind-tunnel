@@ -4,6 +4,7 @@
 }
 
 .hint:not(:empty) {
+  max-width: var(--prose-max-width);
   background: var(--color-surface-raised);
   border-left: var(--line-width-thick) solid var(--color-status-warn);
   border-radius: var(--radius-sm);

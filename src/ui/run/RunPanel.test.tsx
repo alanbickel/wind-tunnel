@@ -137,6 +137,25 @@ describe("RunPanel", () => {
     expect(screen.getByRole("button", { name: "Run" })).toBeTruthy();
   });
 
+  it("measures progress in simulated time, so a run that ends partway through a second fills the bar", async () => {
+    const [steady] = sampleRecord.project.workloads;
+    if (steady === undefined) throw new Error("sample has no workload");
+    const { runner } = renderPanel({
+      ...sampleRecord.project,
+      workloads: [{ ...steady, durationMs: 2_500 }],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+
+    // The sampler ticks each second, then once more at the duration.
+    runner.send(sampleSnapshot({ second: 1 }));
+    runner.send({ ...sampleSnapshot({ second: 3 }), endMs: 2_500 });
+    await runner.finish();
+
+    const progress = screen.getByRole<HTMLProgressElement>("progressbar");
+    expect(screen.getByText("2.5 of 2.5 simulated seconds")).toBeTruthy();
+    expect(progress.value).toBe(progress.max);
+  });
+
   it("stops partway and keeps what it got", async () => {
     const { runner } = renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Run" }));

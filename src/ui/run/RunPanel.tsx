@@ -81,8 +81,9 @@ function statusTexts(seconds: number): StatusHandlers<RunPhase, string> {
   };
 }
 
+/** Measured like `simulatedSec`, so a finished run fills the bar. */
 function durationSec(workload: Workload): number {
-  return Math.ceil(workload.durationMs / 1_000);
+  return secondsOf(workload.durationMs);
 }
 
 /** Simulated time the snapshots cover, from the end of the last one. */

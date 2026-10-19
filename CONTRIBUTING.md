@@ -17,7 +17,7 @@ The [README](README.md#running-it) lists every script. A few things worth knowin
 - **Vitest doesn't type-check.** A green test run can hide a type error. Run `npm run check` (or at least `npx tsc -b`) before you trust it.
 - Prettier owns formatting, and CI checks it. Run `npm run format` rather than formatting by hand.
 - `npm run simulate -- --template template-a` runs a template headlessly and prints a text report. Use it to see what a model change does before and after ([guide](docs/architecture/headless-runner.md)).
-- Work is planned in milestones. [`docs/implementation-plan.md`](docs/implementation-plan.md) says what's in progress and what's next.
+- Work is planned in milestones. The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) says what's in progress and what's next ([how it works](#milestones-and-the-roadmap)).
 
 ## Architecture rules
 
@@ -132,7 +132,7 @@ type EventHandlers = {
 };
 ```
 
-When a second place needs this, extract it into a shared helper in `domain/` rather than writing it again.
+Outside `ui/`, don't write these maps from scratch: [`src/domain/shared/kind-handlers.ts`](src/domain/shared/kind-handlers.ts) has `KindHandlers` and `handleKind` for discriminated unions, and `lookup` for `Record` tables. `ui/` may import only the `KindHandlers` type from `domain/`, so it writes its own dispatch. If a second place needs a helper that isn't there, add it to `domain/shared/` rather than writing it again.
 
 ### 5. Keep control flow flat
 
@@ -195,6 +195,8 @@ const timeout = 30;
 // ✓
 const timeoutMs = 30_000;
 ```
+
+Component config fields may use the unit their AWS setting uses, with the unit in the name (`idleTimeoutSec`, `burstSec`). Each component converts its own to milliseconds.
 
 ### 10. Collaborators come from factories
 
@@ -266,7 +268,7 @@ A new AWS service (or any other component type) touches these places, all in the
 
 - Unit tests sit next to the code (`foo.ts` → `foo.test.ts`) and run in Node. Architecture tests live in `tests/architecture/`.
 - **UI tests** start with `// @vitest-environment jsdom`, render with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and call `cleanup` in `afterEach`. Give components use cases through `UseCasesProvider`: `fakeUseCases()` rejects every call you don't override, and `inMemoryUseCases()` runs the real project use cases over in-memory adapters (both in `src/ui/app/testing/`).
-- The coding standards apply to tests too. ESLint skips the length and parameter checks there, because a `describe` block groups many tests; keep each test itself within the rule of 30.
+- The coding standards apply to tests too. ESLint skips the length and parameter checks there, because a `describe` block groups many tests; keep each test itself within the rule of 30, and split a long scenario into named steps.
 - Tests should be able to fail. When you write or change one, break the code it covers and watch it go red at least once. Then say how you broke it in a comment above the test, so a reviewer can check it without rerunning it and a later reader knows what the test guards:
   ```ts
   // Fails if the queue drops messages that are still in flight when the run ends.
@@ -275,7 +277,7 @@ A new AWS service (or any other component type) touches these places, all in the
   Write one comment per `it` or `it.each`. For a change to a shared suite (`checkComponentContract` and the other contract checkers), put it on the check you changed. A regression test's comment names the bug it guards against: the change that turns it red is the bug coming back.
 - Use the seed, not luck. Anything random runs from a fixed seed. Scenario tests that assert a template's lesson check several seeds (`src/adapters/templates/template-scenarios.test.ts`) with loose thresholds, so they pin the lesson rather than one run's numbers.
 - **Contract suites** check that an implementation keeps the promises of its interface. Every component type must pass `checkComponentContract`, every `ProjectRepository` adapter must pass `checkProjectRepositoryContract`, and every `SimulationRunner` must pass `checkSimulationRunnerContract`, each with an empty list of violations.
-- **Outputs must reconcile.** Totals in metrics and reports add up: started = succeeded + failed + in progress, and so on. Show work that's still in progress rather than dropping it, and test the remainders (see `src/adapters/cli/report-reconciles.test.ts`). Add a check when you add a column or a counter.
+- **Outputs must reconcile.** Totals in metrics and reports add up: started = succeeded + failed + in progress, and so on. Show work that's still in progress rather than dropping it, and test the remainders (see `src/adapters/cli/report-reconciles.test.ts`). Add a check when you add a column or a counter. To find a workflow or component in a snapshot, use `workflowIn` and `componentIn` (`src/domain/metrics/testing/`) instead of chains of `?.`.
 - Latencies carry floating-point drift (`49.000000000000014`): compare them with `toBeCloseTo`. Percentiles are bucket upper bounds, up to 5% high ([metrics guide](docs/architecture/metrics.md)).
 - Model changes come with before/after numbers from `npm run simulate` in the PR description.
 
@@ -294,6 +296,9 @@ Some docs quote output that a test generates or checks. Change them together:
 
 - **No constructor parameter properties.** `erasableSyntaxOnly` is on, so `constructor(private readonly queue: EventQueue)` doesn't compile. Declare the field and assign it in the constructor.
 - **TypeScript is pinned to `~6.0`** because typescript-eslint doesn't support TypeScript 7 yet. For the same reason, the layer rules use typescript-eslint's `no-restricted-imports`, not ESLint's.
+- **Put the path before `--update`.** Vitest's `-u` takes an optional value, so `npx vitest run -u <path>` treats the path as that value, runs the whole suite, and rewrites every snapshot. Write `npx vitest run <path> --update`. Some docs still show the broken form ([#25](https://github.com/alanbickel/wind-tunnel/issues/25)).
+- **Slow full runs.** In a full local run, a few slow tests (`RunPanel` under jsdom, and `layer-rules`, which runs ESLint) can time out while everything else runs in parallel; they pass alone. `RunPanel`'s is [#27](https://github.com/alanbickel/wind-tunnel/issues/27).
+- **Measuring speed.** Whole-template timings swing ±30% between runs, so compare the million-event engine test instead, alternating runs of the old and new code: `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`. It ran in 1.1–1.7 s at R2's close. For the old code, use a `git worktree` with `node_modules` linked as a junction, and remove the junction before removing the worktree.
 
 ## Documentation
 
@@ -303,6 +308,7 @@ Write for a maintainer who is new to the codebase: say what something does and w
 - **A new subsystem gets a short guide** in `docs/architecture/`, in the same change: what it does, a Mermaid diagram or two, and a worked example, preferably a trace generated by a test so it can't go stale. Aim for a 10-minute read; [How the simulation engine works](docs/architecture/simulation-engine.md) is the model.
 - **Keep the [architecture overview](docs/architecture/architecture-overview.md)** and its Mermaid diagrams current in the same change that alters the structure.
 - **AWS claims** go through the fidelity catalog, as in [Adding a component type](#adding-a-component-type).
+- **New domain terms** go in the [glossary](docs/glossary.md).
 - **Diagrams** are [Mermaid](https://mermaid.js.org/), so they live in the Markdown and show up in diffs. In VS Code, the "Markdown Preview Mermaid Support" extension renders them.
 - **C4 diagrams** show the code at four levels, one diagram per level per place: context and containers (levels 1 and 2) in the architecture overview, one component diagram (level 3) in each guide, and a `classDiagram` (level 4) in the guide for a class whose collaborators a factory wires. Draw levels 1–3 as flowcharts styled like the [legend](docs/architecture/architecture-overview.md#the-system-at-a-glance), copying its `classDef` lines; Mermaid's own C4 diagrams don't lay out legibly.
 
@@ -323,6 +329,22 @@ Record a significant decision as an ADR in `docs/adr/`, copying [the template](d
 - **To change the decision,** write a new ADR that supersedes it, and update only the old one's status line.
 - **One exception:** ADRs 0002, 0003, and 0005 were edited in place when the project was renamed from Cloud Builder to Wind Tunnel, as a one-off.
 
+## Milestones and the roadmap
+
+The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) is the plan: the milestones in order, each with its items in order. A filed item is an issue number. Work not yet filed is a short *unfiled* stub that says what it is and records any decision already made about it. When a milestone becomes the current one, it gets a GitHub milestone, and its filed issues join it; items filed later join as they're filed. Until then, its filed issues have no GitHub milestone.
+
+- **The next task** is the first item, in order, that isn't done (an open issue or an unfiled stub) in the first milestone that still has one. If it's a stub, file it, with at most the one or two after it, and put their numbers in the Roadmap before starting. Filing in small batches keeps the issue list to work that's about to start.
+- **Edit the Roadmap** only to file stubs, reorder, add or reshape a milestone, or finish one. An ordinary PR doesn't touch it: `Closes #<number>` closes the issue, and the Roadmap shows it as done. To edit it, read the current body (`gh issue view 32 --json body --jq .body`), change that, and write it back with `gh issue edit 32 --body-file <file>`, so you don't overwrite someone else's edit.
+- **Lessons for later work** go in [Gotchas](#gotchas) or the guide they belong to, not the Roadmap.
+
+### Finishing a milestone
+
+1. Every item is closed, and the milestone's goal is met. The maintainer checks anything that needs a browser.
+2. The docs are current: the architecture overview, the design docs where reality differs from them, ADRs for significant decisions, a guide for each new subsystem, and every new document reachable from the README map ([Documentation](#documentation)).
+3. Anything the next milestone needs to know is in Gotchas or the relevant guide.
+4. The milestone moves to the Roadmap's "Done" list as one line with its PR numbers, and its GitHub milestone is closed.
+5. The next milestone's stubs are revised if what we learned changes them, and its first items are filed.
+
 ## Branches and pull requests
 
 The backlog is the repository's [GitHub issues](https://github.com/alanbickel/wind-tunnel/issues). File an idea for future work as an issue with its type label; an issue joins a milestone once it's scheduled.
@@ -331,7 +353,7 @@ Every change reaches `main` through a pull request. People and Claude sessions f
 
 1. **Open an issue** and label it with the change's type: `feat`, `fix`, `refactor`, `test`, `docs`, or `chore` (the [commit types](#commits)).
 2. **Branch from `main`** as `<label>/issue-<number>-short-slug`, for example `feat/issue-12-composition-root`.
-3. **Commit on the branch** as often as you like. Branch commits don't need tidying, because the PR is squash-merged. Check off finished tasks in [`docs/implementation-plan.md`](docs/implementation-plan.md) on the branch.
+3. **Commit on the branch** as often as you like. Branch commits don't need tidying, because the PR is squash-merged.
 4. **Push and open a PR.** Its title becomes the commit message on `main`, so write it in the [commit style](#commits). Put `Closes #<number>` in the description. CI runs `npm run check` on every PR.
 5. **Review.** Run `/pr-review <number>` in a separate Claude Code session for an independent review (see [Reviews](#reviews)). The author answers every finding in its comment thread.
 6. **Merge.** The maintainer approves a PR by squash-merging it. GitHub deletes the branch.
@@ -361,6 +383,6 @@ A PR is done when CI is green, every finding is answered, where a test applies t
 - One logical change per PR, with its tests and docs. Each PR becomes one commit on `main`, and `npm run check` passes on every PR.
 - PR titles, and so the commits on `main`, are one line in the form `type(scope): summary`, in the imperative. Branch commits use the same form.
   - **type:** `feat`, `fix`, `refactor`, `test`, `docs`, or `chore`.
-  - **scope:** the layer or area: `domain`, `application`, `adapters`, `ui`, `plan`. Leave it out when a change spans several.
+  - **scope:** the layer or area: `domain`, `application`, `adapters`, `ui`. Leave it out when a change spans several.
   - For example: `feat(domain): add SQS visibility timeout`.
 - Refactors go in their own PR, merged before the behavior change (see [Refactor first](#coding-standards)), so `main` shows the refactor on its own.

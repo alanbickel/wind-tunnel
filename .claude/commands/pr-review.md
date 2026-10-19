@@ -16,7 +16,7 @@ This is a reading review. CI runs `npm run check`, and the author proves their t
    gh pr diff $ARGUMENTS
    ```
    Read each issue it closes (`gh issue view <n>`).
-2. Read `CLAUDE.md`, `CONTRIBUTING.md`, and `docs/implementation-plan.md`. Their standards are the review criteria.
+2. Read `CLAUDE.md` and `CONTRIBUTING.md`. Their standards are the review criteria. Read the Roadmap (`gh issue view 32`) to see where the PR's issue sits.
 3. Another session may be working in this checkout, so don't switch branches here. Review in a separate worktree (the first line clears one left by an earlier run):
    ```
    rm -rf ../wind-tunnel-review-$ARGUMENTS; git worktree prune
@@ -54,7 +54,7 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
    - Model changes come with before/after numbers from `npm run simulate` in the PR description, and the change in the numbers fits the change in the code. Don't rerun it.
    - AWS claims go through `docs/design/fidelity.md`.
    - New subsystems have a guide; the architecture overview and its diagrams match the new structure; every new document is reachable from the root README's map; exported `domain/` and `application/` code has doc comments with units and defaults.
-   - `docs/implementation-plan.md` reflects the tasks the PR finishes.
+   - If the PR finishes a milestone or files new work, the Roadmap is updated (CONTRIBUTING §Milestones and the roadmap). An ordinary PR doesn't touch it.
    - Code reads like the surrounding code: same naming, comment density and idioms.
 6. **Tests must be able to fail.** Every new or changed test has a `// Fails if <change>.` comment saying how the author broke the code to watch it go red (CONTRIBUTING §Tests). A missing comment is a finding. For each comment, trace the change it names through the code to the assertion it would break, and name that assertion. Don't rate a comment as plausible: if you can't complete the trace, that's a finding. Mark the finding confirmed if the trace shows the test would stay green, and suspected if you couldn't finish the trace.
 7. **Accessibility** of any UI change: semantics, keyboard, and what a screen reader would announce.

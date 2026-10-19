@@ -8,7 +8,7 @@ Wind Tunnel runs entirely in the browser. There is no backend, no server calls, 
 
 ## Status
 
-Early development. The simulation engine, metrics, persistence, and a headless runner work; the browser UI is next. See the [implementation plan](docs/implementation-plan.md) for the current milestone.
+Early development. The MVP works: create a project from a template, view its architecture, run a workload, and watch the results, in the browser or headlessly. The [Roadmap](https://github.com/alanbickel/wind-tunnel/issues/32) has the current milestone and what's next.
 
 ## Running it
 
@@ -43,9 +43,8 @@ This is the map of every document. New to the code? Start with [Getting started]
 | [Decisions (ADRs)](docs/adr/adr-overview.md) | Why things are the way they are, one decision per record |
 | [MVP design](docs/design/mvp-design.md) | The detailed reference: domain model, engine, document format, templates, and testing strategy |
 | [Fidelity](docs/design/fidelity.md) | Where Wind Tunnel differs from AWS, and which way each difference skews results |
-| [Implementation plan](docs/implementation-plan.md) | The current milestone, what's next, and a progress log |
 | [AWS: Did you know?](docs/learning/aws-did-you-know.md) | AWS limits and at-scale behaviors the simulation models, with sources |
-| [Contributing](CONTRIBUTING.md) | Setup, coding standards, tests, docs, and the branch, PR, and review workflow |
+| [Contributing](CONTRIBUTING.md) | Setup, coding standards, tests, docs, milestones, and the branch, PR, and review workflow |
 
 ## License
 

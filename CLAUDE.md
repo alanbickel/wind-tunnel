@@ -4,7 +4,7 @@ A workload simulator for exploring how application workflows behave under real-w
 
 ## Current work
 
-Read `docs/implementation-plan.md` at the start of every session. It records the current milestone, the next task, and a progress log. Update it as tasks are completed, and follow its "How to finish a milestone" steps (including compacting the plan) before the session ends. Keep working notes out of it.
+At the start of every session, read the Roadmap: `gh issue view 32` (pinned). The next task is the first item, in order, that isn't done (an open issue or an unfiled stub) in the first milestone that still has one; read that issue before starting. If it's a stub, file it (and at most the one or two after it) and put the new numbers in the Roadmap first. Follow CONTRIBUTING's "Milestones and the roadmap" for when to edit the Roadmap and how to finish a milestone. Lessons for later sessions go in CONTRIBUTING's Gotchas or the relevant guide, not the Roadmap.
 
 ## Architecture rules
 
@@ -23,4 +23,4 @@ Read `docs/implementation-plan.md` at the start of every session. It records the
 ## Documentation rules
 
 - Follow the "Documentation" section of `CONTRIBUTING.md`: guides for new subsystems, keeping the architecture overview current, where a document goes (the root README is the map), ADRs, and AWS claims in `docs/design/fidelity.md`.
-- File ideas for future work as labeled GitHub issues, not in `TODO.md` (a local file kept only as a temporary reference until its items move to issues).
+- File ideas for future work as labeled GitHub issues, not in `TODO.md` (a local file kept only as a temporary reference until its items move to issues). Move them in small batches, as they're scheduled: don't open issues faster than they're worked. Remove an item from `TODO.md` once it's filed, and point any other item that refers to it at the new issue.

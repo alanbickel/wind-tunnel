@@ -2,7 +2,8 @@
  * The page's defaults, from the tokens (ADR-0012). Components style
  * themselves with CSS Modules; this sheet holds only what every screen
  * shares: the page, headings, form controls, tables, the focus ring, and
- * reduced motion. Element selectors only, so a module's class always wins.
+ * reduced motion. Element selectors only, with any pseudo-class inside
+ * :where(), so a module's class always wins.
  */
 
 html {
@@ -73,7 +74,7 @@ select {
   padding: var(--space-1) var(--space-2);
 }
 
-select:disabled {
+select:where(:disabled) {
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
@@ -101,7 +102,7 @@ td {
 
 /* One focus ring for every control, shown for keyboard focus only. No
    stylesheet of ours removes it (tests/architecture/stylesheets.test.ts). */
-:focus-visible {
+:where(:focus-visible) {
   outline: var(--line-width-thick) solid var(--color-focus-ring);
   outline-offset: var(--line-width-thick);
 }

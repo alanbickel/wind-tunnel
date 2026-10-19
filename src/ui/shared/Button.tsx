@@ -1,7 +1,7 @@
 import type { ReactNode, Ref } from "react";
 import styles from "./Button.module.css";
 
-/** Primary for the screen's main action, link for navigation. */
+/** Primary for the screen's main action, secondary for the others, link for navigation. */
 export type ButtonVariant = "primary" | "secondary" | "link";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string | undefined> = {

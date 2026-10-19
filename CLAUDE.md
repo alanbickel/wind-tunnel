@@ -4,7 +4,7 @@ A workload simulator for exploring how application workflows behave under real-w
 
 ## Current work
 
-At the start of every session, read the Roadmap: `gh issue view 32` (pinned). The next task is the first open issue in the first milestone that still has open items; read that issue before starting. If the next item is an unfiled stub, file it (and at most the one or two after it) and put the new numbers in the Roadmap first. Follow CONTRIBUTING's "Milestones and the roadmap" for when to edit the Roadmap and how to finish a milestone. Lessons for later sessions go in CONTRIBUTING's Gotchas or the relevant guide, not the Roadmap.
+At the start of every session, read the Roadmap: `gh issue view 32` (pinned). The next task is the first item, in order, that isn't done (an open issue or an unfiled stub) in the first milestone that still has one; read that issue before starting. If it's a stub, file it (and at most the one or two after it) and put the new numbers in the Roadmap first. Follow CONTRIBUTING's "Milestones and the roadmap" for when to edit the Roadmap and how to finish a milestone. Lessons for later sessions go in CONTRIBUTING's Gotchas or the relevant guide, not the Roadmap.
 
 ## Architecture rules
 

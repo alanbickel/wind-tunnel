@@ -132,7 +132,7 @@ type EventHandlers = {
 };
 ```
 
-Don't write these maps from scratch: [`src/domain/shared/kind-handlers.ts`](src/domain/shared/kind-handlers.ts) has `KindHandlers` and `handleKind` for discriminated unions, and `lookup` for `Record` tables.
+Outside `ui/`, don't write these maps from scratch: [`src/domain/shared/kind-handlers.ts`](src/domain/shared/kind-handlers.ts) has `KindHandlers` and `handleKind` for discriminated unions, and `lookup` for `Record` tables. `ui/` may import only the `KindHandlers` type from `domain/`, so it writes its own dispatch. If a second place needs a helper that isn't there, add it to `domain/shared/` rather than writing it again.
 
 ### 5. Keep control flow flat
 
@@ -268,7 +268,7 @@ A new AWS service (or any other component type) touches these places, all in the
 
 - Unit tests sit next to the code (`foo.ts` → `foo.test.ts`) and run in Node. Architecture tests live in `tests/architecture/`.
 - **UI tests** start with `// @vitest-environment jsdom`, render with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and call `cleanup` in `afterEach`. Give components use cases through `UseCasesProvider`: `fakeUseCases()` rejects every call you don't override, and `inMemoryUseCases()` runs the real project use cases over in-memory adapters (both in `src/ui/app/testing/`).
-- The coding standards apply to tests too. ESLint skips the length and parameter checks there, because a `describe` block groups many tests; keep each test itself within the rule of 30.
+- The coding standards apply to tests too. ESLint skips the length and parameter checks there, because a `describe` block groups many tests; keep each test itself within the rule of 30, and split a long scenario into named steps.
 - Tests should be able to fail. When you write or change one, break the code it covers and watch it go red at least once. Then say how you broke it in a comment above the test, so a reviewer can check it without rerunning it and a later reader knows what the test guards:
   ```ts
   // Fails if the queue drops messages that are still in flight when the run ends.
@@ -297,7 +297,7 @@ Some docs quote output that a test generates or checks. Change them together:
 - **No constructor parameter properties.** `erasableSyntaxOnly` is on, so `constructor(private readonly queue: EventQueue)` doesn't compile. Declare the field and assign it in the constructor.
 - **TypeScript is pinned to `~6.0`** because typescript-eslint doesn't support TypeScript 7 yet. For the same reason, the layer rules use typescript-eslint's `no-restricted-imports`, not ESLint's.
 - **Put the path before `--update`.** Vitest's `-u` takes an optional value, so `npx vitest run -u <path>` treats the path as that value, runs the whole suite, and rewrites every snapshot. Write `npx vitest run <path> --update`. Some docs still show the broken form ([#25](https://github.com/alanbickel/wind-tunnel/issues/25)).
-- **Slow full runs.** In a full local run, a few jsdom tests (`RunPanel`, `layer-rules`) can time out while everything else runs in parallel; they pass alone. `RunPanel`'s is [#27](https://github.com/alanbickel/wind-tunnel/issues/27).
+- **Slow full runs.** In a full local run, a few slow tests (`RunPanel` under jsdom, and `layer-rules`, which runs ESLint) can time out while everything else runs in parallel; they pass alone. `RunPanel`'s is [#27](https://github.com/alanbickel/wind-tunnel/issues/27).
 - **Measuring speed.** Whole-template timings swing ±30% between runs, so compare the million-event engine test instead, alternating runs of the old and new code: `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`. It ran in 1.1–1.7 s at R2's close. For the old code, use a `git worktree` with `node_modules` linked as a junction, and remove the junction before removing the worktree.
 
 ## Documentation
@@ -331,9 +331,9 @@ Record a significant decision as an ADR in `docs/adr/`, copying [the template](d
 
 ## Milestones and the roadmap
 
-The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) is the plan: the milestones in order, each with its items in order. A filed item is an issue number. Work not yet filed is a short *unfiled* stub that says what it is and records any decision already made about it. Each milestone also has a GitHub milestone, which its filed issues join.
+The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) is the plan: the milestones in order, each with its items in order. A filed item is an issue number. Work not yet filed is a short *unfiled* stub that says what it is and records any decision already made about it. When a milestone becomes the current one, it gets a GitHub milestone, and its filed issues join it; items filed later join as they're filed. Until then, its filed issues have no GitHub milestone.
 
-- **The next task** is the first open issue in the first milestone that still has open items. If the next item is an unfiled stub, file it, with at most the one or two after it, and put their numbers in the Roadmap. Filing in small batches keeps the issue list to work that's about to start.
+- **The next task** is the first item, in order, that isn't done (an open issue or an unfiled stub) in the first milestone that still has one. If it's a stub, file it, with at most the one or two after it, and put their numbers in the Roadmap before starting. Filing in small batches keeps the issue list to work that's about to start.
 - **Edit the Roadmap** only to file stubs, reorder, add or reshape a milestone, or finish one. An ordinary PR doesn't touch it: `Closes #<number>` closes the issue, and the Roadmap shows it as done. To edit it, read the current body (`gh issue view 32 --json body --jq .body`), change that, and write it back with `gh issue edit 32 --body-file <file>`, so you don't overwrite someone else's edit.
 - **Lessons for later work** go in [Gotchas](#gotchas) or the guide they belong to, not the Roadmap.
 

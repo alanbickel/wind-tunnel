@@ -48,21 +48,11 @@ Ports, `ProjectRecord`s and the document mapper (ADR-0008), document migration s
 
 Made the code and docs easier to navigate before the UI: a `max-lines` warning; rules 10 (collaborators come from factories, typed as interfaces, [ADR-0009](adr/0009-collaborators-come-from-factories.md)) and 11 (one class per file, named after it); the parameter-object naming convention in rule 8 and the renames to match; the engine, contract checker, metrics collector, and trace tests split; AWS behaviors given their primitives; events named by their subject; a glossary, C4 diagrams, the root README as the map of every document, and the gotchas moved into CONTRIBUTING. No snapshot changed, and the million-event test is within noise of before. Commits `590926e`..`4b3631d`, plus the commit that closes R2.
 
-## M3: Minimal UI
+## M3: Minimal UI ✅
 
-**Done when:** in the browser, a user can create a project from a template, view its architecture, run its workload, and see charts.
+The browser app: the composition root and `UseCasesProvider`, the project list and new-from-template, the read-only architecture view (React Flow, ADR-0010), the Web Worker runner with cancellation, run controls with totals and charts (Recharts, ADR-0011), persistent storage after the first create, and the [user interface guide](architecture/user-interface.md) with a trace from click to chart. PRs #12, #13, #17, #18, #19, #22, and the PR that closes #9.
 
-Each task is a GitHub issue in the [M3 milestone](https://github.com/alanbickel/wind-tunnel/milestone/1); the issue holds its scope and dependencies.
-
-- [x] ADRs: canvas library and chart library (React Flow, ADR-0010; Recharts, ADR-0011; each behind our own components, enforced by ESLint)
-- [x] Browser `Clock` (`new Date().toISOString()`) and `IdGenerator` (`crypto.randomUUID()`) adapters
-- [x] [#3](https://github.com/alanbickel/wind-tunnel/issues/3) Composition root and an app shell that provides the use cases
-- [x] [#4](https://github.com/alanbickel/wind-tunnel/issues/4) Project list and new-from-template
-- [x] [#5](https://github.com/alanbickel/wind-tunnel/issues/5) Read-only architecture view
-- [x] [#6](https://github.com/alanbickel/wind-tunnel/issues/6) Web Worker `SimulationRunner` with cancellation
-- [x] [#7](https://github.com/alanbickel/wind-tunnel/issues/7) Run controls and metric charts
-- [x] [#8](https://github.com/alanbickel/wind-tunnel/issues/8) Request persistent storage after the first project is created
-- [ ] [#9](https://github.com/alanbickel/wind-tunnel/issues/9) UI onboarding guide and its component diagram
+M3 completes the MVP in [the MVP design](design/mvp-design.md#2-milestones). No milestone is planned after it yet: agree the next one with the maintainer, from the open [GitHub issues](https://github.com/alanbickel/wind-tunnel/issues).
 
 ---
 
@@ -70,19 +60,25 @@ Each task is a GitHub issue in the [M3 milestone](https://github.com/alanbickel/
 
 Newest first. Record what was built, what differs from the plan, and what the next session needs to know.
 
+### 2026-10-19: M3 complete
+
+- **Done-when verified** by the maintainer in Chrome and Firefox (dev and `npm run preview`): create from both templates, view, run, stop, reload, and charts that reconcile.
+
+- **Read [the user interface guide](architecture/user-interface.md)** before UI work: components reach use cases only through `useUseCases()`, `main.tsx` builds everything, and `fakeUseCases`/`inMemoryUseCases` drive UI tests. The trace in `src/ui/traces/` renders the whole `App`; refresh it with `npx vitest run src/ui/traces --update`.
+- **`ui/` can't import adapters or domain values, even in tests,** so UI tests stand in for the Worker runner with a test `SimulationRunner` under the real `RunSimulation`.
+- **Snapshot commands:** `-u` takes an optional value, so `npx vitest run -u <path>` swallows the path and updates every snapshot in the suite. Put the path first and `--update` after it. Older docs still show the broken form ([#25](https://github.com/alanbickel/wind-tunnel/issues/25)).
+- **Slow full runs:** run in parallel with everything else, a few jsdom tests (`RunPanel`, `layer-rules`) can time out; they pass alone. `RunPanel`'s is [#27](https://github.com/alanbickel/wind-tunnel/issues/27); the trace has a named 30 s timeout.
+
 ### 2026-10-16: R2 complete
 
 - **New code follows rules 8, 10, and 11** from the start: `<Name>Input`/`<Class>Dependencies`/`<Name>Context` parameter objects, collaborators built by a factory or composition root (`main.tsx` is one) and typed as interfaces named for the role, and one class per file. `tests/architecture/` has no exceptions left, so a misnamed class file or a class-typed `*Dependencies` property fails the build.
 - **Docs:** the root README is the map; a new document goes in its folder's overview (or the README if the folder has none), and a new guide gets a level 3 diagram styled like the overview's legend (CONTRIBUTING §Documentation). Terms go in the [glossary](glossary.md).
-- **Differs from the plan:** R2.15 also split `fake-ports.test.ts` and `random-source.test.ts` to follow their classes, and replaced `class-files.test.ts`'s exception list with a plain "nothing misnamed" check.
 - **Measuring speed:** whole-template timings swing ±30% between runs. Compare the million-event test instead, alternating runs of the old and new code (a `git worktree` with `node_modules` linked as a junction; remove the junction before the worktree): `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`. It ran 1.1–1.7 s at R2's close.
-- **Scripted edits:** Python isn't installed, and Git Bash strips backslashes inside heredocs, which breaks regexes. Write such scripts to a file first.
+- **Scripted edits:** Python isn't installed, and Git Bash strips backslashes inside heredocs, which breaks regexes. Write such scripts to a file first (Node works).
 
 ### 2026-10-15: M2 complete
 
-- **Read [the application layer guide](architecture/application-layer.md)** before M3: the ports, which adapters fill them, records vs. documents, and a project traced end to end ([`src/adapters/traces/`](../src/adapters/traces/), refresh with `npx vitest run -u src/adapters/traces`).
-- **Differs from the plan:** `LoadProject` became `OpenProject`, and `ListTemplates` is new (MVP design §5.2). `RunSimulation` takes a `Project`, not an ID. Nothing calls `StoragePersistence` yet; M3 calls it after the first project is created, because Firefox prompts.
-- **Still missing for the browser:** `Clock` and `IdGenerator` adapters, the Worker runner, and the composition root (all in M3). The `blocked`/`blocking` case when a newer build upgrades the database while another tab holds it is still in the local TODO.md (not yet an issue); it matters once there's a database version 2.
+- **Still open from M2:** the `blocked`/`blocking` case when a newer build upgrades the database while another tab holds it is in the local TODO.md (not yet an issue); it matters once there's a database version 2.
 - **Shapes to follow:** one class per use case, ports in the constructor as one object, work in `execute`, results as `status` unions. A new port gets a fake in `src/application/testing/`. Adapters reading stored or imported JSON go through `loadProject`.
 - **Tests:** IndexedDB tests `import "fake-indexeddb/auto"`, then `vi.stubGlobal("indexedDB", new IDBFactory())` in `beforeEach` and close the database in `afterEach`. Each test body stays within 30 lines; split a long scenario into named steps.
 

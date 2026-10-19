@@ -34,7 +34,7 @@ flowchart LR
 | Launcher | [`scripts/simulate.js`](../../scripts/simulate.js) | Loads the TypeScript through Vite, prints the result, sets the exit code, times the run |
 | Command | [`simulate-command.ts`](../../src/adapters/cli/simulate-command.ts) | Parses arguments, gets the template, and wires up the use case |
 | Use case | [`run-simulation.ts`](../../src/application/use-cases/run-simulation.ts) | Picks the workload (the first, unless `--workload` names one), applies `--seed`, and runs it through the `SimulationRunner` port. The browser runs the same use case |
-| Runner | [`in-process-simulation-runner.ts`](../../src/adapters/simulation/in-process-simulation-runner.ts) | The `SimulationRunner` port on the caller's thread, over `simulateWithMetrics`. The browser uses a Web Worker instead (M3) |
+| Runner | [`in-process-simulation-runner.ts`](../../src/adapters/simulation/in-process-simulation-runner.ts) | The `SimulationRunner` port on the caller's thread, over `simulateWithMetrics`. The browser uses a Web Worker instead ([the user interface guide](user-interface.md#a-run-from-click-to-chart)) |
 | Templates | [`bundled-template-catalog.ts`](../../src/adapters/templates/bundled-template-catalog.ts) | The `TemplateCatalog` port over the bundled JSON; `--help` lists its templates |
 | Report | [`text-report.ts`](../../src/adapters/cli/text-report.ts) | Turns a `MetricsRun` into tables |
 

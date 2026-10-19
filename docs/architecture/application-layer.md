@@ -2,7 +2,7 @@
 
 An introduction to the use cases, the ports they work through, and the adapters that store projects, for maintainers new to the code. Read the [architecture overview](architecture-overview.md) and [the domain model](domain-model.md) first. The full design is in the [MVP design](../design/mvp-design.md) (§5 and §6).
 
-> **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, the in-process and Web Worker simulation runners, and the `Clock` and `IdGenerator` adapters exist. The browser's screens list, create, and open projects; starting a run from the browser comes with the run controls in M3. Today the [headless runner](headless-runner.md) is the only caller that runs a simulation.
+> **Status:** the ports, the MVP use cases, the IndexedDB repository, the bundled template catalog, the in-process and Web Worker simulation runners, and the `Clock` and `IdGenerator` adapters exist. The browser's screens list, create, open, and run projects ([the user interface guide](user-interface.md)); the [headless runner](headless-runner.md) runs them from the terminal.
 
 ## The big idea: use cases talk to ports, adapters fill them in
 

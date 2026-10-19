@@ -1,6 +1,6 @@
 # Wind Tunnel Architecture Overview
 
-How the code is organized: the layers, the dependency rule, where new code goes, and how tooling enforces it. Decisions behind it are recorded in the [ADRs](../adr/adr-overview.md). The browser UI is being built in M3.
+How the code is organized: the layers, the dependency rule, where new code goes, and how tooling enforces it. Decisions behind it are recorded in the [ADRs](../adr/adr-overview.md).
 
 ## The system at a glance
 
@@ -49,7 +49,7 @@ flowchart TB
     user["<b>User</b><br/>[Person]"]:::person
     dev["<b>Maintainer</b><br/>[Person]"]:::person
     subgraph wt["Wind Tunnel [Software System]"]
-        app["<b>Browser app</b><br/>[Container: React, TypeScript]<br/>Edits projects, starts runs,<br/>shows charts. UI comes in M3"]:::system
+        app["<b>Browser app</b><br/>[Container: React, TypeScript]<br/>Creates and opens projects,<br/>runs workloads, shows charts"]:::system
         worker["<b>Simulation Worker</b><br/>[Container: Web Worker]<br/>Runs the engine off<br/>the UI thread"]:::system
         db[("<b>Project store</b><br/>[Container: IndexedDB]<br/>Saved projects as<br/>versioned documents")]:::system
         cli["<b>Headless runner</b><br/>[Container: Node, npm run simulate]<br/>Runs a template and<br/>prints a text report"]:::system
@@ -95,6 +95,7 @@ Each guide is a short, visual introduction to one part of the system, with a wor
 | [Component definitions](component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents`, the five AWS types |
 | [How metrics work](metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, gauges and counters, `LatencyHistogram` |
 | [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, the in-process and Web Worker runners, the repository and runner contracts |
+| [The user interface](user-interface.md) | The composition root, `UseCasesProvider` and `useUseCases`, the screens, `useSimulationRun` and the Worker runner, a run traced from click to chart, UI test helpers |
 | [The headless runner](headless-runner.md) | `npm run simulate`, `runSimulateCommand`, the text report and how to read it, loading TypeScript through Vite |
 
 ## Layers and the dependency rule
@@ -185,31 +186,4 @@ To approve a new library for `domain` or `application`, write an ADR, then add i
 
 ## How a simulation run works in the browser
 
-The CLI runs a simulation in-process through `RunSimulation` ([the application layer guide](application-layer.md) traces one). The browser runs it in a Web Worker, one Worker per run, like this:
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant UI as ui/
-    participant UC as RunSimulation (application)
-    participant WB as WebWorkerSimulationRunner (adapter)
-    participant W as Web Worker
-    participant E as Engine (domain)
-
-    User->>UI: Click "Run"
-    UI->>UC: execute({ project, workloadId, seed, onSnapshot, stopSignal })
-    UC->>WB: run({ request, onSnapshot, stopSignal }) via SimulationRunner port
-    WB->>W: new Worker, then postMessage({ kind: "run", request })
-    W->>E: run with seeded RandomSource
-    loop every snapshot tick
-        E-->>W: metrics snapshot
-        W-->>WB: postMessage(snapshot)
-        WB-->>UI: snapshot via onSnapshot
-    end
-    E-->>W: final results
-    W-->>WB: postMessage(finished, with the run)
-    WB->>W: terminate()
-    WB-->>UC: resolves finished
-    UC-->>UI: finished, with the run
-    Note over UI,W: If the stop signal fires first, the runner terminates the Worker at once<br/>and resolves stopped; snapshots still queued are dropped.
-```
+The CLI runs a simulation in-process through `RunSimulation` ([the application layer guide](application-layer.md) traces one). The browser runs it in a Web Worker, one Worker per run, so the page stays responsive; [the user interface guide](user-interface.md#a-run-from-click-to-chart) follows a run from the Run button through the Worker to the charts.

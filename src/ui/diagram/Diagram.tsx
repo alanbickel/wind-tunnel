@@ -6,6 +6,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useMemo } from "react";
+import styles from "./Diagram.module.css";
 import type { DiagramContent } from "./diagram-model";
 import { toFlowEdge, toFlowNode } from "./to-react-flow";
 
@@ -37,7 +38,12 @@ export function Diagram({ content, label }: DiagramProps) {
   const edges = useMemo(() => content.edges.map(toFlowEdge), [content.edges]);
 
   return (
-    <div role="group" aria-label={label} style={{ height: 400 }}>
+    <div
+      role="group"
+      aria-label={label}
+      className={styles.diagram}
+      style={{ height: 400 }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

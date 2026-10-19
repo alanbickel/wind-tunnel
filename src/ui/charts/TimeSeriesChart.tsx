@@ -12,9 +12,15 @@ import { chartRows, type ChartRow } from "./chart-rows";
 import { seriesColor } from "./series-colors";
 import type { TimeSeries, TimeSeriesContent } from "./time-series";
 
-// Recessive chrome, so the lines are the loudest thing on the chart.
-const GRID_COLOR = "#e1e0d9";
+// Recessive chrome, so the lines are the loudest thing on the chart. Token
+// references resolve in the browser, so they follow the theme (ADR-0012).
+const GRID_COLOR = "var(--color-divider)";
 const AXIS_COLOR = "#898781";
+// Recharts draws the tooltip on white by default.
+const TOOLTIP_STYLE = {
+  backgroundColor: "var(--color-surface)",
+  border: "1px solid var(--color-border)",
+} as const;
 const CHART_STYLE = { width: "100%", height: 260 } as const;
 
 export interface TimeSeriesChartProps {
@@ -62,7 +68,11 @@ function ChartPlot({ content, rows }: ChartPartProps) {
         tickFormatter={formatTick}
         label={{ value: content.unit, angle: -90, position: "insideLeft" }}
       />
-      <Tooltip formatter={formatValue} labelFormatter={formatTime} />
+      <Tooltip
+        contentStyle={TOOLTIP_STYLE}
+        formatter={formatValue}
+        labelFormatter={formatTime}
+      />
       <Legend itemSorter={(item) => seriesIndex(content, item.value)} />
       {content.series.map(seriesLine)}
     </LineChart>

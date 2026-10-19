@@ -1,0 +1,21 @@
+/*
+ * React Flow's colors, from our tokens (ADR-0012). React Flow reads each
+ * --xy-* property before falling back to its own light-theme default, and
+ * custom properties inherit, so setting them here themes the whole diagram.
+ */
+.diagram {
+  --xy-background-color: var(--color-bg);
+  --xy-background-pattern-color: var(--color-divider);
+  --xy-node-background-color: var(--color-surface);
+  --xy-node-color: var(--color-text);
+  --xy-node-border: 1px solid var(--color-border);
+  --xy-handle-background-color: var(--color-border);
+  --xy-handle-border-color: var(--color-surface);
+  /* Edges and their arrowheads. */
+  --xy-edge-stroke: var(--color-diagram-edge);
+  --xy-controls-button-background-color: var(--color-surface);
+  --xy-controls-button-background-color-hover: var(--color-surface-raised);
+  --xy-controls-button-color: var(--color-text);
+  --xy-controls-button-color-hover: var(--color-text);
+  --xy-controls-button-border-color: var(--color-divider);
+}

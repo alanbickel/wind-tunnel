@@ -1,4 +1,9 @@
-import { Background, Controls, ReactFlow } from "@xyflow/react";
+import {
+  Background,
+  Controls,
+  ReactFlow,
+  type AriaLabelConfig,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useMemo } from "react";
 import type { DiagramContent } from "./diagram-model";
@@ -14,7 +19,7 @@ const READ_ONLY_DESCRIPTIONS = {
   "node.a11yDescription.default": READ_ONLY_DESCRIPTION,
   "node.a11yDescription.keyboardDisabled": READ_ONLY_DESCRIPTION,
   "edge.a11yDescription.default": READ_ONLY_DESCRIPTION,
-};
+} satisfies Partial<AriaLabelConfig>;
 
 export interface DiagramProps {
   readonly content: DiagramContent;

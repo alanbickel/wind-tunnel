@@ -348,7 +348,7 @@ The repository allows only squash merges, and a ruleset stops `main` from being 
 
 The author answers each finding in its thread with the commit that fixes it, or a reason not to. Claude authors start each reply with `🤖 Claude (author):`, because every comment posts under the maintainer's account.
 
-A PR is done when CI is green, every finding is answered, where a test applies the tests check the success case and the invariants and each new or changed test says how it fails, and the maintainer has merged it.
+A PR is done when CI is green, every finding is answered, where a test applies the tests check the success case and the invariants and each new or changed test has a `// Fails if` comment naming a change that provably turns it red, and the maintainer has merged it.
 
 ### Claude sessions
 

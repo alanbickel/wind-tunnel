@@ -55,17 +55,25 @@ describe("ProjectsScreen", () => {
     expect(await projects.list()).toHaveLength(1);
   });
 
-  it("opens a project when its name is clicked", async () => {
+  // Fails if ProjectList passes onOpen another project, or only its id: the
+  // breadcrumb needs the name.
+  it("opens the project whose name is clicked", async () => {
     const { useCases, projects } = inMemoryUseCases([]);
     await projects.save(sampleRecord);
+    await projects.save({
+      ...sampleRecord,
+      project: { ...sampleRecord.project, id: "other", name: "Other project" },
+    });
     const onOpen = vi.fn();
     renderScreen(useCases, onOpen);
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Sample project" }),
+      await screen.findByRole("button", { name: "Other project" }),
     );
 
-    expect(onOpen).toHaveBeenCalledWith("sample");
+    expect(onOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "other", name: "Other project" }),
+    );
   });
 
   it("says why when the projects can't be listed", async () => {

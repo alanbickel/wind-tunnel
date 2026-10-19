@@ -1,0 +1,14 @@
+.page {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-5);
+}
+
+/* The browser's own message, which can be one long line. */
+.error {
+  background: var(--color-surface);
+  border: var(--line-width) solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  white-space: pre-wrap;
+}

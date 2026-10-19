@@ -38,12 +38,7 @@ export function Diagram({ content, label }: DiagramProps) {
   const edges = useMemo(() => content.edges.map(toFlowEdge), [content.edges]);
 
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className={styles.diagram}
-      style={{ height: 400 }}
-    >
+    <div role="group" aria-label={label} className={styles.diagram}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

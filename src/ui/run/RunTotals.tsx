@@ -8,6 +8,7 @@ import {
   type ComponentTotals,
   type WorkflowTotals,
 } from "./run-totals";
+import styles from "./RunTotals.module.css";
 
 const WORKFLOW_COLUMNS: readonly CountsColumn<WorkflowTotals>[] = [
   { header: "Started", value: (r) => r.started },
@@ -38,7 +39,7 @@ export function RunTotals({ run }: RunTotalsProps) {
   const components = useMemo(() => componentTotals(run), [run]);
 
   return (
-    <div>
+    <div className={styles.totals}>
       <CountsTable
         caption="Requests so far"
         labelHeader="Workflow"
@@ -46,7 +47,7 @@ export function RunTotals({ run }: RunTotalsProps) {
         rows={workflows}
         footer={allWorkflows(workflows)}
       />
-      <p>
+      <p className={styles.note}>
         Started = succeeded + failed + in progress. A request in progress
         hasn&apos;t been answered yet.
       </p>
@@ -56,7 +57,7 @@ export function RunTotals({ run }: RunTotalsProps) {
         columns={COMPONENT_COLUMNS}
         rows={components}
       />
-      <p>
+      <p className={styles.note}>
         Arrivals = succeeded + failed + rejected + unfinished. Unfinished work
         is still running or waiting. For a queue, succeeded counts messages
         accepted, whether or not they&apos;ve been delivered yet.

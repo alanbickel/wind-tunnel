@@ -36,6 +36,7 @@ const CONTRAST_RULES: readonly ContrastRule[] = [
       "--color-text",
       "--color-text-muted",
       "--color-accent",
+      "--color-accent-hover",
       "--color-status-ok",
       "--color-status-warn",
       "--color-status-error",
@@ -45,7 +46,7 @@ const CONTRAST_RULES: readonly ContrastRule[] = [
   },
   {
     foregrounds: ["--color-on-accent"],
-    backgrounds: ["--color-accent"],
+    backgrounds: ["--color-accent", "--color-accent-hover"],
     minRatio: TEXT_RATIO,
   },
   {

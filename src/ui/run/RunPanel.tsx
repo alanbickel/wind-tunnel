@@ -1,10 +1,12 @@
-import { memo, useDeferredValue, useId, useMemo, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState } from "react";
 import type { MetricsSnapshot } from "../../domain/metrics/metrics-snapshot";
 import type { Project, Workload } from "../../domain/model/project";
 import { TimeSeriesChart } from "../charts/TimeSeriesChart";
+import { Panel } from "../shared/Panel";
 import { handleStatus, type StatusHandlers } from "../shared/status-handlers";
 import { runCharts } from "./run-charts";
 import { RunControls } from "./RunControls";
+import styles from "./RunPanel.module.css";
 import { RunTotals } from "./RunTotals";
 import {
   useSimulationRun,
@@ -19,15 +21,15 @@ export interface RunPanelProps {
 
 /** Runs one of the project's workloads and shows its metrics as they arrive. */
 export function RunPanel({ project }: RunPanelProps) {
-  const headingId = useId();
   const run = useSimulationRun(project);
 
   return (
-    <section aria-labelledby={headingId}>
-      <h3 id={headingId}>Run</h3>
+    <Panel heading="Run">
       <WorkloadControls workloads={project.workloads} run={run} />
       {/* Mounted from the start, so screen readers announce each change. */}
-      <p role="status">{statusText(run.phase, simulatedSec(run.snapshots))}</p>
+      <p role="status" className={styles.status}>
+        {statusText(run.phase, simulatedSec(run.snapshots))}
+      </p>
       {run.phase.status !== "idle" && (
         <RunResults
           project={project}
@@ -35,7 +37,7 @@ export function RunPanel({ project }: RunPanelProps) {
           snapshots={run.snapshots}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -107,9 +109,9 @@ function RunResults({ project, workload, snapshots }: RunResultsProps) {
   const doneSec = simulatedSec(snapshots);
 
   return (
-    <div>
-      <p>
-        <progress value={doneSec} max={totalSec} aria-label="Simulated time" />{" "}
+    <div className={styles.results}>
+      <p className={styles.progress}>
+        <progress value={doneSec} max={totalSec} aria-label="Simulated time" />
         {doneSec} of {totalSec} simulated seconds
       </p>
       <RunMetrics project={project} snapshots={deferredSnapshots} />

@@ -2,6 +2,7 @@ App renders inside UseCasesProvider, as main.tsx does
   call     listTemplates.execute() → [sample]
   call     listProjects.execute() → []
   screen   projects screen: your projects, and the templates
+  screen   breadcrumb "Projects"
 
 User clicks "Create a project from Sample project"
   call     createProjectFromTemplate.execute("sample") → created project-1
@@ -12,6 +13,7 @@ User clicks "Create a project from Sample project"
 User clicks "Sample project"
   call     openProject.execute("project-1") → found
   screen   project screen: heading, architecture (3 components), run controls
+  screen   breadcrumb "Projects › Sample project"
 
 User clicks "Run"
   call     runSimulation.execute({ project: project-1, workloadId: "steady", onSnapshot, stopSignal })

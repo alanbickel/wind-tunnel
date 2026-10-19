@@ -1,5 +1,7 @@
 import { useId } from "react";
 import type { Workload } from "../../domain/model/project";
+import { Button } from "../shared/Button";
+import styles from "./RunControls.module.css";
 
 export interface RunControlsProps {
   readonly workloads: readonly Workload[];
@@ -14,16 +16,16 @@ export interface RunControlsProps {
 /**
  * Picks a workload, then runs or stops it. Run and Stop are separate, so a
  * late click on Stop can't start the next run. The one that can't be used
- * is marked `aria-disabled` and ignores clicks rather than being disabled,
- * because disabling the focused button would drop the keyboard focus.
+ * is marked unusable (see `Button`) rather than disabled, so the keyboard
+ * focus stays on it.
  */
 export function RunControls(props: RunControlsProps) {
   const { workloads, workload, onPick, running, onStart, onStop } = props;
   const pickerId = useId();
 
   return (
-    <p>
-      <label htmlFor={pickerId}>Workload</label>{" "}
+    <div className={styles.controls}>
+      <label htmlFor={pickerId}>Workload</label>
       <select
         id={pickerId}
         value={workload.id}
@@ -38,38 +40,13 @@ export function RunControls(props: RunControlsProps) {
             {w.name}
           </option>
         ))}
-      </select>{" "}
-      <UsableButton usable={!running} onClick={onStart}>
+      </select>
+      <Button variant="primary" usable={!running} onClick={onStart}>
         Run
-      </UsableButton>{" "}
-      <UsableButton usable={running} onClick={onStop}>
+      </Button>
+      <Button usable={running} onClick={onStop}>
         Stop
-      </UsableButton>
-    </p>
-  );
-}
-
-/** Looks unavailable, as a disabled button would; the app has no stylesheet yet. */
-const UNUSABLE_STYLE = { opacity: 0.5, cursor: "not-allowed" } as const;
-
-interface UsableButtonProps {
-  /** When false, the button says it's unavailable and ignores clicks. */
-  readonly usable: boolean;
-  readonly onClick: () => void;
-  readonly children: string;
-}
-
-function UsableButton({ usable, onClick, children }: UsableButtonProps) {
-  return (
-    <button
-      type="button"
-      aria-disabled={!usable}
-      style={usable ? undefined : UNUSABLE_STYLE}
-      onClick={() => {
-        if (usable) onClick();
-      }}
-    >
-      {children}
-    </button>
+      </Button>
+    </div>
   );
 }

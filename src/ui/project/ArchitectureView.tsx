@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import type { ProjectRecord } from "../../application/ports/project-record";
 import { Diagram } from "../diagram/Diagram";
+import { Panel } from "../shared/Panel";
+import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
 
 export interface ArchitectureViewProps {
@@ -16,13 +18,12 @@ export function ArchitectureView({ record }: ArchitectureViewProps) {
   const names = new Map(content.nodes.map((node) => [node.id, node.label]));
 
   return (
-    <section aria-labelledby="architecture-heading">
-      <h3 id="architecture-heading">Architecture</h3>
+    <Panel heading="Architecture">
       <Diagram
         content={content}
         label={`Architecture diagram of ${record.project.name}`}
       />
-      <details>
+      <details className={styles.text}>
         <summary>Components and connections as text</summary>
         <ul aria-label="Components">
           {content.nodes.map((node) => (
@@ -39,6 +40,6 @@ export function ArchitectureView({ record }: ArchitectureViewProps) {
           ))}
         </ul>
       </details>
-    </section>
+    </Panel>
   );
 }

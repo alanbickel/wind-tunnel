@@ -14,17 +14,24 @@ import {
   type RunMessage,
   type WorkerReply,
 } from "./simulation-worker-protocol";
-import { WebWorkerSimulationRunner } from "./web-worker-simulation-runner";
+import {
+  UNREADABLE_REPLY,
+  WebWorkerSimulationRunner,
+  WORKER_FAILED,
+} from "./web-worker-simulation-runner";
 
 const registry = createAwsComponentRegistry();
 const request = { project: sampleRecord.project, workloadId: "steady" };
 
 type MessageListener = (event: WorkerReplyEvent) => void;
 type ErrorListener = (event: WorkerErrorEvent) => void;
+type MessageErrorListener = () => void;
+type AnyListener = MessageListener | ErrorListener | MessageErrorListener;
 
 interface WorkerListeners {
   readonly message: MessageListener[];
   readonly error: ErrorListener[];
+  readonly messageerror: MessageErrorListener[];
 }
 
 /**
@@ -36,7 +43,11 @@ class FakeWorker implements SimulationWorker {
   terminated = false;
   /** False models replies that were already on their way when terminated. */
   dropsRepliesOnTerminate = true;
-  private readonly listeners: WorkerListeners = { message: [], error: [] };
+  private readonly listeners: WorkerListeners = {
+    message: [],
+    error: [],
+    messageerror: [],
+  };
 
   postMessage(message: RunMessage): void {
     const replies: WorkerReply[] = [];
@@ -54,20 +65,23 @@ class FakeWorker implements SimulationWorker {
 
   addEventListener(type: "message", listener: MessageListener): void;
   addEventListener(type: "error", listener: ErrorListener): void;
-  addEventListener(
-    type: keyof WorkerListeners,
-    listener: MessageListener | ErrorListener,
-  ): void {
+  addEventListener(type: "messageerror", listener: MessageErrorListener): void;
+  addEventListener(type: keyof WorkerListeners, listener: AnyListener): void {
     // The overloads above pair each type with its own listener.
-    (this.listeners[type] as (MessageListener | ErrorListener)[]).push(
-      listener,
-    );
+    (this.listeners[type] as AnyListener[]).push(listener);
   }
 
-  /** Fires the Worker's `error` event, as a script that fails to load does. */
-  fail(message: string): void {
+  /** Fires `error`; a script that fails to load sends one with no message. */
+  fail(event: WorkerErrorEvent): void {
     this.listeners.error.forEach((listener) => {
-      listener({ message });
+      listener(event);
+    });
+  }
+
+  /** Fires `messageerror`, as for a reply that can't be deserialized. */
+  sendUnreadableReply(): void {
+    this.listeners.messageerror.forEach((listener) => {
+      listener();
     });
   }
 
@@ -188,9 +202,46 @@ describe("WebWorkerSimulationRunner", () => {
     const { runner, workers } = setUp();
 
     const promise = runner.run({ request });
-    workers[0]?.fail("Failed to load the worker script");
+    workers[0]?.fail({ message: "Failed to load the worker script" });
 
     await expect(promise).rejects.toThrow("Failed to load the worker script");
     expect(workers[0]?.terminated).toBe(true);
+  });
+
+  it("rejects with a fallback message when the Worker's error has none", async () => {
+    vi.useFakeTimers();
+    const { runner, workers } = setUp();
+
+    const promise = runner.run({ request });
+    workers[0]?.fail({});
+
+    await expect(promise).rejects.toThrow(WORKER_FAILED);
+  });
+
+  it("rejects when a reply can't be read, terminating the Worker", async () => {
+    vi.useFakeTimers();
+    const { runner, workers } = setUp();
+
+    const promise = runner.run({ request });
+    workers[0]?.sendUnreadableReply();
+
+    await expect(promise).rejects.toThrow(UNREADABLE_REPLY);
+    expect(workers[0]?.terminated).toBe(true);
+  });
+
+  it("wraps a non-Error thrown by onSnapshot in an Error", async () => {
+    const { runner } = setUp();
+
+    const promise = runner.run({
+      request,
+      onSnapshot: () => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- the case under test
+        throw "not an Error";
+      },
+    });
+
+    // `rejects.toThrow` alone would also accept the bare string.
+    await expect(promise).rejects.toBeInstanceOf(Error);
+    await expect(promise).rejects.toThrow("not an Error");
   });
 });

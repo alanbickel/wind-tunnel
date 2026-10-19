@@ -12,7 +12,7 @@ import type {
  * Records each input instead of simulating it, and plays back `FAKE_RUN`'s
  * snapshots before finishing with it. Stops before the first snapshot if the
  * stop signal has already fired, and between snapshots if `onSnapshot`
- * fires it.
+ * fires it. Rejects if `onSnapshot` throws.
  */
 export class RecordingSimulationRunner implements SimulationRunner {
   readonly inputs: SimulationRunInput[] = [];
@@ -24,6 +24,17 @@ export class RecordingSimulationRunner implements SimulationRunner {
 
   run(input: SimulationRunInput): Promise<SimulationOutcome> {
     this.inputs.push(input);
+    try {
+      return this.playBack(input);
+    } catch (error) {
+      // As a real runner does when `onSnapshot` throws.
+      return Promise.reject(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  private playBack(input: SimulationRunInput): Promise<SimulationOutcome> {
     for (const snapshot of FAKE_RUN.snapshots) {
       if (input.stopSignal?.aborted) return STOPPED;
       input.onSnapshot?.(snapshot);

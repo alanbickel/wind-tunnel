@@ -8,9 +8,10 @@ import { ManualStopSignal } from "./manual-stop-signal";
 /**
  * Checks that a `SimulationRunner` behaves as the port promises: a run
  * streams every snapshot in order before it resolves, a stop signal ends it
- * with no snapshot after the stop, and an engine failure rejects. Returns the
- * broken rules; an empty list means the runner passed. Every implementation
- * should run this, so code tested against one runner holds for the others.
+ * with no snapshot after the stop, and an engine failure or a throwing
+ * `onSnapshot` rejects. Returns the broken rules; an empty list means the
+ * runner passed. Every implementation should run this, so code tested
+ * against one runner holds for the others.
  *
  * @param request A request that runs for at least two simulated seconds,
  *   so a run can be stopped between snapshots.
@@ -46,6 +47,7 @@ const STAGES: readonly RunnerStage[] = [
   checkStoppedBeforeStart,
   checkStoppedMidRun,
   checkFailureRejects,
+  checkSnapshotErrorRejects,
 ];
 
 async function checkFinishes({ runner, request, expect }: RunnerCheck) {
@@ -111,6 +113,31 @@ async function checkFailureRejects({ runner, request, expect }: RunnerCheck) {
   );
 
   expect(failed, "an engine failure rejects the run");
+}
+
+async function checkSnapshotErrorRejects({
+  runner,
+  request,
+  expect,
+}: RunnerCheck) {
+  const thrown = new Error("onSnapshot failed");
+  const onSnapshot = () => {
+    throw thrown;
+  };
+
+  // Called inside `then`, so a runner that throws instead of rejecting is
+  // caught here and reported, not left to fail the caller.
+  const rejection = await Promise.resolve()
+    .then(() => runner.run({ request, onSnapshot }))
+    .then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+  expect(
+    rejection === thrown,
+    "an onSnapshot that throws rejects the run with that error",
+  );
 }
 
 function sameData(a: unknown, b: unknown): boolean {

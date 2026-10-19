@@ -270,7 +270,7 @@ A new AWS service (or any other component type) touches these places, all in the
 - A regression test says which bug it guards against.
 - Tests should be able to fail. When you write one, break the code it covers and watch it go red at least once.
 - Use the seed, not luck. Anything random runs from a fixed seed. Scenario tests that assert a template's lesson check several seeds (`src/adapters/templates/template-scenarios.test.ts`) with loose thresholds, so they pin the lesson rather than one run's numbers.
-- **Contract suites** check that an implementation keeps the promises of its interface. Every component type must pass `checkComponentContract`, and every `ProjectRepository` adapter must pass `checkProjectRepositoryContract` with an empty list of violations.
+- **Contract suites** check that an implementation keeps the promises of its interface. Every component type must pass `checkComponentContract`, every `ProjectRepository` adapter must pass `checkProjectRepositoryContract`, and every `SimulationRunner` must pass `checkSimulationRunnerContract`, each with an empty list of violations.
 - **Outputs must reconcile.** Totals in metrics and reports add up: started = succeeded + failed + in progress, and so on. Show work that's still in progress rather than dropping it, and test the remainders (see `src/adapters/cli/report-reconciles.test.ts`). Add a check when you add a column or a counter.
 - Latencies carry floating-point drift (`49.000000000000014`): compare them with `toBeCloseTo`. Percentiles are bucket upper bounds, up to 5% high ([metrics guide](docs/architecture/metrics.md)).
 - Model changes come with before/after numbers from `npm run simulate`.

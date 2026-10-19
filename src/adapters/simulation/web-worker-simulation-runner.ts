@@ -12,6 +12,7 @@ import type { StopSignal } from "../../application/ports/stop-signal";
 import type {
   CreateSimulationWorker,
   SimulationWorker,
+  WorkerErrorEvent,
 } from "./simulation-worker";
 import type { WorkerReply } from "./simulation-worker-protocol";
 
@@ -51,12 +52,29 @@ interface WatchRunInput {
   readonly onSnapshot: ((snapshot: MetricsSnapshot) => void) | undefined;
   readonly stopSignal: StopSignal | undefined;
   readonly resolve: (outcome: SimulationOutcome) => void;
-  readonly reject: (error: Error) => void;
+  readonly reject: (error: unknown) => void;
+}
+
+/** When the Worker's script fails to load, its `error` event has no message. */
+export const WORKER_FAILED =
+  "The simulation Worker failed to start or stopped unexpectedly.";
+
+/** A reply the page couldn't decode; the run can't go on without it. */
+export const UNREADABLE_REPLY =
+  "A message from the simulation Worker couldn't be read.";
+
+function workerErrorMessage({ message }: WorkerErrorEvent): string {
+  return message === undefined || message === "" ? WORKER_FAILED : message;
+}
+
+/** Rejections carry an `Error`, even if `onSnapshot` threw something else. */
+function asError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 /**
- * Settles the run on its first ending: the last reply, a Worker error, or
- * the stop signal. Whichever comes first terminates the Worker; anything
+ * Settles the run on its first ending: the last reply, a Worker failure,
+ * a throwing `onSnapshot`, or the stop signal. Whichever comes first terminates the Worker; anything
  * after it is ignored.
  */
 function watchRun(input: WatchRunInput): void {
@@ -80,9 +98,19 @@ function watchRun(input: WatchRunInput): void {
   worker.addEventListener("message", ({ data }) => {
     if (!settled) handleKind(handlers, data);
   });
-  worker.addEventListener("error", ({ message }) => {
+  watchFailures({ ...input, settle });
+}
+
+/** Rejects the run if the Worker fails or sends a reply that can't be read. */
+function watchFailures({ worker, settle, reject }: ReplyHandlersInput): void {
+  worker.addEventListener("error", (event) => {
     settle(() => {
-      input.reject(new Error(message));
+      reject(new Error(workerErrorMessage(event)));
+    });
+  });
+  worker.addEventListener("messageerror", () => {
+    settle(() => {
+      reject(new Error(UNREADABLE_REPLY));
     });
   });
 }
@@ -100,7 +128,15 @@ function replyHandlers({
 }: ReplyHandlersInput): KindHandlers<WorkerReply, void> {
   return {
     snapshot: ({ snapshot }) => {
-      onSnapshot?.(snapshot);
+      // A throw here would escape the message listener and the run would
+      // carry on; end it instead, as the in-process runner does.
+      try {
+        onSnapshot?.(snapshot);
+      } catch (error) {
+        settle(() => {
+          reject(asError(error));
+        });
+      }
     },
     finished: ({ run }) => {
       settle(() => {

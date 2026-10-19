@@ -42,7 +42,8 @@ export interface SimulationRunner {
   /**
    * Resolves once the run finishes or is stopped. Every snapshot reaches
    * `onSnapshot` before the promise resolves, and none arrives after the
-   * stop signal fires. Rejects if the engine fails.
+   * stop signal fires. Rejects if the engine fails, or with the error
+   * `onSnapshot` throws.
    */
   run(input: SimulationRunInput): Promise<SimulationOutcome>;
 }

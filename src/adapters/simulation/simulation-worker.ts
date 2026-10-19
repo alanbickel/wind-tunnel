@@ -5,9 +5,12 @@ export interface WorkerReplyEvent {
   readonly data: WorkerReply;
 }
 
-/** The Worker failed to load or threw outside a run, as its `error` event says. */
+/**
+ * The Worker failed to load or threw outside a run, as its `error` event
+ * says. A script that fails to load fires a plain `Event`, with no message.
+ */
 export interface WorkerErrorEvent {
-  readonly message: string;
+  readonly message?: string;
 }
 
 /**
@@ -26,6 +29,8 @@ export interface SimulationWorker {
     type: "error",
     listener: (event: WorkerErrorEvent) => void,
   ): void;
+  /** A reply arrived that couldn't be deserialized. */
+  addEventListener(type: "messageerror", listener: () => void): void;
 }
 
 /** Starts a new Worker running `simulation-worker-entry.ts`. */

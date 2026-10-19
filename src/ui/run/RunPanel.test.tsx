@@ -204,12 +204,16 @@ describe("RunPanel", () => {
     expect(status()).toBe("Finished Steady.");
   });
 
-  it("ignores Run while a run is going", () => {
+  it("ignores a second Run that lands before React re-renders", () => {
+    // Both clicks in one act(), so the second still sees Run as usable;
+    // only the hook's own guard can stop it.
     const { runner } = renderPanel();
     const run = screen.getByRole("button", { name: "Run" });
 
-    fireEvent.click(run);
-    fireEvent.click(run);
+    act(() => {
+      fireEvent.click(run);
+      fireEvent.click(run);
+    });
 
     expect(runner.runs).toBe(1);
   });

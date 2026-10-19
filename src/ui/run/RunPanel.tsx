@@ -11,6 +11,7 @@ import {
   type RunPhase,
   type SimulationRun,
 } from "./useSimulationRun";
+import { secondsOf } from "./workflow-seconds";
 
 export interface RunPanelProps {
   readonly project: Project;
@@ -26,7 +27,7 @@ export function RunPanel({ project }: RunPanelProps) {
       <h3 id={headingId}>Run</h3>
       <WorkloadControls workloads={project.workloads} run={run} />
       {/* Mounted from the start, so screen readers announce each change. */}
-      <p role="status">{statusText(run.phase, run.snapshots.length)}</p>
+      <p role="status">{statusText(run.phase, simulatedSec(run.snapshots))}</p>
       {run.phase.status !== "idle" && (
         <RunResults
           project={project}
@@ -84,6 +85,11 @@ function durationSec(workload: Workload): number {
   return Math.ceil(workload.durationMs / 1_000);
 }
 
+/** Simulated time the snapshots cover, from the end of the last one. */
+function simulatedSec(snapshots: readonly MetricsSnapshot[]): number {
+  return secondsOf(snapshots.at(-1)?.endMs ?? 0);
+}
+
 interface RunResultsProps {
   readonly project: Project;
   readonly workload: Workload;
@@ -96,17 +102,14 @@ function RunResults({ project, workload, snapshots }: RunResultsProps) {
   // them from a deferred copy lets React put clicks (such as Stop) first and
   // skip snapshots it falls behind on; the progress bar stays current.
   const deferredSnapshots = useDeferredValue(snapshots);
-  const total = durationSec(workload);
+  const totalSec = durationSec(workload);
+  const doneSec = simulatedSec(snapshots);
 
   return (
     <div>
       <p>
-        <progress
-          value={snapshots.length}
-          max={total}
-          aria-label="Simulated time"
-        />{" "}
-        {snapshots.length} of {total} simulated seconds
+        <progress value={doneSec} max={totalSec} aria-label="Simulated time" />{" "}
+        {doneSec} of {totalSec} simulated seconds
       </p>
       <RunMetrics project={project} snapshots={deferredSnapshots} />
     </div>

@@ -22,7 +22,9 @@ interface ContrastRule {
 const BACKGROUNDS = ["--color-bg", "--color-surface", "--color-surface-raised"];
 // Charts sit on a panel; the diagram's canvas is the page.
 const CHART_AND_DIAGRAM_BACKGROUNDS = ["--color-bg", "--color-surface"];
-const SERIES = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `--color-series-${String(n)}`);
+const SERIES = [1, 2, 3, 4, 5, 6, 7, 8].map(
+  (n) => `--color-series-${String(n)}`,
+);
 
 /**
  * Every pair of colors the UI may put together. A stylesheet that combines

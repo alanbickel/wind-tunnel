@@ -56,3 +56,7 @@ Dark is the primary theme: the IcePanel look is dark, so it's designed first, an
 - If the saved theme differs from the operating system's, the page may show the other theme's background for a moment while the app's script loads. A few lines in `index.html` could apply the choice sooner, at the cost of a second place that knows how the choice is stored.
 - React Flow's custom-property names belong to its styling API, not ours. An upgrade that renames them breaks the diagram's colors, but only inside `src/ui/diagram/`.
 - ESLint can't tell a runtime inline style from a static one, so reviewers check that each `style` prop holds a computed value.
+
+## Addendum, 2026-10-19
+
+The design tokens issue ([#29](https://github.com/alanbickel/wind-tunnel/issues/29)) refines the contrast test's coverage rule. A color token that carries no information, such as `--color-divider` (card outlines, table rules, chart gridlines), has no WCAG ratio to meet, and making it reach 3:1 would make gridlines as loud as the data. Such a token is listed in the test's `DECORATIVE` table with the reason it needs no ratio. The test still fails if a color token is neither in a pair nor in that table, so a new token can't skip the check without a written reason.

@@ -48,6 +48,21 @@ describe("TimeSeriesChart", () => {
     ]);
   });
 
+  // Fails if the legend's labels take their line's color: series colors
+  // only reach 3:1, and a label is text.
+  it("writes the legend labels in the text color", () => {
+    stubDiagramBrowserApis();
+    const { container } = render(<TimeSeriesChart content={content} />);
+
+    const labels = [
+      ...container.querySelectorAll(".recharts-legend-item-text"),
+    ];
+    expect(labels.map((label) => label.getAttribute("style"))).toEqual([
+      expect.stringContaining("color: var(--color-text)"),
+      expect.stringContaining("color: var(--color-text)"),
+    ]);
+  });
+
   it("repeats its numbers in a table, a row per time, gaps marked", () => {
     render(<TimeSeriesChart content={content} />);
 

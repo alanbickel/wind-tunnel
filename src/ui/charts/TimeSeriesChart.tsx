@@ -16,11 +16,23 @@ import type { TimeSeries, TimeSeriesContent } from "./time-series";
 // references resolve in the browser, so they follow the theme (ADR-0012).
 const GRID_COLOR = "var(--color-divider)";
 const AXIS_COLOR = "#898781";
+const TIME_AXIS_PROPS = {
+  dataKey: "timeSec",
+  type: "number",
+  domain: ["dataMin", "dataMax"],
+  allowDecimals: false,
+  unit: " s",
+  stroke: AXIS_COLOR,
+} as const;
 // Recharts draws the tooltip on white by default.
 const TOOLTIP_STYLE = {
   backgroundColor: "var(--color-surface)",
   border: "1px solid var(--color-border)",
 } as const;
+// Recharts colors each tooltip row and legend label with its line's color,
+// but series colors only reach 3:1, too faint for text: the hue stays on
+// the line and the legend swatch.
+const SERIES_TEXT_STYLE = { color: "var(--color-text)" } as const;
 const CHART_STYLE = { width: "100%", height: 260 } as const;
 
 export interface TimeSeriesChartProps {
@@ -55,14 +67,7 @@ function ChartPlot({ content, rows }: ChartPartProps) {
   return (
     <LineChart responsive style={CHART_STYLE} data={rows}>
       <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-      <XAxis
-        dataKey="timeSec"
-        type="number"
-        domain={["dataMin", "dataMax"]}
-        allowDecimals={false}
-        unit=" s"
-        stroke={AXIS_COLOR}
-      />
+      <XAxis {...TIME_AXIS_PROPS} />
       <YAxis
         stroke={AXIS_COLOR}
         tickFormatter={formatTick}
@@ -70,10 +75,14 @@ function ChartPlot({ content, rows }: ChartPartProps) {
       />
       <Tooltip
         contentStyle={TOOLTIP_STYLE}
+        itemStyle={SERIES_TEXT_STYLE}
         formatter={formatValue}
         labelFormatter={formatTime}
       />
-      <Legend itemSorter={(item) => seriesIndex(content, item.value)} />
+      <Legend
+        labelStyle={SERIES_TEXT_STYLE}
+        itemSorter={(item) => seriesIndex(content, item.value)}
+      />
       {content.series.map(seriesLine)}
     </LineChart>
   );

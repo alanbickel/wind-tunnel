@@ -48,7 +48,8 @@
 
   /* Chart lines in a fixed order, each series taking the next. The order
      keeps neighbors distinct for color-blind readers; checked with the
-     dataviz palette validator against --color-surface in each theme. */
+     dataviz palette validator against --color-surface in each theme.
+     Graphics only, never text: they're held to 3:1, not 4.5:1. */
   --color-series-1: light-dark(#2a78d6, #3987e5); /* blue */
   --color-series-2: light-dark(#d95926, #d95926); /* orange */
   --color-series-3: light-dark(#20917e, #199e70); /* aqua */

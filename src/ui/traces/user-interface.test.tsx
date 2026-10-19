@@ -18,7 +18,10 @@ import type { StoragePersistence } from "../../application/ports/storage-persist
 import { sampleRecord } from "../../application/testing/sample-record";
 import { RunSimulation } from "../../application/use-cases/run-simulation";
 import type { LatencySummary } from "../../domain/metrics/latency-histogram";
-import type { MetricsSnapshot } from "../../domain/metrics/metrics-snapshot";
+import type {
+  MetricsSnapshot,
+  WorkflowMetrics,
+} from "../../domain/metrics/metrics-snapshot";
 import { App } from "../App";
 import { inMemoryUseCases } from "../app/testing/in-memory-use-cases";
 import type { UseCases } from "../app/use-cases";
@@ -33,7 +36,7 @@ import { sampleSnapshot } from "../run/testing/sample-snapshots";
 // runner stands in for WebWorkerSimulationRunner: `ui/` can't import
 // adapters, and the test sends the snapshots a Worker would post. The
 // timeline is a snapshot: if the flow changes, this test fails and the diff
-// shows how. Run `npx vitest run -u src/ui/traces` to accept an intended
+// shows how. Run `npx vitest run src/ui/traces --update` to accept an intended
 // change, then check the guide still matches.
 
 /** The lines of the timeline, grouped under the user action that led to them. */
@@ -89,7 +92,7 @@ class StandInWorkerRunner implements SimulationRunner {
 
   async finish(snapshots: readonly MetricsSnapshot[]): Promise<void> {
     this.trace.action("Worker posts finished");
-    const totals = sampleSnapshot({ second: snapshots.length });
+    const totals = runTotals(snapshots);
     await act(async () => {
       this.settle?.({
         status: "finished",
@@ -115,6 +118,23 @@ const TWO_SECOND_TEMPLATE: ProjectRecord = {
 /** End-to-end latency of a second's successful requests. */
 function latency(p99Ms: number): LatencySummary {
   return { count: 1, p50Ms: p99Ms, p95Ms: p99Ms, p99Ms, maxMs: p99Ms };
+}
+
+/** The run's totals: its snapshots' requests added up, over the whole run. */
+function runTotals(snapshots: readonly MetricsSnapshot[]): MetricsSnapshot {
+  const sum = (count: (read: WorkflowMetrics) => number) =>
+    snapshots.reduce(
+      (total, snapshot) =>
+        total + (snapshot.workflows.read ? count(snapshot.workflows.read) : 0),
+      0,
+    );
+  const read = {
+    started: sum((w) => w.started),
+    succeeded: sum((w) => w.succeeded),
+    failed: sum((w) => w.failed),
+  };
+  const endMs = snapshots.at(-1)?.endMs ?? 0;
+  return { ...sampleSnapshot({ second: 1, read }), startMs: 0, endMs };
 }
 
 /** Wraps each use case the components call so it records the call and result. */

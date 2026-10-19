@@ -3,12 +3,14 @@ import { colorDeclarations, contrastRatio, themedColor } from "./color-tokens";
 
 describe("contrastRatio", () => {
   // Fails if a channel's weight or either branch of the sRGB linearization
-  // is wrong: pure blue tests the blue weight alone, and #0a0a0a's channels
-  // fall in the linear branch. Expected values worked from WCAG's formula.
+  // is wrong: pure red and pure blue test their weights alone (the grays
+  // only test the weights' sum), and #0a0a0a's channels fall in the linear
+  // branch. Expected values worked from WCAG's formula.
   it.each([
     ["#000000", "#ffffff", 21],
     ["#ffffff", "#ffffff", 1],
     ["#767676", "#ffffff", 4.54],
+    ["#ff0000", "#ffffff", 4.0],
     ["#0000ff", "#ffffff", 8.59],
     ["#0a0a0a", "#ffffff", 19.8],
   ])("%s on %s is %d:1", (first, second, expected) => {

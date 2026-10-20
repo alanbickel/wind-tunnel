@@ -23,7 +23,7 @@ User clicks "Run"
 Worker posts the snapshot for 0–1000 ms
   screen   status "Running Steady…"
   screen   progress 1 of 2 simulated seconds
-  screen   requests so far: started 20 = succeeded 18 + failed 0 + in progress 2
+  screen   requests (run totals): started 20 = succeeded 18 + failed 0 + in progress 2
   screen   chart "Requests per second, all workflows": 1 s of points
   screen   chart "Latency of successful requests, p99": 1 s of points
   screen   chart "Work in progress per component, peak each second": 1 s of points
@@ -32,7 +32,7 @@ Worker posts the snapshot for 0–1000 ms
 Worker posts the snapshot for 1000–2000 ms
   screen   status "Running Steady…"
   screen   progress 2 of 2 simulated seconds
-  screen   requests so far: started 40 = succeeded 39 + failed 0 + in progress 1
+  screen   requests (run totals): started 40 = succeeded 39 + failed 0 + in progress 1
   screen   chart "Requests per second, all workflows": 2 s of points
   screen   chart "Latency of successful requests, p99": 2 s of points
   screen   chart "Work in progress per component, peak each second": 2 s of points

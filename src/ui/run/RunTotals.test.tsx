@@ -30,7 +30,7 @@ const requestRate = (peak: number, takenPerSec: number): LimitUse => ({
 /** Each body row of the limits table as its cells' text. */
 function limitRows(): string[][] {
   const table = screen.getByRole("table", {
-    name: "Busiest use of each limit so far",
+    name: "Limits (run peaks)",
   });
   return within(table)
     .getAllByRole("row")
@@ -91,6 +91,43 @@ describe("RunTotals", () => {
     ]);
   });
 
+  // Fails if a table loses its heading as its name, its info control, or
+  // the info control is named for something other than its table.
+  it("names each table by its heading, with an info control beside it", () => {
+    const snapshots = [
+      sampleSnapshot({ second: 1, fn: { limits: [concurrency(3)] } }),
+    ];
+    render(<RunTotals run={{ project, snapshots }} />);
+    const tables = screen.getAllByRole("table");
+    const controls = screen.getAllByRole("button");
+    expect(
+      tables.map((table) => table.getAttribute("aria-labelledby")),
+    ).toEqual(
+      [
+        "Requests (run totals)",
+        "Components (run totals)",
+        "Limits (run peaks)",
+      ].map((name) => screen.getByRole("heading", { name }).id),
+    );
+    expect(
+      controls.map((control) => control.getAttribute("aria-label")),
+    ).toEqual(["About Requests", "About Components", "About Limits"]);
+  });
+
+  // Fails if a sum that says how the totals reconcile goes missing, or
+  // moves behind the info control, out of sight.
+  it.each([
+    "Started = succeeded + failed + in progress.",
+    "Arrivals = succeeded + failed + rejected + unfinished.",
+  ])("keeps the sum %s on screen", (sum) => {
+    render(
+      <RunTotals
+        run={{ project, snapshots: [sampleSnapshot({ second: 1 })] }}
+      />,
+    );
+    expect(screen.getByText(sum).closest("[hidden]")).toBeNull();
+  });
+
   // Fails if the table is drawn, empty, before any snapshot has a limit.
   it("leaves the limits table out until a snapshot reports a limit", () => {
     render(
@@ -99,7 +136,7 @@ describe("RunTotals", () => {
       />,
     );
     expect(
-      screen.queryByRole("table", { name: "Busiest use of each limit so far" }),
+      screen.queryByRole("table", { name: "Limits (run peaks)" }),
     ).toBeNull();
   });
 });

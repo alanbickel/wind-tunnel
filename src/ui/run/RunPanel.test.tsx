@@ -101,7 +101,7 @@ function status(): string | null {
 }
 
 function requestsSoFar(): (string | null)[] {
-  const table = screen.getByRole("table", { name: "Requests so far" });
+  const table = screen.getByRole("table", { name: "Requests (run totals)" });
   const footer = table.querySelector("tfoot tr");
   return [...(footer?.querySelectorAll("th, td") ?? [])].map(
     (cell) => cell.textContent,

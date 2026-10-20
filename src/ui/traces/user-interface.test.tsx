@@ -202,14 +202,14 @@ function status(): string {
   return screen.getAllByRole("status").at(-1)?.textContent ?? "";
 }
 
-/** The footer of "Requests so far": the totals across workflows. */
+/** The footer of "Requests (run totals)": the totals across workflows. */
 function requestTotals(): string {
-  const table = screen.getByRole("table", { name: "Requests so far" });
+  const table = screen.getByRole("table", { name: "Requests (run totals)" });
   const cells = [...(table.querySelector("tfoot tr")?.children ?? [])];
   const [started, succeeded, failed, inProgress] = cells
     .slice(1)
     .map((cell) => cell.textContent);
-  return `requests so far: started ${String(started)} = succeeded ${String(succeeded)} + failed ${String(failed)} + in progress ${String(inProgress)}`;
+  return `requests (run totals): started ${String(started)} = succeeded ${String(succeeded)} + failed ${String(failed)} + in progress ${String(inProgress)}`;
 }
 
 /** The top bar's breadcrumb, crumb by crumb, without the drawn separators. */

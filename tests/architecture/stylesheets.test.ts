@@ -29,7 +29,7 @@ const REDUCED_MOTION_RULE =
 const COLOR_EXCEPTIONS: Readonly<Record<string, string>> = {
   "ui/charts/series-colors.ts":
     "the series hues move to the --color-series-* tokens when the charts are themed",
-  "ui/charts/TimeSeriesChart.tsx":
+  "ui/charts/ChartPlot.tsx":
     "the axis color moves to a token when the charts are themed",
 };
 

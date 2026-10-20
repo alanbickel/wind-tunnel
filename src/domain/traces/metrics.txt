@@ -3,17 +3,17 @@ Workflow "Get order": fn -> db, 1 ms edges, no retries. fn: 10 ms of work,
 it handles at most 100 queries/s. Load: 40 requests/s, then 200/s from
 3 s to 5 s. One row per snapshot (simulated second), then the run's totals.
 requests: started; ok/failed: answered. p50/p99: latency of ok requests.
-db queue: peak in the row's time. connections: held at the row's end.
+db queue and connections: the most at once in the row's time.
 
 second  requests  ok   failed  p50  p99  db queue  connections  db rejected  cold starts
-0-1     28        28   0       34   240  2         0            0            7
-1-2     38        37   0       34   50   2         1            0            0
-2-3     40        41   0       34   38   1         0            0            0
-3-4     205       96   102     89   291  6         7            102          32
-4-5     200       100  100     85   92   6         6            100          0
-5-6     40        46   0       34   88   5         1            0            0
-6-7     40        40   0       34   48   2         1            0            0
-7-8     52        51   0       34   62   3         2            0            0
-total   643       439  202     45   287  6         2            202          39
+0-1     28        28   0       34   240  2         4 of 8       0            7
+1-2     38        37   0       34   50   2         4 of 8       0            0
+2-3     40        41   0       34   38   1         3 of 8       0            0
+3-4     205       96   102     89   291  6         8 of 8       102          32
+4-5     200       100  100     85   92   6         8 of 8       100          0
+5-6     40        46   0       34   88   5         7 of 8       0            0
+6-7     40        40   0       34   48   2         4 of 8       0            0
+7-8     52        51   0       34   62   3         5 of 8       0            0
+total   643       439  202     45   287  6         8 of 8       202          39
 
 Failures by cause: {"db: too-many-connections":202}

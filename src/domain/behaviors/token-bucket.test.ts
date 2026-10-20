@@ -41,8 +41,9 @@ describe("TokenBucket", () => {
   it("counts the tokens taken, not the requests throttled", () => {
     const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
     takeMany(limit, 0, 8);
+    // Refilled to the burst size again after a second: 5 more.
     takeMany(limit, 1_000, 20);
-    expect(limit.taken).toBe(15);
+    expect(limit.taken).toBe(10);
   });
 
   it("rejects time going backwards", () => {

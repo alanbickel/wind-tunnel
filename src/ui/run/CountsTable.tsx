@@ -6,10 +6,13 @@ export interface CountsRow {
   readonly label: string;
 }
 
-/** One numeric column: its header and its value for a row. */
+/**
+ * One right-aligned column: its header and its value for a row. A number is
+ * shown with thousands separators; text, such as a percentage, as it is.
+ */
 export interface CountsColumn<Row> {
   readonly header: string;
-  readonly value: (row: Row) => number;
+  readonly value: (row: Row) => number | string;
 }
 
 export interface CountsTableProps<Row extends CountsRow> {
@@ -68,9 +71,13 @@ function CountsTableRow<Row extends CountsRow>({
       <th scope="row">{row.label}</th>
       {columns.map((column) => (
         <td key={column.header} className={styles.count}>
-          {column.value(row).toLocaleString("en-US")}
+          {formatCount(column.value(row))}
         </td>
       ))}
     </tr>
   );
+}
+
+function formatCount(value: number | string): string {
+  return typeof value === "number" ? value.toLocaleString("en-US") : value;
 }

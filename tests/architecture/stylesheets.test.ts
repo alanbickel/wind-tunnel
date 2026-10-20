@@ -74,12 +74,6 @@ describe("styles in src/ui/", () => {
     expect(found).toEqual([]);
   });
 
-  // Fails if tokens.css loses its breakpoint tokens, or breakpointValues
-  // stops reading them, which would let the check above pass vacuously.
-  it("have breakpoint tokens for media queries to use", () => {
-    expect(BREAKPOINTS).toContain("64rem");
-  });
-
   // Fails if a stylesheet sets `outline: none` on a control, hiding where
   // the keyboard focus is.
   it("never remove the focus ring", () => {

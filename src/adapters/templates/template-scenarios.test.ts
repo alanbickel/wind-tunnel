@@ -304,7 +304,8 @@ describe.each(SEEDS)("the long rush, with seed %i", (seed) => {
     });
 
     // Writes arrive at about 400 a second at the peak, and 15 consumers
-    // deliver about 315, so the backlog grows for as long as the peak lasts. Fails if orders-queue's consumerMaxConcurrency rises to 20: the
+    // deliver about 315, so the backlog grows for as long as the peak lasts.
+    // Fails if orders-queue's consumerMaxConcurrency rises to 20: the
     // consumers keep up.
     it("grows the backlog through the whole peak", () => {
       const sampledAtSec = [40, 60, 80, 100, 120, 140];

@@ -27,7 +27,7 @@ import { inMemoryUseCases } from "../app/testing/in-memory-use-cases";
 import type { UseCases } from "../app/use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { sampleSnapshot } from "../run/testing/sample-snapshots";
+import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 
 // Worked example for docs/architecture/user-interface.md. It renders the
 // whole app as main.tsx does, inside a UseCasesProvider, and follows a user

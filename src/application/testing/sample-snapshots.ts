@@ -2,7 +2,7 @@ import type {
   ComponentMetrics,
   MetricsSnapshot,
   WorkflowMetrics,
-} from "../../../domain/metrics/metrics-snapshot";
+} from "../../domain/metrics/metrics-snapshot";
 
 /** A component that did nothing; override the fields a test needs. */
 export function componentMetrics(

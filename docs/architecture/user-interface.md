@@ -181,7 +181,7 @@ UI tests start with `// @vitest-environment jsdom`, render with Testing Library,
 | `new RunSimulation({ runner })` with a test runner | Run tests. `RunPanel.test.tsx` has a `ManualSimulationRunner` that sends snapshots and ends the run when the test says |
 | `stubDiagramBrowserApis()` ([`diagram/testing/`](../../src/ui/diagram/testing/)) | Any test that renders a `Diagram`, `ProjectScreen`, or `App`: jsdom lacks the `ResizeObserver` and `DOMMatrixReadOnly` that React Flow needs. Undo it with `vi.unstubAllGlobals()` |
 
-Keep logic out of components where you can: `diagramOf`, `runCharts`, and `run-totals` are plain functions with plain tests, and the component tests check what the user sees and can do.
+Keep logic out of components where you can: `diagramOf` and `runCharts` are plain functions with plain tests, and the component tests check what the user sees and can do. Counts the CLI report shows too, such as the run totals, come from [`application/run-analysis/`](../../src/application/run-analysis/) ([ADR-0013](../adr/0013-derive-run-results-in-application-run-analysis.md)).
 
 ## Adding to it
 

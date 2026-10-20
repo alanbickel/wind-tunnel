@@ -111,12 +111,16 @@ flowchart TB
     subgraph app["application/"]
         UC["Use cases<br/>RunSimulation, CompareRuns, ..."]
         P["Ports (interfaces)<br/>Clock, IdGenerator, ProjectRepository,<br/>TemplateCatalog, SimulationRunner,<br/>StoragePersistence"]
+        RA["Run analysis<br/>totals, per-second counts,<br/>later findings"]
     end
     subgraph dom["domain/ (most stable)"]
         D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives,<br/>component definitions, RandomSource,<br/>metrics collector"]
     end
 
     UI --> UC
+    UI --> RA
+    AD --> RA
+    RA --> D
     AD -.->|implements| P
     UC --> P
     UC --> D
@@ -134,6 +138,7 @@ flowchart TB
 | A new metric for one service type (e.g. Lambda warm instances) | That type's definition in `src/domain/components/aws/` | Expose it as a gauge or counter on the behavior; the engine and collector pass it through. See [How metrics work](metrics.md). |
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
+| A number or finding derived from a run's snapshots that the UI or the CLI shows (e.g. totals, work in progress) | `src/application/run-analysis/` | Pure functions of a `RunSoFar`; the UI and the CLI only format the results. Add a check to `run-analysis-reconciles.test.ts` when it adds up to something ([ADR-0013](../adr/0013-derive-run-results-in-application-run-analysis.md)). |
 | Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. Add an in-memory fake to `src/application/testing/` for use case tests. |
 | A new field about a project that the engine doesn't use (like `layout`) | `ProjectRecord` in `src/application/ports/`, plus the document schema and mapper in `src/adapters/persistence/` | Add it to `sampleRecord` so the repository contract checks it round-trips ([ADR-0008](../adr/0008-ports-exchange-project-records.md)). |
 | Something that needs randomness | Use the `RandomSource` passed in from `src/domain/random/` | Never call `Math.random`; runs must stay reproducible from a seed. |

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { sampleRecord } from "../../application/testing/sample-record";
+import { sampleRecord } from "../testing/sample-record";
 import { allWorkflows, componentTotals, workflowTotals } from "./run-totals";
-import { sampleSnapshot } from "./testing/sample-snapshots";
+import { sampleSnapshot } from "../testing/sample-snapshots";
 
 const { project } = sampleRecord;
 

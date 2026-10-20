@@ -8,6 +8,12 @@ import {
   type ComponentTotals,
   type WorkflowTotals,
 } from "../../application/run-analysis/run-totals";
+import {
+  limitPeaks,
+  type LimitPeak,
+  type RateFlow,
+} from "../../application/run-analysis/limit-peaks";
+import type { LimitUse } from "../../domain/metrics/metrics-snapshot";
 import styles from "./RunTotals.module.css";
 
 const WORKFLOW_COLUMNS: readonly CountsColumn<WorkflowTotals>[] = [
@@ -25,6 +31,45 @@ const COMPONENT_COLUMNS: readonly CountsColumn<ComponentTotals>[] = [
   { header: "Unfinished", value: (r) => r.unfinished },
 ];
 
+/** A limit's peak, labeled with its component and unit. */
+interface LimitRow extends LimitPeak {
+  readonly label: string;
+}
+
+/** Said after a limit's name, so the reader knows what it counts. */
+const LIMIT_UNITS: Readonly<Record<LimitUse["kind"], string>> = {
+  concurrency: "",
+  rate: ", tokens drawn",
+};
+
+const LIMIT_COLUMNS: readonly CountsColumn<LimitRow>[] = [
+  { header: "Peak", value: (r) => Math.round(r.peak) },
+  { header: "Limit", value: (r) => r.limit },
+  { header: "Peak %", value: (r) => percentDown(r.peakShare) },
+  { header: "Exhausted", value: (r) => (r.exhausted ? "Yes" : "–") },
+  { header: "Busiest flow", value: (r) => flow(r.flow) },
+];
+
+function limitRow(peak: LimitPeak): LimitRow {
+  const unit = LIMIT_UNITS[peak.kind];
+  return { ...peak, label: `${peak.componentLabel} ${peak.name}${unit}` };
+}
+
+function flow(rate: RateFlow | undefined): string {
+  if (rate === undefined) return "–";
+  const taken = Math.round(rate.busiestTakenPerSec).toLocaleString("en-US");
+  return `${taken} of ${rate.ratePerSec.toLocaleString("en-US")} per s`;
+}
+
+/**
+ * Rounded down, so 100% only shows when all of it was used. The slack keeps
+ * float error (0.29 × 100 = 28.999…) from rounding an exact share down.
+ */
+function percentDown(share: number | undefined): string {
+  if (share === undefined) return "–";
+  return `${String(Math.floor(100 * share + 1e-9))}%`;
+}
+
 export interface RunTotalsProps {
   readonly run: RunSoFar;
 }
@@ -36,7 +81,6 @@ export interface RunTotalsProps {
  */
 export function RunTotals({ run }: RunTotalsProps) {
   const workflows = useMemo(() => workflowTotals(run), [run]);
-  const components = useMemo(() => componentTotals(run), [run]);
 
   return (
     <div className={styles.totals}>
@@ -51,6 +95,17 @@ export function RunTotals({ run }: RunTotalsProps) {
         Started = succeeded + failed + in progress. A request in progress
         hasn&apos;t been answered yet.
       </p>
+      <ComponentWork run={run} />
+      <LimitTotals run={run} />
+    </div>
+  );
+}
+
+/** Each component's work so far, and how its columns add up. */
+function ComponentWork({ run }: RunTotalsProps) {
+  const components = useMemo(() => componentTotals(run), [run]);
+  return (
+    <>
       <CountsTable
         caption="Work per component so far"
         labelHeader="Component"
@@ -62,6 +117,33 @@ export function RunTotals({ run }: RunTotalsProps) {
         is still running or waiting. For a queue, succeeded counts messages
         accepted, whether or not they&apos;ve been delivered yet.
       </p>
-    </div>
+    </>
+  );
+}
+
+/**
+ * Each limit's busiest use so far, against the limit. Left out until a
+ * snapshot reports a limit.
+ */
+function LimitTotals({ run }: RunTotalsProps) {
+  const limits = useMemo(() => limitPeaks(run).map(limitRow), [run]);
+  if (limits.length === 0) return null;
+  return (
+    <>
+      <CountsTable
+        caption="Busiest use of each limit so far"
+        labelHeader="Limit"
+        columns={LIMIT_COLUMNS}
+        rows={limits}
+      />
+      <p className={styles.note}>
+        Peak is the most used at once: slots held, such as connections, or
+        tokens drawn out of a full bucket. Peak % rounds down. Exhausted means
+        the limit ran out: every slot held, or less than one token in the
+        bucket, so a request arriving then waited or was rejected. A bucket
+        refills at a steady rate; busiest flow is the busiest second&apos;s
+        requests against that rate. Above it, the bucket drains.
+      </p>
+    </>
   );
 }

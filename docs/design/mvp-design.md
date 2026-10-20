@@ -221,7 +221,8 @@ The engine runs as fast as it can and emits a **snapshot every simulated second*
 - in-progress count and queue depth (current and peak)
 - latency percentiles (p50, p95, p99) from a fixed-bucket histogram
 - for queue-like components, async deliveries and their latency
-- type-specific gauges and counters, e.g. RDS connections held and Lambda cold starts
+- each limit the component enforces, with its use and peak against it, e.g. RDS connections held out of `maxConnections` ([ADR-0014](../adr/0014-components-report-their-limits.md))
+- type-specific gauges and counters, e.g. Lambda cold starts
 
 and, per workflow, requests started, succeeded, and failed (with failures grouped by cause), and latency percentiles of successful requests. Run totals have the same shape. The engine emits ticks; a `MetricsCollector` observer builds the snapshots ([ADR-0007](../adr/0007-metrics-observe-the-engine.md), [metrics guide](../architecture/metrics.md)).
 

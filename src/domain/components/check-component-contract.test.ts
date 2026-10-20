@@ -7,6 +7,12 @@ import type {
 } from "./component-behavior";
 import type { BuildContext, ComponentDefinition } from "./component-definition";
 import {
+  concurrencyGauge,
+  rateGauge,
+  type ConcurrencySource,
+  type RateSource,
+} from "./limit-gauges";
+import {
   messageQueueDefinition,
   workerPoolDefinition,
 } from "./testing/fake-definitions";
@@ -51,12 +57,40 @@ function broken<Config>(
         get counters() {
           return p.counters ?? inner.counters;
         },
+        get limits() {
+          return p.limits ?? inner.limits;
+        },
       };
       // The checker always uses number tokens, so T is number here.
       return behavior as unknown as ComponentBehavior<T>;
     },
   };
 }
+
+/** The behavior's work in progress, against a limit of 1. */
+const overOne = (b: Behavior): ConcurrencySource => ({
+  limit: 1,
+  get inUse() {
+    return b.inProgress;
+  },
+});
+
+/** A rate limit of 1 per second whose `taken` is `read()`. */
+interface FakeRate {
+  readonly burst: number;
+  readonly read: () => number;
+  /** Tokens left; a full bucket if omitted. */
+  readonly left?: () => number;
+}
+
+const rateTaking = ({ burst, read, left }: FakeRate): RateSource => ({
+  ratePerSec: 1,
+  burst,
+  available: () => left?.() ?? burst,
+  get taken() {
+    return read();
+  },
+});
 
 const firstViolation = <C>(definition: ComponentDefinition<C>) =>
   checkComponentContract(definition).violations[0] ?? "(none)";
@@ -129,6 +163,88 @@ describe("checkComponentContract", () => {
         gauges: { broken: Number.NaN },
       }));
       expect(firstViolation(definition)).toMatch(/gauge broken is NaN/);
+    });
+
+    // Fails if the contract stops comparing a concurrency limit's use to its limit.
+    it("a concurrency limit used beyond its limit", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        limits: [concurrencyGauge({ name: "workers", source: overOne(b) })],
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limit workers has 2 in use out of 1/,
+      );
+    });
+
+    // Fails if the contract stops checking that `taken` never decreases.
+    it("a rate limit whose taken count goes down", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        limits: [
+          rateGauge({
+            name: "rate",
+            source: rateTaking({ burst: 1_000, read: () => b.inProgress }),
+          }),
+        ],
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limit rate taken went from \d+ to \d+/,
+      );
+    });
+
+    // Fails if the contract stops bounding `taken` by the burst and the rate.
+    it("a rate limit that takes more than its burst and rate allow", () => {
+      let reads = 0;
+      const def = broken(workerPoolDefinition, () => ({
+        limits: [
+          rateGauge({
+            name: "rate",
+            source: rateTaking({ burst: 1, read: () => ++reads }),
+          }),
+        ],
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limit rate took \d+ tokens by now; its burst and rate allow/,
+      );
+    });
+
+    // Fails if the contract stops checking the bucket's level against its size.
+    it("a rate limit with more tokens left than its bucket holds", () => {
+      const def = broken(workerPoolDefinition, () => ({
+        limits: [
+          rateGauge({
+            name: "rate",
+            source: rateTaking({
+              burst: 1_000,
+              read: () => 0,
+              left: () => 1_001,
+            }),
+          }),
+        ],
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limit rate has 1001 tokens left of 1000/,
+      );
+    });
+
+    // Fails if the contract stops comparing each read's limits to the last.
+    it("limits that change between reads", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        get limits() {
+          return b.inProgress > 1 ? [] : b.limits;
+        },
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limits changed from \[concurrency workers\] to \[\]/,
+      );
+    });
+
+    // Fails if the contract stops looking for limits with the same name.
+    it("two limits with the same name", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        limits: [...(b.limits ?? []), ...(b.limits ?? [])],
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limit workers appears more than once/,
+      );
     });
 
     it("a negative service time", () => {

@@ -8,7 +8,9 @@ import type {
   ArriveInput,
   ComponentBehavior,
   Effect,
+  LimitGauge,
 } from "../component-behavior";
+import { concurrencyGauge } from "../limit-gauges";
 
 export interface WorkerPoolBehaviorDependencies<T> {
   /** Workers, with a wait line; a full line rejects. */
@@ -18,6 +20,7 @@ export interface WorkerPoolBehaviorDependencies<T> {
 
 /** N workers with a wait line in front: ConcurrencyLimit (queue) → ServiceTime. */
 export class WorkerPoolBehavior<T> implements ComponentBehavior<T> {
+  readonly limits: readonly LimitGauge[];
   private readonly workers: ConcurrencyLimit<T>;
   private readonly serviceTime: ServiceTime;
 
@@ -37,6 +40,7 @@ export class WorkerPoolBehavior<T> implements ComponentBehavior<T> {
   constructor({ workers, serviceTime }: WorkerPoolBehaviorDependencies<T>) {
     this.workers = workers;
     this.serviceTime = serviceTime;
+    this.limits = [concurrencyGauge({ name: "workers", source: workers })];
   }
 
   get inProgress(): number {

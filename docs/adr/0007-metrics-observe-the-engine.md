@@ -31,3 +31,7 @@ The engine already reports everything that happens as `SimulationEvent`s to an o
 ## Addendum (2026-10-16): event names
 
 `SimulationEvent` kinds were renamed to name their subject. The `tick` event in decision 2 is now `metrics-tick` (type `MetricsTickEvent`). The events the collector counts are now `component-arrived`, `component-rejected`, `component-finished`, `component-async-finished`, and `edge-attempt-failed`. What the engine puts on its event queue is now called `ScheduledWork`, so a type ending in `Event` is always one the observer sees. The decision is unchanged.
+
+## Addendum (2026-10-20): limits
+
+[ADR-0014](0014-components-report-their-limits.md) adds a third extension next to gauges and counters: a behavior's `limits`, whose use the engine tracks after every call, so limits have true peaks. RDS's `connectionsHeld` gauge, the example in decision 3, was removed: its `connections` limit reports the same number. No AWS component exposes a gauge now, but the mechanism stays for values that aren't limits. Decision 3 is otherwise unchanged.

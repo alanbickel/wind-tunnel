@@ -97,6 +97,7 @@ function buildComponents({
       behavior,
       peakInProgress: 0,
       peakQueueDepth: 0,
+      limitPeaks: (behavior.limits ?? []).map(() => 0),
     });
   }
   return components;

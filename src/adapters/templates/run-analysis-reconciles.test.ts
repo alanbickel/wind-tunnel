@@ -4,6 +4,7 @@ import {
   componentTotals,
   workflowTotals,
 } from "../../application/run-analysis/run-totals";
+import { limitPeaks } from "../../application/run-analysis/limit-peaks";
 import { workflowSeconds } from "../../application/run-analysis/workflow-seconds";
 import {
   componentIn,
@@ -82,5 +83,16 @@ describe.each([
     expect(atApi).toBeGreaterThan(0);
     expect(allWorkflows(workflowTotals(finished)).inProgress).toBe(atApi);
     expect(workflowSeconds(snapshots).at(-1)?.inProgress).toBe(atApi);
+  });
+
+  // Fails if `limitPeaks` drops a limit or takes a peak other than the
+  // highest, which the collector's totals keep separately.
+  it("matches each limit's peak to the collector's totals", () => {
+    const expected = Object.entries(totals.components).flatMap(([id, c]) =>
+      c.limits.map((limit) => [`${id} ${limit.name}`, limit.limit, limit.peak]),
+    );
+    const rows = limitPeaks(finished).map((r) => [r.id, r.limit, r.peak]);
+    expect(rows).toEqual(expected);
+    expect(rows.length).toBeGreaterThanOrEqual(3);
   });
 });

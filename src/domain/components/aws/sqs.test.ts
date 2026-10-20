@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SeededRandom } from "../../random/seeded-random";
 import { checkComponentContract } from "../check-component-contract";
+import { limitValues } from "../testing/limit-values";
 import { sqsDefinition } from "./sqs";
 
 const build = () =>
@@ -34,6 +35,22 @@ describe("sqsDefinition", () => {
     ]);
     expect(queue.finish({ request: "m3", nowMs: 10 })).toEqual([]);
     expect([queue.inProgress, queue.queueDepth]).toEqual([0, 1]);
+  });
+
+  // Fails if SQS stops reporting its consumer limit, or the deliveries in
+  // flight against it don't go up and down with dispatches.
+  it("reports deliveries in flight against the consumer limit", () => {
+    const queue = build();
+    for (const m of ["m1", "m2", "m3"]) {
+      queue.arrive({ request: m, action: "enqueue", nowMs: 0 });
+      queue.finish({ request: m, nowMs: 10 });
+    }
+    expect(limitValues(queue)).toEqual([
+      { kind: "concurrency", name: "consumerConcurrency", limit: 2, inUse: 2 },
+    ]);
+    queue.dispatchFinished?.({ request: "m1", succeeded: true, nowMs: 20 });
+    queue.dispatchFinished?.({ request: "m2", succeeded: true, nowMs: 20 });
+    expect(limitValues(queue)[0]).toMatchObject({ inUse: 1 });
   });
 
   it("puts a failed delivery at the back of the backlog", () => {

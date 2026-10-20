@@ -1,5 +1,6 @@
 import type {
   ComponentMetrics,
+  LimitUse,
   MetricsRun,
   MetricsSnapshot,
   WorkflowMetrics,
@@ -9,6 +10,11 @@ import {
   requestsInProgress,
   unfinishedWork,
 } from "../../application/run-analysis/counts";
+import {
+  limitPeaks,
+  type LimitPeak,
+  type RateFlow,
+} from "../../application/run-analysis/limit-peaks";
 import {
   workflowSeconds,
   type WorkflowSecond,
@@ -34,6 +40,7 @@ export function formatReport(input: ReportInput): string {
     section("Workflows", workflowTable(totals)),
     section("Failures", failureTotals(totals)),
     section("Components", componentTable(project, totals)),
+    section("Limits", limitTable(limitPeaks({ project, snapshots }))),
     section("Workflows per second", workflowTimeline(snapshots)),
     section("Components per second", componentTimeline(project, snapshots)),
   ];
@@ -204,6 +211,34 @@ function extras(m: ComponentMetrics): string {
   return parts.join(", ");
 }
 
+/** The unit of each kind of limit's numbers. */
+const LIMIT_UNITS: Readonly<Record<LimitUse["kind"], string>> = {
+  concurrency: "slots held",
+  rate: "tokens drawn",
+};
+
+const LIMIT_COLUMNS: readonly Column<LimitPeak>[] = [
+  { header: "component", cell: (r) => r.componentId },
+  { header: "limit", cell: (r) => r.name },
+  { header: "peak", cell: (r) => count(Math.round(r.peak)) },
+  { header: "of", cell: (r) => count(r.limit) },
+  { header: "unit", cell: (r) => LIMIT_UNITS[r.kind] },
+  { header: "peak %", cell: (r) => shareDown(r.peakShare) },
+  { header: "exhausted", cell: (r) => (r.exhausted ? "yes" : "-") },
+  { header: "busiest flow", cell: (r) => flow(r.flow) },
+];
+
+const LIMIT_NOTES = [
+  '"peak" is the most used at once during the run, against the limit in "of": slots held, or tokens drawn out of a full bucket.',
+  '"peak %" rounds down. "exhausted" means the limit ran out: every slot held, or less than one token in the bucket, so a request arriving then waited or was rejected (see "peak queue" and "rejected" in Components).',
+  `A rate limit's bucket refills at a steady rate. "busiest flow" is the busiest second's tokens taken, against that rate: above it, the bucket drains.`,
+];
+
+function limitTable(rows: readonly LimitPeak[]): string {
+  if (rows.length === 0) return "None.";
+  return notedTable({ columns: LIMIT_COLUMNS, rows, notes: LIMIT_NOTES });
+}
+
 const WORKFLOW_SECOND_COLUMNS: readonly Column<WorkflowSecond>[] = [
   { header: "t (s)", cell: (r) => seconds(r.snapshot.endMs) },
   { header: "started", cell: (r) => count(r.started) },
@@ -236,8 +271,9 @@ const TIME_COLUMN: Column<MetricsSnapshot> = {
 };
 
 /**
- * Peak work in progress for every component, plus queue depth and gauges
- * (e.g. RDS `connectionsHeld`) for the components that have them.
+ * Each component's limits at their peak (or its peak work in progress, if
+ * it has no limits), plus queue depth and gauges for the components that
+ * have them.
  */
 function componentTimeline(
   project: Project,
@@ -250,12 +286,15 @@ function componentTimeline(
     columns: [TIME_COLUMN, ...columns],
     rows: snapshots,
     notes: [
-      "busy and queue are peaks during the second; gauges are values at its end.",
+      "Each column is a peak during the second: a component's use of each of its limits (slots held, or tokens drawn out of a full bucket; see Limits), or, for a component without limits, its busy work; then its queue. Gauges are values at the second's end.",
     ],
   });
 }
 
-/** One component's columns: busy, queue if it ever had one, then gauges. */
+/**
+ * One component's columns: its limits (or busy, if it has none), queue if it
+ * ever had one, then gauges.
+ */
 function componentColumns(
   id: string,
   snapshots: readonly MetricsSnapshot[],
@@ -275,7 +314,27 @@ function componentColumns(
       cell: (s) => count(metricsFor(s, id).gauges[gauge] ?? 0),
     }),
   );
-  return [busy, ...(hasQueue ? [queue] : []), ...gauges];
+  const limits = limitColumns(id, snapshots);
+  const work = limits.length > 0 ? limits : [busy];
+  return [...work, ...(hasQueue ? [queue] : []), ...gauges];
+}
+
+/** A column per limit of the component: its peak use in each second. */
+function limitColumns(
+  id: string,
+  snapshots: readonly MetricsSnapshot[],
+): Column<MetricsSnapshot>[] {
+  const names = (snapshots[0]?.components[id]?.limits ?? []).map((l) => l.name);
+  return names.map((name) => ({
+    header: `${id} ${name}`,
+    cell: (s) => count(Math.round(limitFor(metricsFor(s, id), name).peak)),
+  }));
+}
+
+function limitFor(metrics: ComponentMetrics, name: string): LimitUse {
+  const limit = metrics.limits.find((l) => l.name === name);
+  if (limit === undefined) throw new Error(`No limit named ${name}`);
+  return limit;
 }
 
 function metricsFor(snapshot: MetricsSnapshot, id: string): ComponentMetrics {
@@ -315,6 +374,23 @@ function ms(value: number | undefined): string {
 
 function percent(part: number, whole: number): string {
   return whole === 0 ? "-" : `${((100 * part) / whole).toFixed(1)}%`;
+}
+
+function flow(rate: RateFlow | undefined): string {
+  if (rate === undefined) return "-";
+  const taken = count(Math.round(rate.busiestTakenPerSec));
+  return `${taken} of ${count(rate.ratePerSec)} per s`;
+}
+
+/**
+ * A share as a percentage rounded down to 0.1%, so 100% only shows when it's
+ * all of it. The slack keeps float error (0.29 × 1000 = 289.999…) from
+ * rounding an exact share down a step.
+ */
+function shareDown(fraction: number | undefined): string {
+  if (fraction === undefined) return "-";
+  const tenths = Math.floor(1000 * fraction + 1e-9);
+  return `${(tenths / 10).toFixed(1)}%`;
 }
 
 function seconds(timeMs: number): string {

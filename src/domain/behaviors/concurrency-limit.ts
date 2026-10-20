@@ -7,6 +7,8 @@ export type AcquireResult = "admitted" | "queued" | "rejected";
  * freed slot.
  */
 export interface ConcurrencyLimit<T> {
+  /** At most this many slots held at once. */
+  readonly limit: number;
   /** Slots currently held. */
   readonly inUse: number;
   /** Waiters queued for a slot. */

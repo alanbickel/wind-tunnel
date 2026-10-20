@@ -6,7 +6,9 @@ import type {
   DispatchFinishedInput,
   Effect,
   FinishInput,
+  LimitGauge,
 } from "../component-behavior";
+import { concurrencyGauge } from "../limit-gauges";
 
 export interface SqsBehaviorDependencies {
   /** Time for `SendMessage` to return to the sender. */
@@ -15,20 +17,29 @@ export interface SqsBehaviorDependencies {
   readonly consumerMaxConcurrency: number;
 }
 
+/** Deliveries in flight, and the most allowed at once. */
+interface ConsumerSlots {
+  readonly limit: number;
+  inUse: number;
+}
+
 /** SQS's run-time state: messages being sent, the backlog, and deliveries. */
 export class SqsBehavior<T> implements ComponentBehavior<T> {
+  readonly limits: readonly LimitGauge[];
   private readonly backlog = new Queue<T>();
   private readonly sendLatency: ServiceTime;
-  private readonly consumerMaxConcurrency: number;
+  private readonly consumers: ConsumerSlots;
   private sending = 0;
-  private delivering = 0;
 
   constructor({
     sendLatency,
     consumerMaxConcurrency,
   }: SqsBehaviorDependencies) {
     this.sendLatency = sendLatency;
-    this.consumerMaxConcurrency = consumerMaxConcurrency;
+    this.consumers = { limit: consumerMaxConcurrency, inUse: 0 };
+    this.limits = [
+      concurrencyGauge({ name: "consumerConcurrency", source: this.consumers }),
+    ];
   }
 
   get inProgress(): number {
@@ -54,7 +65,7 @@ export class SqsBehavior<T> implements ComponentBehavior<T> {
     request,
     succeeded,
   }: DispatchFinishedInput<T>): Effect<T>[] {
-    this.delivering--;
+    this.consumers.inUse--;
     if (!succeeded) this.backlog.offer(request);
     return this.deliver();
   }
@@ -62,10 +73,10 @@ export class SqsBehavior<T> implements ComponentBehavior<T> {
   /** Dispatches waiting messages to every free consumer slot. */
   private deliver(): Effect<T>[] {
     const effects: Effect<T>[] = [];
-    while (this.delivering < this.consumerMaxConcurrency) {
+    while (this.consumers.inUse < this.consumers.limit) {
       const request = this.backlog.poll();
       if (request === undefined) break;
-      this.delivering++;
+      this.consumers.inUse++;
       effects.push({ kind: "dispatched", request });
     }
     return effects;

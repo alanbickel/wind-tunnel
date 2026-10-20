@@ -13,6 +13,11 @@ export interface RuntimeComponent {
   /** Highest values since the last tick. */
   peakInProgress: number;
   peakQueueDepth: number;
+  /**
+   * Highest use since the last tick of each of `behavior.limits`, by index:
+   * slots held, or tokens drawn out of a full bucket.
+   */
+  readonly limitPeaks: number[];
 }
 
 /** One user request: a single run of a workflow. */

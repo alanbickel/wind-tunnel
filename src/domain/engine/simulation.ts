@@ -247,7 +247,7 @@ export class Simulation {
    * into a component, so it also tracks peaks for the metrics.
    */
   private apply(component: RuntimeComponent, effects: Effect<Visit>[]): void {
-    this.ticks.trackPeaks(component);
+    this.ticks.trackPeaks(component, this.nowMs);
     for (const effect of effects) handleKind(this.effectHandlers, effect);
   }
 

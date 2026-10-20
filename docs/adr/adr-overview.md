@@ -19,3 +19,4 @@ To write one, or to change a decision, follow [ADRs in the contributing guide](.
 | [0011](0011-draw-charts-with-recharts-behind-our-own-components.md) | Draw metric charts with Recharts, imported only by `src/ui/charts/`, which exposes our own chart components |
 | [0012](0012-style-the-ui-with-css-tokens-and-css-modules.md) | Style the UI with design tokens as CSS custom properties (both themes in one file, via `light-dark()`) and CSS Modules; tokens and styles live only in `src/ui/` |
 | [0013](0013-derive-run-results-in-application-run-analysis.md) | Derive what a run means (totals, per-second counts, later findings) in `src/application/run-analysis/`, shared by the UI and the CLI |
+| [0014](0014-components-report-their-limits.md) | Components report their limits, and metrics report each limit's use against it; a rate limit's use is how far its token bucket was drawn down, with its flow alongside |

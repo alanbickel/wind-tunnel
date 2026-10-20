@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SeededRandom } from "../../random/seeded-random";
 import { checkComponentContract } from "../check-component-contract";
+import { limitValues } from "../testing/limit-values";
 import { rdsDefinition, type RdsConfig } from "./rds";
 
 const build = (config: Partial<RdsConfig> = {}) =>
@@ -32,6 +33,8 @@ describe("rdsDefinition", () => {
     expect(report.stats.rejected).toBeGreaterThan(0);
   });
 
+  // Fails if a waiting query stops holding a connection, or if RDS stops
+  // reporting either limit.
   it("queues for a worker, then rejects once connections run out", () => {
     const db = build();
     expect(db.arrive({ request: "a", action: "read", nowMs: 0 })).toEqual([
@@ -48,7 +51,10 @@ describe("rdsDefinition", () => {
     ]);
     expect([db.inProgress, db.queueDepth]).toEqual([1, 2]);
     // Waiting queries hold their connection too.
-    expect(db.gauges).toEqual({ connectionsHeld: 3 });
+    expect(limitValues(db)).toEqual([
+      { kind: "concurrency", name: "connections", limit: 3, inUse: 3 },
+      { kind: "concurrency", name: "queryWorkers", limit: 1, inUse: 1 },
+    ]);
   });
 
   it("hands a freed worker to the next waiter and frees a connection", () => {

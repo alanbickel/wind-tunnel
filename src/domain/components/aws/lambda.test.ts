@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SeededRandom } from "../../random/seeded-random";
 import type { Effect } from "../component-behavior";
 import { checkComponentContract } from "../check-component-contract";
+import { limitValues } from "../testing/limit-values";
 import { lambdaDefinition, type LambdaConfig } from "./lambda";
 
 const build = (config: Partial<LambdaConfig> = {}) =>
@@ -94,6 +95,16 @@ describe("lambdaDefinition", () => {
     ).toBe("started");
     // a and b started cold; c reused a's warm environment.
     expect(fn.counters).toEqual({ coldStarts: 2 });
+  });
+
+  // Fails if Lambda stops reporting its concurrency limit, or reports
+  // something other than the slots in use.
+  it("reports its concurrency limit and the slots in use", () => {
+    const fn = build();
+    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    expect(limitValues(fn)).toEqual([
+      { kind: "concurrency", name: "concurrency", limit: 2, inUse: 1 },
+    ]);
   });
 
   it("throttles everything with concurrency 0", () => {

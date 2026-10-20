@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { Edge, Project } from "../model/project";
 import { createAwsComponentRegistry } from "../components/aws";
 import { simulateWithMetrics } from "../metrics/metrics-collector";
-import { componentIn, workflowIn } from "../metrics/testing/snapshot-lookups";
+import {
+  componentIn,
+  limitIn,
+  workflowIn,
+} from "../metrics/testing/snapshot-lookups";
 import { table } from "./format";
 
 // Worked examples for docs/architecture/metrics.md;
@@ -90,6 +94,7 @@ describe("traces", () => {
       const get = workflowIn(s, "get");
       const db = componentIn(s, "db");
       const fn = componentIn(s, "fn");
+      const connections = limitIn(db, "connections");
       return [
         label,
         String(get.started),
@@ -98,7 +103,7 @@ describe("traces", () => {
         ms(get.latency?.p50Ms),
         ms(get.latency?.p99Ms),
         String(db.peakQueueDepth),
-        String(db.gauges["connectionsHeld"]),
+        `${String(connections.peak)} of ${String(connections.limit)}`,
         String(db.rejected),
         String(fn.counters["coldStarts"]),
       ];
@@ -116,7 +121,7 @@ describe("traces", () => {
             "it handles at most 100 queries/s. Load: 40 requests/s, then 200/s from",
             "3 s to 5 s. One row per snapshot (simulated second), then the run's totals.",
             "requests: started; ok/failed: answered. p50/p99: latency of ok requests.",
-            "db queue: peak in the row's time. connections: held at the row's end.",
+            "db queue and connections: the most at once in the row's time.",
           ].join("\n"),
           [
             "second",

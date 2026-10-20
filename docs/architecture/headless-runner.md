@@ -45,13 +45,14 @@ Two choices worth knowing about:
 
 ## Reading the report
 
-The report has five sections:
+The report has six sections:
 
 1. **Workflows:** requests started, succeeded, failed, and still in progress, with end-to-end latency percentiles for the successful ones.
 2. **Failures:** why requests failed, as `component: reason`.
 3. **Components:** run totals per component, with type-specific counters such as Lambda `coldStarts`.
-4. **Workflows per second:** traffic, requests in progress, and p99 latency over time. This is where a spike shows up.
-5. **Components per second:** peak work in progress and queue depth each second, plus gauges such as RDS `connectionsHeld`.
+4. **Limits:** each component's limits, the most of each used at once, and, for a rate limit's token bucket, its busiest second's flow against its rate ([how to read them](metrics.md#limits-and-their-use)).
+5. **Workflows per second:** traffic, requests in progress, and p99 latency over time. This is where a spike shows up.
+6. **Components per second:** each component's peak use of each limit every second (or its peak work in progress, if it has no limits), plus its queue depth.
 
 Latencies are in milliseconds and come from the histogram buckets, so they can read up to 5% high (see [How metrics work](metrics.md)).
 
@@ -66,6 +67,7 @@ A run stops at the end of its workload, usually with some requests still in prog
 | Components | arrivals = ok + failed + rejected + unfinished |
 | Queues (`other` column) | ok (messages accepted) = async ok + backlog + being delivered |
 | Workflows per second | each row's in progress = the previous row's + started − ok − failed; the last row matches the Workflows total |
+| Limits | each peak is at most its limit (`of`), and is the highest of the per-second peaks |
 
 `timeouts` is in none of these sums: the caller stopped waiting, but the component still finished the work as ok or failed ([ADR-0006](../adr/0006-components-return-effects-to-the-engine.md)).
 
@@ -87,11 +89,11 @@ create-order  orders-db: too-many-connections            5,658
 Every failure is the database refusing a connection. The per-second table shows when:
 
 ```text
-t (s)  api busy  fn-orders busy  orders-db busy  orders-db queue  orders-db connectionsHeld
-   13        56              42              16                9                         18
-   14        89              75              16               33                         31
-   15       170             154              16               74                         80
-   16       155             135              16               74                         89
+t (s)  api requestRate  fn-orders concurrency  orders-db connections  orders-db queryWorkers  orders-db queue
+   13                2                     42                     25                      16                9
+   14                3                     75                     49                      16               33
+   15                3                    154                     90                      16               74
+   16                3                    135                     90                      16               74
 ```
 
-As traffic ramps toward 2,000 requests per second, queries arrive faster than the database's 16 query workers can run them (`orders-db busy`). The rest wait in line (`orders-db queue`) while holding a connection, so connections are held longer and longer, and by second 16 nearly all 90 are taken (16 running + 74 waiting). Every query after that is refused until the spike passes. Real Lambda functions usually hold a connection for the life of each instance, which makes this worse; the model understates it (fidelity LMB-8). Compare [`reports/template-b.txt`](../../src/adapters/cli/reports/template-b.txt), where the same workload has no failures because writes go through a queue to a small, fixed set of consumers.
+As traffic ramps toward 2,000 requests per second, queries arrive faster than the database's 16 query workers can run them (`orders-db queryWorkers` at its limit of 16). The rest wait in line (`orders-db queue`) while holding a connection, so connections are held longer and longer, and in second 15 all 90 are taken (16 running + 74 waiting): the Limits table shows `connections` at 90 of 90, 100%, exhausted. Every query after that is refused until the spike passes. The API's token bucket barely moves (at most 5 of 5,000 tokens drawn), because 2,076 requests per second is well under its rate of 10,000. Real Lambda functions usually hold a connection for the life of each instance, which makes this worse; the model understates it (fidelity LMB-8). Compare [`reports/template-b.txt`](../../src/adapters/cli/reports/template-b.txt), where the same workload has no failures because writes go through a queue to a small, fixed set of consumers.

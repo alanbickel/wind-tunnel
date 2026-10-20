@@ -7,7 +7,11 @@ export interface TokenBucketInput {
   burst: number;
 }
 
-const TOKEN_EPSILON = 1e-9;
+/**
+ * How far short of one token a bucket can fall and still give one, to absorb
+ * the floating-point error of refilling (see `tryTake`).
+ */
+export const TOKEN_EPSILON = 1e-9;
 
 /**
  * Token bucket (MVP design §3.1). Each request takes one token; tokens refill
@@ -18,9 +22,10 @@ const TOKEN_EPSILON = 1e-9;
  * passed to `tryTake`, so it needs no timer events.
  */
 export class TokenBucket implements RateLimit {
-  private readonly ratePerSec: number;
-  private readonly burst: number;
+  readonly ratePerSec: number;
+  readonly burst: number;
   private tokens: number;
+  private tokensTaken = 0;
   private lastRefillMs = 0;
 
   constructor(input: TokenBucketInput) {
@@ -41,24 +46,35 @@ export class TokenBucket implements RateLimit {
     // sustained rate would fall short of `ratePerSec`.
     if (this.tokens < 1 - TOKEN_EPSILON) return false;
     this.tokens--;
+    this.tokensTaken++;
     return true;
   }
 
-  /** Tokens available at `nowMs` (for metrics and tests). */
+  /** Tokens taken since the run began. */
+  get taken(): number {
+    return this.tokensTaken;
+  }
+
+  /**
+   * Tokens available at `nowMs`, between 0 and `burst`. Doesn't refill the
+   * bucket itself, so reading it never changes the floating-point steps
+   * `tryTake` refills in.
+   */
   available(nowMs: number): number {
-    this.refill(nowMs);
-    return this.tokens;
+    return Math.max(0, this.tokensAt(nowMs));
   }
 
   private refill(nowMs: number): void {
+    this.tokens = this.tokensAt(nowMs);
+    this.lastRefillMs = nowMs;
+  }
+
+  /** What the bucket would hold at `nowMs`, refilled since the last take. */
+  private tokensAt(nowMs: number): number {
     if (nowMs < this.lastRefillMs) {
       throw new RangeError("Time must not go backwards");
     }
     const elapsedSec = (nowMs - this.lastRefillMs) / 1000;
-    this.tokens = Math.min(
-      this.burst,
-      this.tokens + elapsedSec * this.ratePerSec,
-    );
-    this.lastRefillMs = nowMs;
+    return Math.min(this.burst, this.tokens + elapsedSec * this.ratePerSec);
   }
 }

@@ -4,7 +4,9 @@ import type {
   ArriveInput,
   ComponentBehavior,
   Effect,
+  LimitGauge,
 } from "../component-behavior";
+import { rateGauge } from "../limit-gauges";
 
 export interface DynamoDbBehaviorDependencies {
   /** Read capacity; each read takes one unit. */
@@ -17,6 +19,7 @@ export interface DynamoDbBehaviorDependencies {
 /** DynamoDB's run-time state: read and write capacity, and requests in flight. */
 export class DynamoDbBehavior<T> implements ComponentBehavior<T> {
   readonly queueDepth = 0;
+  readonly limits: readonly LimitGauge[];
   private readonly reads: RateLimit;
   private readonly writes: RateLimit;
   private readonly latency: ServiceTime;
@@ -26,6 +29,10 @@ export class DynamoDbBehavior<T> implements ComponentBehavior<T> {
     this.reads = reads;
     this.writes = writes;
     this.latency = latency;
+    this.limits = [
+      rateGauge({ name: "readUnits", source: reads }),
+      rateGauge({ name: "writeUnits", source: writes }),
+    ];
   }
 
   get inProgress(): number {

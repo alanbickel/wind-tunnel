@@ -12,7 +12,10 @@ import { Tally } from "./tally";
 
 export type {
   ComponentMetrics,
+  ConcurrencyLimitUse,
+  LimitUse,
   MetricsSnapshot,
+  RateLimitUse,
   WorkflowMetrics,
 } from "./metrics-snapshot";
 
@@ -99,10 +102,13 @@ export class MetricsCollector {
   }
 
   private tick(timeMs: number, samples: readonly ComponentSample[]): void {
+    const windowMs = timeMs - this.windowStartMs;
     for (const sample of samples) {
-      const component = this.window.component(sample.componentId);
-      const last = this.total.component(sample.componentId).countersSoFar;
-      component.sample(sample, last);
+      this.window.component(sample.componentId).sample({
+        sample,
+        soFar: this.total.component(sample.componentId),
+        windowMs,
+      });
     }
     const snapshot = this.window.snapshot(this.windowStartMs, timeMs);
     this.total.add(this.window);

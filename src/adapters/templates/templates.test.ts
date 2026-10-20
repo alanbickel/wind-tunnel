@@ -23,6 +23,8 @@ describe.each([
 });
 
 describe("the templates", () => {
+  // Fails if one template's workloads drift from the other's, e.g. a
+  // different seed in Template B's long rush.
   it("share their workloads, so their results can be compared", () => {
     expect(templateB.workloads).toEqual(templateA.workloads);
   });

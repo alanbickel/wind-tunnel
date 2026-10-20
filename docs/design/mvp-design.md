@@ -394,7 +394,7 @@ The other two workloads split the templates differently: under the steady day bo
 |---|---|---|
 | **Steady day** | No failures. Busiest limit: orders-db's query workers, at most 14 of 16 busy; connections at most 14 of 90 | No failures. Writes land within 248 ms (p99). The consumer cap fills only in the first second, while fn-writer cold-starts |
 | **Long rush: failed requests** | 51% (139,042), all `orders-db: too-many-connections`, in every second from 15 s to 146 s; none after | 0 |
-| **Long rush: queue backlog** | n/a | Grows by about 85 messages a second for the whole peak, because writes arrive at about 420 a second and 15 consumers deliver fewer. Peaks at 10,197 at 142 s, empty by 185 s |
+| **Long rush: queue backlog** | n/a | Grows by about 85 messages a second for the whole peak, because writes arrive at about 400 a second and 15 consumers deliver about 315. Peaks at 10,197 at 142 s, empty by 185 s |
 | **Long rush: writes** | Same as the response | Answered within 114 ms (p99), but land 32.6 s later (p99), past API Gateway's 29 s timeout |
 
 Under the long rush, Template B degrades without failing: a finding for it is a warning, not an error. It's also the only workload that would catch a read capacity too small to last a long peak: with `readUnitsPerSec` cut to 1,500, the lunch rush still fails nothing, because the 5 s burst bucket covers its 20 s peak, but the long rush empties the bucket and 4,377 reads fail as `orders-read: throttled`.

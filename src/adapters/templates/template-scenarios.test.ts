@@ -9,6 +9,7 @@ import { limitExhausted } from "../../domain/metrics/limit-exhausted";
 import {
   componentIn,
   limitIn,
+  workflowIn,
 } from "../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../domain/model/project";
 import templateA from "./template-a.json";
@@ -197,6 +198,9 @@ describe.each(SEEDS)("the lunch rush, with seed %i", (seed) => {
   });
 
   describe("Template B (DynamoDB + SQS)", () => {
+    // Fails if orders-read's readUnitsPerSec drops to 1,000: the spike's reads
+    // empty the token bucket, and throttled reads fail once their retries run
+    // out.
     it("serves every request without a failure", () => {
       expectEveryRequestServed(b.totals);
     });
@@ -221,6 +225,8 @@ describe.each(SEEDS)("the lunch rush, with seed %i", (seed) => {
       ]);
     });
 
+    // Fails if orders-queue's consumerMaxConcurrency rises to 20: the
+    // consumers keep up with the spike's writes, so no backlog builds.
     it("builds a backlog during the spike and empties it before the run ends", () => {
       const calm = during(b.snapshots, CALM).map(backlog);
       const peak = during(b.snapshots, PEAK).map(backlog);
@@ -297,9 +303,8 @@ describe.each(SEEDS)("the long rush, with seed %i", (seed) => {
       expectEveryRequestServed(b.totals);
     });
 
-    // Writes arrive at about 420 a second at the peak, faster than 15
-    // consumers deliver them, so the backlog grows for as long as the peak
-    // lasts. Fails if orders-queue's consumerMaxConcurrency rises to 20: the
+    // Writes arrive at about 400 a second at the peak, and 15 consumers
+    // deliver about 315, so the backlog grows for as long as the peak lasts. Fails if orders-queue's consumerMaxConcurrency rises to 20: the
     // consumers keep up.
     it("grows the backlog through the whole peak", () => {
       const sampledAtSec = [40, 60, 80, 100, 120, 140];
@@ -319,8 +324,8 @@ describe.each(SEEDS)("the long rush, with seed %i", (seed) => {
     // a synchronous API couldn't have waited for. Fails if the peak is cut to
     // 90 s: the slowest writes then land in about 25 s.
     it("answers writes quickly while the writes land later than API Gateway would wait", () => {
-      const answered = b.totals.workflows["create-order"]?.latency?.p99Ms;
-      const landed = b.totals.components["orders-queue"]?.asyncLatency?.p99Ms;
+      const answered = workflowIn(b.totals, "create-order").latency?.p99Ms;
+      const landed = componentIn(b.totals, "orders-queue").asyncLatency?.p99Ms;
       expect(answered).toBeLessThan(500);
       expect(landed).toBeGreaterThan(edgeTimeoutMs(projectB, "api->fn-api"));
     });

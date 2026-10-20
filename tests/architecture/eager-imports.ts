@@ -23,6 +23,9 @@ export interface FindEagerPackageImportsInput {
 
 const SOURCE_EXTENSIONS = [".ts", ".tsx"];
 
+/** Files Vite loads that have no imports to follow. */
+const ASSET_EXTENSIONS = [".css", ".json"];
+
 /** Every static import of one of `packages` from a module `entry` loads eagerly. */
 export function findEagerPackageImports({
   entry,
@@ -82,17 +85,34 @@ function isRuntimeImportOrExport(
   return ts.isExportDeclaration(statement) && !statement.isTypeOnly;
 }
 
-/** The source file a relative specifier names; undefined for packages and stylesheets. */
+/**
+ * The source file a relative specifier names; undefined for packages and
+ * assets. One that names no source file throws, so an import the walk
+ * can't follow fails the check instead of hiding part of the graph.
+ */
 function resolveSource(
   fromFile: string,
   specifier: string,
 ): string | undefined {
   if (!specifier.startsWith(".")) return undefined;
   const base = join(dirname(fromFile), specifier.replace(/\?.*$/, ""));
-  const candidates = SOURCE_EXTENSIONS.includes(extname(base))
-    ? [base]
-    : SOURCE_EXTENSIONS.map((extension) => `${base}${extension}`);
-  return candidates.find((candidate) => existsSync(candidate));
+  if (ASSET_EXTENSIONS.includes(extname(base))) return undefined;
+  const resolved = sourceCandidates(base).find((candidate) =>
+    existsSync(candidate),
+  );
+  if (resolved === undefined) {
+    throw new Error(`${fromFile}: no source file for "${specifier}"`);
+  }
+  return resolved;
+}
+
+/** Where `./x` may be: `x.ts`, `x.tsx`, or the folder `x`'s index. */
+function sourceCandidates(base: string): string[] {
+  if (SOURCE_EXTENSIONS.includes(extname(base))) return [base];
+  return [
+    ...SOURCE_EXTENSIONS.map((extension) => `${base}${extension}`),
+    ...SOURCE_EXTENSIONS.map((extension) => join(base, `index${extension}`)),
+  ];
 }
 
 /** Which of `packages` the specifier imports, if any. */

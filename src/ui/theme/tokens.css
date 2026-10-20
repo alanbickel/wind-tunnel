@@ -103,6 +103,8 @@
   --run-panel-min-width: 36rem;
   /* The window's height, less any browser toolbars showing. */
   --window-height: 100dvh;
+  /* A round icon button, such as an info control, sized to its text. */
+  --icon-button-size: 1.5em;
 
   /* Breakpoints. @media can't read a custom property, so a media query
      writes the value out; tests/architecture/stylesheets.test.ts fails

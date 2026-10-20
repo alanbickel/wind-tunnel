@@ -16,7 +16,8 @@ export interface CountsColumn<Row> {
 }
 
 export interface CountsTableProps<Row extends CountsRow> {
-  readonly caption: string;
+  /** The id of the heading that names the table. */
+  readonly labelledBy: string;
   /** Heads the label column, e.g. "Workflow". */
   readonly labelHeader: string;
   readonly columns: readonly CountsColumn<Row>[];
@@ -29,10 +30,9 @@ export interface CountsTableProps<Row extends CountsRow> {
 export function CountsTable<Row extends CountsRow>(
   props: CountsTableProps<Row>,
 ) {
-  const { caption, labelHeader, columns, rows, footer } = props;
+  const { labelledBy, labelHeader, columns, rows, footer } = props;
   return (
-    <table className={styles.table}>
-      <caption>{caption}</caption>
+    <table className={styles.table} aria-labelledby={labelledBy}>
       <thead>
         <tr>
           <th scope="col">{labelHeader}</th>

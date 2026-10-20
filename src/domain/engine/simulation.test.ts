@@ -336,7 +336,10 @@ describe("simulate", () => {
       }
     });
 
-    it("samples peaks since the last tick and type-specific values", () => {
+    // Fails if a tick stops sampling a component's limits, or a limit's
+    // peak stops being tracked after every call (it would miss the queue
+    // that forms and drains between ticks).
+    it("samples peaks since the last tick, limits, and type-specific values", () => {
       const events = run({
         root: apiFnDb,
         edges: [edge("api", "fn"), edge("fn", "db")],
@@ -354,9 +357,23 @@ describe("simulate", () => {
         if (db === undefined || fn === undefined) throw new Error("missing");
         expect(db.peakInProgress).toBeGreaterThanOrEqual(db.inProgress);
         expect(db.peakQueueDepth).toBeGreaterThanOrEqual(db.queueDepth);
-        expect(db.gauges).toEqual({
-          connectionsHeld: db.inProgress + db.queueDepth,
-        });
+        const [connections, workers] = db.limits;
+        if (connections?.kind !== "concurrency") throw new Error("connections");
+        if (workers?.kind !== "concurrency") throw new Error("queryWorkers");
+        expect([connections.name, workers.name]).toEqual([
+          "connections",
+          "queryWorkers",
+        ]);
+        // Each waiting or running query holds a connection; each running
+        // one holds a worker, and only running queries are in progress.
+        expect(connections.inUse).toBe(db.inProgress + db.queueDepth);
+        expect(workers.peakInUse).toBe(db.peakInProgress);
+        expect(connections.peakInUse).toBeGreaterThanOrEqual(
+          Math.max(db.peakInProgress, db.peakQueueDepth, connections.inUse),
+        );
+        expect(connections.peakInUse).toBeLessThanOrEqual(
+          db.peakInProgress + db.peakQueueDepth,
+        );
         const total = fn.counters["coldStarts"] ?? 0;
         expect(total).toBeGreaterThanOrEqual(coldStarts);
         coldStarts = total;
@@ -365,6 +382,15 @@ describe("simulate", () => {
       expect(
         Math.max(...samples.map((s) => s.db?.peakQueueDepth ?? 0)),
       ).toBeGreaterThan(0);
+      // The line forms and drains between ticks, so only a tracked peak sees it.
+      const connections = samples.map((s) => s.db?.limits[0]);
+      const peaks = connections.map((c) =>
+        c?.kind === "concurrency" ? c.peakInUse : 0,
+      );
+      const atTicks = connections.map((c) =>
+        c?.kind === "concurrency" ? c.inUse : 0,
+      );
+      expect(Math.max(...peaks)).toBeGreaterThan(Math.max(...atTicks));
       expect(coldStarts).toBeGreaterThan(0);
     });
 

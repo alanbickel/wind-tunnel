@@ -1,5 +1,6 @@
 import type {
   ComponentMetrics,
+  LimitUse,
   MetricsSnapshot,
   WorkflowMetrics,
 } from "../metrics-collector";
@@ -24,4 +25,10 @@ export function componentIn(
   const metrics = snapshot.components[componentId];
   if (metrics === undefined) throw new Error(`No metrics for ${componentId}`);
   return metrics;
+}
+
+export function limitIn(metrics: ComponentMetrics, name: string): LimitUse {
+  const limit = metrics.limits.find((l) => l.name === name);
+  if (limit === undefined) throw new Error(`No limit named ${name}`);
+  return limit;
 }

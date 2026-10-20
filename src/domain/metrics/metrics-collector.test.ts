@@ -3,7 +3,7 @@ import { createAwsComponentRegistry } from "../components/aws";
 import type { SimulationEvent } from "../engine/simulation-events";
 import type { Edge, Project } from "../model/project";
 import { simulateWithMetrics } from "./metrics-collector";
-import { componentIn, workflowIn } from "./testing/snapshot-lookups";
+import { componentIn, limitIn, workflowIn } from "./testing/snapshot-lookups";
 
 // api -> fn -> db with constant timings, 1 ms edges, light load: every
 // request takes api 10 + (1 + fn 20 + (1 + db 15 + 1) + 1) = 49 ms.
@@ -134,7 +134,58 @@ describe("simulateWithMetrics", () => {
     // fn: 20 ms of its own, plus 1 + 15 + 1 waiting on db.
     expect(componentIn(totals, "fn").latency?.p99Ms).toBeCloseTo(37, 6);
     expect(db.latency?.p99Ms).toBeCloseTo(15, 6);
-    expect(db.gauges).toEqual({ connectionsHeld: 0 });
+  });
+
+  // Fails if a window's rate use stops counting the tokens taken in it (API
+  // Gateway takes one per request it admits), or if the totals stop taking
+  // each limit's highest peak and its latest value.
+  it("reports each limit's use per window, and the run's peak in the totals", () => {
+    const { snapshots, totals } = run(project());
+    const apiRates = snapshots.map((s) =>
+      limitIn(componentIn(s, "api"), "requestRate"),
+    );
+    for (const [index, snapshot] of snapshots.entries()) {
+      const api = componentIn(snapshot, "api");
+      expect(apiRates[index]?.current).toBe(api.arrivals - api.rejected);
+    }
+    const apiTotal = limitIn(componentIn(totals, "api"), "requestRate");
+    expect(apiTotal).toMatchObject({
+      kind: "rate",
+      limit: 10_000,
+      burst: 5_000,
+    });
+    expect(apiTotal.peak).toBe(Math.max(...apiRates.map((r) => r?.peak ?? 0)));
+    expect(apiTotal.current).toBe(apiRates.at(-1)?.current);
+
+    const connections = snapshots.map((s) =>
+      limitIn(componentIn(s, "db"), "connections"),
+    );
+    const dbTotal = limitIn(componentIn(totals, "db"), "connections");
+    expect(dbTotal).toMatchObject({
+      kind: "concurrency",
+      limit: 90,
+      current: 0,
+    });
+    expect(dbTotal.peak).toBe(Math.max(...connections.map((c) => c.peak)));
+    expect(dbTotal.peak).toBeGreaterThan(0);
+  });
+
+  // Fails if a rate's use is the count in the window rather than per second.
+  it("reports rate use per second, also for a short last window", () => {
+    const { snapshots } = simulateWithMetrics({
+      project: project(),
+      workloadId: "light",
+      registry: createAwsComponentRegistry(),
+      untilMs: 2_500,
+    });
+    const last = snapshots.at(-1);
+    if (last === undefined) throw new Error("no snapshots");
+    expect([last.startMs, last.endMs]).toEqual([2_000, 2_500]);
+    const api = componentIn(last, "api");
+    expect(api.arrivals).toBeGreaterThan(0);
+    expect(limitIn(api, "requestRate").current).toBe(
+      (api.arrivals - api.rejected) * 2,
+    );
   });
 
   it("counts a timeout once, where it happened, and groups failures by cause", () => {

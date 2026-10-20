@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sampleRecord } from "../../application/testing/sample-record";
 import type { TimeSeriesContent } from "../charts/time-series";
 import { runCharts } from "./run-charts";
-import { sampleSnapshot } from "./testing/sample-snapshots";
+import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 
 const { project } = sampleRecord;
 

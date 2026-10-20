@@ -5,6 +5,14 @@ import type {
   WorkflowMetrics,
 } from "../../domain/metrics/metrics-collector";
 import type { Project, Workload } from "../../domain/model/project";
+import {
+  requestsInProgress,
+  unfinishedWork,
+} from "../../application/run-analysis/counts";
+import {
+  workflowSeconds,
+  type WorkflowSecond,
+} from "../../application/run-analysis/workflow-seconds";
 
 /** The run to report on, and the project and workload it ran. */
 export interface ReportInput {
@@ -80,10 +88,7 @@ const WORKFLOW_COLUMNS: readonly Column<WorkflowRow>[] = [
   { header: "started", cell: (r) => count(r.metrics.started) },
   { header: "ok", cell: (r) => count(r.metrics.succeeded) },
   { header: "failed", cell: (r) => count(r.metrics.failed) },
-  {
-    header: "in progress",
-    cell: ({ metrics: w }) => count(w.started - w.succeeded - w.failed),
-  },
+  { header: "in progress", cell: (r) => count(requestsInProgress(r.metrics)) },
   {
     header: "failed %",
     cell: ({ metrics: w }) => percent(w.failed, w.succeeded + w.failed),
@@ -150,7 +155,7 @@ const COMPONENT_COLUMNS: readonly Column<ComponentRow>[] = [
   { header: "ok", cell: (r) => count(r.metrics.completed) },
   { header: "failed", cell: (r) => count(r.metrics.failed) },
   { header: "rejected", cell: (r) => count(r.metrics.rejected) },
-  { header: "unfinished", cell: (r) => count(unfinished(r.metrics)) },
+  { header: "unfinished", cell: (r) => count(unfinishedWork(r.metrics)) },
   { header: "timeouts", cell: (r) => count(r.metrics.timeouts) },
   { header: "p50", cell: (r) => ms(r.metrics.latency?.p50Ms) },
   { header: "p99", cell: (r) => ms(r.metrics.latency?.p99Ms) },
@@ -179,11 +184,6 @@ function componentTotals(project: Project, totals: MetricsSnapshot): string {
   });
 }
 
-/** Work that arrived and hadn't finished or been rejected by the end. */
-function unfinished(m: ComponentMetrics): number {
-  return m.arrivals - m.completed - m.failed - m.rejected;
-}
-
 /** Async deliveries and type-specific counters, e.g. `coldStarts=12`. */
 function extras(m: ComponentMetrics): string {
   const parts: string[] = [];
@@ -202,20 +202,6 @@ function extras(m: ComponentMetrics): string {
     parts.push(`${name}=${count(value)}`);
   }
   return parts.join(", ");
-}
-
-/** Requests started and answered in one second, across all workflows. */
-interface WorkflowCounts {
-  readonly started: number;
-  readonly succeeded: number;
-  readonly failed: number;
-}
-
-/** One second of the Workflows per second table. */
-interface WorkflowSecond extends WorkflowCounts {
-  readonly snapshot: MetricsSnapshot;
-  /** Requests unanswered at the end of the second. */
-  readonly inProgress: number;
 }
 
 const WORKFLOW_SECOND_COLUMNS: readonly Column<WorkflowSecond>[] = [
@@ -242,27 +228,6 @@ function workflowTimeline(snapshots: readonly MetricsSnapshot[]): string {
     rows: workflowSeconds(snapshots),
     notes: WORKFLOW_SECOND_NOTES,
   });
-}
-
-/** Each snapshot's counts, with the running total still in progress. */
-function workflowSeconds(
-  snapshots: readonly MetricsSnapshot[],
-): WorkflowSecond[] {
-  let inProgress = 0;
-  return snapshots.map((snapshot) => {
-    const counts = workflowCounts(snapshot);
-    inProgress += counts.started - counts.succeeded - counts.failed;
-    return { ...counts, snapshot, inProgress };
-  });
-}
-
-function workflowCounts(snapshot: MetricsSnapshot): WorkflowCounts {
-  const all = Object.values(snapshot.workflows);
-  return {
-    started: sum(all.map((w) => w.started)),
-    succeeded: sum(all.map((w) => w.succeeded)),
-    failed: sum(all.map((w) => w.failed)),
-  };
 }
 
 const TIME_COLUMN: Column<MetricsSnapshot> = {
@@ -354,8 +319,4 @@ function percent(part: number, whole: number): string {
 
 function seconds(timeMs: number): string {
   return String(Math.round(timeMs / 100) / 10);
-}
-
-function sum(values: number[]): number {
-  return values.reduce((a, b) => a + b, 0);
 }

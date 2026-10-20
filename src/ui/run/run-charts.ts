@@ -2,22 +2,20 @@ import type {
   ComponentMetrics,
   MetricsSnapshot,
 } from "../../domain/metrics/metrics-snapshot";
-import type { Project } from "../../domain/model/project";
+import type { RunSoFar } from "../../application/run-analysis/run-so-far";
+import {
+  workflowSeconds,
+  type WorkflowSecond,
+} from "../../application/run-analysis/workflow-seconds";
 import type {
   TimeSeries,
   TimeSeriesContent,
   TimeSeriesPoint,
 } from "../charts/time-series";
-import {
-  secondsOf,
-  workflowSeconds,
-  type WorkflowSecond,
-} from "./workflow-seconds";
 
-/** The run so far: the project it runs and the snapshots received. */
-export interface RunSoFar {
-  readonly project: Project;
-  readonly snapshots: readonly MetricsSnapshot[];
+/** Milliseconds of simulated time as seconds, for chart axes. */
+export function secondsOf(timeMs: number): number {
+  return timeMs / 1_000;
 }
 
 /**
@@ -55,7 +53,7 @@ function seriesOf<T>(input: SeriesInput<T>): TimeSeries {
 }
 
 /** A line of the requests chart: one of the counts in a `WorkflowSecond`. */
-type RequestLine = Exclude<keyof WorkflowSecond, "timeSec">;
+type RequestLine = Exclude<keyof WorkflowSecond, "snapshot">;
 
 /** In legend order, which also fixes each line's color. */
 const REQUEST_LINES: readonly RequestLine[] = [
@@ -81,7 +79,7 @@ function requestsChart(
       id: line,
       label: REQUEST_LABELS[line],
       items: seconds,
-      timeSecOf: (second) => second.timeSec,
+      timeSecOf: (second) => snapshotTimeSec(second.snapshot),
       valueAt: (second) => second[line],
     }),
   );

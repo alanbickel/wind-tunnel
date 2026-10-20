@@ -4,7 +4,7 @@ import type { Project, Workload } from "../../domain/model/project";
 import { TimeSeriesChart } from "../charts/TimeSeriesChart";
 import { Panel } from "../shared/Panel";
 import { handleStatus, type StatusHandlers } from "../shared/status-handlers";
-import { runCharts } from "./run-charts";
+import { runCharts, secondsOf } from "./run-charts";
 import { RunControls } from "./RunControls";
 import styles from "./RunPanel.module.css";
 import { RunTotals } from "./RunTotals";
@@ -13,7 +13,6 @@ import {
   type RunPhase,
   type SimulationRun,
 } from "./useSimulationRun";
-import { secondsOf } from "./workflow-seconds";
 
 export interface RunPanelProps {
   readonly project: Project;

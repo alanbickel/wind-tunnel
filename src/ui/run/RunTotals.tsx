@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { CountsTable, type CountsColumn } from "./CountsTable";
-import type { RunSoFar } from "./run-charts";
+import type { RunSoFar } from "../../application/run-analysis/run-so-far";
 import {
   allWorkflows,
   componentTotals,
   workflowTotals,
   type ComponentTotals,
   type WorkflowTotals,
-} from "./run-totals";
+} from "../../application/run-analysis/run-totals";
 import styles from "./RunTotals.module.css";
 
 const WORKFLOW_COLUMNS: readonly CountsColumn<WorkflowTotals>[] = [

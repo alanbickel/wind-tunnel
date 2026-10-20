@@ -19,7 +19,7 @@ import type { Project } from "../../domain/model/project";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import { RunPanel } from "./RunPanel";
-import { sampleSnapshot } from "./testing/sample-snapshots";
+import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 
 /**
  * A runner the test drives: each run waits until the test sends snapshots

@@ -35,6 +35,7 @@ describe("ArchitectureView", () => {
     vi.unstubAllGlobals();
   });
 
+  // Fails if diagramOf drops a component: two boxes are drawn, not three.
   it("draws a labelled diagram with a box per component", async () => {
     render(<ArchitectureView record={sampleRecord} />);
 
@@ -44,6 +45,8 @@ describe("ArchitectureView", () => {
     expect(await drawnNodes(diagram)).toHaveLength(3);
   });
 
+  // Fails if DiagramCanvas drops `nodesFocusable={false}`: each box takes
+  // a tab stop.
   it("offers nothing to move, select, connect, or tab to", async () => {
     render(<ArchitectureView record={sampleRecord} />);
     const diagram = screen.getByRole("group", {

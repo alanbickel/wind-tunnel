@@ -35,9 +35,9 @@ describe("ChartPlot", () => {
     vi.unstubAllGlobals();
   });
 
+  // Fails if the Legend loses its `itemSorter`: Recharts sorts the legend
+  // by label, giving ["Failed", "Started"], out of step with the table.
   it("lists the legend in series order, not alphabetically", () => {
-    // Recharts sorts the legend by label unless told otherwise, which put
-    // "Failed" before "Started" and out of step with the table.
     const { container } = renderPlot();
 
     const items = [...container.querySelectorAll(".recharts-legend-item")];

@@ -17,13 +17,19 @@ export type RateSource = Pick<
   "ratePerSec" | "burst" | "taken" | "available"
 >;
 
+/** What `concurrencyGauge` wraps, and the name it reports. */
 export interface ConcurrencyGaugeInput {
+  /** camelCase, unique within the component, e.g. `connections`. */
   readonly name: string;
+  /** Read live on every access. */
   readonly source: ConcurrencySource;
 }
 
+/** What `rateGauge` wraps, and the name it reports. */
 export interface RateGaugeInput {
+  /** camelCase, unique within the component, e.g. `requestRate`. */
   readonly name: string;
+  /** Read live on every access. */
   readonly source: RateSource;
 }
 

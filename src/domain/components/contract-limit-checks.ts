@@ -16,15 +16,21 @@ export interface LimitReading {
   readonly taken: readonly number[];
 }
 
+/** One read of a behavior's limits, and the read before it. */
 export interface LimitCheckInput {
+  /** The behavior's `limits`, read live. */
   readonly limits: readonly LimitGauge[];
+  /** Simulated time of the read, for the buckets' levels. */
   readonly nowMs: number;
   /** The previous read; undefined on the first. */
   readonly previous: LimitReading | undefined;
 }
 
+/** What `checkLimits` found, and what to pass as `previous` next time. */
 export interface LimitCheckResult {
+  /** One sentence per broken rule; empty if none. */
   readonly problems: string[];
+  /** This read, to compare the next one against. */
   readonly reading: LimitReading;
 }
 

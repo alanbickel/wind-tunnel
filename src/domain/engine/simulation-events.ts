@@ -38,8 +38,11 @@ export interface ConcurrencyLimitSample extends ConcurrencyLimitGauge {
 /** A token bucket at the tick, and its lowest level before it. */
 export interface RateLimitSample {
   readonly kind: "rate";
+  /** camelCase, unique within the component, e.g. `readUnits`. */
   readonly name: string;
+  /** Tokens added per second. */
   readonly ratePerSec: number;
+  /** Most tokens the bucket holds. */
   readonly burst: number;
   /** Tokens taken since the run began. */
   readonly taken: number;

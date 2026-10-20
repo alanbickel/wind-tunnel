@@ -15,7 +15,7 @@ export interface RateLimitValues extends Omit<RateLimitGauge, "tokensLeft"> {
 }
 
 /**
- * A behavior's limits as plain values, read at \`nowMs\`. The limits are live
+ * A behavior's limits as plain values, read at `nowMs`. The limits are live
  * views, so a test copies them to compare against what it expects.
  */
 export function limitValues<T>(

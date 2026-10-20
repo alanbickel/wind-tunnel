@@ -93,7 +93,7 @@ Each guide is a short, visual introduction to one part of the system, with a wor
 | [The domain model](domain-model.md) | Entities, workflows as call trees over the architecture, loading documents (`loadProject`), `validateProject` |
 | [How the simulation engine works](simulation-engine.md) | Discrete-event loop, `EventQueue`, `RateLimit`, `ConcurrencyLimit`, `Queue`, `ServiceTime`, distributions, `simulate`, `ArrivalProcess`, `backoffMs` |
 | [Component definitions](component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents`, the five AWS types |
-| [How metrics work](metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, gauges and counters, `LatencyHistogram` |
+| [How metrics work](metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, limits, gauges and counters, `LatencyHistogram` |
 | [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, the in-process and Web Worker runners, the repository and runner contracts |
 | [The user interface](user-interface.md) | The composition root, `UseCasesProvider` and `useUseCases`, the screens, `useSimulationRun` and the Worker runner, a run traced from click to chart, UI test helpers |
 | [The headless runner](headless-runner.md) | `npm run simulate`, `runSimulateCommand`, the text report and how to read it, loading TypeScript through Vite |

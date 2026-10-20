@@ -141,8 +141,9 @@ export interface ComponentBehavior<T> {
    */
   readonly queueDepth: number;
   /**
-   * Type-specific values sampled once per metrics tick, e.g. RDS
-   * `connectionsHeld`. Names are camelCase and stable across a run.
+   * Type-specific values sampled once per metrics tick. A value measured
+   * against a limit belongs in `limits` instead, which has true peaks.
+   * Names are camelCase and stable across a run.
    */
   readonly gauges?: Readonly<Record<string, number>>;
   /**

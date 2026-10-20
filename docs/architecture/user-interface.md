@@ -125,7 +125,7 @@ sequenceDiagram
     Note over UI,W: If the stop signal fires first, the runner terminates the Worker at once<br/>and resolves stopped; snapshots still queued are dropped.
 ```
 
-From the snapshots so far, `RunPanel` draws a progress bar, the totals (`RunTotals`), and four charts (`runCharts`): requests per second, p99 latency, and each component's work in progress and queue. Charts take far longer to draw than a snapshot takes to arrive, so they draw from `useDeferredValue(snapshots)`: React puts clicks such as Stop first and skips snapshots it falls behind on, while the progress bar stays current.
+From the snapshots so far, `RunPanel` draws a progress bar, the totals and each limit's busiest use (`RunTotals`), and four charts (`runCharts`): requests per second, p99 latency, and each component's work in progress and queue. Charts take far longer to draw than a snapshot takes to arrive, so they draw from `useDeferredValue(snapshots)`: React puts clicks such as Stop first and skips snapshots it falls behind on, while the progress bar stays current.
 
 ### Worked example
 

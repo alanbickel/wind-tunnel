@@ -31,7 +31,9 @@ Each DynamoDB partition supports up to **3,000 read capacity units and 1,000 wri
 
 API Gateway applies a default account-level limit per region (**10,000 requests per second, with a burst of 5,000**) across all APIs in the account. Requests above the limit get `429 Too Many Requests`.
 
-**At scale:** several APIs in one account compete for the same limit.
+The limit is a **token bucket**: AWS calls the burst "the maximum bucket size", and the rate is how fast tokens are added. Each request takes a token. A quiet API saves up to 5,000 tokens, so a sudden spike can briefly pass 10,000 requests per second; sustained traffic above the rate drains the bucket, and throttling starts when it's empty. AWS also calls these limits "targets rather than guaranteed request ceilings".
+
+**At scale:** several APIs in one account compete for the same limit. Whether a spike is throttled depends on how full the bucket was when it arrived, not only on the spike's size.
 **Source:** [API Gateway throttling](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html)
 
 ### Retries without jitter can keep an outage going

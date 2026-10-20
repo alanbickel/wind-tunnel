@@ -170,7 +170,7 @@ To approve a new library for `domain` or `application`, write an ADR, then add i
 
 ### TypeScript projects
 
-`npm run typecheck` runs `tsc -b`, which checks three projects listed in [`tsconfig.json`](../../tsconfig.json). All of them extend `tsconfig.base.json` (strict mode, `noUncheckedIndexedAccess`, `noImplicitOverride`).
+`npm run typecheck` runs `tsc -b`, which checks three projects listed in [`tsconfig.json`](../../tsconfig.json). All of them extend `tsconfig.base.json` (strict mode, `noUncheckedIndexedAccess`, `noImplicitOverride`). The build is incremental: `tsc -b` skips a project whose files haven't changed since its last check, which is recorded in `node_modules/.tmp/*.tsbuildinfo`.
 
 | Project | Covers | Environment |
 |---|---|---|

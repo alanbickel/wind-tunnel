@@ -37,16 +37,16 @@ Queues: "ok" counts messages accepted. Each is then delivered (async ok), waitin
 
 Limits
 ======
-component  limit          peak      of  unit        peak %
----------  ------------  -----  ------  ----------  ------
-api        requestRate   2,076  10,000  per second   20.8%
-fn-orders  concurrency     175   1,000  at once      17.5%
-orders-db  connections      90      90  at once     100.0%
-orders-db  queryWorkers     16      16  at once     100.0%
+component  limit         peak     of  unit    peak %  busiest flow
+---------  ------------  ----  -----  ------  ------  ---------------------
+api        requestRate      5  5,000  tokens    0.1%  2,076 of 10,000 per s
+fn-orders  concurrency    175  1,000  slots    17.5%  -
+orders-db  connections     90     90  slots   100.0%  -
+orders-db  queryWorkers    16     16  slots   100.0%  -
 
-"peak" is the most used in any one second of the run, against the limit in "of".
-A concurrency limit at 100% was full: the next request waited or was rejected (see "peak queue" and "rejected" in Components).
-A rate limit's peak is the busiest second's tokens taken. Tokens saved up while quiet can take it past 100%; throttled requests show as rejected.
+"peak" is the most used at once during the run, against the limit in "of": slots held, or tokens drawn out of a full bucket.
+At 100%, the limit was exhausted: the next request waited or was rejected (see "peak queue" and "rejected" in Components).
+A rate limit's bucket refills at a steady rate. "busiest flow" is the busiest second's tokens taken, against that rate: above it, the bucket drains.
 
 Workflows per second
 ====================
@@ -120,65 +120,65 @@ Components per second
 =====================
 t (s)  api requestRate  fn-orders concurrency  orders-db connections  orders-db queryWorkers  orders-db queue
 -----  ---------------  ---------------------  ---------------------  ----------------------  ---------------
-    1              224                     68                     16                      16                0
-    2              172                     15                      9                       9                0
-    3              201                     22                     12                      12                0
-    4              191                     17                     10                      10                0
-    5              181                     15                      8                       8                0
-    6              170                     18                      9                       9                0
-    7              194                     17                     10                      10                0
-    8              210                     18                      9                       9                0
-    9              189                     17                      8                       8                0
-   10              198                     18                      8                       8                0
-   11              275                     25                     15                      15                0
-   12              492                     33                     20                      16                4
-   13              647                     42                     25                      16                9
-   14              830                     75                     49                      16               33
-   15            1,006                    154                     90                      16               74
-   16            1,185                    135                     90                      16               74
-   17            1,378                    145                     90                      16               74
-   18            1,487                    141                     90                      16               74
-   19            1,774                    158                     90                      16               74
-   20            1,922                    162                     90                      16               74
-   21            1,990                    160                     90                      16               74
-   22            1,989                    160                     90                      16               74
-   23            1,957                    168                     90                      16               74
-   24            2,041                    164                     90                      16               74
-   25            1,953                    161                     90                      16               74
-   26            1,945                    166                     90                      16               74
-   27            2,010                    160                     90                      16               74
-   28            2,003                    167                     90                      16               74
-   29            1,959                    160                     90                      16               74
-   30            2,044                    161                     90                      16               74
-   31            1,981                    161                     90                      16               74
-   32            2,076                    175                     90                      16               74
-   33            2,015                    161                     90                      16               74
-   34            2,000                    159                     90                      16               74
-   35            1,990                    163                     90                      16               74
-   36            2,048                    163                     90                      16               74
-   37            2,025                    167                     90                      16               74
-   38            1,978                    166                     90                      16               74
-   39            2,038                    162                     90                      16               74
-   40            1,992                    166                     90                      16               74
-   41            1,871                    160                     90                      16               74
-   42            1,750                    152                     90                      16               74
-   43            1,513                    144                     90                      16               74
-   44            1,423                    146                     90                      16               74
-   45            1,207                    135                     90                      16               74
-   46              981                    127                     90                      16               74
-   47              859                    118                     90                      16               74
-   48              671                     49                     29                      16               13
-   49              480                     36                     21                      16                5
-   50              278                     23                     12                      12                0
-   51              204                     18                      9                       9                0
-   52              207                     22                     13                      13                0
-   53              191                     15                     10                      10                0
-   54              211                     15                     10                      10                0
-   55              188                     16                      8                       8                0
-   56              199                     19                     10                      10                0
-   57              202                     16                      9                       9                0
-   58              152                     13                     10                      10                0
-   59              218                     21                     11                      11                0
-   60              209                     18                     12                      12                0
+    1                2                     68                     16                      16                0
+    2                1                     15                      9                       9                0
+    3                1                     22                     12                      12                0
+    4                2                     17                     10                      10                0
+    5                2                     15                      8                       8                0
+    6                2                     18                      9                       9                0
+    7                2                     17                     10                      10                0
+    8                2                     18                      9                       9                0
+    9                2                     17                      8                       8                0
+   10                2                     18                      8                       8                0
+   11                2                     25                     15                      15                0
+   12                2                     33                     20                      16                4
+   13                2                     42                     25                      16                9
+   14                3                     75                     49                      16               33
+   15                3                    154                     90                      16               74
+   16                3                    135                     90                      16               74
+   17                4                    145                     90                      16               74
+   18                4                    141                     90                      16               74
+   19                3                    158                     90                      16               74
+   20                4                    162                     90                      16               74
+   21                4                    160                     90                      16               74
+   22                3                    160                     90                      16               74
+   23                4                    168                     90                      16               74
+   24                3                    164                     90                      16               74
+   25                3                    161                     90                      16               74
+   26                4                    166                     90                      16               74
+   27                4                    160                     90                      16               74
+   28                3                    167                     90                      16               74
+   29                4                    160                     90                      16               74
+   30                4                    161                     90                      16               74
+   31                3                    161                     90                      16               74
+   32                4                    175                     90                      16               74
+   33                4                    161                     90                      16               74
+   34                3                    159                     90                      16               74
+   35                3                    163                     90                      16               74
+   36                3                    163                     90                      16               74
+   37                4                    167                     90                      16               74
+   38                5                    166                     90                      16               74
+   39                4                    162                     90                      16               74
+   40                3                    166                     90                      16               74
+   41                3                    160                     90                      16               74
+   42                4                    152                     90                      16               74
+   43                3                    144                     90                      16               74
+   44                3                    146                     90                      16               74
+   45                3                    135                     90                      16               74
+   46                3                    127                     90                      16               74
+   47                3                    118                     90                      16               74
+   48                3                     49                     29                      16               13
+   49                2                     36                     21                      16                5
+   50                2                     23                     12                      12                0
+   51                2                     18                      9                       9                0
+   52                2                     22                     13                      13                0
+   53                2                     15                     10                      10                0
+   54                2                     15                     10                      10                0
+   55                2                     16                      8                       8                0
+   56                2                     19                     10                      10                0
+   57                2                     16                      9                       9                0
+   58                2                     13                     10                      10                0
+   59                2                     21                     11                      11                0
+   60                1                     18                     12                      12                0
 
-Each column is a peak during the second: a component's use of each of its limits (see Limits for the units), or, for a component without limits, its busy work; then its queue. Gauges are values at the second's end.
+Each column is a peak during the second: a component's use of each of its limits (slots held, or tokens drawn out of a full bucket; see Limits), or, for a component without limits, its busy work; then its queue. Gauges are values at the second's end.

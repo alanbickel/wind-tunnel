@@ -16,13 +16,15 @@ const concurrency = (peak: number): LimitUse => ({
   peak,
 });
 
-const requestRate = (peak: number): LimitUse => ({
+/** A bucket of 5,000 refilling at 10,000 per second. */
+const requestRate = (peak: number, takenPerSec: number): LimitUse => ({
   kind: "rate",
   name: "requestRate",
-  limit: 1_000,
-  burst: 500,
-  current: peak,
+  limit: 5_000,
+  current: 0,
   peak,
+  ratePerSec: 10_000,
+  takenPerSec,
 });
 
 /** Each body row of the limits table as its cells' text. */
@@ -41,25 +43,31 @@ function limitRows(): string[][] {
 describe("RunTotals", () => {
   afterEach(cleanup);
 
-  // Fails if the table shows the latest second's peak instead of the
-  // highest, drops a limit, or leaves out a rate's unit.
+  // Fails if the table shows the latest second's peak or flow instead of
+  // the highest, drops a limit, or leaves out what a rate's numbers count.
   it("shows each limit's highest use so far against the limit", () => {
     const snapshots = [
       sampleSnapshot({
         second: 1,
-        api: { limits: [requestRate(1_250)] },
+        api: { limits: [requestRate(1_250, 2_076)] },
         fn: { limits: [concurrency(10)] },
       }),
       sampleSnapshot({
         second: 2,
-        api: { limits: [requestRate(400)] },
+        api: { limits: [requestRate(400, 900)] },
         fn: { limits: [concurrency(3)] },
       }),
     ];
     render(<RunTotals run={{ project, snapshots }} />);
     expect(limitRows()).toEqual([
-      ["API requestRate per second", "1,250", "1,000", "125%"],
-      ["Function concurrency", "10", "10", "100%"],
+      [
+        "API requestRate bucket",
+        "1,250",
+        "5,000",
+        "25%",
+        "2,076 of 10,000 per s",
+      ],
+      ["Function concurrency", "10", "10", "100%", "–"],
     ]);
   });
 

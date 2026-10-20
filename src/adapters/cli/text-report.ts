@@ -13,6 +13,7 @@ import {
 import {
   limitPeaks,
   type LimitPeak,
+  type RateFlow,
 } from "../../application/run-analysis/limit-peaks";
 import {
   workflowSeconds,
@@ -212,8 +213,8 @@ function extras(m: ComponentMetrics): string {
 
 /** The unit of each kind of limit's numbers. */
 const LIMIT_UNITS: Readonly<Record<LimitUse["kind"], string>> = {
-  concurrency: "at once",
-  rate: "per second",
+  concurrency: "slots",
+  rate: "tokens",
 };
 
 const LIMIT_COLUMNS: readonly Column<LimitPeak>[] = [
@@ -223,12 +224,13 @@ const LIMIT_COLUMNS: readonly Column<LimitPeak>[] = [
   { header: "of", cell: (r) => count(r.limit) },
   { header: "unit", cell: (r) => LIMIT_UNITS[r.kind] },
   { header: "peak %", cell: (r) => share(r.peakShare) },
+  { header: "busiest flow", cell: (r) => flow(r.flow) },
 ];
 
 const LIMIT_NOTES = [
-  '"peak" is the most used in any one second of the run, against the limit in "of".',
-  'A concurrency limit at 100% was full: the next request waited or was rejected (see "peak queue" and "rejected" in Components).',
-  "A rate limit's peak is the busiest second's tokens taken. Tokens saved up while quiet can take it past 100%; throttled requests show as rejected.",
+  '"peak" is the most used at once during the run, against the limit in "of": slots held, or tokens drawn out of a full bucket.',
+  'At 100%, the limit was exhausted: the next request waited or was rejected (see "peak queue" and "rejected" in Components).',
+  `A rate limit's bucket refills at a steady rate. "busiest flow" is the busiest second's tokens taken, against that rate: above it, the bucket drains.`,
 ];
 
 function limitTable(rows: readonly LimitPeak[]): string {
@@ -283,7 +285,7 @@ function componentTimeline(
     columns: [TIME_COLUMN, ...columns],
     rows: snapshots,
     notes: [
-      "Each column is a peak during the second: a component's use of each of its limits (see Limits for the units), or, for a component without limits, its busy work; then its queue. Gauges are values at the second's end.",
+      "Each column is a peak during the second: a component's use of each of its limits (slots held, or tokens drawn out of a full bucket; see Limits), or, for a component without limits, its busy work; then its queue. Gauges are values at the second's end.",
     ],
   });
 }
@@ -371,6 +373,12 @@ function ms(value: number | undefined): string {
 
 function percent(part: number, whole: number): string {
   return whole === 0 ? "-" : `${((100 * part) / whole).toFixed(1)}%`;
+}
+
+function flow(rate: RateFlow | undefined): string {
+  if (rate === undefined) return "-";
+  const taken = count(Math.round(rate.busiestTakenPerSec));
+  return `${taken} of ${count(rate.ratePerSec)} per s`;
 }
 
 function share(fraction: number | undefined): string {

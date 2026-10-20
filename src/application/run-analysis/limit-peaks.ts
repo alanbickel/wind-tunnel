@@ -1,7 +1,12 @@
 import type {
   LimitUse,
   MetricsSnapshot,
+  RateLimitUse,
 } from "../../domain/metrics/metrics-snapshot";
+import {
+  handleKind,
+  type KindHandlers,
+} from "../../domain/shared/kind-handlers";
 import type { RunSoFar } from "./run-so-far";
 
 /** One of a component's limits, and the most of it used so far. */
@@ -14,22 +19,38 @@ export interface LimitPeak {
   /** The limit's name, e.g. `connections`. */
   readonly name: string;
   readonly kind: LimitUse["kind"];
-  /** Slots for a concurrency limit; tokens per second for a rate limit. */
+  /** Slots for a concurrency limit; the bucket's size for a rate limit. */
   readonly limit: number;
-  /** The highest use in any second so far, in the limit's unit. */
+  /**
+   * The most used at once so far, in the limit's unit: slots held, or
+   * tokens drawn out of a full bucket.
+   */
   readonly peak: number;
   /**
-   * `peak / limit`: 1 means the limit was reached. A rate limit can go over
-   * 1 by spending saved-up burst tokens. Undefined for a limit of 0.
+   * `peak / limit`: 1 means the limit was exhausted, and the next request
+   * waited or was rejected. Undefined for a limit of 0.
    */
   readonly peakShare: number | undefined;
+  /** A rate limit's flow; undefined for a concurrency limit. */
+  readonly flow: RateFlow | undefined;
+}
+
+/**
+ * How fast a rate limit's bucket refills and empties. Taking tokens faster
+ * than `ratePerSec` drains the bucket; slower, and it refills.
+ */
+export interface RateFlow {
+  readonly ratePerSec: number;
+  /** The busiest second's tokens taken so far. */
+  readonly busiestTakenPerSec: number;
 }
 
 /** What `limitPeak` needs to find one limit's peak. */
 interface LimitPeakContext {
   readonly componentId: string;
   readonly componentLabel: string;
-  readonly snapshots: readonly MetricsSnapshot[];
+  /** The limit's use in each snapshot that reports it. */
+  readonly uses: readonly LimitUse[];
 }
 
 /**
@@ -41,16 +62,19 @@ export function limitPeaks({ project, snapshots }: RunSoFar): LimitPeak[] {
   const latest = snapshots.at(-1);
   return project.architecture.components.flatMap(({ id, name }) => {
     const limits = latest?.components[id]?.limits ?? [];
-    const context = { componentId: id, componentLabel: name, snapshots };
-    return limits.map((limit) => limitPeak(limit, context));
+    return limits.map((limit) =>
+      limitPeak(limit, {
+        componentId: id,
+        componentLabel: name,
+        uses: usesOf({ snapshots, componentId: id, name: limit.name }),
+      }),
+    );
   });
 }
 
 function limitPeak(limit: LimitUse, context: LimitPeakContext): LimitPeak {
-  const { componentId, componentLabel, snapshots } = context;
-  const peak = Math.max(
-    ...snapshots.map((s) => peakIn({ snapshot: s, componentId, limit })),
-  );
+  const { componentId, componentLabel, uses } = context;
+  const peak = Math.max(...uses.map((use) => use.peak));
   return {
     id: `${componentId} ${limit.name}`,
     componentId,
@@ -60,18 +84,44 @@ function limitPeak(limit: LimitUse, context: LimitPeakContext): LimitPeak {
     limit: limit.limit,
     peak,
     peakShare: limit.limit === 0 ? undefined : peak / limit.limit,
+    flow: handleKind(FLOWS, limit)(uses),
   };
 }
 
-/** Where to look for a limit's peak in one snapshot. */
-interface PeakInInput {
-  readonly snapshot: MetricsSnapshot;
-  readonly componentId: string;
-  readonly limit: LimitUse;
+/** A rate limit's flow, given its use in each snapshot. */
+const FLOWS: KindHandlers<
+  LimitUse,
+  (uses: readonly LimitUse[]) => RateFlow | undefined
+> = {
+  concurrency: () => () => undefined,
+  rate: (limit) => (uses) => rateFlow(limit, uses),
+};
+
+/** The busiest second's flow, against the limit's rate. */
+function rateFlow(limit: RateLimitUse, uses: readonly LimitUse[]): RateFlow {
+  return {
+    ratePerSec: limit.ratePerSec,
+    busiestTakenPerSec: Math.max(...uses.map((use) => handleKind(TAKEN, use))),
+  };
 }
 
-/** The limit's peak in the snapshot; 0 if the snapshot doesn't have it. */
-function peakIn({ snapshot, componentId, limit }: PeakInInput): number {
-  const limits = snapshot.components[componentId]?.limits ?? [];
-  return limits.find((l) => l.name === limit.name)?.peak ?? 0;
+/** Tokens taken per second; a concurrency limit takes none. */
+const TAKEN: KindHandlers<LimitUse, number> = {
+  concurrency: () => 0,
+  rate: ({ takenPerSec }) => takenPerSec,
+};
+
+/** Where to look for one limit across the snapshots. */
+interface UsesOfInput {
+  readonly snapshots: readonly MetricsSnapshot[];
+  readonly componentId: string;
+  readonly name: string;
+}
+
+/** The limit's use in each snapshot that reports it. */
+function usesOf({ snapshots, componentId, name }: UsesOfInput): LimitUse[] {
+  return snapshots.flatMap((snapshot) => {
+    const limits = snapshot.components[componentId]?.limits ?? [];
+    return limits.filter((limit) => limit.name === name);
+  });
 }

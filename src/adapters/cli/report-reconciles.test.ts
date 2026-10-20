@@ -6,10 +6,6 @@ import type {
   MetricsSnapshot,
 } from "../../domain/metrics/metrics-collector";
 import {
-  handleKind,
-  type KindHandlers,
-} from "../../domain/shared/kind-handlers";
-import {
   componentIn,
   limitIn,
 } from "../../domain/metrics/testing/snapshot-lookups";
@@ -68,12 +64,6 @@ function everyLimit(snapshots: readonly MetricsSnapshot[]): LimitInWindow[] {
 
 const windowSec = (s: MetricsSnapshot) => (s.endMs - s.startMs) / 1000;
 
-/** The most a limit lets a window use: a rate adds its burst. */
-const ALLOWED: KindHandlers<LimitUse, (windowSec: number) => number> = {
-  concurrency: (limit) => () => limit.limit,
-  rate: (limit) => (sec) => limit.limit + limit.burst / sec,
-};
-
 describe.each([
   ["template-a", templateA],
   ["template-b", templateB],
@@ -124,15 +114,14 @@ describe.each([
     }
   });
 
-  // Fails if a concurrency limit's peak stops covering its use: with the
-  // engine no longer tracking it after each call, and the tick no longer
-  // raising it to the use at the window's end, a peak reads under the end.
-  // The rate bound holds by a wide margin here; the contract check tests it.
+  // Fails if a limit's peak stops covering its use: with the engine no
+  // longer tracking it after each call, and the tick no longer raising it to
+  // the use at the window's end, a peak reads under the end.
   it("never uses more of a limit than it allows", () => {
-    for (const { snapshot, limit, where } of everyLimit(snapshots)) {
-      const allowed = handleKind(ALLOWED, limit)(windowSec(snapshot));
-      expect(limit.peak, where).toBeLessThanOrEqual(allowed);
+    for (const { limit, where } of everyLimit(snapshots)) {
+      expect(limit.current, where).toBeGreaterThanOrEqual(0);
       expect(limit.current, where).toBeLessThanOrEqual(limit.peak);
+      expect(limit.peak, where).toBeLessThanOrEqual(limit.limit);
     }
   });
 
@@ -157,14 +146,14 @@ describe.each([
     const windows = snapshots.flatMap((snapshot) =>
       Object.entries(snapshot.components).map(([id, metrics]) => ({
         metrics,
-        rates: metrics.limits.filter((l) => l.kind === "rate"),
+        rates: metrics.limits.flatMap((l) => (l.kind === "rate" ? [l] : [])),
         where: `${id} at ${String(snapshot.endMs)} ms`,
         sec: windowSec(snapshot),
       })),
     );
     const rateLimited = windows.filter((w) => w.rates.length > 0);
     for (const { metrics, rates, where, sec } of rateLimited) {
-      const taken = rates.reduce((n, l) => n + l.current, 0) * sec;
+      const taken = rates.reduce((n, l) => n + l.takenPerSec, 0) * sec;
       expect(taken, where).toBeCloseTo(metrics.arrivals - metrics.rejected, 6);
     }
     expect(rateLimited.length).toBeGreaterThanOrEqual(snapshots.length);

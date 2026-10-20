@@ -14,33 +14,35 @@ const concurrency = (peak: number): LimitUse => ({
   peak,
 });
 
-const requestRate = (peak: number): LimitUse => ({
+/** A bucket of 100 refilling at 50 per second. */
+const requestRate = (peak: number, takenPerSec: number): LimitUse => ({
   kind: "rate",
   name: "requestRate",
   limit: 100,
-  burst: 50,
-  current: peak,
+  current: 0,
   peak,
+  ratePerSec: 50,
+  takenPerSec,
 });
 
-// fn peaks at 4 of 10 in second 1, then 2; api takes 80 per second, then
-// 120 with burst tokens.
+// Every peak comes first: fn holds 4 of 10, then 2. api's bucket is drawn
+// down by 90 while taking 70 per second, then by 30 while taking 40.
 const snapshots = [
   sampleSnapshot({
     second: 1,
-    api: { limits: [requestRate(80)] },
+    api: { limits: [requestRate(90, 70)] },
     fn: { limits: [concurrency(4)] },
   }),
   sampleSnapshot({
     second: 2,
-    api: { limits: [requestRate(120)] },
+    api: { limits: [requestRate(30, 40)] },
     fn: { limits: [concurrency(2)] },
   }),
 ];
 
 describe("limitPeaks", () => {
-  // Fails if the peak is the latest second's rather than the highest, or if
-  // the rows leave architecture order.
+  // Fails if the peak or the busiest flow is the latest second's rather than
+  // the highest, or if the rows leave architecture order.
   it("gives each limit its highest peak so far, in architecture order", () => {
     expect(limitPeaks({ project, snapshots })).toEqual([
       {
@@ -50,8 +52,9 @@ describe("limitPeaks", () => {
         name: "requestRate",
         kind: "rate",
         limit: 100,
-        peak: 120,
-        peakShare: 1.2,
+        peak: 90,
+        peakShare: 0.9,
+        flow: { ratePerSec: 50, busiestTakenPerSec: 70 },
       },
       {
         id: "fn concurrency",
@@ -62,6 +65,7 @@ describe("limitPeaks", () => {
         limit: 10,
         peak: 4,
         peakShare: 0.4,
+        flow: undefined,
       },
     ]);
   });

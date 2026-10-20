@@ -11,6 +11,7 @@ import {
 import {
   limitPeaks,
   type LimitPeak,
+  type RateFlow,
 } from "../../application/run-analysis/limit-peaks";
 import type { LimitUse } from "../../domain/metrics/metrics-snapshot";
 import styles from "./RunTotals.module.css";
@@ -35,21 +36,28 @@ interface LimitRow extends LimitPeak {
   readonly label: string;
 }
 
-/** Said after a limit's name, so the reader knows its unit. */
+/** Said after a limit's name, so the reader knows what it counts. */
 const LIMIT_UNITS: Readonly<Record<LimitUse["kind"], string>> = {
   concurrency: "",
-  rate: " per second",
+  rate: " bucket",
 };
 
 const LIMIT_COLUMNS: readonly CountsColumn<LimitRow>[] = [
   { header: "Peak", value: (r) => Math.round(r.peak) },
   { header: "Limit", value: (r) => r.limit },
   { header: "Peak %", value: (r) => percent(r.peakShare) },
+  { header: "Busiest flow", value: (r) => flow(r.flow) },
 ];
 
 function limitRow(peak: LimitPeak): LimitRow {
   const unit = LIMIT_UNITS[peak.kind];
   return { ...peak, label: `${peak.componentLabel} ${peak.name}${unit}` };
+}
+
+function flow(rate: RateFlow | undefined): string {
+  if (rate === undefined) return "–";
+  const taken = Math.round(rate.busiestTakenPerSec).toLocaleString("en-US");
+  return `${taken} of ${rate.ratePerSec.toLocaleString("en-US")} per s`;
 }
 
 function percent(share: number | undefined): string {
@@ -123,10 +131,11 @@ function LimitTotals({ run }: RunTotalsProps) {
         rows={limits}
       />
       <p className={styles.note}>
-        Peak is the most used in any one second: slots held at once, such as
-        connections, or requests per second for a rate. At 100%, a limit on
-        slots was full, and the next request waited or was rejected. A rate can
-        pass 100% for a while by spending capacity saved up while quiet.
+        Peak is the most used at once: slots held, such as connections, or
+        tokens drawn out of a full bucket. At 100%, the limit was exhausted, and
+        the next request waited or was rejected. A bucket refills at a steady
+        rate; busiest flow is the busiest second&apos;s requests against that
+        rate. Above it, the bucket drains.
       </p>
     </>
   );

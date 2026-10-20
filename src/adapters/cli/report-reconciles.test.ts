@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
 import type {
   ComponentMetrics,
+  LimitUse,
   MetricsSnapshot,
 } from "../../domain/metrics/metrics-collector";
+import {
+  handleKind,
+  type KindHandlers,
+} from "../../domain/shared/kind-handlers";
 import {
   componentIn,
   limitIn,
@@ -21,29 +26,53 @@ import { runTemplate } from "../templates/testing/run-template";
 
 const registry = createAwsComponentRegistry();
 
-/** Each concurrency limit's use, counted from other fields of the window. */
-interface IndependentUse {
-  readonly current: (m: ComponentMetrics) => number;
-  /** Where the limit is the component's only work, its peak is too. */
-  readonly peak?: (m: ComponentMetrics) => number;
-}
+/** A concurrency limit's use, counted from other fields of the window. */
+type IndependentCount = (m: ComponentMetrics) => number;
 
 // Lambda's slots and RDS's workers hold exactly the work in progress. An
 // RDS connection is held by every running or waiting query.
-const INDEPENDENT_USE: Readonly<Record<string, IndependentUse>> = {
-  concurrency: { current: (m) => m.inProgress, peak: (m) => m.peakInProgress },
-  queryWorkers: { current: (m) => m.inProgress, peak: (m) => m.peakInProgress },
-  connections: { current: (m) => m.inProgress + m.queueDepth },
+const INDEPENDENT_USE: Readonly<Record<string, IndependentCount>> = {
+  concurrency: (m) => m.inProgress,
+  queryWorkers: (m) => m.inProgress,
+  connections: (m) => m.inProgress + m.queueDepth,
 };
 
-/** Every limit of every component in a snapshot, with the component's metrics. */
-function limitsOf(snapshot: MetricsSnapshot) {
-  return Object.entries(snapshot.components).flatMap(([id, metrics]) =>
-    metrics.limits.map((limit) => ({ id, metrics, limit })),
+// Where a limit holds exactly the work in progress, its peak is that peak.
+const INDEPENDENT_PEAK: Readonly<Record<string, IndependentCount>> = {
+  concurrency: (m) => m.peakInProgress,
+  queryWorkers: (m) => m.peakInProgress,
+};
+
+/** One limit of one component in one snapshot. */
+interface LimitInWindow {
+  readonly snapshot: MetricsSnapshot;
+  readonly metrics: ComponentMetrics;
+  readonly limit: LimitUse;
+  /** Names the limit and window in a failure message. */
+  readonly where: string;
+}
+
+/** Every limit of every component in every snapshot. */
+function everyLimit(snapshots: readonly MetricsSnapshot[]): LimitInWindow[] {
+  return snapshots.flatMap((snapshot) =>
+    Object.entries(snapshot.components).flatMap(([id, metrics]) =>
+      metrics.limits.map((limit) => ({
+        snapshot,
+        metrics,
+        limit,
+        where: `${id} ${limit.name} at ${String(snapshot.endMs)} ms`,
+      })),
+    ),
   );
 }
 
 const windowSec = (s: MetricsSnapshot) => (s.endMs - s.startMs) / 1000;
+
+/** The most a limit lets a window use: a rate adds its burst. */
+const ALLOWED: KindHandlers<LimitUse, (windowSec: number) => number> = {
+  concurrency: (limit) => () => limit.limit,
+  rate: (limit) => (sec) => limit.limit + limit.burst / sec,
+};
 
 describe.each([
   ["template-a", templateA],
@@ -100,53 +129,45 @@ describe.each([
   // raising it to the use at the window's end, a peak reads under the end.
   // The rate bound holds by a wide margin here; the contract check tests it.
   it("never uses more of a limit than it allows", () => {
-    for (const snapshot of snapshots) {
-      for (const { id, limit } of limitsOf(snapshot)) {
-        const where = `${id} ${limit.name} at ${String(snapshot.endMs)} ms`;
-        const allowed =
-          limit.kind === "rate"
-            ? limit.limit + limit.burst / windowSec(snapshot)
-            : limit.limit;
-        expect(limit.peak, where).toBeLessThanOrEqual(allowed);
-        expect(limit.current, where).toBeLessThanOrEqual(limit.peak);
-      }
+    for (const { snapshot, limit, where } of everyLimit(snapshots)) {
+      const allowed = handleKind(ALLOWED, limit)(windowSec(snapshot));
+      expect(limit.peak, where).toBeLessThanOrEqual(allowed);
+      expect(limit.current, where).toBeLessThanOrEqual(limit.peak);
     }
   });
 
   // Fails if a component reports the wrong slots as in use, or the engine
   // stops tracking a limit's peak after every call.
   it("matches each concurrency limit's use to an independent count", () => {
-    let checked = 0;
-    for (const snapshot of snapshots) {
-      for (const { id, metrics, limit } of limitsOf(snapshot)) {
-        const count = INDEPENDENT_USE[limit.name];
-        if (count === undefined) continue;
-        const where = `${id} ${limit.name} at ${String(snapshot.endMs)} ms`;
-        expect(limit.current, where).toBe(count.current(metrics));
-        if (count.peak !== undefined) {
-          expect(limit.peak, where).toBe(count.peak(metrics));
-        }
-        checked++;
-      }
+    const counted = everyLimit(snapshots).filter(
+      ({ limit }) => INDEPENDENT_USE[limit.name] !== undefined,
+    );
+    for (const { metrics, limit, where } of counted) {
+      expect(limit.current, where).toBe(INDEPENDENT_USE[limit.name]?.(metrics));
+      const peak = INDEPENDENT_PEAK[limit.name];
+      if (peak === undefined) continue;
+      expect(limit.peak, where).toBe(peak(metrics));
     }
-    expect(checked).toBeGreaterThanOrEqual(snapshots.length * 2);
+    expect(counted.length).toBeGreaterThanOrEqual(snapshots.length * 2);
   });
 
   // Fails if a rate limit counts throttled requests as tokens taken, or
   // stops counting admitted ones.
   it("takes one rate token for each request a rate-limited component admits", () => {
-    for (const snapshot of snapshots) {
-      for (const [id, m] of Object.entries(snapshot.components)) {
-        const rates = m.limits.filter((l) => l.kind === "rate");
-        if (rates.length === 0) continue;
-        const taken =
-          rates.reduce((n, l) => n + l.current, 0) * windowSec(snapshot);
-        expect(taken, `${id} at ${String(snapshot.endMs)} ms`).toBeCloseTo(
-          m.arrivals - m.rejected,
-          6,
-        );
-      }
+    const windows = snapshots.flatMap((snapshot) =>
+      Object.entries(snapshot.components).map(([id, metrics]) => ({
+        metrics,
+        rates: metrics.limits.filter((l) => l.kind === "rate"),
+        where: `${id} at ${String(snapshot.endMs)} ms`,
+        sec: windowSec(snapshot),
+      })),
+    );
+    const rateLimited = windows.filter((w) => w.rates.length > 0);
+    for (const { metrics, rates, where, sec } of rateLimited) {
+      const taken = rates.reduce((n, l) => n + l.current, 0) * sec;
+      expect(taken, where).toBeCloseTo(metrics.arrivals - metrics.rejected, 6);
     }
+    expect(rateLimited.length).toBeGreaterThanOrEqual(snapshots.length);
   });
 
   // Fails if the totals stop keeping each limit's highest peak, or its
@@ -154,7 +175,10 @@ describe.each([
   it("reports each limit's highest peak and latest use in the totals", () => {
     const last = snapshots.at(-1);
     if (last === undefined) throw new Error("no snapshots");
-    for (const { id, limit } of limitsOf(totals)) {
+    const limits = Object.entries(totals.components).flatMap(([id, c]) =>
+      c.limits.map((limit) => ({ id, limit })),
+    );
+    for (const { id, limit } of limits) {
       const peaks = snapshots.map(
         (s) => limitIn(componentIn(s, id), limit.name).peak,
       );

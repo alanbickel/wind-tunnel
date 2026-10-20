@@ -67,8 +67,6 @@ export interface RunTotalsProps {
  */
 export function RunTotals({ run }: RunTotalsProps) {
   const workflows = useMemo(() => workflowTotals(run), [run]);
-  const components = useMemo(() => componentTotals(run), [run]);
-  const limits = useMemo(() => limitPeaks(run).map(limitRow), [run]);
 
   return (
     <div className={styles.totals}>
@@ -83,6 +81,17 @@ export function RunTotals({ run }: RunTotalsProps) {
         Started = succeeded + failed + in progress. A request in progress
         hasn&apos;t been answered yet.
       </p>
+      <ComponentWork run={run} />
+      <LimitTotals run={run} />
+    </div>
+  );
+}
+
+/** Each component's work so far, and how its columns add up. */
+function ComponentWork({ run }: RunTotalsProps) {
+  const components = useMemo(() => componentTotals(run), [run]);
+  return (
+    <>
       <CountsTable
         caption="Work per component so far"
         labelHeader="Component"
@@ -94,22 +103,31 @@ export function RunTotals({ run }: RunTotalsProps) {
         is still running or waiting. For a queue, succeeded counts messages
         accepted, whether or not they&apos;ve been delivered yet.
       </p>
-      {limits.length > 0 && (
-        <>
-          <CountsTable
-            caption="Busiest use of each limit so far"
-            labelHeader="Limit"
-            columns={LIMIT_COLUMNS}
-            rows={limits}
-          />
-          <p className={styles.note}>
-            Peak is the most used in any one second: slots held at once, such as
-            connections, or requests per second for a rate. At 100%, a limit on
-            slots was full, and the next request waited or was rejected. A rate
-            can pass 100% for a while by spending capacity saved up while quiet.
-          </p>
-        </>
-      )}
-    </div>
+    </>
+  );
+}
+
+/**
+ * Each limit's busiest use so far, against the limit. Left out until a
+ * snapshot reports a limit.
+ */
+function LimitTotals({ run }: RunTotalsProps) {
+  const limits = useMemo(() => limitPeaks(run).map(limitRow), [run]);
+  if (limits.length === 0) return null;
+  return (
+    <>
+      <CountsTable
+        caption="Busiest use of each limit so far"
+        labelHeader="Limit"
+        columns={LIMIT_COLUMNS}
+        rows={limits}
+      />
+      <p className={styles.note}>
+        Peak is the most used in any one second: slots held at once, such as
+        connections, or requests per second for a rate. At 100%, a limit on
+        slots was full, and the next request waited or was rejected. A rate can
+        pass 100% for a while by spending capacity saved up while quiet.
+      </p>
+    </>
   );
 }

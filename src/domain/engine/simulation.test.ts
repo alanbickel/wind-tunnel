@@ -8,7 +8,11 @@ import type {
   Workload,
 } from "../model/project";
 import { simulate } from "./create-simulation";
-import type { SimulationEvent } from "./simulation-events";
+import type {
+  ComponentSample,
+  ConcurrencyLimitSample,
+  SimulationEvent,
+} from "./simulation-events";
 
 // Small projects with constant timings, so latencies can be worked out by
 // hand. Edges take 1 ms each way unless a test says otherwise.
@@ -129,6 +133,39 @@ const ofKind = <K extends SimulationEvent["kind"]>(
   events.filter(
     (e): e is Extract<SimulationEvent, { kind: K }> => e.kind === kind,
   );
+
+/** An RDS sample's two limits, in the order RDS reports them. */
+interface RdsLimitSamples {
+  readonly connections: ConcurrencyLimitSample;
+  readonly workers: ConcurrencyLimitSample;
+}
+
+function rdsLimits(db: ComponentSample | undefined): RdsLimitSamples {
+  const [connections, workers] = db?.limits ?? [];
+  if (connections?.kind !== "concurrency") throw new Error("connections");
+  if (workers?.kind !== "concurrency") throw new Error("queryWorkers");
+  expect([connections.name, workers.name]).toEqual([
+    "connections",
+    "queryWorkers",
+  ]);
+  return { connections, workers };
+}
+
+/**
+ * Each waiting or running query holds a connection; each running one holds
+ * a worker, and only running queries are in progress.
+ */
+function expectRdsLimitsMatchItsWork(db: ComponentSample): void {
+  const { connections, workers } = rdsLimits(db);
+  expect(connections.inUse).toBe(db.inProgress + db.queueDepth);
+  expect(workers.peakInUse).toBe(db.peakInProgress);
+  expect(connections.peakInUse).toBeGreaterThanOrEqual(
+    Math.max(db.peakInProgress, db.peakQueueDepth, connections.inUse),
+  );
+  expect(connections.peakInUse).toBeLessThanOrEqual(
+    db.peakInProgress + db.peakQueueDepth,
+  );
+}
 
 const apiFnDb: Step = {
   componentId: "api",
@@ -357,23 +394,7 @@ describe("simulate", () => {
         if (db === undefined || fn === undefined) throw new Error("missing");
         expect(db.peakInProgress).toBeGreaterThanOrEqual(db.inProgress);
         expect(db.peakQueueDepth).toBeGreaterThanOrEqual(db.queueDepth);
-        const [connections, workers] = db.limits;
-        if (connections?.kind !== "concurrency") throw new Error("connections");
-        if (workers?.kind !== "concurrency") throw new Error("queryWorkers");
-        expect([connections.name, workers.name]).toEqual([
-          "connections",
-          "queryWorkers",
-        ]);
-        // Each waiting or running query holds a connection; each running
-        // one holds a worker, and only running queries are in progress.
-        expect(connections.inUse).toBe(db.inProgress + db.queueDepth);
-        expect(workers.peakInUse).toBe(db.peakInProgress);
-        expect(connections.peakInUse).toBeGreaterThanOrEqual(
-          Math.max(db.peakInProgress, db.peakQueueDepth, connections.inUse),
-        );
-        expect(connections.peakInUse).toBeLessThanOrEqual(
-          db.peakInProgress + db.peakQueueDepth,
-        );
+        expectRdsLimitsMatchItsWork(db);
         const total = fn.counters["coldStarts"] ?? 0;
         expect(total).toBeGreaterThanOrEqual(coldStarts);
         coldStarts = total;
@@ -383,14 +404,10 @@ describe("simulate", () => {
         Math.max(...samples.map((s) => s.db?.peakQueueDepth ?? 0)),
       ).toBeGreaterThan(0);
       // The line forms and drains between ticks, so only a tracked peak sees it.
-      const connections = samples.map((s) => s.db?.limits[0]);
-      const peaks = connections.map((c) =>
-        c?.kind === "concurrency" ? c.peakInUse : 0,
+      const connections = samples.map((s) => rdsLimits(s.db).connections);
+      expect(Math.max(...connections.map((c) => c.peakInUse))).toBeGreaterThan(
+        Math.max(...connections.map((c) => c.inUse)),
       );
-      const atTicks = connections.map((c) =>
-        c?.kind === "concurrency" ? c.inUse : 0,
-      );
-      expect(Math.max(...peaks)).toBeGreaterThan(Math.max(...atTicks));
       expect(coldStarts).toBeGreaterThan(0);
     });
 

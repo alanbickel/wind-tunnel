@@ -154,7 +154,7 @@ describe("simulateWithMetrics", () => {
       limit: 10_000,
       burst: 5_000,
     });
-    expect(apiTotal.peak).toBe(Math.max(...apiRates.map((r) => r?.peak ?? 0)));
+    expect(apiTotal.peak).toBe(Math.max(...apiRates.map((r) => r.peak)));
     expect(apiTotal.current).toBe(apiRates.at(-1)?.current);
 
     const connections = snapshots.map((s) =>

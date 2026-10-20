@@ -1,4 +1,5 @@
 import { lazy, Suspense, useId, useMemo } from "react";
+import { LoadFailureBoundary } from "../shared/load-failure-boundary";
 import { chartRows, type ChartRow } from "./chart-rows";
 import { formatValue } from "./format-value";
 import { PLOT_STYLE } from "./plot-style";
@@ -10,7 +11,7 @@ const ChartPlot = lazy(() =>
   import("./ChartPlot").then((module) => ({ default: module.ChartPlot })),
 );
 
-// Holds the plot's place while Recharts loads.
+// Holds the plot's place while Recharts loads, or if it can't.
 const STAND_IN_STYLE = {
   ...PLOT_STYLE,
   color: "var(--color-text-muted)",
@@ -24,7 +25,8 @@ export interface TimeSeriesChartProps {
  * Lines over simulated time, one per series, with a legend and a tooltip
  * (ADR-0011). The same numbers follow as a table, for screen readers and
  * for the lighter line colors. The title and table show at once; the lines
- * follow when Recharts has loaded.
+ * follow when Recharts has loaded, and if it can't, the table still holds
+ * the numbers.
  */
 export function TimeSeriesChart({ content }: TimeSeriesChartProps) {
   const headingId = useId();
@@ -33,9 +35,19 @@ export function TimeSeriesChart({ content }: TimeSeriesChartProps) {
   return (
     <figure aria-labelledby={headingId}>
       <h4 id={headingId}>{content.title}</h4>
-      <Suspense fallback={<div style={STAND_IN_STYLE}>Loading the chart…</div>}>
-        <ChartPlot content={content} rows={rows} />
-      </Suspense>
+      <LoadFailureBoundary
+        failure={
+          <div style={STAND_IN_STYLE}>
+            Couldn't load the chart. Reload the page to try again.
+          </div>
+        }
+      >
+        <Suspense
+          fallback={<div style={STAND_IN_STYLE}>Loading the chart…</div>}
+        >
+          <ChartPlot content={content} rows={rows} />
+        </Suspense>
+      </LoadFailureBoundary>
       <ChartTable content={content} rows={rows} />
     </figure>
   );

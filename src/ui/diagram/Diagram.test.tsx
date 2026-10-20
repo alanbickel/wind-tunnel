@@ -18,12 +18,23 @@ const content: DiagramContent = {
   edges: [],
 };
 
+/** `Diagram` as the app gets it when React Flow's chunk won't load. */
+async function diagramWithoutReactFlow(): Promise<typeof Diagram> {
+  vi.resetModules();
+  vi.doMock("./DiagramCanvas", () => {
+    throw new Error("Failed to fetch dynamically imported module");
+  });
+  return (await import("./Diagram")).Diagram;
+}
+
 describe("Diagram", () => {
   preloadBeforeAll(() => import("./DiagramCanvas"));
   beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.doUnmock("./DiagramCanvas");
+    vi.restoreAllMocks();
   });
 
   // Fails if Diagram renders the lazy canvas without its own Suspense
@@ -40,5 +51,21 @@ describe("Diagram", () => {
       expect(container.querySelectorAll(".react-flow__node")).toHaveLength(1);
     });
     expect(screen.queryByText("Loading the diagram…")).toBeNull();
+  });
+
+  // Fails if Diagram drops its LoadFailureBoundary: React unmounts the
+  // whole tree, and the labelled box is gone.
+  it("says so in its box if React Flow won't load", async () => {
+    // React logs the error it caught; the test expects it.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const FailingDiagram = await diagramWithoutReactFlow();
+    render(<FailingDiagram content={content} label="Sample diagram" />);
+
+    const diagram = screen.getByRole("group", { name: "Sample diagram" });
+    await waitFor(() => {
+      expect(diagram.textContent).toBe(
+        "Couldn't load the diagram. Reload the page to try again.",
+      );
+    });
   });
 });

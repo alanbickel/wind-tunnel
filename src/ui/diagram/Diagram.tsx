@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { LoadFailureBoundary } from "../shared/load-failure-boundary";
 import styles from "./Diagram.module.css";
 import type { DiagramContent } from "./diagram-model";
 
@@ -22,17 +23,26 @@ export interface DiagramProps {
  * readable by screen readers, so pair it with a text version. Place it in
  * a flex column, such as a `Panel`: it's `--diagram-height` tall, or it
  * fills the room a fixed-height column leaves it, and refits when that
- * room changes. While React Flow loads, the box holds its place.
+ * room changes. While React Flow loads, or if it can't, the box holds its
+ * place.
  */
 export function Diagram({ content, label }: DiagramProps) {
   return (
     <div role="group" aria-label={label} className={styles.diagram}>
       <div className={styles.canvas}>
-        <Suspense
-          fallback={<p className={styles.loading}>Loading the diagram…</p>}
+        <LoadFailureBoundary
+          failure={
+            <p className={styles.standIn}>
+              Couldn't load the diagram. Reload the page to try again.
+            </p>
+          }
         >
-          <DiagramCanvas content={content} />
-        </Suspense>
+          <Suspense
+            fallback={<p className={styles.standIn}>Loading the diagram…</p>}
+          >
+            <DiagramCanvas content={content} />
+          </Suspense>
+        </LoadFailureBoundary>
       </div>
     </div>
   );

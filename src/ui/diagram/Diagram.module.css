@@ -39,8 +39,8 @@
   inset: 0;
 }
 
-/* Stands in the canvas while React Flow loads. */
-.loading {
+/* Stands in the canvas while React Flow loads, or if it can't. */
+.standIn {
   margin: 0;
   padding: var(--space-4);
   color: var(--color-text-muted);

@@ -28,18 +28,37 @@ const content: TimeSeriesContent = {
   ],
 };
 
+/**
+ * A fresh `TimeSeriesChart` module, whose lazy plot hasn't loaded yet,
+ * whichever tests ran before.
+ */
+async function freshTimeSeriesChart(): Promise<typeof TimeSeriesChart> {
+  vi.resetModules();
+  return (await import("./TimeSeriesChart")).TimeSeriesChart;
+}
+
+/** `TimeSeriesChart` as the app gets it when Recharts' chunk won't load. */
+async function chartWithoutRecharts(): Promise<typeof TimeSeriesChart> {
+  vi.doMock("./ChartPlot", () => {
+    throw new Error("Failed to fetch dynamically imported module");
+  });
+  return freshTimeSeriesChart();
+}
+
 describe("TimeSeriesChart", () => {
   preloadBeforeAll(() => import("./ChartPlot"));
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.doUnmock("./ChartPlot");
+    vi.restoreAllMocks();
   });
 
   // Fails if TimeSeriesChart renders the lazy plot without its own Suspense
-  // boundary: the figure waits for Recharts to load. Keep it first: later
-  // tests find the plot already loaded.
-  it("is a figure named by its title", () => {
-    render(<TimeSeriesChart content={content} />);
+  // boundary: the figure waits for Recharts to load.
+  it("is a figure named by its title", async () => {
+    const FreshChart = await freshTimeSeriesChart();
+    render(<FreshChart content={content} />);
 
     expect(
       screen.getByRole("figure", { name: "Requests per second" }),
@@ -73,5 +92,23 @@ describe("TimeSeriesChart", () => {
       ["1", "1,200", "–"],
       ["2", "900", "3"],
     ]);
+  });
+
+  // Fails if TimeSeriesChart drops its LoadFailureBoundary: React unmounts
+  // the whole tree, table and all.
+  it("says so in the plot's place if Recharts won't load, and keeps the table", async () => {
+    // React logs the error it caught; the test expects it.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const FailingChart = await chartWithoutRecharts();
+    render(<FailingChart content={content} />);
+
+    expect(
+      await screen.findByText(
+        "Couldn't load the chart. Reload the page to try again.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("table", { name: "Requests per second (requests)" }),
+    ).toBeTruthy();
   });
 });

@@ -45,7 +45,8 @@ const LIMIT_UNITS: Readonly<Record<LimitUse["kind"], string>> = {
 const LIMIT_COLUMNS: readonly CountsColumn<LimitRow>[] = [
   { header: "Peak", value: (r) => Math.round(r.peak) },
   { header: "Limit", value: (r) => r.limit },
-  { header: "Peak %", value: (r) => percent(r.peakShare) },
+  { header: "Peak %", value: (r) => percentDown(r.peakShare) },
+  { header: "Exhausted", value: (r) => (r.exhausted ? "Yes" : "–") },
   { header: "Busiest flow", value: (r) => flow(r.flow) },
 ];
 
@@ -60,8 +61,13 @@ function flow(rate: RateFlow | undefined): string {
   return `${taken} of ${rate.ratePerSec.toLocaleString("en-US")} per s`;
 }
 
-function percent(share: number | undefined): string {
-  return share === undefined ? "–" : `${String(Math.round(100 * share))}%`;
+/**
+ * Rounded down, so 100% only shows when all of it was used. The slack keeps
+ * float error (0.29 × 100 = 28.999…) from rounding an exact share down.
+ */
+function percentDown(share: number | undefined): string {
+  if (share === undefined) return "–";
+  return `${String(Math.floor(100 * share + 1e-9))}%`;
 }
 
 export interface RunTotalsProps {
@@ -132,10 +138,11 @@ function LimitTotals({ run }: RunTotalsProps) {
       />
       <p className={styles.note}>
         Peak is the most used at once: slots held, such as connections, or
-        tokens drawn out of a full bucket. At 100%, the limit was exhausted, and
-        the next request waited or was rejected. A bucket refills at a steady
-        rate; busiest flow is the busiest second&apos;s requests against that
-        rate. Above it, the bucket drains.
+        tokens drawn out of a full bucket. Peak % rounds down. Exhausted means
+        the limit ran out: every slot held, or less than one token in the
+        bucket, so a request arriving then waited or was rejected. A bucket
+        refills at a steady rate; busiest flow is the busiest second&apos;s
+        requests against that rate. Above it, the bucket drains.
       </p>
     </>
   );

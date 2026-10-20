@@ -1,3 +1,4 @@
+import { limitExhausted } from "../../domain/metrics/limit-exhausted";
 import type {
   LimitUse,
   MetricsSnapshot,
@@ -26,11 +27,14 @@ export interface LimitPeak {
    * tokens drawn out of a full bucket.
    */
   readonly peak: number;
-  /**
-   * `peak / limit`: 1 means the limit was exhausted, and the next request
-   * waited or was rejected. Undefined for a limit of 0.
-   */
+  /** `peak / limit`, from 0 to 1. Undefined for a limit of 0. */
   readonly peakShare: number | undefined;
+  /**
+   * Whether the limit ran out at its peak, so a request arriving then waited
+   * or was rejected. A bucket can run out short of a `peakShare` of 1; see
+   * `limitExhausted`.
+   */
+  readonly exhausted: boolean;
   /** A rate limit's flow; undefined for a concurrency limit. */
   readonly flow: RateFlow | undefined;
 }
@@ -84,6 +88,7 @@ function limitPeak(limit: LimitUse, context: LimitPeakContext): LimitPeak {
     limit: limit.limit,
     peak,
     peakShare: limit.limit === 0 ? undefined : peak / limit.limit,
+    exhausted: limitExhausted({ kind: limit.kind, limit: limit.limit, peak }),
     flow: handleKind(FLOWS, limit)(uses),
   };
 }

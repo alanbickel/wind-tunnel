@@ -223,13 +223,14 @@ const LIMIT_COLUMNS: readonly Column<LimitPeak>[] = [
   { header: "peak", cell: (r) => count(Math.round(r.peak)) },
   { header: "of", cell: (r) => count(r.limit) },
   { header: "unit", cell: (r) => LIMIT_UNITS[r.kind] },
-  { header: "peak %", cell: (r) => share(r.peakShare) },
+  { header: "peak %", cell: (r) => shareDown(r.peakShare) },
+  { header: "exhausted", cell: (r) => (r.exhausted ? "yes" : "-") },
   { header: "busiest flow", cell: (r) => flow(r.flow) },
 ];
 
 const LIMIT_NOTES = [
   '"peak" is the most used at once during the run, against the limit in "of": slots held, or tokens drawn out of a full bucket.',
-  'At 100%, the limit was exhausted: the next request waited or was rejected (see "peak queue" and "rejected" in Components).',
+  '"peak %" rounds down. "exhausted" means the limit ran out: every slot held, or less than one token in the bucket, so a request arriving then waited or was rejected (see "peak queue" and "rejected" in Components).',
   `A rate limit's bucket refills at a steady rate. "busiest flow" is the busiest second's tokens taken, against that rate: above it, the bucket drains.`,
 ];
 
@@ -381,8 +382,15 @@ function flow(rate: RateFlow | undefined): string {
   return `${taken} of ${count(rate.ratePerSec)} per s`;
 }
 
-function share(fraction: number | undefined): string {
-  return fraction === undefined ? "-" : `${(100 * fraction).toFixed(1)}%`;
+/**
+ * A share as a percentage rounded down to 0.1%, so 100% only shows when it's
+ * all of it. The slack keeps float error (0.29 × 1000 = 289.999…) from
+ * rounding an exact share down a step.
+ */
+function shareDown(fraction: number | undefined): string {
+  if (fraction === undefined) return "-";
+  const tenths = Math.floor(1000 * fraction + 1e-9);
+  return `${(tenths / 10).toFixed(1)}%`;
 }
 
 function seconds(timeMs: number): string {

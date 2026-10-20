@@ -7,7 +7,11 @@ export interface TokenBucketInput {
   burst: number;
 }
 
-const TOKEN_EPSILON = 1e-9;
+/**
+ * How far short of one token a bucket can fall and still give one, to absorb
+ * the floating-point error of refilling (see `tryTake`).
+ */
+export const TOKEN_EPSILON = 1e-9;
 
 /**
  * Token bucket (MVP design §3.1). Each request takes one token; tokens refill

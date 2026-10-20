@@ -10,7 +10,7 @@ A run's snapshots say how much work each component holds, but not the limit that
 Components enforce two kinds of limit:
 
 - **Concurrency limits** hold slots: Lambda `concurrency`, RDS `maxConnections` and its query workers, SQS `consumerMaxConcurrency`. "88 of 90 held" needs no explaining.
-- **Rate limits** are token buckets: API Gateway's throttle, and DynamoDB's read and write capacity. Tokens refill at a steady rate, up to a burst size. Each request takes one, and a request that finds the bucket empty is throttled. A bucket has two numbers, so "how much of it was used?" has two reasonable answers:
+- **Rate limits** are token buckets: API Gateway's throttle, and DynamoDB's read and write capacity. Tokens refill at a steady rate, up to a burst size. Each request takes one, and a request that finds less than one token is throttled. A bucket has two numbers, so "how much of it was used?" has two reasonable answers:
   - **A. Flow:** tokens taken per second, against the refill rate.
   - **B. Level:** how far the bucket was drawn down, against its size.
 
@@ -23,7 +23,7 @@ The engine knows nothing about component types (Open/Closed), and [ADR-0007](000
 - A `ComponentBehavior` may expose `limits`: one array of live views (`LimitGauge`), built once. A concurrency view gives `limit` and `inUse`. A rate view gives `ratePerSec`, `burst`, the running count of tokens `taken`, and `tokensLeft(nowMs)`, which only reads. `concurrencyGauge` and `rateGauge` (`domain/components/limit-gauges.ts`) build views over a `ConcurrencyLimit` or a `RateLimit`, which now expose their limit values.
 - The engine reads every limit after every call into the component, as it already does for `peakInProgress`, and keeps each limit's highest use since the last tick. Peaks are exact, not sampled.
 - Each snapshot's `ComponentMetrics` gets `limits: LimitUse[]`, each with `name`, `kind`, `limit`, `current` (at the window's end), and `peak` (the most at once during the window). In the run's totals, `peak` is the highest of any window and `current` is the last window's.
-- **`peak / limit` means the same thing for every limit:** it never goes over 1, and at 1 the limit was exhausted and the next request waited or was rejected.
+- **`peak / limit` is the share used at the busiest moment, from 0 to 1, for every limit.** When a limit ran out depends on its kind, so one rule, `limitExhausted` (`domain/metrics/limit-exhausted.ts`), decides it for the CLI, the run panel, and the findings: a concurrency limit is exhausted at `peak >= limit`, every slot held; a bucket at `peak > limit − 1`, less than one token left, which is where `tryTake` starts refusing. Either way, a request arriving then waited or was rejected. The displays round `peak / limit` down, so 100% never shows for a limit with room left, and show whether it was exhausted beside it.
 - **A rate limit's use is option B, its bucket's level.** `limit` is the bucket's size (its burst), and `current` and `peak` count the tokens missing from a full bucket. The flow travels with it as context: `ratePerSec`, and `takenPerSec` for the window (in the totals, the busiest window's). Taking tokens faster than `ratePerSec` drains the bucket.
 - The component contract checks every limit: the same limits on every read, concurrency use within its limit, a bucket holding between 0 and `burst` tokens, and no more tokens taken than the burst plus the rate since the start allow.
 - RDS's `connectionsHeld` gauge is removed: its `connections` limit reports the same number, plus its peak and the limit itself.
@@ -34,8 +34,8 @@ A per-second flow is an exact count, but it can't explain a throttle. It also go
 
 ## Consequences
 
-- Every limit reads the same way: `peak / limit` from 0 to 1, with 1 meaning the limit bit. Findings and the "busiest component" verdict can compare an RDS pool with an API throttle.
-- A bucket's level alone can't show sustained headroom. At 9,900 requests per second against a 10,000-per-second rate, the bucket stays full and its use reads 0%. That's why every rate limit carries its flow. Both tables show both, and the time until a draining bucket runs dry is `tokensLeft / (takenPerSec − ratePerSec)`.
+- Every limit reads the same way: `peak / limit` from 0 to 1, so findings and the "busiest component" verdict can compare an RDS pool with an API throttle. A bucket runs out just short of 1, at less than one token left, so "exhausted" comes from `limitExhausted`, not from the share. At Template scale (a burst of 5,000) the gap doesn't show; for a small DynamoDB table with a burst of a few units, it does.
+- A bucket's level alone can't show sustained headroom. At 9,900 requests per second against a 10,000-per-second rate, the bucket stays full and its use reads 0%. That's why every rate limit carries its flow. Both tables show both, and a draining bucket runs out, below one token, in `(tokensLeft − 1) / (takenPerSec − ratePerSec)` seconds.
 - Shape within a second is invisible: two seconds with the same lowest level look the same. Shorter metric windows would show more, if a finding ever needs it.
 - The CLI report and the run panel share `limitPeaks` (`application/run-analysis/`, [ADR-0013](0013-derive-run-results-in-application-run-analysis.md)). The CLI's per-second table shows a component's limits in place of its "busy" column.
 - Reading a bucket's level after every call must not change the run, so `RateLimit.available` only reads. Before this, it refilled the bucket, which could shift later refills by floating-point steps.

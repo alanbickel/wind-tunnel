@@ -5,6 +5,7 @@ import type {
   MetricsSnapshot,
 } from "../../domain/metrics/metrics-collector";
 import { simulateWithMetrics } from "../../domain/metrics/metrics-collector";
+import { limitExhausted } from "../../domain/metrics/limit-exhausted";
 import {
   componentIn,
   limitIn,
@@ -159,15 +160,13 @@ describe.each(SEEDS)("with seed %i", (seed) => {
       expect(connections(b.totals).peak).toBeLessThanOrEqual(cap);
     });
 
-    // Fails if a Template B component reaches a limit other than the queue's
-    // consumer cap, which is what holds back the backlog.
-    it("stays under every limit but the queue's consumer cap, which it reaches", () => {
-      const reached = Object.entries(b.totals.components).flatMap(([id, c]) =>
-        c.limits
-          .filter((limit) => limit.peak >= limit.limit)
-          .map((limit) => `${id} ${limit.name}`),
+    // Fails if a Template B component exhausts a limit other than the
+    // queue's consumer cap, which is what holds back the backlog.
+    it("exhausts no limit but the queue's consumer cap", () => {
+      const exhausted = Object.entries(b.totals.components).flatMap(([id, c]) =>
+        c.limits.filter(limitExhausted).map((l) => `${id} ${l.name}`),
       );
-      expect(reached).toEqual(["orders-queue consumerConcurrency"]);
+      expect(exhausted).toEqual(["orders-queue consumerConcurrency"]);
     });
 
     it("builds a backlog during the spike and empties it before the run ends", () => {

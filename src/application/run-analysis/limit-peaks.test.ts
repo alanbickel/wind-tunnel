@@ -54,6 +54,7 @@ describe("limitPeaks", () => {
         limit: 100,
         peak: 90,
         peakShare: 0.9,
+        exhausted: false,
         flow: { ratePerSec: 50, busiestTakenPerSec: 70 },
       },
       {
@@ -65,9 +66,22 @@ describe("limitPeaks", () => {
         limit: 10,
         peak: 4,
         peakShare: 0.4,
+        exhausted: false,
         flow: undefined,
       },
     ]);
+  });
+
+  // Fails if `exhausted` reads `peakShare` = 1 rather than the bucket's own
+  // rule: at 99.5 of 100 tokens drawn, less than one token is left.
+  it("marks a bucket exhausted once less than one token is left", () => {
+    const [row] = limitPeaks({
+      project,
+      snapshots: [
+        sampleSnapshot({ second: 1, api: { limits: [requestRate(99.5, 0)] } }),
+      ],
+    });
+    expect(row).toMatchObject({ peakShare: 0.995, exhausted: true });
   });
 
   // Fails if a limit of 0 divides by zero instead of leaving the share out.

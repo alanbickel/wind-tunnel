@@ -35,19 +35,19 @@ Queues: "ok" counts messages accepted. Each is then delivered (async ok), waitin
 
 Limits
 ======
-component     limit                peak      of  unit          peak %  busiest flow
-------------  -------------------  ----  ------  ------------  ------  ---------------------
-api           requestRate             5   5,000  tokens drawn    0.1%  2,076 of 10,000 per s
-fn-api        concurrency           101   1,000  slots held     10.1%  -
-orders-read   readUnits              14  12,500  tokens drawn    0.1%  1,656 of 2,500 per s
-orders-read   writeUnits              0   2,500  tokens drawn    0.0%  0 of 500 per s
-orders-queue  consumerConcurrency    15      15  slots held    100.0%  -
-fn-writer     concurrency            15   1,000  slots held      1.5%  -
-orders-db     connections            13      90  slots held     14.4%  -
-orders-db     queryWorkers           13      16  slots held     81.3%  -
+component     limit                peak      of  unit          peak %  exhausted  busiest flow
+------------  -------------------  ----  ------  ------------  ------  ---------  ---------------------
+api           requestRate             5   5,000  tokens drawn    0.0%  -          2,076 of 10,000 per s
+fn-api        concurrency           101   1,000  slots held     10.1%  -          -
+orders-read   readUnits              14  12,500  tokens drawn    0.1%  -          1,656 of 2,500 per s
+orders-read   writeUnits              0   2,500  tokens drawn    0.0%  -          0 of 500 per s
+orders-queue  consumerConcurrency    15      15  slots held    100.0%  yes        -
+fn-writer     concurrency            15   1,000  slots held      1.5%  -          -
+orders-db     connections            13      90  slots held     14.4%  -          -
+orders-db     queryWorkers           13      16  slots held     81.2%  -          -
 
 "peak" is the most used at once during the run, against the limit in "of": slots held, or tokens drawn out of a full bucket.
-At 100%, the limit was exhausted: the next request waited or was rejected (see "peak queue" and "rejected" in Components).
+"peak %" rounds down. "exhausted" means the limit ran out: every slot held, or less than one token in the bucket, so a request arriving then waited or was rejected (see "peak queue" and "rejected" in Components).
 A rate limit's bucket refills at a steady rate. "busiest flow" is the busiest second's tokens taken, against that rate: above it, the bucket drains.
 
 Workflows per second

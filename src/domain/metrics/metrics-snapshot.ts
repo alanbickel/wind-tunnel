@@ -36,16 +36,16 @@ export interface ComponentMetrics {
 
 /**
  * How much of one of its limits a component used. `peak / limit` is the
- * share used at the busiest moment, and never goes over 1. At 1, the limit
- * was exhausted: the next request waited or was rejected. Units depend on
- * `kind`: slots for concurrency, tokens for a rate limit's bucket.
+ * share used at the busiest moment, and never goes over 1. Whether the limit
+ * ran out depends on its kind; `limitExhausted` has the rule. Units depend
+ * on `kind`: slots for concurrency, tokens for a rate limit's bucket.
  */
 export type LimitUse = ConcurrencyLimitUse | RateLimitUse;
 
 /**
  * Slots held out of a fixed number, e.g. RDS `connections` or Lambda
- * `concurrency`. `peak` never exceeds `limit`; reaching it means the
- * next request was queued or rejected.
+ * `concurrency`. `peak` never exceeds `limit`; reaching it means a
+ * request arriving then was queued or rejected.
  */
 export interface ConcurrencyLimitUse {
   readonly kind: "concurrency";
@@ -62,9 +62,9 @@ export interface ConcurrencyLimitUse {
 /**
  * A token bucket, e.g. API Gateway's `requestRate` or DynamoDB's
  * `readUnits`. Use is how far the bucket was drawn down: tokens missing
- * from a full bucket. A request finding the bucket empty is throttled, so a
- * `peak` at `limit` means the bucket ran dry. Whether it drains depends on
- * the flow: `takenPerSec` against `ratePerSec`.
+ * from a full bucket. A request finding less than one token is throttled,
+ * so the bucket ran out once `peak` is over `limit - 1`. Whether it drains
+ * depends on the flow: `takenPerSec` against `ratePerSec`.
  */
 export interface RateLimitUse {
   readonly kind: "rate";

@@ -49,6 +49,19 @@ describe("runSimulateCommand", () => {
     expect(result.output).toContain(USAGE);
   });
 
+  // Fails if the command drops --workload, so the first workload runs.
+  it("runs the workload it's given", async () => {
+    const result = await runSimulateCommand([
+      "--template",
+      "template-b",
+      "--workload",
+      "steady-day",
+    ]);
+    expect(result.output).toContain(
+      "Workload: Steady day, 200 requests/s (steady-day), 60 s, seed 42",
+    );
+  }, 20_000);
+
   it("runs with the seed it's given", async () => {
     const result = await runSimulateCommand([
       "--template",

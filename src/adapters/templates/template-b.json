@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "template-b",
   "name": "Serverless API with DynamoDB + SQS",
-  "description": "The same API as \"Serverless API with RDS\", reworked for spikes: reads go to DynamoDB, and writes go through an SQS queue to a worker function with a capped concurrency. Run the same lunch rush and compare.",
+  "description": "The same API as \"Serverless API with RDS\", reworked for spikes: reads go to DynamoDB, and writes go through an SQS queue to a worker function with a capped concurrency. Run the same lunch rush and compare. The steady day shows it with calm traffic, where every limit has room to spare. In the long rush nothing fails, but writes arrive faster than the queue's consumers take them, so they land later and later.",
   "createdAt": "2026-10-14T00:00:00Z",
   "updatedAt": "2026-10-14T00:00:00Z",
   "architecture": {
@@ -166,7 +166,7 @@
   "workloads": [
     {
       "id": "lunch-rush",
-      "name": "Lunch rush",
+      "name": "Lunch rush, 20 s at 2,000 requests/s",
       "durationSec": 60,
       "seed": 42,
       "mix": [
@@ -179,6 +179,37 @@
         { "atSec": 20, "requestsPerSec": 2000 },
         { "atSec": 40, "requestsPerSec": 2000 },
         { "atSec": 50, "requestsPerSec": 200 }
+      ]
+    },
+    {
+      "id": "steady-day",
+      "name": "Steady day, 200 requests/s",
+      "durationSec": 60,
+      "seed": 42,
+      "mix": [
+        { "workflowId": "get-order", "weight": 80 },
+        { "workflowId": "create-order", "weight": 20 }
+      ],
+      "profile": [
+        { "atSec": 0, "requestsPerSec": 200 },
+        { "atSec": 60, "requestsPerSec": 200 }
+      ]
+    },
+    {
+      "id": "long-rush",
+      "name": "Long rush, 2 min at 2,000 requests/s",
+      "durationSec": 200,
+      "seed": 42,
+      "mix": [
+        { "workflowId": "get-order", "weight": 80 },
+        { "workflowId": "create-order", "weight": 20 }
+      ],
+      "profile": [
+        { "atSec": 0, "requestsPerSec": 200 },
+        { "atSec": 10, "requestsPerSec": 200 },
+        { "atSec": 20, "requestsPerSec": 2000 },
+        { "atSec": 140, "requestsPerSec": 2000 },
+        { "atSec": 150, "requestsPerSec": 200 }
       ]
     }
   ],

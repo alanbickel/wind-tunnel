@@ -5,9 +5,10 @@ How `npm run simulate` runs a template from the terminal and prints a text repor
 ## Try it
 
 ```sh
-npm run simulate -- --template template-a          # Serverless API with RDS
-npm run simulate -- --template template-b          # DynamoDB + SQS
-npm run simulate -- --template template-a --seed 7 # same run, different random draws
+npm run simulate -- --template template-a                        # Serverless API with RDS
+npm run simulate -- --template template-b                        # DynamoDB + SQS
+npm run simulate -- --template template-a --seed 7               # same run, different random draws
+npm run simulate -- --template template-b --workload long-rush   # another workload (MVP design §7)
 npm run simulate -- --help
 ```
 

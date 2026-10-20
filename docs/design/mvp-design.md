@@ -309,12 +309,15 @@ interface StepDocument {
 
 ## 7. Templates
 
-Both templates use the **same workload**, so their results can be compared directly.
+Both templates use the **same workloads**, so their results can be compared directly. Each workload has the same mix (80% *Get order*, 20% *Create order*) and seed 42; only the shape of the traffic differs. The lunch rush comes first, so it's the default.
 
-**Shared workload: "Lunch rush"** (60 seconds, seed 42)
+| Workload | Profile | Length | What it tests |
+|---|---|---|---|
+| **Lunch rush** | 200 requests/s for 10 s, ramping to 2,000 requests/s at 20 s, holding until 40 s, then back down to 200 requests/s at 50 s | 60 s | A short spike |
+| **Steady day** | 200 requests/s throughout | 60 s | Calm traffic: what a healthy run looks like |
+| **Long rush** | Like the lunch rush, but holding 2,000 requests/s until 140 s, back to 200 at 150 s | 200 s | The same spike held for two minutes: a queue whose consumers can't keep up |
 
-- Mix: 80% *Get order*, 20% *Create order*
-- Profile: 200 requests/s for 10 s, ramping to 2,000 requests/s at 20 s, holding until 40 s, then back down to 200 requests/s at 50 s
+Each template's expected behavior below is for the lunch rush. What the other two workloads show is at the end of this section.
 
 ### Template A: "Serverless API with RDS"
 
@@ -365,8 +368,10 @@ The templates are `src/adapters/templates/template-a.json` and `template-b.json`
 | orders-read `readUnitsPerSec`, `burstSec` | 2,500, 5 | Headroom over the 1,600 reads/s peak without leaning on a full 300 s bucket, which would hide throttling (DDB-2) |
 | orders-queue `consumerMaxConcurrency` | 15 | Low enough that the backlog grows during the spike, high enough that it drains before the run ends (see below). Tried: 40 and 20 left almost no backlog; 12 left 825 messages at 60 s |
 | Edge latencies | 1–2 ms | Same-Region calls; nonzero so redelivery loops advance time |
+| Steady day rate | 200 requests/s | The lunch rush's calm rate. At 250, nothing fails, but Template A's 16 query workers all fill at once on two of the three test seeds, so the run no longer shows clear headroom |
+| Long rush peak | 2 minutes, then calm until 200 s | The shortest peak whose slowest writes (p99) land later than API Gateway's 29 s integration timeout: a write no synchronous API could have waited for. A 90 s peak lands them in about 25 s; 300 s lands them in 83 s but takes 25 s to simulate. The backlog is empty by about 187 s on every test seed |
 
-### What the templates show (after the M1 tuning pass)
+### What the templates show under the lunch rush (after the M1 tuning pass)
 
 Seed 42; other seeds give similar numbers. The full reports are in `src/adapters/cli/reports/`, and `template-scenarios.test.ts` asserts these lessons with loose thresholds on three seeds.
 
@@ -380,6 +385,19 @@ Seed 42; other seeds give similar numbers. The full reports are in `src/adapters
 | Time until a write lands (p99) | Same as the response | 6.2 s |
 
 Template A's p99 rises less than you might expect, because refused requests fail fast and latency counts only successful ones. The error rate carries its lesson. In AWS, the lesson would be stronger (LMB-8, RDS-2, RDS-4).
+
+### The steady day and the long rush
+
+The other two workloads split the templates differently: under the steady day both are healthy, and under the long rush Template B fails nothing but falls behind. Seed 42 again; `npm run simulate -- --template <id> --workload <id>` prints the full reports.
+
+| | Template A | Template B |
+|---|---|---|
+| **Steady day** | No failures. Busiest limit: orders-db's query workers, at most 14 of 16 busy; connections at most 14 of 90 | No failures. Writes land within 248 ms (p99). The consumer cap fills only in the first second, while fn-writer cold-starts |
+| **Long rush: failed requests** | 51% (139,042), all `orders-db: too-many-connections`, in every second from 15 s to 146 s; none after | 0 |
+| **Long rush: queue backlog** | n/a | Grows by about 85 messages a second for the whole peak, because writes arrive at about 400 a second and 15 consumers deliver about 315. Peaks at 10,197 at 142 s, empty by 185 s |
+| **Long rush: writes** | Same as the response | Answered within 114 ms (p99), but land 32.6 s later (p99), past API Gateway's 29 s timeout |
+
+Under the long rush, Template B degrades without failing: a finding for it is a warning, not an error. It's also the only workload that would catch a read capacity too small to last a long peak: with `readUnitsPerSec` cut to 1,500, the lunch rush still fails nothing, because the 5 s burst bucket covers its 20 s peak, but the long rush empties the bucket and 4,377 reads fail as `orders-read: throttled`.
 
 ## 8. Testing strategy
 

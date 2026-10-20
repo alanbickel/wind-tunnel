@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Explained } from "./Explained";
 
 function renderExplained() {
@@ -65,6 +65,25 @@ describe("Explained", () => {
     expect(control.getAttribute("aria-expanded")).toBe("false");
     expect(explanation().hidden).toBe(true);
     expect(document.activeElement).toBe(control);
+  });
+
+  // Fails if a handled Escape bubbles on, so one keypress would also close
+  // a dialog or panel around the explanation.
+  it("keeps a handled Escape from reaching what's around it", () => {
+    const outer = vi.fn();
+    render(
+      <div onKeyDown={outer}>
+        <Explained title={<h4>Limits</h4>} subject="Limits">
+          <p>Peak is the most used at once.</p>
+        </Explained>
+      </div>,
+    );
+    const control = screen.getByRole("button", { name: "About Limits" });
+    fireEvent.click(control);
+
+    fireEvent.keyDown(control, { key: "Escape" });
+
+    expect(outer).not.toHaveBeenCalled();
   });
 
   // Fails if Escape is ignored on the control itself.

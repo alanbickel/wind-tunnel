@@ -55,7 +55,7 @@ export function Explained({ title, subject, children }: ExplainedProps) {
 interface Disclosure {
   readonly open: boolean;
   readonly toggle: () => void;
-  /** Closes on Escape, from anywhere inside, and focuses the button. */
+  /** Closes on Escape, from anywhere inside, and focuses the button; the Escape goes no further. */
   readonly closeOnEscape: (event: KeyboardEvent) => void;
   readonly button: RefObject<HTMLButtonElement | null>;
 }
@@ -66,10 +66,12 @@ function useDisclosure(): Disclosure {
   return {
     open,
     toggle: () => {
-      setOpen(!open);
+      setOpen((wasOpen) => !wasOpen);
     },
     closeOnEscape: (event) => {
       if (event.key !== "Escape" || !open) return;
+      // Handled here, so a dialog or panel around this one stays open.
+      event.stopPropagation();
       setOpen(false);
       button.current?.focus();
     },

@@ -5,15 +5,13 @@ import {
   workflowTotals,
 } from "../../application/run-analysis/run-totals";
 import { workflowSeconds } from "../../application/run-analysis/workflow-seconds";
-import { createAwsComponentRegistry } from "../../domain/components/aws";
-import { simulateWithMetrics } from "../../domain/metrics/metrics-collector";
 import {
   componentIn,
   workflowIn,
 } from "../../domain/metrics/testing/snapshot-lookups";
-import { loadProject } from "../persistence/load-project";
 import templateA from "./template-a.json";
 import templateB from "./template-b.json";
+import { runTemplate } from "./testing/run-template";
 
 // The run panel and the CLI report add up the snapshots with the shared
 // functions in `application/run-analysis/`. These tests check those sums
@@ -21,23 +19,13 @@ import templateB from "./template-b.json";
 // in either shows up here. They live in `adapters/` rather than beside the
 // functions because loading a template needs `loadProject`.
 
-const registry = createAwsComponentRegistry();
-
-function run(template: unknown) {
-  const loaded = loadProject(template, registry);
-  if (!loaded.ok) throw new Error(JSON.stringify(loaded.issues));
-  const { project } = loaded.record;
-  const workloadId = project.workloads[0]?.id ?? "";
-  return { project, ...simulateWithMetrics({ project, workloadId, registry }) };
-}
-
 describe.each([
   ["template-a", templateA],
   ["template-b", templateB],
 ])("%s's run analysis reconciles", (_, template) => {
   // Run while collecting: a whole-template run inside `it` counts against
   // the 5 s test timeout, which a busy parallel run can exceed (#15).
-  const { project, totals, snapshots } = run(template);
+  const { project, totals, snapshots } = runTemplate(template);
   const finished = { project, snapshots };
 
   // Fails if `workflowTotals` drops a snapshot or a count (e.g. summing

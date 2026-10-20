@@ -31,9 +31,9 @@ export function formatReport(input: ReportInput): string {
   const { totals, snapshots } = run;
   const sections = [
     heading(input),
-    section("Workflows", workflowTotals(totals)),
+    section("Workflows", workflowTable(totals)),
     section("Failures", failureTotals(totals)),
-    section("Components", componentTotals(project, totals)),
+    section("Components", componentTable(project, totals)),
     section("Workflows per second", workflowTimeline(snapshots)),
     section("Components per second", componentTimeline(project, snapshots)),
   ];
@@ -104,7 +104,7 @@ const WORKFLOW_NOTES = [
   '"failed %" is of answered requests (ok + failed). Latencies are in ms, of ok requests.',
 ];
 
-function workflowTotals(totals: MetricsSnapshot): string {
+function workflowTable(totals: MetricsSnapshot): string {
   const rows = Object.entries(totals.workflows).map(([id, metrics]) => ({
     id,
     metrics,
@@ -172,7 +172,7 @@ const COMPONENT_NOTES = [
   '"async failed" counts failed deliveries; those messages go back to the backlog and are tried again.',
 ];
 
-function componentTotals(project: Project, totals: MetricsSnapshot): string {
+function componentTable(project: Project, totals: MetricsSnapshot): string {
   const rows = project.architecture.components.map(({ id }) => ({
     id,
     metrics: metricsFor(totals, id),

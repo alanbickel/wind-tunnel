@@ -19,7 +19,7 @@ The shared code needs a home that both `ui/` and `adapters/` can import:
 
 Code that derives results from a run lives in **`src/application/run-analysis/`**. It is a read model: pure functions from a `RunSoFar` (the project and the snapshots received so far) to plain data. It has no ports and no use cases, and it never changes the run.
 
-- Every count the browser and the CLI both show is computed there once. Today that's `requestsInProgress` and `unfinishedWork` (`counts.ts`), `workflowSeconds`, and `workflowTotals`, `allWorkflows`, and `componentTotals`.
+- The remainders and per-second counts are computed only there: `requestsInProgress` and `unfinishedWork` (`counts.ts`) and `workflowSeconds`. The browser's totals come from `workflowTotals`, `allWorkflows`, and `componentTotals`, which sum the snapshots. The CLI's totals tables read the collector's own `totals` snapshot instead, because the component table also needs timeouts, latency, and peaks; both pass their counts through the shared remainder functions.
 - The functions take the snapshots received so far, not only a finished run, so the browser can call them while a run is still going.
 - Formatting stays in the outer layers: the CLI turns the results into text tables, and the UI turns them into charts and React tables. Unit conversion for display (milliseconds to seconds) happens there too.
 - Findings and their detectors will live here too, registered rather than hard-coded, in line with Open/Closed. Their shape is #47's to design.
@@ -27,7 +27,7 @@ Code that derives results from a run lives in **`src/application/run-analysis/`*
 
 ## Consequences
 
-- The browser and the CLI can't disagree about a count, because there is only one implementation of it.
+- The browser and the CLI can't disagree about what's in progress or unfinished, because those remainders have one implementation. Their totals have two sources, the summed snapshots and the collector's `totals`, and the reconcile test keeps them equal.
 - A new derived number has an obvious home, and it's tested in Node without React or a terminal.
 - `application/` now holds two kinds of code: use cases with ports, and this read model. The architecture overview's "Where does my code go?" table says which goes where.
 - Derived data that only one screen shows can still live in `ui/` (for example `runCharts`, which shapes series for one chart). When a second consumer needs it, move it here.

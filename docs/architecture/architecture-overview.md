@@ -111,12 +111,15 @@ flowchart TB
     subgraph app["application/"]
         UC["Use cases<br/>RunSimulation, CompareRuns, ..."]
         P["Ports (interfaces)<br/>Clock, IdGenerator, ProjectRepository,<br/>TemplateCatalog, SimulationRunner,<br/>StoragePersistence"]
+        RA["Run analysis<br/>totals, per-second counts,<br/>later findings"]
     end
     subgraph dom["domain/ (most stable)"]
         D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives,<br/>component definitions, RandomSource,<br/>metrics collector"]
     end
 
     UI --> UC
+    UI --> RA
+    AD --> RA
     AD -.->|implements| P
     UC --> P
     UC --> D

@@ -3,9 +3,9 @@ import { createAwsComponentRegistry } from "../../domain/components/aws";
 import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
 import { simulateWithMetrics } from "../../domain/metrics/metrics-collector";
 import type { Project } from "../../domain/model/project";
-import { loadProject } from "../persistence/load-project";
 import templateA from "./template-a.json";
 import templateB from "./template-b.json";
+import { loadTemplate } from "./testing/run-template";
 
 // Scenario tests: each template must teach its lesson under the lunch rush.
 // Template A runs out of database connections during the spike and recovers
@@ -20,12 +20,6 @@ const SEEDS = [42, 7, 2026];
 const CALM = { fromSec: 0, toSec: 10 };
 const PEAK = { fromSec: 20, toSec: 40 };
 const AFTER = { fromSec: 50, toSec: 60 };
-
-function load(template: unknown): Project {
-  const loaded = loadProject(template, registry);
-  if (!loaded.ok) throw new Error(JSON.stringify(loaded.issues));
-  return loaded.record.project;
-}
 
 function run(project: Project, seed: number) {
   const workloads = project.workloads.map((w) => ({ ...w, seed }));
@@ -64,8 +58,8 @@ function configNumber(project: Project, componentId: string, key: string) {
   return value;
 }
 
-const projectA = load(templateA);
-const projectB = load(templateB);
+const projectA = loadTemplate(templateA);
+const projectB = loadTemplate(templateB);
 const maxConnections = configNumber(projectA, "orders-db", "maxConnections");
 
 describe.each(SEEDS)("with seed %i", (seed) => {

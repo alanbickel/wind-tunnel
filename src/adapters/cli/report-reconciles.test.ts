@@ -140,8 +140,9 @@ describe.each([
     expect(counted.length).toBeGreaterThanOrEqual(snapshots.length * 2);
   });
 
-  // Fails if a rate limit counts throttled requests as tokens taken, or
-  // stops counting admitted ones.
+  // Fails if a rate limit stops counting admitted requests as tokens taken.
+  // Neither template throttles, so counting throttled requests as taken can't
+  // turn this red; token-bucket.test.ts and api-gateway.test.ts cover that.
   it("takes one rate token for each request a rate-limited component admits", () => {
     const windows = snapshots.flatMap((snapshot) =>
       Object.entries(snapshot.components).map(([id, metrics]) => ({

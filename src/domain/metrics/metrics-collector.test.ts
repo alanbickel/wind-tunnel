@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../components/aws";
 import type { SimulationEvent } from "../engine/simulation-events";
 import type { Edge, Project } from "../model/project";
+import { limitExhausted } from "./limit-exhausted";
 import { simulateWithMetrics } from "./metrics-collector";
 import {
   componentIn,
@@ -201,23 +202,28 @@ describe("simulateWithMetrics", () => {
     );
   });
 
-  // Fails if a rate limit's peak stops tracking the bucket's lowest level
-  // after every request: a second with a throttled request must show the
-  // bucket drawn down to less than one token left.
-  it("shows a bucket drawn dry in every second that throttled", () => {
-    // A one-token bucket refills in 200 ms, so it's usually full again by
-    // the tick: only a peak tracked at each request sees it run dry.
-    const { snapshots } = run(project({ apiRatePerSec: 5, apiBurst: 1 }));
-    const throttled = snapshots.filter(
-      (s) => componentIn(s, "api").rejected > 0,
+  // Fails if a rate limit's peak is read only at ticks, not after every
+  // request (e.g. with `trackLimitPeaks` emptied). Some throttled second must
+  // have a full bucket at both its ticks, where a peak read at ticks is 0.
+  it("shows a bucket exhausted in every second that throttled", () => {
+    // A one-token bucket refills in 50 ms, so it's usually full by a tick.
+    const { snapshots } = run(project({ apiRatePerSec: 20, apiBurst: 1 }));
+    const buckets = snapshots.map((s) =>
+      rateLimitIn(componentIn(s, "api"), "requestRate"),
     );
-    expect(throttled.length).toBeGreaterThan(0);
-    for (const snapshot of throttled) {
-      const bucket = rateLimitIn(componentIn(snapshot, "api"), "requestRate");
-      expect(bucket.peak).toBeGreaterThan(bucket.limit - 1);
+    const throttled = snapshots.flatMap((s, index) =>
+      componentIn(s, "api").rejected > 0 ? [index] : [],
+    );
+    const fullAtBothTicks = throttled.filter(
+      (index) =>
+        (buckets[index - 1]?.current ?? 0) === 0 &&
+        buckets[index]?.current === 0,
+    );
+    expect(fullAtBothTicks.length).toBeGreaterThan(0);
+    for (const index of throttled) {
+      expect(buckets[index] && limitExhausted(buckets[index])).toBe(true);
     }
-    for (const snapshot of snapshots) {
-      const bucket = rateLimitIn(componentIn(snapshot, "api"), "requestRate");
+    for (const bucket of buckets) {
       expect(bucket.current).toBeGreaterThanOrEqual(0);
       expect(bucket.current).toBeLessThanOrEqual(bucket.peak);
       expect(bucket.peak).toBeLessThanOrEqual(bucket.limit);

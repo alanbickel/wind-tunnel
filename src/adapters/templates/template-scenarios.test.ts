@@ -91,6 +91,10 @@ describe.each(SEEDS)("with seed %i", (seed) => {
   });
 
   describe("Template A (RDS)", () => {
+    // Fails if calm traffic fails a request, or ever holds half of
+    // orders-db's connections at once: with queryWorkers cut from 16 to 4,
+    // queries pile up and seeds 42 and 2026 peak at 62 and 57 of 45, still
+    // without a failure.
     it("serves calm traffic without failures", () => {
       const calm = during(a.snapshots, CALM);
       expect(calm.map(failed)).toEqual(calm.map(() => 0));

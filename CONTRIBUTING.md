@@ -268,6 +268,8 @@ A new AWS service (or any other component type) touches these places, all in the
 
 - Unit tests sit next to the code (`foo.ts` → `foo.test.ts`) and run in Node. Architecture tests live in `tests/architecture/`.
 - **UI tests** start with `// @vitest-environment jsdom`, render with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and call `cleanup` in `afterEach`. Give components use cases through `UseCasesProvider`: `fakeUseCases()` rejects every call you don't override, and `inMemoryUseCases()` runs the real project use cases over in-memory adapters (both in `src/ui/app/testing/`).
+- **Use jsdom only for a test that needs the browser:** one that renders, or reads `document`, `window`, or `localStorage`. jsdom adds 3 to 5 s of startup to each file in a full run. Everything else runs in Node, where the setup file skips loading Testing Library.
+- **Run whole templates in `beforeAll`,** with `RUN_TIMEOUT_MS` from `src/adapters/templates/testing/run-template.ts`, not in a `describe` body. Vitest starts the files that took longest last time first, but it counts only test and hook time, so a file that does its work while collecting looks fast and starts last. A file's runs are serial, so the slowest file sets how long a full run takes. Split a file that runs many templates, as `scenarios/` does by workload.
 - The coding standards apply to tests too. ESLint skips the length and parameter checks there, because a `describe` block groups many tests; keep each test itself within the rule of 30, and split a long scenario into named steps.
 - Tests should be able to fail. When you write or change one, break the code it covers and watch it go red at least once. Then say how you broke it in a comment above the test, so a reviewer can check it without rerunning it and a later reader knows what the test guards:
   ```ts
@@ -275,7 +277,7 @@ A new AWS service (or any other component type) touches these places, all in the
   it("counts in-flight messages in the totals", () => {
   ```
   Write one comment per `it` or `it.each`. For a change to a shared suite (`checkComponentContract` and the other contract checkers), put it on the check you changed. A regression test's comment names the bug it guards against: the change that turns it red is the bug coming back.
-- Use the seed, not luck. Anything random runs from a fixed seed. Scenario tests that assert a template's lesson check several seeds (`src/adapters/templates/template-scenarios.test.ts`) with loose thresholds, so they pin the lesson rather than one run's numbers.
+- Use the seed, not luck. Anything random runs from a fixed seed. Scenario tests that assert a template's lesson check several seeds (`src/adapters/templates/scenarios/`) with loose thresholds, so they pin the lesson rather than one run's numbers.
 - **Contract suites** check that an implementation keeps the promises of its interface. Every component type must pass `checkComponentContract`, every `ProjectRepository` adapter must pass `checkProjectRepositoryContract`, and every `SimulationRunner` must pass `checkSimulationRunnerContract`, each with an empty list of violations.
 - **Outputs must reconcile.** Totals in metrics and reports add up: started = succeeded + failed + in progress, and so on. Show work that's still in progress rather than dropping it, and test the remainders (see `src/adapters/cli/report-reconciles.test.ts`). Add a check when you add a column or a counter. To find a workflow or component in a snapshot, use `workflowIn` and `componentIn` (`src/domain/metrics/testing/`) instead of chains of `?.`.
 - Latencies carry floating-point drift (`49.000000000000014`): compare them with `toBeCloseTo`. Percentiles are bucket upper bounds, up to 5% high ([metrics guide](docs/architecture/metrics.md)).
@@ -290,7 +292,7 @@ Some docs quote output that a test generates or checks. Change them together:
 | Excerpts in the [engine](docs/architecture/simulation-engine.md), [component](docs/architecture/component-definitions.md), [domain model](docs/architecture/domain-model.md), and [metrics](docs/architecture/metrics.md) guides | Snapshot traces in `src/domain/traces/`, one test file per guide; refresh with `npx vitest run -u src/domain/traces`, then update the excerpt in the guide |
 | The sample reports in the [headless runner guide](docs/architecture/headless-runner.md) | Snapshots in `src/adapters/cli/reports/`; refresh with `npx vitest run -u src/adapters/cli` and read the diff |
 | Excerpts in the [user interface guide](docs/architecture/user-interface.md) | The snapshot trace in `src/ui/traces/`; refresh with `npx vitest run src/ui/traces --update`, then update the excerpts in the guide |
-| Each template's lesson in [MVP design §7](docs/design/mvp-design.md) | `src/adapters/templates/template-scenarios.test.ts` |
+| Each template's lesson in [MVP design §7](docs/design/mvp-design.md) | The scenario tests in `src/adapters/templates/scenarios/` |
 
 ## Gotchas
 
@@ -300,6 +302,7 @@ Some docs quote output that a test generates or checks. Change them together:
 - **Slow full runs.** In a full local run, a few slow tests (`RunPanel` under jsdom, and `layer-rules`, which runs ESLint) can time out while everything else runs in parallel; they pass alone. `RunPanel`'s is [#27](https://github.com/alanbickel/wind-tunnel/issues/27).
 - **CSS in tests is empty.** Vitest turns every CSS import into an empty string, `?raw` included, unless the file matches `test.css.include` in `vite.config.ts`. The contrast test reads `tokens.css` that way; a test that needs another stylesheet's text adds it there.
 - **Measuring speed.** Whole-template timings swing ±30% between runs, so compare the million-event engine test instead, alternating runs of the old and new code: `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`. It ran in 1.1–1.7 s at R2's close. For the old code, use a `git worktree` with `node_modules` linked as a junction, and remove the junction before removing the worktree.
+- **Measuring the test suite.** The percentages in Vitest's summary are shares of time summed across workers, not of the wall time. For a breakdown by file, write a throwaway reporter whose `onTestRunEnd` prints each module's `diagnostic()`, which gives its environment, setup, collect, and test times. Leave `isolate` on, even though Vitest suggests turning it off: files would share module state, and `Diagram`'s loading test fails whenever another file in the same worker has already loaded React Flow.
 
 ## Documentation
 

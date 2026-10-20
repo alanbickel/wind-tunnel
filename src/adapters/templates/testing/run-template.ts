@@ -5,6 +5,16 @@ import { loadProject } from "../../persistence/load-project";
 
 const registry = createAwsComponentRegistry();
 
+/**
+ * The time a `beforeAll` gives its whole-template runs. A run that takes 4 s
+ * alone can take several times that in a busy full run (#15).
+ *
+ * Run templates in `beforeAll`, not in a `describe` body: Vitest starts the
+ * files that took longest last time first, but counts only test and hook
+ * time, so a file whose work runs while collecting looks fast and goes last.
+ */
+export const RUN_TIMEOUT_MS = 60_000;
+
 /** Loads a template's JSON, throwing with the issues if it doesn't load. */
 export function loadTemplate(template: unknown): Project {
   const loaded = loadProject(template, registry);

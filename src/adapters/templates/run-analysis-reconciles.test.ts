@@ -1,18 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   allWorkflows,
   componentTotals,
   workflowTotals,
 } from "../../application/run-analysis/run-totals";
 import { limitPeaks } from "../../application/run-analysis/limit-peaks";
+import type { RunSoFar } from "../../application/run-analysis/run-so-far";
 import { workflowSeconds } from "../../application/run-analysis/workflow-seconds";
+import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
 import {
   componentIn,
   workflowIn,
 } from "../../domain/metrics/testing/snapshot-lookups";
+import type { Project } from "../../domain/model/project";
 import templateA from "./template-a.json";
 import templateB from "./template-b.json";
-import { runTemplate } from "./testing/run-template";
+import { RUN_TIMEOUT_MS, runTemplate } from "./testing/run-template";
 
 // The run panel and the CLI report add up the snapshots with the shared
 // functions in `application/run-analysis/`. These tests check those sums
@@ -24,10 +27,14 @@ describe.each([
   ["template-a", templateA],
   ["template-b", templateB],
 ])("%s's run analysis reconciles", (_, template) => {
-  // Run while collecting: a whole-template run inside `it` counts against
-  // the 5 s test timeout, which a busy parallel run can exceed (#15).
-  const { project, totals, snapshots } = runTemplate(template);
-  const finished = { project, snapshots };
+  let project: Project;
+  let totals: MetricsSnapshot;
+  let snapshots: readonly MetricsSnapshot[];
+  let finished: RunSoFar;
+  beforeAll(() => {
+    ({ project, totals, snapshots } = runTemplate(template));
+    finished = { project, snapshots };
+  }, RUN_TIMEOUT_MS);
 
   // Fails if `workflowTotals` drops a snapshot or a count (e.g. summing
   // `succeeded` into `failed`).

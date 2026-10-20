@@ -213,8 +213,8 @@ function extras(m: ComponentMetrics): string {
 
 /** The unit of each kind of limit's numbers. */
 const LIMIT_UNITS: Readonly<Record<LimitUse["kind"], string>> = {
-  concurrency: "slots",
-  rate: "tokens",
+  concurrency: "slots held",
+  rate: "tokens drawn",
 };
 
 const LIMIT_COLUMNS: readonly Column<LimitPeak>[] = [

@@ -39,7 +39,7 @@ interface LimitRow extends LimitPeak {
 /** Said after a limit's name, so the reader knows what it counts. */
 const LIMIT_UNITS: Readonly<Record<LimitUse["kind"], string>> = {
   concurrency: "",
-  rate: " bucket",
+  rate: ", tokens drawn",
 };
 
 const LIMIT_COLUMNS: readonly CountsColumn<LimitRow>[] = [

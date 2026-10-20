@@ -61,7 +61,7 @@ describe("RunTotals", () => {
     render(<RunTotals run={{ project, snapshots }} />);
     expect(limitRows()).toEqual([
       [
-        "API requestRate bucket",
+        "API requestRate, tokens drawn",
         "1,250",
         "5,000",
         "25%",

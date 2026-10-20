@@ -1,5 +1,5 @@
 Serverless API with DynamoDB + SQS (template-b)
-Workload: Lunch rush (lunch-rush), 60 s, seed 42
+Workload: Lunch rush, 20 s at 2,000 requests/s (lunch-rush), 60 s, seed 42
 Events processed: 856,834
 
 Workflows

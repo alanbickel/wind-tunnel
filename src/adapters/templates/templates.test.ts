@@ -23,7 +23,17 @@ describe.each([
 });
 
 describe("the templates", () => {
-  it("share the lunch rush workload, so their results can be compared", () => {
+  it("share their workloads, so their results can be compared", () => {
     expect(templateB.workloads).toEqual(templateA.workloads);
+  });
+
+  // Fails if a workload is added ahead of the lunch rush, which would make it
+  // the default in the run panel and the CLI.
+  it("start with the lunch rush, so it's the default", () => {
+    expect(templateA.workloads.map((w) => w.id)).toEqual([
+      "lunch-rush",
+      "steady-day",
+      "long-rush",
+    ]);
   });
 });

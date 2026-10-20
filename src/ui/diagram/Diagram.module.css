@@ -39,6 +39,13 @@
   inset: 0;
 }
 
+/* Stands in the canvas while React Flow loads. */
+.loading {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+}
+
 /* React Flow colors the attribution link itself, with no custom property. */
 .diagram :global(.react-flow__attribution a) {
   color: var(--color-text-muted);

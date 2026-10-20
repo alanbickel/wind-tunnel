@@ -1,61 +1,44 @@
 // @vitest-environment jsdom
-import { act, cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 import { Diagram } from "./Diagram";
 import type { DiagramContent } from "./diagram-model";
 import { stubDiagramBrowserApis } from "./testing/stub-diagram-browser-apis";
 
-const fitView = vi.fn(() => Promise.resolve(true));
-
-// React Flow calls its own fitView inside; only the Diagram's goes to the spy.
-vi.mock("@xyflow/react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@xyflow/react")>()),
-  useReactFlow: () => ({ fitView }),
-}));
-
-const content: DiagramContent = { nodes: [], edges: [] };
-
-/** Sets the size React Flow measures its box at (jsdom lays nothing out). */
-function measureBoxAt(width: number, height: number): void {
-  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(width);
-  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(
-    height,
-  );
-}
-
-function resizeWindow(): void {
-  act(() => {
-    window.dispatchEvent(new Event("resize"));
-  });
-}
+const content: DiagramContent = {
+  nodes: [
+    {
+      id: "api",
+      label: "API",
+      caption: "api-gateway",
+      position: { x: 0, y: 0 },
+    },
+  ],
+  edges: [],
+};
 
 describe("Diagram", () => {
-  beforeEach(() => {
-    stubDiagramBrowserApis();
-    measureBoxAt(800, 400);
-    render(<Diagram content={content} label="Sample diagram" />);
-    fitView.mockClear();
-  });
+  preloadBeforeAll(() => import("./DiagramCanvas"));
+  beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
-    vi.restoreAllMocks();
   });
 
-  // Fails if the Diagram drops FitViewOnResize, or it stops watching the
-  // height: the diagram would keep its first fit and clip the lower boxes.
-  it("fits the view again when its box changes size", () => {
-    measureBoxAt(800, 200);
-    resizeWindow();
+  // Fails if Diagram renders the lazy canvas without its own Suspense
+  // boundary: nothing shows, not even the labelled box, until React Flow
+  // has loaded.
+  it("holds its place while React Flow loads, then draws the boxes", async () => {
+    const { container } = render(
+      <Diagram content={content} label="Sample diagram" />,
+    );
 
-    expect(fitView).toHaveBeenCalledTimes(1);
-  });
-
-  // Fails if FitViewOnResize refits on every resize event, undoing the
-  // user's pan and zoom when nothing about the box changed.
-  it("keeps the view when a resize leaves its box the same size", () => {
-    resizeWindow();
-
-    expect(fitView).not.toHaveBeenCalled();
+    const diagram = screen.getByRole("group", { name: "Sample diagram" });
+    expect(diagram.textContent).toBe("Loading the diagram…");
+    await waitFor(() => {
+      expect(container.querySelectorAll(".react-flow__node")).toHaveLength(1);
+    });
+    expect(screen.queryByText("Loading the diagram…")).toBeNull();
   });
 });

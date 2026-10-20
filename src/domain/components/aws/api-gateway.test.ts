@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SeededRandom } from "../../random/seeded-random";
 import { checkComponentContract } from "../check-component-contract";
+import { limitValues } from "../testing/limit-values";
 import { apiGatewayDefinition, type ApiGatewayConfig } from "./api-gateway";
 
 const build = (config: Partial<ApiGatewayConfig> = {}) =>
@@ -43,6 +44,18 @@ describe("apiGatewayDefinition", () => {
       { kind: "rejected", request: "c", reason: "throttled" },
     ]);
     expect(api.inProgress).toBe(2);
+  });
+
+  // Fails if API Gateway stops reporting its rate limit, or counts a
+  // throttled request as a token taken.
+  it("reports its request rate and the tokens taken, not throttled", () => {
+    const api = build();
+    for (const request of ["a", "b", "c"]) {
+      api.arrive({ request, action: "invoke", nowMs: 0 });
+    }
+    expect(limitValues(api)).toEqual([
+      { kind: "rate", name: "requestRate", ratePerSec: 10, burst: 2, taken: 2 },
+    ]);
   });
 
   it("lets requests through again at the steady rate", () => {

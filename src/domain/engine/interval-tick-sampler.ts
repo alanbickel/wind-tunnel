@@ -1,5 +1,11 @@
+import type { LimitGauge } from "../components/component-behavior";
+import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import type { RuntimeComponent } from "./runtime-records";
-import type { ComponentSample, MetricsTickEvent } from "./simulation-events";
+import type {
+  ComponentSample,
+  LimitSample,
+  MetricsTickEvent,
+} from "./simulation-events";
 import type { TickSampler } from "./tick-sampler";
 import type { Topology } from "./topology";
 
@@ -50,6 +56,7 @@ export class IntervalTickSampler implements TickSampler {
       component.peakQueueDepth,
       behavior.queueDepth,
     );
+    trackLimitPeaks(component);
   }
 
   private tick(timeMs: number): void {
@@ -78,8 +85,54 @@ function sampleAndResetPeaks(component: RuntimeComponent): ComponentSample {
     peakQueueDepth: component.peakQueueDepth,
     gauges: { ...behavior.gauges },
     counters: { ...behavior.counters },
+    limits: sampleLimits(component),
   };
   component.peakInProgress = behavior.inProgress;
   component.peakQueueDepth = behavior.queueDepth;
+  resetLimitPeaks(component);
   return sample;
 }
+
+/** Raises each concurrency limit's peak to its current use. */
+function trackLimitPeaks({ behavior, limitPeaks }: RuntimeComponent): void {
+  const limits = behavior.limits ?? [];
+  for (const [index, gauge] of limits.entries()) {
+    if (gauge.kind !== "concurrency") continue;
+    limitPeaks[index] = Math.max(limitPeaks[index] ?? 0, gauge.inUse);
+  }
+}
+
+/** Each concurrency limit's peak starts again from its current use. */
+function resetLimitPeaks({ behavior, limitPeaks }: RuntimeComponent): void {
+  const limits = behavior.limits ?? [];
+  for (const [index, gauge] of limits.entries()) {
+    if (gauge.kind !== "concurrency") continue;
+    limitPeaks[index] = gauge.inUse;
+  }
+}
+
+/** A copy of each limit's values now, with its peak since the last tick. */
+function sampleLimits({
+  behavior,
+  limitPeaks,
+}: RuntimeComponent): LimitSample[] {
+  return (behavior.limits ?? []).map((gauge, index) =>
+    handleKind(LIMIT_SAMPLES, gauge)(limitPeaks[index] ?? 0),
+  );
+}
+
+/** Copies a live limit view into a sample, given its tracked peak. */
+const LIMIT_SAMPLES: KindHandlers<LimitGauge, (peak: number) => LimitSample> = {
+  concurrency:
+    ({ name, limit, inUse }) =>
+    (peak) => ({
+      kind: "concurrency",
+      name,
+      limit,
+      inUse,
+      peakInUse: Math.max(peak, inUse),
+    }),
+  rate:
+    ({ name, ratePerSec, burst, taken }) =>
+    () => ({ kind: "rate", name, ratePerSec, burst, taken }),
+};

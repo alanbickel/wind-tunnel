@@ -64,6 +64,42 @@ export interface DispatchFinishedInput<T> {
 }
 
 /**
+ * A limit a component enforces, as a live view: the engine reads it after
+ * every call into the component, to find its use and peak for the metrics.
+ */
+export type LimitGauge = ConcurrencyLimitGauge | RateLimitGauge;
+
+/**
+ * Slots held out of a fixed number, e.g. RDS `connections` or Lambda
+ * `concurrency`. A full limit queues or rejects the next request.
+ */
+export interface ConcurrencyLimitGauge {
+  readonly kind: "concurrency";
+  /** camelCase, unique within the component, and stable across a run. */
+  readonly name: string;
+  /** Most slots that can be held at once. */
+  readonly limit: number;
+  /** Slots held now. */
+  readonly inUse: number;
+}
+
+/**
+ * Tokens taken against a sustained rate, e.g. API Gateway's `requestRate`.
+ * With no token left, the next request is rejected.
+ */
+export interface RateLimitGauge {
+  readonly kind: "rate";
+  /** camelCase, unique within the component, and stable across a run. */
+  readonly name: string;
+  /** Tokens added per second. */
+  readonly ratePerSec: number;
+  /** Most tokens saved up: what can be taken at once after a quiet spell. */
+  readonly burst: number;
+  /** Tokens taken since the run began. Never decreases. */
+  readonly taken: number;
+}
+
+/**
  * The run-time state of one component during a simulation, built from a
  * component definition and its config.
  *
@@ -108,4 +144,10 @@ export interface ComponentBehavior<T> {
    * `coldStarts`. They never decrease; metrics report the increase per tick.
    */
   readonly counters?: Readonly<Record<string, number>>;
+  /**
+   * The limits this component enforces, each with its current use. The same
+   * array of live views on every read: the engine reads it after every call,
+   * so build it once. Optional; a component with no limits leaves it out.
+   */
+  readonly limits?: readonly LimitGauge[];
 }

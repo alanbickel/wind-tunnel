@@ -4,7 +4,9 @@ import type {
   ArriveInput,
   ComponentBehavior,
   Effect,
+  LimitGauge,
 } from "../component-behavior";
+import { rateGauge } from "../limit-gauges";
 
 export interface ApiGatewayBehaviorDependencies {
   readonly limit: RateLimit;
@@ -15,6 +17,7 @@ export interface ApiGatewayBehaviorDependencies {
 /** API Gateway's run-time state: its token bucket and requests in flight. */
 export class ApiGatewayBehavior<T> implements ComponentBehavior<T> {
   readonly queueDepth = 0;
+  readonly limits: readonly LimitGauge[];
   private readonly limit: RateLimit;
   private readonly overhead: ServiceTime;
   private running = 0;
@@ -22,6 +25,7 @@ export class ApiGatewayBehavior<T> implements ComponentBehavior<T> {
   constructor({ limit, overhead }: ApiGatewayBehaviorDependencies) {
     this.limit = limit;
     this.overhead = overhead;
+    this.limits = [rateGauge({ name: "requestRate", source: limit })];
   }
 
   get inProgress(): number {

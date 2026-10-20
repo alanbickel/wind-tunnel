@@ -3,8 +3,26 @@ import type {
   ComponentSample,
   ComponentFinishedEvent,
 } from "../engine/simulation-events";
+import type { LimitSample } from "../engine/simulation-events";
+import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import { LatencyHistogram } from "./latency-histogram";
-import type { ComponentMetrics } from "./metrics-snapshot";
+import type { ComponentMetrics, LimitUse } from "./metrics-snapshot";
+
+/** A tick's sample for this component, and what's needed to read it. */
+export interface ComponentTallySampleInput {
+  readonly sample: ComponentSample;
+  /** The run's totals before this window, for the running totals' increase. */
+  readonly soFar: ComponentTally;
+  /** The window's length. */
+  readonly windowMs: number;
+}
+
+/** A limit's sample, and what's needed to turn it into its use in a window. */
+interface LimitUseContext {
+  /** A rate limit's tokens taken since the start, at the previous tick. */
+  readonly takenBefore: number;
+  readonly windowMs: number;
+}
 
 export class ComponentTally {
   arrivals = 0;
@@ -25,6 +43,9 @@ export class ComponentTally {
   counters: Record<string, number> = {};
   /** Each counter's running total at the latest tick. */
   countersSoFar: Readonly<Record<string, number>> = {};
+  limits: readonly LimitUse[] = [];
+  /** Each rate limit's tokens taken at the latest tick, by index; 0 otherwise. */
+  takenSoFar: readonly number[] = [];
 
   /** Records work that finished here, successfully or not. */
   finish({ latencyMs, failure }: ComponentFinishedEvent): void {
@@ -46,8 +67,9 @@ export class ComponentTally {
     this.asyncLatency.record(latencyMs);
   }
 
-  /** Records a tick's sample; `before` holds the counters at the last tick. */
-  sample(sample: ComponentSample, before: Readonly<Record<string, number>>) {
+  /** Records a tick's sample at the end of this window. */
+  sample({ sample, soFar, windowMs }: ComponentTallySampleInput): void {
+    const before = soFar.countersSoFar;
     this.inProgress = sample.inProgress;
     this.queueDepth = sample.queueDepth;
     this.peakInProgress = sample.peakInProgress;
@@ -58,6 +80,16 @@ export class ComponentTally {
     for (const [name, value] of Object.entries(sample.counters)) {
       this.counters[name] = value - (before[name] ?? 0);
     }
+    this.limits = sample.limits.map((limit, index) =>
+      handleKind(
+        LIMIT_USES,
+        limit,
+      )({
+        takenBefore: soFar.takenSoFar[index] ?? 0,
+        windowMs,
+      }),
+    );
+    this.takenSoFar = sample.limits.map(takenSoFar);
   }
 
   /** Adds a finished window into these run totals. */
@@ -79,6 +111,10 @@ export class ComponentTally {
     // Over the whole run, the increase is the running total.
     this.countersSoFar = window.countersSoFar;
     this.counters = { ...window.countersSoFar };
+    this.limits = window.limits.map((limit, index) =>
+      withPeak(limit, this.limits[index]?.peak ?? 0),
+    );
+    this.takenSoFar = window.takenSoFar;
   }
 
   reset(): void {
@@ -110,6 +146,62 @@ export class ComponentTally {
       asyncLatency: this.asyncLatency.summary(),
       gauges: this.gauges,
       counters: { ...this.counters },
+      limits: this.limits,
     };
   }
+}
+
+/** A limit's use in the window that a tick closes. */
+const LIMIT_USES: KindHandlers<
+  LimitSample,
+  (context: LimitUseContext) => LimitUse
+> = {
+  concurrency:
+    ({ name, limit, inUse, peakInUse }) =>
+    () => ({
+      kind: "concurrency",
+      name,
+      limit,
+      current: inUse,
+      peak: peakInUse,
+    }),
+  rate:
+    ({ name, ratePerSec, burst, taken }) =>
+    ({ takenBefore, windowMs }) => {
+      const perSec = perSecond({ count: taken - takenBefore, windowMs });
+      return {
+        kind: "rate",
+        name,
+        limit: ratePerSec,
+        burst,
+        current: perSec,
+        peak: perSec,
+      };
+    },
+};
+
+/** Input for `perSecond`. */
+interface PerSecondInput {
+  readonly count: number;
+  readonly windowMs: number;
+}
+
+function perSecond({ count, windowMs }: PerSecondInput): number {
+  if (windowMs <= 0) return 0;
+  return (count * 1000) / windowMs;
+}
+
+function takenSoFar(limit: LimitSample): number {
+  return handleKind(TAKEN_SO_FAR, limit);
+}
+
+/** A rate limit's running total of tokens taken; concurrency limits have none. */
+const TAKEN_SO_FAR: KindHandlers<LimitSample, number> = {
+  concurrency: () => 0,
+  rate: ({ taken }) => taken,
+};
+
+/** The limit with its peak raised to `earlierPeak` if that was higher. */
+function withPeak(limit: LimitUse, earlierPeak: number): LimitUse {
+  return { ...limit, peak: Math.max(limit.peak, earlierPeak) };
 }

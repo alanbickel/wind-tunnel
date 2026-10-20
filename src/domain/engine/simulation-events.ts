@@ -1,3 +1,7 @@
+import type {
+  ConcurrencyLimitGauge,
+  RateLimitGauge,
+} from "../components/component-behavior";
 import type { ComponentRegistry } from "../components/component-registry";
 import type { Project, StepAction } from "../model/project";
 import type { RandomSource } from "../random/random-source";
@@ -21,7 +25,21 @@ export interface ComponentSample {
   /** The component's type-specific values; see `ComponentBehavior`. */
   readonly gauges: Readonly<Record<string, number>>;
   readonly counters: Readonly<Record<string, number>>;
+  /** Each of the component's limits, in its order; see `ComponentBehavior`. */
+  readonly limits: readonly LimitSample[];
 }
+
+/** One of a component's limits at a tick. */
+export type LimitSample = ConcurrencyLimitSample | RateLimitSample;
+
+/** A concurrency limit's slots held at the tick, and its peak before it. */
+export interface ConcurrencyLimitSample extends ConcurrencyLimitGauge {
+  /** Most slots held at once since the previous tick (or the start). */
+  readonly peakInUse: number;
+}
+
+/** A rate limit at the tick; `taken` is the running total since the start. */
+export type RateLimitSample = RateLimitGauge;
 
 /**
  * What happened during a run, reported to the observer as it happens.

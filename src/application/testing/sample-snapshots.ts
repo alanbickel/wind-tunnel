@@ -24,6 +24,7 @@ export function componentMetrics(
     asyncLatency: undefined,
     gauges: {},
     counters: {},
+    limits: [],
     ...overrides,
   };
 }

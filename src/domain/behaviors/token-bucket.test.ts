@@ -37,6 +37,14 @@ describe("TokenBucket", () => {
     expect(admitted).toBe(1001);
   });
 
+  // Fails if `taken` counts throttled requests too, or isn't counted at all.
+  it("counts the tokens taken, not the requests throttled", () => {
+    const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
+    takeMany(limit, 0, 8);
+    takeMany(limit, 1_000, 20);
+    expect(limit.taken).toBe(15);
+  });
+
   it("rejects time going backwards", () => {
     const limit = new TokenBucket({ ratePerSec: 1, burst: 1 });
     limit.tryTake(100);

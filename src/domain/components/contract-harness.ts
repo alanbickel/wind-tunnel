@@ -12,6 +12,7 @@ import type {
   StartedEffect,
 } from "./component-behavior";
 import type { ComponentDefinition } from "./component-definition";
+import { checkLimits, type LimitReading } from "./contract-limit-checks";
 
 export const MAX_VIOLATIONS = 20;
 
@@ -153,6 +154,7 @@ export class ContractHarness<Config> {
   private readonly stats = emptyStats();
   private readonly maxEvents: number;
   private lastCounters: Readonly<Record<string, number>> = {};
+  private lastLimits: LimitReading | undefined;
   private nowMs = 0;
   private handled = 0;
   /** Set when the behavior can't go on; skips the end-of-run checks. */
@@ -381,10 +383,11 @@ export class ContractHarness<Config> {
     );
   }
 
-  /** Type-specific `gauges` and `counters`. */
+  /** Type-specific `gauges`, `counters`, and `limits`. */
   private checkExtraMetrics(): void {
     this.checkTypeGauges();
     this.checkCounters();
+    this.checkLimits();
   }
 
   private checkTypeGauges(): void {
@@ -405,6 +408,16 @@ export class ContractHarness<Config> {
       );
     }
     this.lastCounters = { ...counters };
+  }
+
+  private checkLimits(): void {
+    const { problems, reading } = checkLimits({
+      limits: this.behavior.limits ?? [],
+      nowMs: this.nowMs,
+      previous: this.lastLimits,
+    });
+    for (const problem of problems) this.violate(undefined, problem);
+    this.lastLimits = reading;
   }
 
   /** After the last event: all work must have drained. */

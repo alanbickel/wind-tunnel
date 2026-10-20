@@ -4,7 +4,9 @@ import type {
   ArriveInput,
   ComponentBehavior,
   Effect,
+  LimitGauge,
 } from "../component-behavior";
+import { concurrencyGauge } from "../limit-gauges";
 
 export interface RdsBehaviorDependencies<T> {
   /** `max_connections`; full means rejected. */
@@ -16,6 +18,8 @@ export interface RdsBehaviorDependencies<T> {
 
 /** RDS's run-time state: connections, and query workers behind them. */
 export class RdsBehavior<T> implements ComponentBehavior<T> {
+  /** Running plus waiting queries each hold a connection. */
+  readonly limits: readonly LimitGauge[];
   private readonly connections: ConcurrencyLimit<T>;
   private readonly workers: ConcurrencyLimit<T>;
   private readonly queryTime: ServiceTime;
@@ -24,6 +28,10 @@ export class RdsBehavior<T> implements ComponentBehavior<T> {
     this.connections = connections;
     this.workers = workers;
     this.queryTime = queryTime;
+    this.limits = [
+      concurrencyGauge({ name: "connections", source: connections }),
+      concurrencyGauge({ name: "queryWorkers", source: workers }),
+    ];
   }
 
   get inProgress(): number {
@@ -32,11 +40,6 @@ export class RdsBehavior<T> implements ComponentBehavior<T> {
 
   get queueDepth(): number {
     return this.workers.queued;
-  }
-
-  /** Running plus waiting queries: each holds a connection. */
-  get gauges(): Readonly<Record<string, number>> {
-    return { connectionsHeld: this.connections.inUse };
   }
 
   arrive({ request }: ArriveInput<T>): Effect<T>[] {

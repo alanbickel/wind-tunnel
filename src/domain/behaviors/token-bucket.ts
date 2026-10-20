@@ -18,9 +18,10 @@ const TOKEN_EPSILON = 1e-9;
  * passed to `tryTake`, so it needs no timer events.
  */
 export class TokenBucket implements RateLimit {
-  private readonly ratePerSec: number;
-  private readonly burst: number;
+  readonly ratePerSec: number;
+  readonly burst: number;
   private tokens: number;
+  private tokensTaken = 0;
   private lastRefillMs = 0;
 
   constructor(input: TokenBucketInput) {
@@ -41,7 +42,13 @@ export class TokenBucket implements RateLimit {
     // sustained rate would fall short of `ratePerSec`.
     if (this.tokens < 1 - TOKEN_EPSILON) return false;
     this.tokens--;
+    this.tokensTaken++;
     return true;
+  }
+
+  /** Tokens taken since the run began. */
+  get taken(): number {
+    return this.tokensTaken;
   }
 
   /** Tokens available at `nowMs` (for metrics and tests). */

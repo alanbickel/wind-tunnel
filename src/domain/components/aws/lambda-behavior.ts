@@ -5,7 +5,9 @@ import type {
   ComponentBehavior,
   Effect,
   FinishInput,
+  LimitGauge,
 } from "../component-behavior";
+import { concurrencyGauge } from "../limit-gauges";
 
 export interface LambdaBehaviorDependencies<T> {
   /** Concurrency slots; full means throttled, not queued. */
@@ -19,6 +21,7 @@ export interface LambdaBehaviorDependencies<T> {
 /** Lambda's run-time state: concurrency slots and warm environments. */
 export class LambdaBehavior<T> implements ComponentBehavior<T> {
   readonly queueDepth = 0;
+  readonly limits: readonly LimitGauge[];
   private readonly slots: ConcurrencyLimit<T>;
   private readonly coldStart: ServiceTime;
   private readonly computeTime: ServiceTime;
@@ -35,6 +38,9 @@ export class LambdaBehavior<T> implements ComponentBehavior<T> {
     this.coldStart = dependencies.coldStart;
     this.computeTime = dependencies.computeTime;
     this.idleTimeoutMs = dependencies.idleTimeoutMs;
+    this.limits = [
+      concurrencyGauge({ name: "concurrency", source: this.slots }),
+    ];
   }
 
   get inProgress(): number {

@@ -48,6 +48,9 @@ export interface ContractReport {
  *   both are zero once all work drains;
  * - type-specific `gauges` and `counters` are finite, and counters never
  *   decrease;
+ * - `limits` keep their rules (see `checkLimits`): the same limits on
+ *   every read, concurrency use within the limit, and rate limits taking
+ *   no more than their burst and rate allow;
  * - the same seed produces exactly the same effects.
  *
  * Each definition's test asserts that `violations` is empty.

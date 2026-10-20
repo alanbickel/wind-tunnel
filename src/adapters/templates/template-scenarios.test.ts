@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
-import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
+import type {
+  LimitUse,
+  MetricsSnapshot,
+} from "../../domain/metrics/metrics-collector";
 import { simulateWithMetrics } from "../../domain/metrics/metrics-collector";
+import {
+  componentIn,
+  limitIn,
+} from "../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../domain/model/project";
 import templateA from "./template-a.json";
 import templateB from "./template-b.json";
@@ -43,10 +50,18 @@ function failed(snapshot: MetricsSnapshot): number {
   return Object.values(snapshot.workflows).reduce((n, w) => n + w.failed, 0);
 }
 
+function connections(snapshot: MetricsSnapshot): LimitUse {
+  return limitIn(componentIn(snapshot, "orders-db"), "connections");
+}
+
+/** orders-db's connections held at the end of the second. */
 function connectionsHeld(snapshot: MetricsSnapshot): number {
-  const held = snapshot.components["orders-db"]?.gauges.connectionsHeld;
-  if (held === undefined) throw new Error("orders-db has no connectionsHeld");
-  return held;
+  return connections(snapshot).current;
+}
+
+/** The most orders-db connections held at once during the second. */
+function peakConnections(snapshot: MetricsSnapshot): number {
+  return connections(snapshot).peak;
 }
 
 function configNumber(project: Project, componentId: string, key: string) {
@@ -78,15 +93,23 @@ describe.each(SEEDS)("with seed %i", (seed) => {
     it("serves calm traffic without failures", () => {
       const calm = during(a.snapshots, CALM);
       expect(calm.map(failed)).toEqual(calm.map(() => 0));
-      expect(Math.max(...calm.map(connectionsHeld))).toBeLessThan(
+      expect(Math.max(...calm.map(peakConnections))).toBeLessThan(
         maxConnections / 2,
       );
     });
 
+    // Fails if orders-db stops reporting its connections limit, or the
+    // limit stops being reached at the peak (the template's lesson).
     it("holds nearly every connection through the peak and reaches the limit", () => {
-      const held = during(a.snapshots, PEAK).map(connectionsHeld);
-      expect(Math.min(...held)).toBeGreaterThanOrEqual(0.9 * maxConnections);
-      expect(Math.max(...held)).toBe(maxConnections);
+      const peak = during(a.snapshots, PEAK);
+      expect(Math.min(...peak.map(connectionsHeld))).toBeGreaterThanOrEqual(
+        0.9 * maxConnections,
+      );
+      expect(Math.max(...peak.map(connectionsHeld))).toBe(maxConnections);
+      expect(connections(a.totals)).toMatchObject({
+        limit: maxConnections,
+        peak: maxConnections,
+      });
     });
 
     it("fails requests in every second of the peak", () => {
@@ -124,6 +147,8 @@ describe.each(SEEDS)("with seed %i", (seed) => {
       }
     });
 
+    // Fails if the queue delivers past its consumer cap, letting more writes
+    // reach the database at once.
     it("keeps database connections under the queue consumer cap", () => {
       const cap = configNumber(
         projectB,
@@ -131,8 +156,18 @@ describe.each(SEEDS)("with seed %i", (seed) => {
         "consumerMaxConcurrency",
       );
       expect(cap).toBeLessThan(maxConnections);
-      const held = b.snapshots.map(connectionsHeld);
-      expect(Math.max(...held)).toBeLessThanOrEqual(cap);
+      expect(connections(b.totals).peak).toBeLessThanOrEqual(cap);
+    });
+
+    // Fails if a Template B component reaches a limit other than the queue's
+    // consumer cap, which is what holds back the backlog.
+    it("stays under every limit but the queue's consumer cap, which it reaches", () => {
+      const reached = Object.entries(b.totals.components).flatMap(([id, c]) =>
+        c.limits
+          .filter((limit) => limit.peak >= limit.limit)
+          .map((limit) => `${id} ${limit.name}`),
+      );
+      expect(reached).toEqual(["orders-queue consumerConcurrency"]);
     });
 
     it("builds a backlog during the spike and empties it before the run ends", () => {

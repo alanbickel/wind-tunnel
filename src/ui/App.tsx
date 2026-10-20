@@ -7,7 +7,8 @@ import { useStoragePersistence } from "./storage/useStoragePersistence";
 import { useOpenProject } from "./useOpenProject";
 
 /**
- * The app shell: the top bar, and below it the screen that shows.
+ * The app shell: the top bar, and below it the screen that shows. The
+ * project list sits in a column; a project fills the window.
  * `main.tsx` puts the providers above it.
  */
 export function App() {
@@ -16,7 +17,7 @@ export function App() {
   const storage = useStoragePersistence();
 
   return (
-    <>
+    <div className={opened === undefined ? styles.list : styles.project}>
       <TopBar projectName={opened?.name} onProjects={close} />
       <main className={styles.content}>
         <StorageHint status={storage.status} />
@@ -30,6 +31,6 @@ export function App() {
           <ProjectScreen key={opened.id} id={opened.id} />
         )}
       </main>
-    </>
+    </div>
   );
 }

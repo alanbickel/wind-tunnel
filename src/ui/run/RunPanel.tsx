@@ -24,7 +24,7 @@ export function RunPanel({ project }: RunPanelProps) {
   const run = useSimulationRun(project);
 
   return (
-    <Panel heading="Run">
+    <Panel heading="Run" scrolls>
       <WorkloadControls workloads={project.workloads} run={run} />
       {/* Mounted from the start, so screen readers announce each change. */}
       <p role="status" className={styles.status}>

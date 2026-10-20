@@ -3,6 +3,7 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  breakpointValues,
   colorLiterals,
   describeFinding,
   focusRingRemovals,
@@ -38,6 +39,8 @@ const uiFiles = sourceFilesUnder(SRC).filter(
   ({ path }) => path.startsWith("ui/") && path !== TOKENS && !isTest(path),
 );
 const uiStylesheets = uiFiles.filter(({ path }) => isStylesheet(path));
+const tokens = sourceFilesUnder(SRC).find(({ path }) => path === TOKENS);
+const BREAKPOINTS = tokens === undefined ? [] : breakpointValues(tokens);
 
 describe("styles in src/ui/", () => {
   // Fails if a stylesheet or component gains a literal such as
@@ -62,9 +65,12 @@ describe("styles in src/ui/", () => {
   });
 
   // Fails if a stylesheet sets a size or spacing such as `padding: 12px`
-  // rather than a token.
+  // rather than a token, or a media query uses a width that isn't a
+  // --breakpoint-* token, such as `@media (min-width: 50rem)`.
   it("hold no length literal in a stylesheet outside tokens.css", () => {
-    const found = uiStylesheets.flatMap(lengthLiterals).map(describeFinding);
+    const found = uiStylesheets
+      .flatMap((file) => lengthLiterals(file, BREAKPOINTS))
+      .map(describeFinding);
     expect(found).toEqual([]);
   });
 
@@ -135,6 +141,24 @@ describe("the style checks", () => {
     ".h2px { gap: var(--space-2); }",
   ])("finds no length in %s", (text) => {
     expect(lengthLiterals(file(text))).toEqual([]);
+  });
+
+  // Fails if lengthLiterals allows a breakpoint's value anywhere but a
+  // media query, or allows any length in a media query.
+  it.each([
+    ["@media (min-width: 64rem) {", []],
+    ["@container (min-width: 64rem) {", []],
+    ["@media (min-width: 50rem) {", ["50rem"]],
+    ["  max-width: 64rem;", ["64rem"]],
+  ])("with a 64rem breakpoint, finds in %s: %j", (text, found) => {
+    const findings = lengthLiterals(file(text), ["64rem"]);
+    expect(findings.map((f) => f.found)).toEqual(found);
+  });
+
+  // Fails if BREAKPOINT_TOKEN reads other tokens, or keeps the whitespace.
+  it("reads only the breakpoint tokens' values", () => {
+    const text = "--space-1: 0.25rem;\n  --breakpoint-wide:  64rem ;";
+    expect(breakpointValues(file(text))).toEqual(["64rem"]);
   });
 
   // Fails if FOCUS_RING_REMOVAL misses one way of writing it.

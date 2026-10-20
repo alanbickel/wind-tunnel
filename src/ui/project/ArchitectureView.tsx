@@ -18,7 +18,7 @@ export function ArchitectureView({ record }: ArchitectureViewProps) {
   const names = new Map(content.nodes.map((node) => [node.id, node.label]));
 
   return (
-    <Panel heading="Architecture">
+    <Panel heading="Architecture" scrolls>
       <Diagram
         content={content}
         label={`Architecture diagram of ${record.project.name}`}

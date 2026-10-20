@@ -26,6 +26,10 @@ const COLOR_LITERAL =
 const LENGTH_LITERAL =
   /(?<![\w.#-])(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch|ex|vh|vw|vmin|vmax|pt|pc|cm|mm|in)\b/gi;
 const FOCUS_RING_REMOVAL = /\boutline(?:-style|-width)?\s*:\s*(?:none|0)\b/gi;
+// A breakpoint token's declaration, `--breakpoint-wide: 64rem;`, capturing
+// the value.
+const BREAKPOINT_TOKEN = /--breakpoint-[\w-]+\s*:\s*([^;]+);/g;
+const MEDIA_QUERY = /^\s*@(?:media|container)\b/;
 const STYLESHEET = /\.(?:css|scss|sass|less)$/;
 const SOURCE = /\.(?:tsx?|css)$/;
 
@@ -46,9 +50,27 @@ export function colorLiterals(file: SourceFile): StyleFinding[] {
   return matchesIn(file, COLOR_LITERAL);
 }
 
-/** Lengths such as `12px` or `1.5rem`, in a stylesheet. */
-export function lengthLiterals(file: SourceFile): StyleFinding[] {
-  return matchesIn(file, LENGTH_LITERAL);
+/**
+ * Lengths such as `12px` or `1.5rem`, in a stylesheet. A media query may
+ * write out one of `breakpoints`, since `@media` can't read `var()`.
+ */
+export function lengthLiterals(
+  file: SourceFile,
+  breakpoints: readonly string[] = [],
+): StyleFinding[] {
+  const lines = file.text.split("\n");
+  const isBreakpoint = ({ line, found }: StyleFinding) =>
+    MEDIA_QUERY.test(lines[line - 1] ?? "") && breakpoints.includes(found);
+  return matchesIn(file, LENGTH_LITERAL).filter(
+    (finding) => !isBreakpoint(finding),
+  );
+}
+
+/** The values of the `--breakpoint-*` tokens a file declares: `["64rem"]`. */
+export function breakpointValues(tokens: SourceFile): string[] {
+  return [...tokens.text.matchAll(BREAKPOINT_TOKEN)].map(([, value = ""]) =>
+    value.trim(),
+  );
 }
 
 /** `outline: none` and the like, which hide the focus ring. */

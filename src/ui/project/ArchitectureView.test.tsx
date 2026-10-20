@@ -61,4 +61,15 @@ describe("ArchitectureView", () => {
       "Function → Table",
     ]);
   });
+
+  // Fails if ArchitectureView stops passing `scrolls` to its Panel: in a
+  // short wide window the panel scrolls on its own, and the keyboard
+  // couldn't scroll it.
+  it("is a region the keyboard can focus, to scroll it", () => {
+    render(<ArchitectureView record={sampleRecord} />);
+
+    expect(screen.getByRole("region", { name: "Architecture" }).tabIndex).toBe(
+      0,
+    );
+  });
 });

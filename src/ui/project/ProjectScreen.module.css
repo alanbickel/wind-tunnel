@@ -1,0 +1,7 @@
+/* Takes the height the shell leaves it, and passes it on to the project. */
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

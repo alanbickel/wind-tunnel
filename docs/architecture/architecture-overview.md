@@ -120,6 +120,7 @@ flowchart TB
     UI --> UC
     UI --> RA
     AD --> RA
+    RA --> D
     AD -.->|implements| P
     UC --> P
     UC --> D

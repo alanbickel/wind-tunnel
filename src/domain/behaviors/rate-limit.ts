@@ -11,6 +11,10 @@ export interface RateLimit {
   readonly taken: number;
   /** Takes a token at simulated time `nowMs`. Returns false when throttled. */
   tryTake(nowMs: number): boolean;
-  /** Tokens available at `nowMs` (for metrics and tests). */
+  /**
+   * Tokens available at `nowMs`, between 0 and `burst`. Only reads: the
+   * metrics call it after every request, and reading mustn't change when
+   * later requests get a token.
+   */
   available(nowMs: number): number;
 }

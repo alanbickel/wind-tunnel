@@ -84,8 +84,9 @@ export interface ConcurrencyLimitGauge {
 }
 
 /**
- * Tokens taken against a sustained rate, e.g. API Gateway's `requestRate`.
- * With no token left, the next request is rejected.
+ * A token bucket, e.g. API Gateway's `requestRate`: each request takes a
+ * token, tokens refill at `ratePerSec` up to `burst`, and with no token
+ * left the next request is rejected.
  */
 export interface RateLimitGauge {
   readonly kind: "rate";
@@ -93,10 +94,15 @@ export interface RateLimitGauge {
   readonly name: string;
   /** Tokens added per second. */
   readonly ratePerSec: number;
-  /** Most tokens saved up: what can be taken at once after a quiet spell. */
+  /** Most tokens the bucket holds: what can be taken at once after a quiet spell. */
   readonly burst: number;
   /** Tokens taken since the run began. Never decreases. */
   readonly taken: number;
+  /**
+   * Tokens in the bucket at `nowMs`, between 0 and `burst`. Only reads;
+   * `nowMs` is never earlier than the component's last call.
+   */
+  tokensLeft(nowMs: number): number;
 }
 
 /**

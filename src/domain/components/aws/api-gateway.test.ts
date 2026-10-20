@@ -46,16 +46,26 @@ describe("apiGatewayDefinition", () => {
     expect(api.inProgress).toBe(2);
   });
 
-  // Fails if API Gateway stops reporting its rate limit, or counts a
-  // throttled request as a token taken.
-  it("reports its request rate and the tokens taken, not throttled", () => {
+  // Fails if API Gateway stops reporting its rate limit, counts a throttled
+  // request as a token taken, or reports the bucket's level wrong.
+  it("reports its request rate, the tokens taken, and the tokens left", () => {
     const api = build();
     for (const request of ["a", "b", "c"]) {
       api.arrive({ request, action: "invoke", nowMs: 0 });
     }
     expect(limitValues(api)).toEqual([
-      { kind: "rate", name: "requestRate", ratePerSec: 10, burst: 2, taken: 2 },
+      {
+        kind: "rate",
+        name: "requestRate",
+        ratePerSec: 10,
+        burst: 2,
+        taken: 2,
+        tokensLeft: 0,
+      },
     ]);
+    // Half a second refills 5 tokens, but the bucket holds only 2.
+    expect(limitValues(api, 50)[0]).toMatchObject({ tokensLeft: 0.5 });
+    expect(limitValues(api, 500)[0]).toMatchObject({ tokensLeft: 2 });
   });
 
   it("lets requests through again at the steady rate", () => {

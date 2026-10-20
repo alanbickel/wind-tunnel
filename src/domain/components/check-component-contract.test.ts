@@ -79,11 +79,14 @@ const overOne = (b: Behavior): ConcurrencySource => ({
 interface FakeRate {
   readonly burst: number;
   readonly read: () => number;
+  /** Tokens left; a full bucket if omitted. */
+  readonly left?: () => number;
 }
 
-const rateTaking = ({ burst, read }: FakeRate): RateSource => ({
+const rateTaking = ({ burst, read, left }: FakeRate): RateSource => ({
   ratePerSec: 1,
   burst,
+  available: () => left?.() ?? burst,
   get taken() {
     return read();
   },
@@ -198,7 +201,28 @@ describe("checkComponentContract", () => {
           }),
         ],
       }));
-      expect(firstViolation(def)).toMatch(/limit rate took 2 tokens by now/);
+      expect(firstViolation(def)).toMatch(
+        /limit rate took \d+ tokens by now; its burst and rate allow/,
+      );
+    });
+
+    // Fails if the contract stops checking the bucket's level against its size.
+    it("a rate limit with more tokens left than its bucket holds", () => {
+      const def = broken(workerPoolDefinition, () => ({
+        limits: [
+          rateGauge({
+            name: "rate",
+            source: rateTaking({
+              burst: 1_000,
+              read: () => 0,
+              left: () => 1_001,
+            }),
+          }),
+        ],
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limit rate has 1001 tokens left of 1000/,
+      );
     });
 
     // Fails if the contract stops comparing each read's limits to the last.

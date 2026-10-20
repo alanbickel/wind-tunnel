@@ -3,7 +3,12 @@ import { createAwsComponentRegistry } from "../components/aws";
 import type { SimulationEvent } from "../engine/simulation-events";
 import type { Edge, Project } from "../model/project";
 import { simulateWithMetrics } from "./metrics-collector";
-import { componentIn, limitIn, workflowIn } from "./testing/snapshot-lookups";
+import {
+  componentIn,
+  limitIn,
+  rateLimitIn,
+  workflowIn,
+} from "./testing/snapshot-lookups";
 
 // api -> fn -> db with constant timings, 1 ms edges, light load: every
 // request takes api 10 + (1 + fn 20 + (1 + db 15 + 1) + 1) = 49 ms.
@@ -19,7 +24,12 @@ const edge = (from: string, to: string, timeoutMs = 1_000): Edge => ({
   retry: { maxAttempts: 2, backoff: "none", baseDelayMs: 0 },
 });
 
-function project({ queryMs = 15, dbTimeoutMs = 1_000 } = {}): Project {
+function project({
+  queryMs = 15,
+  dbTimeoutMs = 1_000,
+  apiRatePerSec = 10_000,
+  apiBurst = 5_000,
+} = {}): Project {
   return {
     id: "p",
     name: "Test",
@@ -29,7 +39,11 @@ function project({ queryMs = 15, dbTimeoutMs = 1_000 } = {}): Project {
           id: "api",
           type: "api-gateway",
           name: "API",
-          config: { ratePerSec: 10_000, burst: 5_000, overhead: constant(10) },
+          config: {
+            ratePerSec: apiRatePerSec,
+            burst: apiBurst,
+            overhead: constant(10),
+          },
         },
         {
           id: "fn",
@@ -136,26 +150,25 @@ describe("simulateWithMetrics", () => {
     expect(db.latency?.p99Ms).toBeCloseTo(15, 6);
   });
 
-  // Fails if a window's rate use stops counting the tokens taken in it (API
-  // Gateway takes one per request it admits), or if the totals stop taking
-  // each limit's highest peak and its latest value.
+  // Fails if a window's rate flow stops counting the tokens taken in it
+  // (API Gateway takes one per request it admits), or if the totals stop
+  // taking each limit's highest peak, latest use, and busiest flow.
   it("reports each limit's use per window, and the run's peak in the totals", () => {
     const { snapshots, totals } = run(project());
     const apiRates = snapshots.map((s) =>
-      limitIn(componentIn(s, "api"), "requestRate"),
+      rateLimitIn(componentIn(s, "api"), "requestRate"),
     );
     for (const [index, snapshot] of snapshots.entries()) {
       const api = componentIn(snapshot, "api");
-      expect(apiRates[index]?.current).toBe(api.arrivals - api.rejected);
+      expect(apiRates[index]?.takenPerSec).toBe(api.arrivals - api.rejected);
     }
-    const apiTotal = limitIn(componentIn(totals, "api"), "requestRate");
-    expect(apiTotal).toMatchObject({
-      kind: "rate",
-      limit: 10_000,
-      burst: 5_000,
-    });
+    const apiTotal = rateLimitIn(componentIn(totals, "api"), "requestRate");
+    expect(apiTotal).toMatchObject({ limit: 5_000, ratePerSec: 10_000 });
     expect(apiTotal.peak).toBe(Math.max(...apiRates.map((r) => r.peak)));
     expect(apiTotal.current).toBe(apiRates.at(-1)?.current);
+    expect(apiTotal.takenPerSec).toBe(
+      Math.max(...apiRates.map((r) => r.takenPerSec)),
+    );
 
     const connections = snapshots.map((s) =>
       limitIn(componentIn(s, "db"), "connections"),
@@ -170,8 +183,8 @@ describe("simulateWithMetrics", () => {
     expect(dbTotal.peak).toBeGreaterThan(0);
   });
 
-  // Fails if a rate's use is the count in the window rather than per second.
-  it("reports rate use per second, also for a short last window", () => {
+  // Fails if a rate's flow is the count in the window rather than per second.
+  it("reports the flow per second, also for a short last window", () => {
     const { snapshots } = simulateWithMetrics({
       project: project(),
       workloadId: "light",
@@ -183,9 +196,32 @@ describe("simulateWithMetrics", () => {
     expect([last.startMs, last.endMs]).toEqual([2_000, 2_500]);
     const api = componentIn(last, "api");
     expect(api.arrivals).toBeGreaterThan(0);
-    expect(limitIn(api, "requestRate").current).toBe(
+    expect(rateLimitIn(api, "requestRate").takenPerSec).toBe(
       (api.arrivals - api.rejected) * 2,
     );
+  });
+
+  // Fails if a rate limit's peak stops tracking the bucket's lowest level
+  // after every request: a second with a throttled request must show the
+  // bucket drawn down to less than one token left.
+  it("shows a bucket drawn dry in every second that throttled", () => {
+    // A one-token bucket refills in 200 ms, so it's usually full again by
+    // the tick: only a peak tracked at each request sees it run dry.
+    const { snapshots } = run(project({ apiRatePerSec: 5, apiBurst: 1 }));
+    const throttled = snapshots.filter(
+      (s) => componentIn(s, "api").rejected > 0,
+    );
+    expect(throttled.length).toBeGreaterThan(0);
+    for (const snapshot of throttled) {
+      const bucket = rateLimitIn(componentIn(snapshot, "api"), "requestRate");
+      expect(bucket.peak).toBeGreaterThan(bucket.limit - 1);
+    }
+    for (const snapshot of snapshots) {
+      const bucket = rateLimitIn(componentIn(snapshot, "api"), "requestRate");
+      expect(bucket.current).toBeGreaterThanOrEqual(0);
+      expect(bucket.current).toBeLessThanOrEqual(bucket.peak);
+      expect(bucket.peak).toBeLessThanOrEqual(bucket.limit);
+    }
   });
 
   it("counts a timeout once, where it happened, and groups failures by cause", () => {

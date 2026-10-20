@@ -36,9 +36,9 @@ export interface ComponentMetrics {
 
 /**
  * How much of one of its limits a component used. `peak / limit` is the
- * share used at the busiest moment; at 1 or more, requests were refused or
- * left waiting for the limit. Units depend on `kind`: slots for
- * concurrency, tokens per second for rate.
+ * share used at the busiest moment, and never goes over 1. At 1, the limit
+ * was exhausted: the next request waited or was rejected. Units depend on
+ * `kind`: slots for concurrency, tokens for a rate limit's bucket.
  */
 export type LimitUse = ConcurrencyLimitUse | RateLimitUse;
 
@@ -60,22 +60,29 @@ export interface ConcurrencyLimitUse {
 }
 
 /**
- * Tokens taken against a sustained rate, e.g. API Gateway's `requestRate`
- * or DynamoDB's `readUnits`, per second. Saved-up burst tokens let a
- * window go over `limit`, by at most `burst` tokens in all.
+ * A token bucket, e.g. API Gateway's `requestRate` or DynamoDB's
+ * `readUnits`. Use is how far the bucket was drawn down: tokens missing
+ * from a full bucket. A request finding the bucket empty is throttled, so a
+ * `peak` at `limit` means the bucket ran dry. Whether it drains depends on
+ * the flow: `takenPerSec` against `ratePerSec`.
  */
 export interface RateLimitUse {
   readonly kind: "rate";
   /** camelCase and unique within the component, e.g. `readUnits`. */
   readonly name: string;
-  /** The sustained rate: tokens added per second. */
+  /** The bucket's size, its burst: the most tokens it holds. */
   readonly limit: number;
-  /** Most tokens saved up for a burst. */
-  readonly burst: number;
-  /** Tokens taken per second over the window. */
+  /** Tokens missing from a full bucket at the window's end. */
   readonly current: number;
-  /** The same as `current` for one window; in the totals, the busiest window's. */
+  /** Most tokens missing at once during the window: its lowest level. */
   readonly peak: number;
+  /** Tokens the bucket refills per second: the sustained rate. */
+  readonly ratePerSec: number;
+  /**
+   * Tokens taken per second over the window. In the totals, the busiest
+   * window's. Over `ratePerSec`, the bucket is draining.
+   */
+  readonly takenPerSec: number;
 }
 
 /** One workflow's user requests that got an answer during a window. */

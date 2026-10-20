@@ -48,15 +48,29 @@ describe("dynamoDbDefinition", () => {
     expect(db.inProgress).toBe(2);
   });
 
-  // Fails if DynamoDB stops reporting either capacity, or counts a
-  // throttled request as capacity taken.
-  it("reports read and write capacity taken, not throttled", () => {
+  // Fails if DynamoDB stops reporting either capacity, counts a throttled
+  // request as capacity taken, or drains the wrong bucket.
+  it("reports read and write capacity taken and left", () => {
     const db = build({ burstSec: 0 });
     db.arrive({ request: "r1", action: "read", nowMs: 0 });
     db.arrive({ request: "r2", action: "read", nowMs: 0 });
     expect(limitValues(db)).toEqual([
-      { kind: "rate", name: "readUnits", ratePerSec: 10, burst: 1, taken: 1 },
-      { kind: "rate", name: "writeUnits", ratePerSec: 10, burst: 1, taken: 0 },
+      {
+        kind: "rate",
+        name: "readUnits",
+        ratePerSec: 10,
+        burst: 1,
+        taken: 1,
+        tokensLeft: 0,
+      },
+      {
+        kind: "rate",
+        name: "writeUnits",
+        ratePerSec: 10,
+        burst: 1,
+        taken: 0,
+        tokensLeft: 1,
+      },
     ]);
   });
 

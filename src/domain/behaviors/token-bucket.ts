@@ -51,21 +51,26 @@ export class TokenBucket implements RateLimit {
     return this.tokensTaken;
   }
 
-  /** Tokens available at `nowMs` (for metrics and tests). */
+  /**
+   * Tokens available at `nowMs`, between 0 and `burst`. Doesn't refill the
+   * bucket itself, so reading it never changes the floating-point steps
+   * `tryTake` refills in.
+   */
   available(nowMs: number): number {
-    this.refill(nowMs);
-    return this.tokens;
+    return Math.max(0, this.tokensAt(nowMs));
   }
 
   private refill(nowMs: number): void {
+    this.tokens = this.tokensAt(nowMs);
+    this.lastRefillMs = nowMs;
+  }
+
+  /** What the bucket would hold at `nowMs`, refilled since the last take. */
+  private tokensAt(nowMs: number): number {
     if (nowMs < this.lastRefillMs) {
       throw new RangeError("Time must not go backwards");
     }
     const elapsedSec = (nowMs - this.lastRefillMs) / 1000;
-    this.tokens = Math.min(
-      this.burst,
-      this.tokens + elapsedSec * this.ratePerSec,
-    );
-    this.lastRefillMs = nowMs;
+    return Math.min(this.burst, this.tokens + elapsedSec * this.ratePerSec);
   }
 }

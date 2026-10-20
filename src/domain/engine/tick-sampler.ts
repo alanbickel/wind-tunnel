@@ -10,8 +10,8 @@ export interface TickSampler {
   /** The ticks left before the end, then one at the end itself. */
   finalTick(): void;
   /**
-   * Raises the component's peaks to its current values. Called right after
-   * every call into a component.
+   * Raises the component's peaks to its values at `nowMs`. Called right
+   * after every call into a component.
    */
-  trackPeaks(component: RuntimeComponent): void;
+  trackPeaks(component: RuntimeComponent, nowMs: number): void;
 }

@@ -41,8 +41,9 @@ interface GaugeCheckContext {
  *
  * - the same limits, by kind and name, on every read, with no name twice;
  * - a concurrency limit's use is between 0 and its limit;
- * - a rate limit's values are finite, `taken` never decreases, and it never
- *   takes more than its burst plus its rate since the start allows.
+ * - a rate limit's values are finite, `taken` never decreases, it never
+ *   takes more than its burst plus its rate since the start allows, and its
+ *   bucket holds between 0 and `burst` tokens.
  */
 export function checkLimits({
   limits,
@@ -116,7 +117,7 @@ function checkConcurrency({
 
 function checkRate(
   limit: RateLimitGauge,
-  { nowMs, takenBefore }: GaugeCheckContext,
+  context: GaugeCheckContext,
 ): string[] {
   const { name, ratePerSec, burst, taken } = limit;
   if (![ratePerSec, burst, taken].every(Number.isFinite)) {
@@ -124,14 +125,42 @@ function checkRate(
       `limit ${name} isn't finite: rate ${String(ratePerSec)}, burst ${String(burst)}, taken ${String(taken)}.`,
     ];
   }
-  if (taken < takenBefore) {
-    return [
-      `limit ${name} taken went from ${String(takenBefore)} to ${String(taken)}.`,
-    ];
-  }
+  return [
+    ...checkTakenGrows(limit, context),
+    ...checkTakenAllowed(limit, context),
+    ...checkTokensLeft(limit, context),
+  ];
+}
+
+function checkTakenGrows(
+  { name, taken }: RateLimitGauge,
+  { takenBefore }: GaugeCheckContext,
+): string[] {
+  if (taken >= takenBefore) return [];
+  return [
+    `limit ${name} taken went from ${String(takenBefore)} to ${String(taken)}.`,
+  ];
+}
+
+/** A full bucket at the start, refilled at its rate since. */
+function checkTakenAllowed(
+  { name, ratePerSec, burst, taken }: RateLimitGauge,
+  { nowMs }: GaugeCheckContext,
+): string[] {
   const allowed = burst + (ratePerSec * nowMs) / 1000;
   if (taken <= allowed + TAKEN_TOLERANCE) return [];
   return [
     `limit ${name} took ${String(taken)} tokens by now; its burst and rate allow ${String(allowed)}.`,
+  ];
+}
+
+function checkTokensLeft(
+  limit: RateLimitGauge,
+  { nowMs }: GaugeCheckContext,
+): string[] {
+  const left = limit.tokensLeft(nowMs);
+  if (left >= 0 && left <= limit.burst) return [];
+  return [
+    `limit ${limit.name} has ${String(left)} tokens left of ${String(limit.burst)}.`,
   ];
 }

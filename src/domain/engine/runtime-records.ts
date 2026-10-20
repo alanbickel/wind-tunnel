@@ -14,8 +14,8 @@ export interface RuntimeComponent {
   peakInProgress: number;
   peakQueueDepth: number;
   /**
-   * Highest `inUse` since the last tick of each of `behavior.limits`, by
-   * index. Only concurrency limits have one; a rate limit's entry stays 0.
+   * Highest use since the last tick of each of `behavior.limits`, by index:
+   * slots held, or tokens drawn out of a full bucket.
    */
   readonly limitPeaks: number[];
 }

@@ -1,7 +1,4 @@
-import type {
-  ConcurrencyLimitGauge,
-  RateLimitGauge,
-} from "../components/component-behavior";
+import type { ConcurrencyLimitGauge } from "../components/component-behavior";
 import type { ComponentRegistry } from "../components/component-registry";
 import type { Project, StepAction } from "../model/project";
 import type { RandomSource } from "../random/random-source";
@@ -38,8 +35,19 @@ export interface ConcurrencyLimitSample extends ConcurrencyLimitGauge {
   readonly peakInUse: number;
 }
 
-/** A rate limit at the tick; `taken` is the running total since the start. */
-export type RateLimitSample = RateLimitGauge;
+/** A token bucket at the tick, and its lowest level before it. */
+export interface RateLimitSample {
+  readonly kind: "rate";
+  readonly name: string;
+  readonly ratePerSec: number;
+  readonly burst: number;
+  /** Tokens taken since the run began. */
+  readonly taken: number;
+  /** Tokens missing from a full bucket at the tick: `burst` minus those left. */
+  readonly drawnDown: number;
+  /** Most tokens missing at once since the previous tick (or the start). */
+  readonly peakDrawnDown: number;
+}
 
 /**
  * What happened during a run, reported to the observer as it happens.

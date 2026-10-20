@@ -3,10 +3,14 @@ import type {
   ComponentSample,
   ComponentFinishedEvent,
 } from "../engine/simulation-events";
-import type { LimitSample } from "../engine/simulation-events";
+import type { LimitSample, RateLimitSample } from "../engine/simulation-events";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import { LatencyHistogram } from "./latency-histogram";
-import type { ComponentMetrics, LimitUse } from "./metrics-snapshot";
+import type {
+  ComponentMetrics,
+  LimitUse,
+  RateLimitUse,
+} from "./metrics-snapshot";
 
 /** A tick's sample for this component, and what's needed to read it. */
 export interface ComponentTallySampleInput {
@@ -112,7 +116,7 @@ export class ComponentTally {
     this.countersSoFar = window.countersSoFar;
     this.counters = { ...window.countersSoFar };
     this.limits = window.limits.map((limit, index) =>
-      withPeak(limit, this.limits[index]?.peak ?? 0),
+      addLimit(limit, this.limits[index]),
     );
     this.takenSoFar = window.takenSoFar;
   }
@@ -165,20 +169,23 @@ const LIMIT_USES: KindHandlers<
       current: inUse,
       peak: peakInUse,
     }),
-  rate:
-    ({ name, ratePerSec, burst, taken }) =>
-    ({ takenBefore, windowMs }) => {
-      const perSec = perSecond({ count: taken - takenBefore, windowMs });
-      return {
-        kind: "rate",
-        name,
-        limit: ratePerSec,
-        burst,
-        current: perSec,
-        peak: perSec,
-      };
-    },
+  rate: (sample) => (context) => rateLimitUse(sample, context),
 };
+
+function rateLimitUse(
+  sample: RateLimitSample,
+  { takenBefore, windowMs }: LimitUseContext,
+): RateLimitUse {
+  return {
+    kind: "rate",
+    name: sample.name,
+    limit: sample.burst,
+    current: sample.drawnDown,
+    peak: sample.peakDrawnDown,
+    ratePerSec: sample.ratePerSec,
+    takenPerSec: perSecond({ count: sample.taken - takenBefore, windowMs }),
+  };
+}
 
 /** Input for `perSecond`. */
 interface PerSecondInput {
@@ -201,7 +208,30 @@ const TAKEN_SO_FAR: KindHandlers<LimitSample, number> = {
   rate: ({ taken }) => taken,
 };
 
-/** The limit with its peak raised to `earlierPeak` if that was higher. */
-function withPeak(limit: LimitUse, earlierPeak: number): LimitUse {
-  return { ...limit, peak: Math.max(limit.peak, earlierPeak) };
+/**
+ * A window's limit added to the run so far: the highest peak, and for a
+ * rate limit, the busiest window's flow. Everything else is the window's.
+ */
+function addLimit(window: LimitUse, soFar: LimitUse | undefined): LimitUse {
+  if (soFar === undefined) return window;
+  const peak = Math.max(window.peak, soFar.peak);
+  return { ...handleKind(BUSIEST_FLOW, window)(soFar), peak };
 }
+
+/** A rate limit keeps the busiest window's `takenPerSec`. */
+const BUSIEST_FLOW: KindHandlers<LimitUse, (soFar: LimitUse) => LimitUse> = {
+  concurrency: (window) => () => window,
+  rate: (window) => (soFar) => ({
+    ...window,
+    takenPerSec: Math.max(window.takenPerSec, takenPerSecOf(soFar)),
+  }),
+};
+
+function takenPerSecOf(limit: LimitUse): number {
+  return handleKind(TAKEN_PER_SEC, limit);
+}
+
+const TAKEN_PER_SEC: KindHandlers<LimitUse, number> = {
+  concurrency: () => 0,
+  rate: ({ takenPerSec }) => takenPerSec,
+};

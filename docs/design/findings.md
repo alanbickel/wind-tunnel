@@ -91,6 +91,8 @@ The verdict's headroom line quotes only limits that refuse work (§3.4). The con
 7. **What would change this in AWS.** SQS-4 (batching) could remove the backlog entirely; SQS-3 (ramp-up) would make it drain later. Messages stay for 4 days by default, so this backlog is nowhere near being lost. **Documented:** [SQS message retention](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-basic-architecture.html). In AWS, watch `ApproximateAgeOfOldestMessage`, "the age of the oldest unprocessed message in the queue". **Documented:** [SQS CloudWatch metrics](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html).
 8. **Learn more:** [SQS messages expire if the backlog lasts too long](../learning/aws-did-you-know.md#sqs-messages-expire-if-the-backlog-lasts-too-long).
 
+**As built (#62).** The late-async-work detector reads only the per-second snapshots, which is all the run panel has, and percentiles of separate seconds can't be merged into the run's. So the finding quotes the slowest delivery (32.8 s, an exact maximum) and the highest per-second p99, not the run's p99 of 32.6 s from the totals. It reports 23 seconds over 29 s, 7 of them within the histogram's error.
+
 The headroom line needs no warm-up context, as in §1.4: fn-writer cold-started only in the second ending at 1 s (orders-db held 5), and orders-db's peak of 13 came first at 22 s and recurred through 156 s. [snapshots: fn-writer `coldStarts`; orders-db `connections` peak per second]
 
 ### 1.6 Template B, steady day: healthy
@@ -119,6 +121,8 @@ Not a shipped workload. It's here because it's the case the issue names: a failu
 6. **What would change this in AWS.** Probably everything: [DDB-1](fidelity.md#ddb-1-every-request-costs-one-capacity-unit) (default reads are eventually consistent and cost half a unit, so 1,500 units serve 3,000 reads a second), [DDB-2](fidelity.md#ddb-2-the-burst-bucket-starts-full-and-is-reliable) (AWS keeps up to 300 s of burst, not the template's 5 s), [DDB-4](fidelity.md#ddb-4-throttled-requests-fail-immediately) (the SDK backs off from 1,000 ms for throttles, not 25 ms). The variant teaches the shape of a finding, not a fact about DynamoDB.
 7. **Learn more:** [DynamoDB saves up unused capacity for bursts](../learning/aws-did-you-know.md#dynamodb-saves-up-unused-capacity-for-bursts).
 
+The variant's queue is unchanged, so it also gets §1.5's warning about late writes, below the failure.
+
 ## 2. Detectors
 
 Each detector reads a `RunSoFar` (the project and the snapshots so far) and returns findings. The table maps every sentence above to the detector that would write it.
@@ -133,7 +137,7 @@ Each detector reads a `RunSoFar` (the project and the snapshots so far) and retu
 | **bucket-drained** | A rate limit is exhausted | That limit's `current`, `peak`, `takenPerSec`, `ratePerSec` per snapshot | Last second the bucket was full (cause window start), mean flow vs rate over the drain, burst size, time to drain | note, cited as the cause | 1.7.2 |
 | **retries-absorbed** | A component refused more attempts than requests failed with its cause | The component's `rejected`, `arrivals`, `completed`; workflow `failures`; latency per snapshot | Attempts refused vs requests failed; p99 before vs during | note | 1.7.3 |
 | **backlog** | A limit that makes work wait and holds no other limit is exhausted, and its component had messages waiting at the end of a second | That component's `queueDepth`, `peakQueueDepth`, `arrivals`, `asyncSucceeded`; the limit's `peak` | Window, peak backlog and when, arrival vs delivery rate, growth rate, when it emptied, async p99 | note; warning if messages are still waiting at the end of a finished run | 1.4.1–1.4.4, 1.5.1 |
-| **late-async-work** | A queue's async p99 is over the timeout of its workflow's entry edge | Totals and per-second `asyncLatency`; workflow latency; the entry edge's `timeoutMs` | Answered p99 vs landed p99 and max; the seconds over; the reference timeout | warning | 1.5.2, 1.5.3 |
+| **late-async-work** | A queue's async p99 is over the timeout of its workflow's entry edge | Per-second `asyncLatency` (p99 and max); workflow latency; the entry edge's `timeoutMs` | The slowest delivery; the seconds whose p99 is over, and how many are within the error; the highest answered p99 of those seconds; the reference timeout | warning | 1.5.2, 1.5.3 |
 | *recovery* (part of failed-requests) | The failure ends before the run does | The finding's window; the limit's peak after it | Last bad second, when the waiting cleared | (part of failed-requests) | 1.1.6, 1.7.4 |
 | **verdict** | Always | All findings; workflow totals; every limit's peaks; `coldStarts` | Level, request counts, closest to failing, warm-up context | (the verdict) | every summary line |
 
@@ -170,7 +174,7 @@ DynamoDB's read and write buckets both refuse with `throttled`. The detector pic
 
 ### 2.4 How a failure reaches a finding
 
-Three diagrams. The first shows where a rejection reason travels, from the component that rejects to the finding that explains it. The second resolves a failure cause to a limit, and the third explains why that limit ran out. Solid boxes in (a) are built; dashed ones are designed but not built yet (#62 onward).
+Three diagrams. The first shows where a rejection reason travels, from the component that rejects to the finding that explains it. The second resolves a failure cause to a limit, and the third explains why that limit ran out. Every box in (a) is built.
 
 **(a) Where reasons travel.** A component names its reason, the engine attaches the component's ID, and the failure reaches the snapshots unchanged, however many callers it passes through. The declarations travel on a separate path, with each limit's use.
 
@@ -182,8 +186,8 @@ flowchart TB
     eng["<b>Engine</b><br/>[domain]<br/>Makes Failure = component ID + reason, or<br/>callee + timeout. Retries per the edge,<br/>then passes the failure up unchanged"]:::component
     col["<b>MetricsCollector</b><br/>[domain]<br/>Counts the events per second"]:::component
     snap["<b>MetricsSnapshot</b><br/>[domain, per second and totals]<br/>workflows.failures: final failures by cause,<br/>orders-db: too-many-connections<br/>components.rejected: every refused attempt, no reason<br/>components.limits: peak, current, whenFull"]:::component
-    find["<b>findRun and the detectors</b><br/>[application/run-analysis/findings]<br/>Read RunSoFar: the project and the snapshots"]:::planned
-    out["<b>Findings and the verdict</b><br/>Formatted by the CLI report and the run panel"]:::planned
+    find["<b>findRun and the detectors</b><br/>[application/run-analysis/findings]<br/>Read RunSoFar: the project, the workload ID,<br/>and the snapshots"]:::component
+    out["<b>Findings and the verdict</b><br/>Formatted by the CLI report and the run panel"]:::component
     def -->|"build() wires gauges<br/>with their declarations"| beh
     beh -->|"rejected effect"| eng
     eng -->|"component-rejected, each attempt<br/>workflow-finished, with its failure<br/>metrics-tick, limits with whenFull"| col
@@ -194,7 +198,6 @@ flowchart TB
     classDef system fill:#1168bd,stroke:#0b4884,color:#fff
     classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
     classDef external fill:#999,stroke:#6b6b6b,color:#fff
-    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
 ```
 
 **(b) Resolving a cause.** Each failure cause is a component C and a reason R. failed-requests resolves it with one lookup in C's declaration table, the same for every component and every reason; the reason is only the key. R is always one of the reasons C's type lists in `rejectionReasons` ([ADR-0016](../adr/0016-component-types-list-every-rejection-reason.md)). A cause has one of three outcomes. Red outcomes are ones the design doesn't yet explain.
@@ -239,7 +242,7 @@ What the diagrams show:
 - **Waiting limits never appear as causes in (b).** A limit that makes work wait never rejects. It appears in (c) as the cause of another limit's refusals, or as a backlog when it holds nothing.
 - **The engine marks a timeout by its reason.** A failure is a timeout when its reason is `timeout`, so no type may list that reason, and the contract checks it.
 - **Reasons survive only on final failures.** `rejected` counts every refused attempt without its reason, so a rejection that a retry rescued appears only in that count. retries-absorbed compares `rejected` with the failures by cause, which is exact only for a component that refuses with one reason. Counting rejections by reason per component would close this gap.
-- **Two outcomes in (b) are unexplained,** shown in red. A timeout names the component that didn't answer, but not why. A rejection for a reason no limit declares (none is modeled yet; a failed validation would be one) names its component and reason only, until the catalog gives its reasons wording of their own (#62). Failed async deliveries never reach `workflows.failures`: they're counted in the queue's `asyncFailed` (Roadmap M5, item 9).
+- **Two outcomes in (b) are unexplained,** shown in red. A timeout names the component that didn't answer, but not why. A rejection for a reason no limit declares (none is modeled yet; a failed validation would be one) names its component and reason only, until the catalog gives reasons wording of their own. Failed async deliveries never reach `workflows.failures`: they're counted in the queue's `asyncFailed` (Roadmap M5, item 9).
 
 ## 3. The shape
 
@@ -286,6 +289,8 @@ interface TimeWindow { readonly fromMs: number; readonly toMs: number }
 - **The cause can come first.** `causeWindow` starts when the cause began: 11 s for Template A's line (window 14–47 s), 19 s for the variant's drain (window 95–141 s). The panel shades both. Detectors find it by walking back from the window through the per-second state, not by looking only inside the window.
 - **Fixes carry evidence.** A `Fix` has a message and a claim: `documented` (URL), `observed` (source), or `assumption`, plus fidelity IDs. A fix without a source can't be built.
 
+As built (#62), `Fix` also has a `scope` (`wind-tunnel` or `aws`), a Documented claim carries its link's title, and an Observed claim names a test file and the test in it. `Evidence` is a number, what it is, and its source. [`finding.ts`](../../src/application/run-analysis/findings/finding.ts) is the reference; the [findings guide](../architecture/finding-detectors.md) shows a finding printed.
+
 ### 3.2 Severity
 
 | Severity | When | Examples |
@@ -306,7 +311,7 @@ Always present, before the findings:
 
 - **Level:** *failing* if any finding is a failure, *degraded* if any is a warning, otherwise *healthy*. While a run is still going, the verdict is "so far".
 - **Requests:** answered, succeeded, failed, and in progress, from `requestsInProgress` (ADR-0013), so started = succeeded + failed + in progress.
-- **Closest to failing:** among the limits that refuse work, the one with the highest `peak / limit`, with its peak and limit, rounded down as ADR-0014 requires. This is the headroom before the first refusal. For a rate limit, the bucket's level is the number; its busiest flow against its rate follows as labeled context (ADR-0014). A failing run has no headroom line: a limit already refused work, and the failure findings name it (1.1, 1.2, 1.7). The line names only limits that refuse work; a limit that made work wait has its own note, if it earned one, among the findings (1.4).
+- **Closest to failing:** among the limits that refuse work, the one with the highest `peak / limit`, with its peak and limit, and its share rounded down to 0.1% as ADR-0014 requires (the Limits table's rule). This is the headroom before the first refusal. For a rate limit, the bucket's level is the number; its busiest flow against its rate follows as labeled context (ADR-0014). A failing run has no headroom line: a limit already refused work, and the failure findings name it (1.1, 1.2, 1.7). The line names only limits that refuse work; a limit that made work wait has its own note, if it earned one, among the findings (1.4).
 - **Warm-up context:** if a limit's peak came only in seconds when the component, or one that calls it, had cold starts, the line gives that peak, says so, and gives the peak in the other seconds too (1.3: orders-db's peak came while fn-orders, which calls it, cold-started). "Calls it" means an edge in `architecture.edges` whose `to` is the limit's component. That one-hop lookup is the only call-graph reasoning the design uses (§2.3).
 
 ### 3.5 Where findings live, and how detectors are added

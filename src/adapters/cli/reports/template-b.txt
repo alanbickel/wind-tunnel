@@ -2,6 +2,15 @@ Serverless API with DynamoDB + SQS (template-b)
 Workload: Lunch rush, 20 s at 2,000 requests/s (lunch-rush), 60 s, seed 42
 Events processed: 856,834
 
+Verdict
+=======
+Healthy. All 65,966 answered requests succeeded; 8 were still in progress when the run ended.
+Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
+
+Findings
+========
+None.
+
 Workflows
 =========
 workflow      started      ok  failed  in progress  failed %  p50  p95  p99    max

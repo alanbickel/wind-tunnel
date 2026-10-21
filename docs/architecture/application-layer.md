@@ -19,7 +19,7 @@ flowchart LR
         uc["<b>Use cases</b><br/>[Component: use-cases/]<br/>CreateProjectFromTemplate, SaveProject,<br/>OpenProject, RunSimulation, ..."]:::component
         ports["<b>Ports</b><br/>[Component: ports/, interfaces]<br/>ProjectRepository, TemplateCatalog,<br/>SimulationRunner, Clock, IdGenerator,<br/>StoragePersistence"]:::component
         fakes["<b>Fakes</b><br/>[Component: testing/]<br/>InMemoryProjectRepository, FixedClock,<br/>SequentialIds, ..."]:::component
-        ra["<b>Run analysis</b><br/>[Component: run-analysis/]<br/>workflowSeconds, workflowTotals,<br/>componentTotals"]:::component
+        ra["<b>Run analysis</b><br/>[Component: run-analysis/]<br/>workflowSeconds, workflowTotals,<br/>componentTotals, findRun"]:::component
     end
     subgraph ad["adapters/"]
         repo["<b>IndexedDbProjectRepository</b><br/>[Component: persistence/]"]:::component
@@ -87,13 +87,13 @@ Most are a single call on a port. The ones with logic:
 
 ## Run analysis: what a run's numbers add up to
 
-The browser and the CLI show the same counts from a run, so they compute them in one place: [`src/application/run-analysis/`](../../src/application/run-analysis/) ([ADR-0013](../adr/0013-derive-run-results-in-application-run-analysis.md)). Its functions take a `RunSoFar` (the project and the snapshots received so far) and return plain data:
+The browser and the CLI show the same counts from a run, so they compute them in one place: [`src/application/run-analysis/`](../../src/application/run-analysis/) ([ADR-0013](../adr/0013-derive-run-results-in-application-run-analysis.md)). Its functions take a `RunSoFar` (the project, the workload's ID, and the snapshots received so far) and return plain data:
 
 - `workflowSeconds`: each second's requests started, succeeded, and failed, with the running total in progress.
 - `workflowTotals`, `allWorkflows`, and `componentTotals`: the totals so far, each with its remainder (`inProgress`, `unfinished`), so the columns add up at any moment of a run.
 - `requestsInProgress` and `unfinishedWork`: the only definitions of those remainders; the CLI report calls them too.
 
-[`run-analysis-reconciles.test.ts`](../../src/adapters/templates/run-analysis-reconciles.test.ts) checks these sums against the collector's own totals for every template. Findings will join this folder in M5.
+[`run-analysis-reconciles.test.ts`](../../src/adapters/templates/run-analysis-reconciles.test.ts) checks these sums against the collector's own totals for every template. The findings and the verdict live in `run-analysis/findings/`, with [their own guide](finding-detectors.md).
 
 ## Records and documents
 

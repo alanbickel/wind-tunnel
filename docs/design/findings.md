@@ -60,7 +60,7 @@ The long rush adds nothing new for Template A. Its reading confirms that a detec
 ### 1.4 Template B, lunch rush: healthy, with a backlog
 
 > **Healthy.** All 65,966 answered requests succeeded; 8 were still in progress when the run ended.
-> Closest to failing: orders-db connections, at most 13 of 90 (14%). orders-queue's consumers were the limit: see the note.
+> Closest to failing: orders-db connections, at most 13 of 90 (14%).
 
 **Note: writes waited in orders-queue during the rush, and landed up to 6.2 s late.**
 
@@ -86,7 +86,7 @@ The verdict's headroom line quotes only limits that refuse work (§3.4). The con
 2. **Why it's a warning.** *Create order* was answered within 114 ms (p99), but the write reached orders-db up to 32.6 s later (p99; slowest 32.8 s). That's longer than the 29 s API Gateway waits for an integration, so no synchronous design could have offered this wait. In the seconds from 157 s to 180 s, the p99 of the writes delivered in each second was over 29 s. [totals: orders-queue `asyncLatency`] [snapshots: per-second `asyncLatency.p99Ms`] [config: `api->fn-api` `timeoutMs` 29,000]
 3. **Accuracy.** Latency percentiles are bucket upper bounds, up to 5% high ([metrics guide](../architecture/metrics.md)). 32.6 s is clear of 29 s by more than that; the per-second windows near 29 s (such as 29.6 s at 160 s) are not, and a detector says so instead of rounding them into the window.
 4. **The longer the peak, the later the writes.** The backlog grew in every 20 s step of the peak. **Observed:** `long-rush-template-b.test.ts`.
-5. **Fix, in Wind Tunnel.** More consumers: at `consumerMaxConcurrency` 20, the consumers keep up and no backlog builds. **Observed:** `long-rush-template-b.test.ts`, "grows the backlog through the whole peak" test's comment. Check the database first: 20 consumers can hold 20 connections and need more than its 16 query workers at once, so queries would queue there instead (**Assumption**, untested).
+5. **Fix, in Wind Tunnel.** More consumers: at `consumerMaxConcurrency` 20, the consumers keep up. **Observed:** `long-rush-template-b.test.ts`, "grows the backlog through the whole peak" test's comment. Check the database first: 20 consumers can hold 20 connections and need more than its 16 query workers at once, so queries would queue there instead (**Assumption**, untested).
 6. **Fix, in AWS.** Raise the event source mapping's maximum concurrency (2 to 1,000), keeping the function's reserved concurrency at least that high, "Otherwise, Lambda might throttle your messages." **Documented:** [SQS scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html).
 7. **What would change this in AWS.** SQS-4 (batching) could remove the backlog entirely; SQS-3 (ramp-up) would make it drain later. Messages stay for 4 days by default, so this backlog is nowhere near being lost. **Documented:** [SQS message retention](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-basic-architecture.html). In AWS, watch `ApproximateAgeOfOldestMessage`, "the age of the oldest unprocessed message in the queue". **Documented:** [SQS CloudWatch metrics](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html).
 8. **Learn more:** [SQS messages expire if the backlog lasts too long](../learning/aws-did-you-know.md#sqs-messages-expire-if-the-backlog-lasts-too-long).
@@ -109,7 +109,7 @@ Not a shipped workload. It's here because it's the case the issue names: a failu
 > **Failing.** 4,377 *Get order* requests failed, every one throttled by orders-read after its retries ran out.
 
 1. **What, where, when.** orders-read throttled reads from 95 s to 141 s. 4,377 *Get order* requests failed, all `orders-read: throttled`. [totals: Failures] [snapshots: failing seconds = `readUnits` exhausted seconds = 96–141]
-2. **Why: the cause started 77 s earlier.** orders-read's read bucket was last full at 18 s. From 19 s, reads took more tokens than the bucket refilled in every second, about 1,600 a second against 1,500, so the bucket's 7,500 tokens of burst ran down by about 100 a second. It ran out at 95 s. [snapshots: `readUnits.current` < 1 last at the second ending 18 s; `takenPerSec` > `ratePerSec` in every second ending 20–96 s; `peak` 7,500 from 96 s] [config: 1,500 × `burstSec` 5 = 7,500] ADR-0014's formula gives the same time: (7,500 − 1) ÷ (1,600 − 1,500) ≈ 75 s after 19 s.
+2. **Why: the cause started 76 s earlier.** orders-read's read bucket was last full at 18 s. From 19 s, reads took more tokens than the bucket refilled in every second, about 1,600 a second against 1,500, so the bucket's 7,500 tokens of burst ran down by about 100 a second. It ran out at 95 s. [snapshots: `readUnits.current` < 1 last at the second ending 18 s; `takenPerSec` > `ratePerSec` in every second ending 20–96 s; `peak` 7,500 from 96 s] [config: 1,500 × `burstSec` 5 = 7,500] ADR-0014's formula gives the same time: (7,500 − 1) ÷ (1,600 − 1,500) ≈ 75 s after 19 s.
 3. **Retries rescued most reads.** orders-read refused 64,201 read attempts; the edge's 4 attempts got all but 4,377 requests through. 278,914 attempts = 214,713 completed + 64,201 refused. [totals: orders-read arrivals, completed, rejected] The retries cost time: *Get order*'s p99 rose from about 105 ms to 168–194 ms while throttling lasted. [snapshots] In AWS, the SDKs retry throttled DynamoDB requests on their own. **Documented:** [DynamoDB error handling](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html). So a throttle may reach your code only as latency ([Did you know?](../learning/aws-did-you-know.md#your-code-may-never-see-a-dynamodb-throttle-because-the-sdk-retries-it)).
 4. **Recovery.** Once the rush eased, the bucket refilled: full again at 152 s. [snapshots]
 5. **Fix, in Wind Tunnel.** Provision for the sustained rate, not the burst: at 2,500 reads a second (the template's setting) nothing fails. **Observed:** §1.5.
@@ -125,14 +125,18 @@ Each detector reads a `RunSoFar` (the project and the snapshots so far) and retu
 | Detector | Fires when | Reads | Quotes | Severity | Sentences |
 |---|---|---|---|---|---|
 | **failed-requests** | Any workflow failure, one finding per cause (`"<component>: <reason>"`) | Workflow `failures` per snapshot; totals | Failed count, by workflow; share of answered; window (first to last second with that cause); worst second | failure | 1.1.1, 1.2.1, 1.7.1 |
-| **limit-refused** | The cause's component has a limit that refuses with that reason, exhausted in the failing seconds | That limit's `peak` per snapshot; the component's `rejected` | Limit, peak, seconds exhausted; refusals = failures, or attempts ≠ requests when the caller retried | (part of failed-requests) | 1.1.2, 1.2.1, 1.7.1 |
+| *limit-refused* (part of failed-requests) | The cause's component has a limit that refuses with that reason, exhausted in the failing seconds | That limit's `peak` per snapshot; the component's `rejected` | Limit, peak, seconds exhausted; refusals = failures, or attempts ≠ requests when the caller retried | (part of failed-requests) | 1.1.2, 1.2.1, 1.7.1 |
 | **waiting-holds-limit** | A limit that makes work wait is exhausted, and its waiting work holds the refusing limit | Both limits' `peak`; the component's `peakQueueDepth`, `completed`, and callers' `started` | When waiting began (cause window start), running + waiting = limit, throughput while saturated vs arrivals | note, cited as the cause | 1.1.3, 1.1.4, 1.2.2, 1.2.3 |
 | **bucket-drained** | A rate limit is exhausted | That limit's `current`, `peak`, `takenPerSec`, `ratePerSec` per snapshot | Last second the bucket was full (cause window start), mean flow vs rate over the drain, burst size, time to drain | note, cited as the cause | 1.7.2 |
 | **retries-absorbed** | A component refused more attempts than requests failed with its cause | The component's `rejected`, `arrivals`, `completed`; workflow `failures`; latency per snapshot | Attempts refused vs requests failed; p99 before vs during | note | 1.7.3 |
-| **backlog** | A queue had messages waiting at the end of a second | Queue `queueDepth`, `peakQueueDepth`, `arrivals`, `asyncSucceeded`; its consumer limit | Window, peak backlog and when, arrival vs delivery rate, growth rate, when it emptied, async p99 | note; warning if not empty at the end of a finished run | 1.4.1–1.4.4, 1.5.1 |
+| **backlog** | A limit that makes work wait and holds no other limit is exhausted, and its component had messages waiting at the end of a second | That component's `queueDepth`, `peakQueueDepth`, `arrivals`, `asyncSucceeded`; the limit's `peak` | Window, peak backlog and when, arrival vs delivery rate, growth rate, when it emptied, async p99 | note; warning if messages are still waiting at the end of a finished run | 1.4.1–1.4.4, 1.5.1 |
 | **late-async-work** | A queue's async p99 is over the timeout of its workflow's entry edge | Totals and per-second `asyncLatency`; workflow latency; the entry edge's `timeoutMs` | Answered p99 vs landed p99 and max; the seconds over; the reference timeout | warning | 1.5.2, 1.5.3 |
-| **recovery** | A failure or backlog finding ends before the run does | The finding's window; the limit's peak after it | Last bad second, when the waiting cleared | (part of the finding it follows) | 1.1.6, 1.7.4 |
+| *recovery* (part of failed-requests) | The failure ends before the run does | The finding's window; the limit's peak after it | Last bad second, when the waiting cleared | (part of failed-requests) | 1.1.6, 1.7.4 |
 | **verdict** | Always | All findings; workflow totals; every limit's peaks; `coldStarts` | Level, request counts, closest to failing, warm-up context | (the verdict) | every summary line |
+
+**Parts aren't detectors.** A detector returns whole findings, and `findRun` nests them only by `causedBy` (§3.5), so no detector can add a reason to another's finding. *limit-refused* and *recovery* write reasons in failed-requests' finding, so they're helpers that failed-requests calls, not registered detectors. The backlog finding quotes its own end.
+
+**Which queue the backlog detector reads.** Both waiting limits in these runs have a queue: SQS's messages and RDS's waiting queries (`queueDepth` on both). The declarations (§2.2) tell them apart. A waiting limit that holds another limit, such as RDS `queryWorkers`, is explained only by waiting-holds-limit. One that holds nothing, such as SQS `consumerConcurrency`, gets a backlog finding, read from its own component's `queueDepth`.
 
 **Thresholds.** None of the rules has a tuned number. Each fires on an exact state: a failure, an exhausted limit, a message still waiting at a second's end, or a latency past a timeout the project itself sets. That's deliberate: the detector reports the mechanism, not a guess at when to worry. The one comparison that needs care is a percentile against a timeout, because percentiles are up to 5% high (1.5.3). A detector compares the bucket's upper bound and says when the result is within that error.
 
@@ -140,13 +144,13 @@ Each detector reads a `RunSoFar` (the project and the snapshots so far) and retu
 
 ### 2.2 Declarations the detectors need
 
-Three detectors need facts about a limit that only its component type knows. Each component declares them with its limits (ADR-0014's `LimitGauge`), and they're copied into `LimitUse`, so detectors stay generic:
+The detectors need three facts about a limit that only its component type knows. Each component declares them with its limits (ADR-0014's `LimitGauge`), and they're copied into `LimitUse`, so detectors stay generic:
 
 | Declaration | Example | Used by |
 |---|---|---|
 | **When full, the limit refuses or makes work wait** | RDS `connections` refuses; RDS `queryWorkers` and SQS `consumerConcurrency` make work wait | verdict (only limits that refuse get a headroom line), waiting-holds-limit, backlog |
-| **The rejection reason it produces** | RDS `connections` → `too-many-connections`; DynamoDB `readUnits` → `throttled` | limit-refused (matching a failure cause to its limit) |
-| **Which other limit waiting work holds** | RDS `queryWorkers` → `connections` | waiting-holds-limit |
+| **The rejection reason it produces** | RDS `connections` → `too-many-connections`; DynamoDB `readUnits` → `throttled` | failed-requests, through limit-refused (matching a failure cause to its limit) |
+| **Which other limit waiting work holds** | RDS `queryWorkers` → `connections`; SQS `consumerConcurrency` → none | waiting-holds-limit, backlog (only a waiting limit that holds none gets a backlog finding) |
 
 DynamoDB's read and write buckets both refuse with `throttled`. The detector picks the one exhausted in the failing seconds; if both were, it names both.
 
@@ -155,7 +159,7 @@ DynamoDB's read and write buckets both refuse with `throttled`. The detector pic
 | Sentence | Why not | What it would take |
 |---|---|---|
 | 1.1.7, 1.5.5: "with this setting, nothing fails" | The evidence is another run | The catalog cites the test for now; later, a "try this fix" re-run |
-| 1.4.5: "the cap kept orders-db at 13 connections" | It's a claim about the architecture, not the metrics: a queue delivers at most `consumerMaxConcurrency` at once, and each delivery holds one connection | Reasoning over the call graph: which limit upstream bounds a limit downstream |
+| 1.4.5: "the cap kept orders-db at 13 connections" | It's a claim about the architecture, not the metrics: a queue delivers at most `consumerMaxConcurrency` at once, and each delivery holds one connection | Reasoning over the call graph: which limit upstream bounds a limit downstream. The verdict's warm-up context (§3.4) looks one hop up the call graph, which is all it needs; this would need the whole path |
 | 1.5.2: "*n* writes landed after 29 s" | The histogram gives percentiles, not exact counts above a value | Counting async deliveries over the entry timeout, per window |
 | How long the oldest message has waited, while it waits | `asyncLatency` is measured on delivery | A per-queue gauge of the oldest waiting message's age |
 | "Queries waited about 80 ms in line" | Component latency includes the wait; there's no separate wait time | A wait-time histogram per queuing limit. Little's law (74 waiting ÷ 892 a second ≈ 83 ms) gives an estimate, labeled as one |
@@ -211,7 +215,7 @@ interface TimeWindow { readonly fromMs: number; readonly toMs: number }
 | Severity | When | Examples |
 |---|---|---|
 | **failure** | Requests failed | 1.1, 1.2, 1.7 |
-| **warning** | Nothing failed, but work finished later than the project's own timeout allows a synchronous caller to wait, or was left unfinished at the end of a finished run | 1.5 |
+| **warning** | Nothing failed, but work finished later than the project's own timeout allows a synchronous caller to wait, or a queue backlog was still waiting at the end of a finished run. Requests still in progress at the end are normal: they appear only in the verdict's counts | 1.5 |
 | **note** | Worth knowing: a limit made work wait, a backlog that cleared, retries that hid a throttle, or the cause of another finding | 1.4, 1.7.2, 1.7.3 |
 
 ### 3.3 Ordering
@@ -226,8 +230,8 @@ Always present, before the findings:
 
 - **Level:** *failing* if any finding is a failure, *degraded* if any is a warning, otherwise *healthy*. While a run is still going, the verdict is "so far".
 - **Requests:** answered, succeeded, failed, and in progress, from `requestsInProgress` (ADR-0013), so started = succeeded + failed + in progress.
-- **Closest to failing:** among the limits that refuse work, the one with the highest `peak / limit`, with its peak and limit, rounded down as ADR-0014 requires. This is the headroom before the first refusal. For a rate limit, the bucket's level is the number; its busiest flow against its rate follows as labeled context (ADR-0014).
-- **Warm-up context:** if a limit's peak came only in seconds when the component, or one it calls, had cold starts, the line gives that peak, says so, and gives the peak in the other seconds too (1.3). It never hides the true peak.
+- **Closest to failing:** among the limits that refuse work, the one with the highest `peak / limit`, with its peak and limit, rounded down as ADR-0014 requires. This is the headroom before the first refusal. For a rate limit, the bucket's level is the number; its busiest flow against its rate follows as labeled context (ADR-0014). A failing run has no headroom line: a limit already refused work, and the failure findings name it (1.1, 1.2, 1.7). The line names only limits that refuse work; a limit that made work wait has its own note, if it earned one, among the findings (1.4).
+- **Warm-up context:** if a limit's peak came only in seconds when the component, or one that calls it, had cold starts, the line gives that peak, says so, and gives the peak in the other seconds too (1.3: orders-db's peak came while fn-orders, which calls it, cold-started). "Calls it" means an edge in `architecture.edges` whose `to` is the limit's component. That one-hop lookup is the only call-graph reasoning the design uses (§2.3).
 
 ### 3.5 Where findings live, and how detectors are added
 
@@ -235,8 +239,9 @@ Findings are a read model in **`src/application/run-analysis/findings/`**, as [A
 
 - A `Detector` is `{ id, detect(run: RunSoFar): Finding[] }`, one file each. A function `createDetectors()` lists the defaults, as `createAwsComponentRegistry` lists component types. `findRun(run, detectors)` runs them, links causes, orders the findings, and adds the verdict.
 - A new detector is a new file and one line in the list. The engine, the collector, and the other detectors don't change (Open/Closed).
+- A detector returns whole findings, and `findRun` nests them only by `causedBy`. A sentence that adds to another detector's finding isn't a detector: it's a helper that detector calls (limit-refused and recovery are parts of failed-requests). A new sentence of that kind changes the detector that owns the finding.
 - What only a component type knows comes from its limit declarations (§2.2) and its catalog entries, not from `if (type === "rds")` in a detector.
-- `RunSoFar` needs to say whether the run has finished, because "left unfinished" is a warning only at the end. It gains the workload ID, so detectors can compare the last snapshot's end with the workload's duration.
+- `RunSoFar` needs to say whether the run has finished, because a backlog still waiting is a warning only at the end. It gains the workload ID, so detectors can compare the last snapshot's end with the workload's duration.
 
 ## 4. Not yet
 

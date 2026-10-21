@@ -7,6 +7,7 @@ import {
   type MetricsSnapshot,
 } from "../../../domain/metrics/metrics-collector";
 import type { LimitUse } from "../../../domain/metrics/metrics-snapshot";
+import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
 
 const registry = createAwsComponentRegistry();
@@ -75,7 +76,10 @@ function limitsAt(
 ): readonly LimitUse[] {
   // Windows are [startMs, endMs), except that the last includes its end.
   const second = snapshots.findLast((s) => s.startMs <= timeMs);
-  return second?.components[componentId]?.limits ?? [];
+  if (second === undefined) {
+    throw new Error(`No snapshot covers ${String(timeMs)} ms`);
+  }
+  return componentIn(second, componentId).limits;
 }
 
 function refusesWith(limit: LimitUse, reason: string): boolean {

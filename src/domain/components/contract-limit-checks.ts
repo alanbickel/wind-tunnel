@@ -47,6 +47,7 @@ export interface RejectionCheckInput {
   readonly limits: readonly LimitGauge[];
   /** Simulated time of the rejection, for the buckets' levels. */
   readonly nowMs: number;
+  /** The `rejected` effect's reason, e.g. `"too-many-connections"`. */
   readonly reason: string;
   /** The definition's `rejectionReasons`. */
   readonly rejectionReasons: readonly string[];

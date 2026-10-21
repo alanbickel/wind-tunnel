@@ -99,7 +99,7 @@ const QUEUE_FULL: RefuseWhenFull = { kind: "refuse", reason: "queue-full" };
 const WAIT_IN_LINE: WhenFull = { kind: "wait", holds: "waitLine" };
 
 /** What the worker pool's two limits declare, and the wait line's size. */
-interface PoolDeclarations {
+interface PoolLimitsInput {
   readonly workers: WhenFull;
   readonly waitLine: WhenFull;
   /** The default config's 8 if omitted. */
@@ -112,7 +112,7 @@ interface PoolDeclarations {
  */
 const poolLimits = (
   b: Behavior,
-  { workers, waitLine, waitLineLimit = 8 }: PoolDeclarations,
+  { workers, waitLine, waitLineLimit = 8 }: PoolLimitsInput,
 ): LimitGauge[] => [
   concurrencyGauge({
     name: "workers",

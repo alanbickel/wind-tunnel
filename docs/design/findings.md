@@ -51,11 +51,11 @@ The long rush adds nothing new for Template A. Its reading confirms that a detec
 ### 1.3 Template A, steady day: healthy
 
 > **Healthy.** All 12,101 answered requests succeeded; 15 were still in progress when the run ended.
-> Closest to failing: orders-db connections, at most 14 of 90 (15%). Closest to making work wait: orders-db query workers, at most 14 of 16 (87%) in the first second, while fn-orders cold-started 62 environments; at most 13 of 16 (81%) after it.
+> Closest to failing: orders-db connections, at most 14 of 90 (15%) in the first second, while fn-orders cold-started 62 environments; at most 13 of 90 (14%) after it.
 
 1. Nothing failed, and no limit ran out. [totals: Failures "None"; Limits "exhausted" all "-"] 12,101 + 0 + 15 = 12,116 started. [totals: Workflows]
-2. The headroom lines quote the peaks. [snapshots: per-second `peak` of each limit; fn-orders `coldStarts` 62 in the second ending at 1 s and none after]
-3. The query workers are this design's first limit to fill: at 250 requests a second, all 16 fill on two of three test seeds, and connections are next. **Observed:** [MVP design §7](mvp-design.md#template-files-and-their-settings), "Steady day rate". A detector can't write this sentence from this run (see [§2.3](#23-sentences-no-detector-can-write-today)).
+2. The headroom line quotes the peaks. [snapshots: per-second `peak` of each limit; fn-orders `coldStarts` 62 in the second ending at 1 s and none after]
+3. The verdict doesn't name the limits that make work wait (here, orders-db's query workers, at most 14 of 16): they show in the Limits table, and nothing waited.
 
 ### 1.4 Template B, lunch rush: healthy, with a backlog
 
@@ -73,7 +73,7 @@ The long rush adds nothing new for Template A. Its reading confirms that a detec
 7. **What would change this in AWS.** [SQS-3](fidelity.md#sqs-3-the-consumer-reaches-full-concurrency-instantly): an SQS consumer starts at 5 concurrent invocations and adds up to 300 a minute (**Documented:** [SQS scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)), so it reaches 15 a little later than the model's instant start. [SQS-4](fidelity.md#sqs-4-batch-size-1-no-batching-window): Lambda pulls up to 10 messages per invocation by default, so each consumer could deliver several writes at once, and the backlog might not build at all (sentence 2 is pessimistic).
 8. **Learn more:** [Limit SQS consumers with maximum concurrency, not reserved concurrency](../learning/aws-did-you-know.md#limit-sqs-consumers-with-maximum-concurrency-not-reserved-concurrency).
 
-The verdict's headroom line skips `consumerConcurrency` because it already has a note, and quotes the busiest limit that refuses work (§3.4).
+The verdict's headroom line quotes only limits that refuse work (§3.4). The consumer cap makes work wait, so its story is the note.
 
 ### 1.5 Template B, long rush: degraded
 
@@ -85,7 +85,7 @@ The verdict's headroom line skips `consumerConcurrency` because it already has a
 1. **What, where, when.** All 15 of orders-queue's consumers were busy from 15 s to 184 s. Writes arrived at 397 a second during the peak (20–140 s) and were delivered at 314, so the backlog grew by about 83 a second, reached 10,197 in the second ending at 142 s, and was empty by 184 s. [snapshots: as §1.4; growth 397 − 314 = 83 matches the backlog's rise from 1,833 at 40 s to 10,048 at 140 s, 82 a second]
 2. **Why it's a warning.** *Create order* was answered within 114 ms (p99), but the write reached orders-db up to 32.6 s later (p99; slowest 32.8 s). That's longer than the 29 s API Gateway waits for an integration, so no synchronous design could have offered this wait. In the seconds from 157 s to 180 s, the p99 of the writes delivered in each second was over 29 s. [totals: orders-queue `asyncLatency`] [snapshots: per-second `asyncLatency.p99Ms`] [config: `api->fn-api` `timeoutMs` 29,000]
 3. **Accuracy.** Latency percentiles are bucket upper bounds, up to 5% high ([metrics guide](../architecture/metrics.md)). 32.6 s is clear of 29 s by more than that; the per-second windows near 29 s (such as 29.6 s at 160 s) are not, and a detector says so instead of rounding them into the window.
-4. **The longer the peak, the later the writes.** The backlog grew in every 20 s step of the peak. **Observed:** `long-rush-template-b.test.ts`. At the same rates, each extra minute of peak adds about 5,000 messages and about 16 s of wait (83 × 60 ÷ 314). That's an approximation from per-second means, and labeled as one.
+4. **The longer the peak, the later the writes.** The backlog grew in every 20 s step of the peak. **Observed:** `long-rush-template-b.test.ts`.
 5. **Fix, in Wind Tunnel.** More consumers: at `consumerMaxConcurrency` 20, the consumers keep up and no backlog builds. **Observed:** `long-rush-template-b.test.ts`, "grows the backlog through the whole peak" test's comment. Check the database first: 20 consumers can hold 20 connections and need more than its 16 query workers at once, so queries would queue there instead (**Assumption**, untested).
 6. **Fix, in AWS.** Raise the event source mapping's maximum concurrency (2 to 1,000), keeping the function's reserved concurrency at least that high, "Otherwise, Lambda might throttle your messages." **Documented:** [SQS scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html).
 7. **What would change this in AWS.** SQS-4 (batching) could remove the backlog entirely; SQS-3 (ramp-up) would make it drain later. Messages stay for 4 days by default, so this backlog is nowhere near being lost. **Documented:** [SQS message retention](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-basic-architecture.html). In AWS, watch `ApproximateAgeOfOldestMessage`, "the age of the oldest unprocessed message in the queue". **Documented:** [SQS CloudWatch metrics](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html).
@@ -94,7 +94,9 @@ The verdict's headroom line skips `consumerConcurrency` because it already has a
 ### 1.6 Template B, steady day: healthy
 
 > **Healthy.** All 12,106 answered requests succeeded; 10 were still in progress when the run ended.
-> Closest to failing: orders-db connections, at most 6 of 90 (6%). Closest to making work wait: orders-queue's consumers, 15 of 15 in the first second, while fn-writer cold-started 15 environments; at most 8 of 15 (53%) after it.
+> Closest to failing: orders-db connections, at most 6 of 90 (6%).
+
+orders-queue's consumers were all busy in the first second, while fn-writer cold-started 15 environments, and at most 8 of 15 after it. That's in the Limits table; the verdict doesn't name limits that make work wait.
 
 1. No message was still waiting at the end of any second, so there's no backlog note. [snapshots: `queueDepth` 0 at every second's end; `peakQueueDepth` 1 in the first second only]
 2. Writes landed within 248 ms (p99); the slowest took 1.24 s. [totals: orders-queue `asyncLatency`] fn-writer's 15 cold starts all came in the first second. [snapshots: `coldStarts`] Whether the slowest write was one of those isn't traced: the snapshots don't link a delivery to a cold start.
@@ -130,7 +132,7 @@ Each detector reads a `RunSoFar` (the project and the snapshots so far) and retu
 | **backlog** | A queue had messages waiting at the end of a second | Queue `queueDepth`, `peakQueueDepth`, `arrivals`, `asyncSucceeded`; its consumer limit | Window, peak backlog and when, arrival vs delivery rate, growth rate, when it emptied, async p99 | note; warning if not empty at the end of a finished run | 1.4.1–1.4.4, 1.5.1 |
 | **late-async-work** | A queue's async p99 is over the timeout of its workflow's entry edge | Totals and per-second `asyncLatency`; workflow latency; the entry edge's `timeoutMs` | Answered p99 vs landed p99 and max; the seconds over; the reference timeout | warning | 1.5.2, 1.5.3 |
 | **recovery** | A failure or backlog finding ends before the run does | The finding's window; the limit's peak after it | Last bad second, when the waiting cleared | (part of the finding it follows) | 1.1.6, 1.7.4 |
-| **verdict** | Always | All findings; workflow totals; every limit's peaks; `coldStarts` | Level, request counts, closest to failing, closest to waiting, warm-up context | (the verdict) | every summary line |
+| **verdict** | Always | All findings; workflow totals; every limit's peaks; `coldStarts` | Level, request counts, closest to failing, warm-up context | (the verdict) | every summary line |
 
 **Thresholds.** None of the rules has a tuned number. Each fires on an exact state: a failure, an exhausted limit, a message still waiting at a second's end, or a latency past a timeout the project itself sets. That's deliberate: the detector reports the mechanism, not a guess at when to worry. The one comparison that needs care is a percentile against a timeout, because percentiles are up to 5% high (1.5.3). A detector compares the bucket's upper bound and says when the result is within that error.
 
@@ -142,7 +144,7 @@ Three detectors need facts about a limit that only its component type knows. Eac
 
 | Declaration | Example | Used by |
 |---|---|---|
-| **When full, the limit refuses or makes work wait** | RDS `connections` refuses; RDS `queryWorkers` and SQS `consumerConcurrency` make work wait | verdict (which headroom line), waiting-holds-limit, backlog |
+| **When full, the limit refuses or makes work wait** | RDS `connections` refuses; RDS `queryWorkers` and SQS `consumerConcurrency` make work wait | verdict (only limits that refuse get a headroom line), waiting-holds-limit, backlog |
 | **The rejection reason it produces** | RDS `connections` → `too-many-connections`; DynamoDB `readUnits` → `throttled` | limit-refused (matching a failure cause to its limit) |
 | **Which other limit waiting work holds** | RDS `queryWorkers` → `connections` | waiting-holds-limit |
 
@@ -152,8 +154,7 @@ DynamoDB's read and write buckets both refuse with `throttled`. The detector pic
 
 | Sentence | Why not | What it would take |
 |---|---|---|
-| 1.3.3: "at 250 requests a second, the query workers fill" | It's about a run that didn't happen | What-if runs: re-run with a changed setting and compare (playing, M6) |
-| 1.1.7, 1.5.5: "with this setting, nothing fails" | Same: the evidence is another run | The catalog cites the test for now; later, a "try this fix" re-run |
+| 1.1.7, 1.5.5: "with this setting, nothing fails" | The evidence is another run | The catalog cites the test for now; later, a "try this fix" re-run |
 | 1.4.5: "the cap kept orders-db at 13 connections" | It's a claim about the architecture, not the metrics: a queue delivers at most `consumerMaxConcurrency` at once, and each delivery holds one connection | Reasoning over the call graph: which limit upstream bounds a limit downstream |
 | 1.5.2: "*n* writes landed after 29 s" | The histogram gives percentiles, not exact counts above a value | Counting async deliveries over the entry timeout, per window |
 | How long the oldest message has waited, while it waits | `asyncLatency` is measured on delivery | A per-queue gauge of the oldest waiting message's age |
@@ -188,8 +189,11 @@ interface Finding {
   readonly learnMore: string | undefined;
   /** Findings this one follows from, by ID. */
   readonly causedBy: readonly string[];
-  /** Requests or messages affected, for ordering. Reconciles with the totals. */
-  readonly affected: number;
+  /**
+   * Requests or messages affected, for ordering. Reconciles with the totals.
+   * Undefined when the metrics can't count it exactly, such as late writes.
+   */
+  readonly affected: number | undefined;
 }
 
 type Severity = "failure" | "warning" | "note";
@@ -214,6 +218,7 @@ interface TimeWindow { readonly fromMs: number; readonly toMs: number }
 
 1. A finding cited in another's `causedBy` shows under that finding, not in the top list. Template A shows one top-level finding (refused connections) with the query-worker line beneath it, not two.
 2. Top-level findings: by severity, then `affected` (largest first), then the window's start (earliest first), then `id`, so the order is the same on every run.
+3. Warnings without an `affected` count (1.5's late writes) go together at the bottom of the list, ordered by window start. The verdict's level still names them, so a degraded run says why at the top.
 
 ### 3.4 The verdict
 
@@ -222,8 +227,7 @@ Always present, before the findings:
 - **Level:** *failing* if any finding is a failure, *degraded* if any is a warning, otherwise *healthy*. While a run is still going, the verdict is "so far".
 - **Requests:** answered, succeeded, failed, and in progress, from `requestsInProgress` (ADR-0013), so started = succeeded + failed + in progress.
 - **Closest to failing:** among the limits that refuse work, the one with the highest `peak / limit`, with its peak and limit, rounded down as ADR-0014 requires. This is the headroom before the first refusal. For a rate limit, the bucket's level is the number; its busiest flow against its rate follows as labeled context (ADR-0014).
-- **Closest to making work wait:** among the limits that make work wait, the highest one not already covered by a finding.
-- **Warm-up context:** if a limit's peak came only in seconds when the component, or one it calls, had cold starts, the line gives that peak, says so, and gives the peak in the other seconds too (1.3, 1.6). It never hides the true peak.
+- **Warm-up context:** if a limit's peak came only in seconds when the component, or one it calls, had cold starts, the line gives that peak, says so, and gives the peak in the other seconds too (1.3). It never hides the true peak.
 
 ### 3.5 Where findings live, and how detectors are added
 
@@ -234,8 +238,9 @@ Findings are a read model in **`src/application/run-analysis/findings/`**, as [A
 - What only a component type knows comes from its limit declarations (§2.2) and its catalog entries, not from `if (type === "rds")` in a detector.
 - `RunSoFar` needs to say whether the run has finished, because "left unfinished" is a warning only at the end. It gains the workload ID, so detectors can compare the last snapshot's end with the workload's duration.
 
-## 4. Open questions
+## 4. Not yet
 
-- **Is "closest to making work wait" useful on a healthy run,** or noise? It's the line that would have predicted Template A's failure from its steady day (1.3).
-- **A warning's `affected`** for late async work: until §2.3's count exists, it's the number of seconds over the timeout, which doesn't reconcile with anything. The alternative is to leave it at 0 and order warnings by window.
-- **Notes without a failure.** The variant under the lunch rush drains its bucket to 72% without running out. A "would run out in about *n* s at this rate" note would be an approximation from per-second flow. It's left out, in line with reporting the mechanism's state rather than a projection.
+Decided with the maintainer while reviewing this design:
+
+- **Nothing predictive.** Findings and the verdict report what happened, not what would happen at more load or a longer peak. So there's no "would run out in about *n* s" note for a bucket that drained without running out (the variant under the lunch rush ends at 72% full), and no verdict line for the limit closest to making work wait. The Limits table already shows both.
+- **Gaps are found, not forecast.** §2.3 lists only what these readings ran into. New scenarios and architectures will turn up more, and the reporting grows to meet them then.

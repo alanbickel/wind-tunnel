@@ -23,5 +23,6 @@ export function loadTemplate(template: unknown): Project {
 export function runTemplate(template: unknown) {
   const project = loadTemplate(template);
   const workloadId = project.workloads[0]?.id ?? "";
-  return { project, ...simulateWithMetrics({ project, workloadId, registry }) };
+  const run = simulateWithMetrics({ project, workloadId, registry });
+  return { project, workloadId, ...run };
 }

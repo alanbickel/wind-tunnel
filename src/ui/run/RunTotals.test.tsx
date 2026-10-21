@@ -60,7 +60,7 @@ describe("RunTotals", () => {
         fn: { limits: [concurrency(3)] },
       }),
     ];
-    render(<RunTotals run={{ project, snapshots }} />);
+    render(<RunTotals run={{ project, workloadId: "steady", snapshots }} />);
     expect(limitRows()).toEqual([
       [
         "API requestRate, tokens drawn",
@@ -86,7 +86,7 @@ describe("RunTotals", () => {
         fn: { limits: [pool] },
       }),
     ];
-    render(<RunTotals run={{ project, snapshots }} />);
+    render(<RunTotals run={{ project, workloadId: "steady", snapshots }} />);
     expect(limitRows().map((row) => row.slice(3, 5))).toEqual([
       ["99%", "Yes"],
       ["99%", "–"],
@@ -99,7 +99,7 @@ describe("RunTotals", () => {
     const snapshots = [
       sampleSnapshot({ second: 1, fn: { limits: [concurrency(3)] } }),
     ];
-    render(<RunTotals run={{ project, snapshots }} />);
+    render(<RunTotals run={{ project, workloadId: "steady", snapshots }} />);
     const tables = screen.getAllByRole("table");
     const controls = screen.getAllByRole("button");
     expect(
@@ -124,7 +124,11 @@ describe("RunTotals", () => {
   ])("keeps the sum %s on screen", (sum) => {
     render(
       <RunTotals
-        run={{ project, snapshots: [sampleSnapshot({ second: 1 })] }}
+        run={{
+          project,
+          workloadId: "steady",
+          snapshots: [sampleSnapshot({ second: 1 })],
+        }}
       />,
     );
     expect(screen.getByText(sum).closest("[hidden]")).toBeNull();
@@ -134,7 +138,11 @@ describe("RunTotals", () => {
   it("leaves the limits table out until a snapshot reports a limit", () => {
     render(
       <RunTotals
-        run={{ project, snapshots: [sampleSnapshot({ second: 1 })] }}
+        run={{
+          project,
+          workloadId: "steady",
+          snapshots: [sampleSnapshot({ second: 1 })],
+        }}
       />,
     );
     expect(

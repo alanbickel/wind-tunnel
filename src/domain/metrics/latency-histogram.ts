@@ -9,6 +9,14 @@ export interface LatencySummary {
 
 /** Each bucket is this much wider than the one before: about 5% error. */
 const GROWTH = 1.05;
+
+/**
+ * How far a percentile can be above the true value, as a fraction of it: a
+ * percentile is its bucket's upper bound, at most this much above any
+ * value in the bucket.
+ */
+export const PERCENTILE_ERROR = GROWTH - 1;
+
 const LARGEST_BOUND_MS = 10 * 60 * 1000;
 
 /**

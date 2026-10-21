@@ -30,7 +30,10 @@ const snapshots = [
 
 describe("runCharts", () => {
   it("counts requests per second, with the running total in progress", () => {
-    const requests = chartTitled(runCharts({ project, snapshots }), "Requests");
+    const requests = chartTitled(
+      runCharts({ project, workloadId: "steady", snapshots }),
+      "Requests",
+    );
 
     expect(valuesOf(requests, "started")).toEqual([
       [1, 5],
@@ -52,7 +55,7 @@ describe("runCharts", () => {
   });
 
   it("leaves a gap in latency for a second with no successful request", () => {
-    const charts = runCharts({ project, snapshots });
+    const charts = runCharts({ project, workloadId: "steady", snapshots });
 
     const latencyChart = chartTitled(charts, "Latency");
 
@@ -61,7 +64,11 @@ describe("runCharts", () => {
   });
 
   it("draws every component from the start, so colors don't shift", () => {
-    const first = runCharts({ project, snapshots: snapshots.slice(0, 1) });
+    const first = runCharts({
+      project,
+      workloadId: "steady",
+      snapshots: snapshots.slice(0, 1),
+    });
     const busy = chartTitled(first, "Work in progress");
 
     expect(busy.series.map((s) => s.label)).toEqual([
@@ -69,7 +76,7 @@ describe("runCharts", () => {
       "Function",
       "Table",
     ]);
-    const all = runCharts({ project, snapshots });
+    const all = runCharts({ project, workloadId: "steady", snapshots });
     expect(valuesOf(chartTitled(all, "Work in progress"), "fn")).toEqual([
       [1, 0],
       [2, 7],
@@ -81,7 +88,7 @@ describe("runCharts", () => {
   });
 
   it("has every chart's series, with no points, before the first snapshot", () => {
-    const charts = runCharts({ project, snapshots: [] });
+    const charts = runCharts({ project, workloadId: "steady", snapshots: [] });
 
     expect(charts).toHaveLength(4);
     for (const chart of charts) {

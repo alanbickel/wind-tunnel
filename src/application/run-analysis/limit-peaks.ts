@@ -20,6 +20,8 @@ export interface LimitPeak {
   /** The limit's name, e.g. `connections`. */
   readonly name: string;
   readonly kind: LimitUse["kind"];
+  /** Whether the limit refuses work when full, or makes it wait. */
+  readonly whenFull: LimitUse["whenFull"];
   /** Slots for a concurrency limit; the bucket's size for a rate limit. */
   readonly limit: number;
   /**
@@ -85,6 +87,7 @@ function limitPeak(limit: LimitUse, context: LimitPeakContext): LimitPeak {
     componentLabel,
     name: limit.name,
     kind: limit.kind,
+    whenFull: limit.whenFull,
     limit: limit.limit,
     peak,
     peakShare: limit.limit === 0 ? undefined : peak / limit.limit,

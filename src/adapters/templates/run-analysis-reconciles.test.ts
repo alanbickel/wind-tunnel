@@ -32,8 +32,9 @@ describe.each([
   let snapshots: readonly MetricsSnapshot[];
   let finished: RunSoFar;
   beforeAll(() => {
-    ({ project, totals, snapshots } = runTemplate(template));
-    finished = { project, snapshots };
+    let workloadId: string;
+    ({ project, workloadId, totals, snapshots } = runTemplate(template));
+    finished = { project, workloadId, snapshots };
   }, RUN_TIMEOUT_MS);
 
   // Fails if `workflowTotals` drops a snapshot or a count (e.g. summing
@@ -67,7 +68,7 @@ describe.each([
   // twice, or if the per-second running total resets each second.
   it("never shows a negative amount in progress or unfinished", () => {
     for (let count = 1; count <= snapshots.length; count++) {
-      const soFar = { project, snapshots: snapshots.slice(0, count) };
+      const soFar = { ...finished, snapshots: snapshots.slice(0, count) };
       for (const row of workflowTotals(soFar)) {
         expect(row.inProgress, row.id).toBeGreaterThanOrEqual(0);
       }

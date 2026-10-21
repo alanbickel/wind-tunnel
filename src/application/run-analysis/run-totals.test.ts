@@ -22,7 +22,9 @@ const snapshots = [
 
 describe("workflowTotals", () => {
   it("adds up the snapshots and shows what's still in progress", () => {
-    expect(workflowTotals({ project, snapshots })).toEqual([
+    expect(
+      workflowTotals({ project, workloadId: "steady", snapshots }),
+    ).toEqual([
       {
         id: "read",
         label: "Read item",
@@ -35,7 +37,11 @@ describe("workflowTotals", () => {
   });
 
   it("is all zeros before the first snapshot", () => {
-    const [read] = workflowTotals({ project, snapshots: [] });
+    const [read] = workflowTotals({
+      project,
+      workloadId: "steady",
+      snapshots: [],
+    });
     expect(read).toMatchObject({ started: 0, inProgress: 0 });
   });
 });
@@ -77,7 +83,7 @@ describe("allWorkflows", () => {
 
 describe("componentTotals", () => {
   it("lists every component in architecture order, with unfinished work", () => {
-    const rows = componentTotals({ project, snapshots });
+    const rows = componentTotals({ project, workloadId: "steady", snapshots });
 
     expect(rows.map((r) => r.label)).toEqual(["API", "Function", "Table"]);
     expect(rows[1]).toEqual({

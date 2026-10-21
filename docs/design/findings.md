@@ -168,6 +168,73 @@ DynamoDB's read and write buckets both refuse with `throttled`. The detector pic
 | "Queries waited about 80 ms in line" | Component latency includes the wait; there's no separate wait time | A wait-time histogram per queuing limit. Little's law (74 waiting ÷ 892 a second ≈ 83 ms) gives an estimate, labeled as one |
 | Average use of a limit over a second | Snapshots give `peak` and `current`, not the mean | Not needed: peaks are what cause waiting and refusals (ADR-0014) |
 
+### 2.4 How a failure reaches a finding
+
+Two diagrams. The first shows where a rejection reason travels, from the component that rejects to the finding that explains it. The second shows how a detector turns one failure cause into an explanation. Solid boxes are built; dashed ones are designed but not built yet (#62 onward).
+
+**(a) Where reasons travel.** A component names its reason, the engine attaches the component's ID, and the failure reaches the snapshots unchanged, however many callers it passes through. The declarations travel on a separate path, with each limit's use.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart TB
+    def["<b>Component definition</b><br/>[domain, e.g. rds.ts]<br/>Declares each limit and its whenFull"]:::component
+    beh["<b>Component behavior</b><br/>[domain]<br/>Returns rejected with a reason,<br/>e.g. too-many-connections"]:::component
+    eng["<b>Engine</b><br/>[domain]<br/>Makes Failure = component ID + reason, or<br/>callee + timeout. Retries per the edge,<br/>then passes the failure up unchanged"]:::component
+    col["<b>MetricsCollector</b><br/>[domain]<br/>Counts the events per second"]:::component
+    snap["<b>MetricsSnapshot</b><br/>[domain, per second and totals]<br/>workflows.failures: final failures by cause,<br/>orders-db: too-many-connections<br/>components.rejected: every refused attempt, no reason<br/>components.limits: peak, current, whenFull"]:::component
+    find["<b>findRun and the detectors</b><br/>[application/run-analysis/findings]<br/>Read RunSoFar: the project and the snapshots"]:::planned
+    out["<b>Findings and the verdict</b><br/>Formatted by the CLI report and the run panel"]:::planned
+    def -->|"build() wires gauges<br/>with their declarations"| beh
+    beh -->|"rejected effect"| eng
+    eng -->|"component-rejected, each attempt<br/>workflow-finished, with its failure<br/>metrics-tick, limits with whenFull"| col
+    col --> snap
+    snap --> find
+    find --> out
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef system fill:#1168bd,stroke:#0b4884,color:#fff
+    classDef component fill:#85bbf0,stroke:#5d82a8,color:#000
+    classDef external fill:#999,stroke:#6b6b6b,color:#fff
+    classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
+```
+
+**(b) How a cause is resolved.** failed-requests makes one finding per cause, and its *limit-refused* helper explains the cause by looking it up in the declarations of that cause's own component. Red boxes are cases no part of the design covers yet.
+
+```mermaid
+flowchart TD
+    cause["Failure cause C: R<br/>from workflows.failures"]
+    timeout{"Is R timeout?"}
+    lookup{"Does a limit of C declare<br/>that it refuses with R?"}
+    tout["Failure finding naming C<br/>Nothing explains why C was slow"]:::gap
+    none["Failure finding naming C and R<br/>No limit explains it, and the<br/>wording isn't designed"]:::gap
+    pick["limit-refused: name the declaring limit<br/>exhausted in the failing seconds,<br/>or both if two are (DynamoDB)"]
+    held{"Does a limit of C that makes<br/>work wait hold it?"}
+    rate{"Is it a rate limit?"}
+    whl["waiting-holds-limit note, as the cause<br/>RDS queryWorkers holding connections"]
+    drained["bucket-drained note, as the cause<br/>DynamoDB readUnits in §1.7"]
+    alone["The limit is the whole explanation<br/>Lambda concurrency"]
+    cause --> timeout
+    timeout -->|yes| tout
+    timeout -->|no| lookup
+    lookup -->|no| none
+    lookup -->|yes| pick
+    pick --> held
+    held -->|yes| whl
+    held -->|no| rate
+    rate -->|yes| drained
+    rate -->|no| alone
+    classDef gap fill:#fff,stroke:#b00020,color:#b00020,stroke-dasharray:5 5
+```
+
+What the two diagrams show:
+
+- **A reason means something only within its component.** A cause is a component and a reason, and only that component's declarations resolve it. Reasons don't need to be unique across types: `throttled` is a token bucket in DynamoDB and a concurrency limit in Lambda. A new type adds entries to its own table, not to a shared list, so the lookup doesn't grow harder as types are added.
+- **Each limit declares one reason; several limits may share one.** The detector tells DynamoDB's two buckets apart by which one was exhausted in the failing seconds.
+- **The waiting half of `whenFull` uses no reasons.** A limit that makes work wait never rejects. It reaches a finding as the cause of another limit's refusals (waiting-holds-limit) or as a backlog (holds nothing).
+- **Reasons survive only on final failures.** `rejected` counts every refused attempt but doesn't keep its reason. A rejection that a retry later rescued shows up in `rejected` alone. retries-absorbed compares a component's `rejected` with its failures by cause. That comparison is exact only while the component refuses with one reason: one with two reasons and retries can't say which reason the rescued attempts had. Counting rejections by reason per component, as workflows count failures by cause, would close this gap.
+- **Of three kinds of cause, only one is designed.** A refusal by a declared limit is covered. A timeout is made by the engine, and no limit declares it, so its finding names the slow component but nothing explains why. A rejection for a reason no limit declares, such as a request that fails validation, would name its cause and nothing more. No component models one yet. Failed async deliveries never reach `workflows.failures` at all: they're counted in the queue's `asyncFailed` (Roadmap M5, item 9).
+
+The component contract and the rejection-reason tests check the lookup's "yes" branch: a reason that a limit declares really comes from that limit when it's full. What a reason with no declaring limit should mean is still open.
+
 ## 3. The shape
 
 ### 3.1 A finding

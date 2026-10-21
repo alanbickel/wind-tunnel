@@ -10,11 +10,13 @@ Node 24 (see [`.nvmrc`](.nvmrc)).
 npm install
 npm run dev     # dev server
 npm run check   # typecheck, lint, format check, tests, build: what CI runs
+npm run check:changed   # the same, limited to what changed since main
 ```
 
 The [README](README.md#running-it) lists every script. A few things worth knowing up front:
 
 - **Vitest doesn't type-check.** A green test run can hide a type error. Run `npm run check` (or at least `npx tsc -b`) before you trust it.
+- **Check as you go with `npm run check:changed`; finish with `npm run check`.** The full check takes about a minute. `check:changed` usually takes seconds, because it runs only the tests whose imports reach a file changed since `main` (committed or not), and lints and format-checks only files changed since its last run. It can miss problems the full check catches: ESLint's type-aware rules may not re-check an unchanged file whose types changed elsewhere, and the architecture tests in `tests/architecture/` read `src/` from disk rather than importing it, so a change in `src/` doesn't rerun them. Run the full check before you declare work done or open a PR. CI always runs it.
 - Prettier owns formatting, and CI checks it. Run `npm run format` rather than formatting by hand.
 - `npm run simulate -- --template template-a` runs a template headlessly and prints a text report. Use it to see what a model change does before and after ([guide](docs/architecture/headless-runner.md)).
 - Work is planned in milestones. The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) says what's in progress and what's next ([how it works](#milestones-and-the-roadmap)).

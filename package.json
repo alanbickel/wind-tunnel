@@ -19,6 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
+    "check:changed": "npm run typecheck && eslint --cache --cache-location node_modules/.cache/eslint/ . && prettier --check --cache . && vitest run --changed main --passWithNoTests && npm run build",
     "simulate": "node scripts/simulate.js"
   },
   "dependencies": {

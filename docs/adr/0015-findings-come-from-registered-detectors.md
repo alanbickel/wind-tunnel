@@ -1,6 +1,6 @@
 # ADR-0015: Findings come from registered detectors; components declare what each limit does when it's full
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-21
 
 ## Context

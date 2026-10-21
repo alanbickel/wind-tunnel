@@ -47,6 +47,10 @@ export function runRecordingRejections({
  * rejection's reason and is exhausted (`limitExhausted`) in the second the
  * rejection happened. The failed-requests finding relies on this to name
  * the limit behind a failure (ADR-0015).
+ *
+ * This is stricter than the contract, which also accepts a listed reason
+ * that no limit declares (ADR-0016). Every reason the AWS types list comes
+ * from a limit, so here every rejection must.
  */
 export function unexplainedRejections(run: RunWithRejections): string[] {
   const lines = run.rejections

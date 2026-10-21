@@ -13,11 +13,12 @@ import type {
   Visit,
 } from "./runtime-records";
 import type { ScheduledWork } from "./scheduled-work";
-import type {
-  ComponentEventBase,
-  Failure,
-  SimulationEvent,
-  SimulationResult,
+import {
+  TIMEOUT_REASON,
+  type ComponentEventBase,
+  type Failure,
+  type SimulationEvent,
+  type SimulationResult,
 } from "./simulation-events";
 import type { TickSampler } from "./tick-sampler";
 import type { Topology } from "./topology";
@@ -330,7 +331,7 @@ export class Simulation {
   private timeOut(attempt: Attempt): void {
     if (attempt.settled) return;
     const componentId = attempt.call.target.id;
-    this.failAttempt(attempt, { componentId, reason: "timeout" });
+    this.failAttempt(attempt, { componentId, reason: TIMEOUT_REASON });
   }
 
   /** Retries if the edge's policy allows; otherwise the call fails. */

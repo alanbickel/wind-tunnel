@@ -148,19 +148,21 @@ const LIMIT_SAMPLES: KindHandlers<
   (now: LimitUseNow) => LimitSample
 > = {
   concurrency:
-    ({ name, limit }) =>
+    ({ name, whenFull, limit }) =>
     ({ use, peak }) => ({
       kind: "concurrency",
       name,
+      whenFull,
       limit,
       inUse: use,
       peakInUse: peak,
     }),
   rate:
-    ({ name, ratePerSec, burst, taken }) =>
+    ({ name, whenFull, ratePerSec, burst, taken }) =>
     ({ use, peak }) => ({
       kind: "rate",
       name,
+      whenFull,
       ratePerSec,
       burst,
       taken,

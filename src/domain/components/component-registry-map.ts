@@ -23,6 +23,7 @@ export class ComponentRegistryMap implements ComponentRegistry {
       displayName: definition.displayName,
       actions: definition.actions,
       deliversAsync: definition.deliversAsync,
+      rejectionReasons: definition.rejectionReasons,
       defaultConfig: definition.defaultConfig,
       checkConfig(config) {
         const result = schema.safeParse(config);

@@ -7,7 +7,7 @@ import type {
   BuildContext,
   ComponentDefinition,
 } from "../component-definition";
-import { LambdaBehavior } from "./lambda-behavior";
+import { LambdaBehavior, THROTTLED } from "./lambda-behavior";
 
 const lambdaConfig = z.object({
   /** Invocations running at once before Lambda throttles. 0 turns the function off. */
@@ -51,6 +51,7 @@ export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
   },
   actions: ["invoke"],
   deliversAsync: false,
+  rejectionReasons: [THROTTLED.reason],
   build<T>(
     config: LambdaConfig,
     { random }: BuildContext,

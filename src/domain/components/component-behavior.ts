@@ -70,13 +70,49 @@ export interface DispatchFinishedInput<T> {
 export type LimitGauge = ConcurrencyLimitGauge | RateLimitGauge;
 
 /**
+ * What a limit does with the next request once it's full (ADR-0015). Only
+ * the component type knows, so it declares it, and the findings read it
+ * instead of branching on the type. Never changes during a run.
+ */
+export type WhenFull = RefuseWhenFull | WaitWhenFull;
+
+/**
+ * The limit rejects the request, e.g. RDS `connections` or any token bucket.
+ */
+export interface RefuseWhenFull {
+  readonly kind: "refuse";
+  /**
+   * The `reason` on the `rejected` effect this limit causes, e.g.
+   * `"too-many-connections"`. Two limits of a component may share one.
+   */
+  readonly reason: string;
+}
+
+/**
+ * The request waits inside the component until the limit frees up, e.g.
+ * RDS `queryWorkers` or SQS `consumerConcurrency`.
+ */
+export interface WaitWhenFull {
+  readonly kind: "wait";
+  /**
+   * The name of another limit of the same component that each waiting
+   * request keeps hold of while it waits, which must be one that refuses:
+   * RDS `queryWorkers` holds `connections`. Undefined if waiting holds
+   * nothing, as SQS's messages don't.
+   */
+  readonly holds: string | undefined;
+}
+
+/**
  * Slots held out of a fixed number, e.g. RDS `connections` or Lambda
- * `concurrency`. A full limit queues or rejects the next request.
+ * `concurrency`. A full limit queues or rejects the next request, as
+ * `whenFull` declares.
  */
 export interface ConcurrencyLimitGauge {
   readonly kind: "concurrency";
   /** camelCase, unique within the component, and stable across a run. */
   readonly name: string;
+  readonly whenFull: WhenFull;
   /** Most slots that can be held at once. */
   readonly limit: number;
   /** Slots held now. */
@@ -92,6 +128,12 @@ export interface RateLimitGauge {
   readonly kind: "rate";
   /** camelCase, unique within the component, and stable across a run. */
   readonly name: string;
+  /**
+   * Always a refusal: a bucket has no line to wait in, so a request it
+   * can't serve now is rejected. The type keeps a bucket from declaring
+   * otherwise.
+   */
+  readonly whenFull: RefuseWhenFull;
   /** Tokens added per second. */
   readonly ratePerSec: number;
   /** Most tokens the bucket holds: what can be taken at once after a quiet spell. */

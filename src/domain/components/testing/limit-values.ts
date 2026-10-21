@@ -29,11 +29,12 @@ export function limitValues<T>(
 
 const READ_VALUES: KindHandlers<LimitGauge, (nowMs: number) => LimitValues> = {
   concurrency:
-    ({ kind, name, limit, inUse }) =>
-    () => ({ kind, name, limit, inUse }),
+    ({ kind, name, whenFull, limit, inUse }) =>
+    () => ({ kind, name, whenFull, limit, inUse }),
   rate: (gauge) => (nowMs) => ({
     kind: gauge.kind,
     name: gauge.name,
+    whenFull: gauge.whenFull,
     ratePerSec: gauge.ratePerSec,
     burst: gauge.burst,
     taken: gauge.taken,

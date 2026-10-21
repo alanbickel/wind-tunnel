@@ -7,7 +7,7 @@ import type {
   BuildContext,
   ComponentDefinition,
 } from "../component-definition";
-import { RdsBehavior } from "./rds-behavior";
+import { RdsBehavior, TOO_MANY_CONNECTIONS } from "./rds-behavior";
 
 const rdsConfig = z.object({
   /** The database's `max_connections`. Beyond it, connecting fails. */
@@ -47,6 +47,7 @@ export const rdsDefinition: ComponentDefinition<RdsConfig> = {
   },
   actions: ["read", "write"],
   deliversAsync: false,
+  rejectionReasons: [TOO_MANY_CONNECTIONS.reason],
   build<T>(config: RdsConfig, { random }: BuildContext): ComponentBehavior<T> {
     return new RdsBehavior<T>({
       connections: new CountingSemaphore<T>({

@@ -43,6 +43,8 @@ export const sqsDefinition: ComponentDefinition<SqsConfig> = {
   },
   actions: ["enqueue"],
   deliversAsync: true,
+  // Messages wait in the backlog; SQS never refuses one here.
+  rejectionReasons: [],
   build<T>(config: SqsConfig, { random }: BuildContext): ComponentBehavior<T> {
     return new SqsBehavior<T>({
       sendLatency: new SampledServiceTime(config.sendLatency, random),

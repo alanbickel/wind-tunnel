@@ -13,6 +13,8 @@ export interface ComponentType {
   readonly displayName: string;
   readonly actions: readonly StepAction[];
   readonly deliversAsync: boolean;
+  /** Every reason the type may reject with; see `ComponentDefinition`. */
+  readonly rejectionReasons: readonly string[];
   readonly defaultConfig: unknown;
   /** Problems with `config`, with paths relative to the config. */
   checkConfig(config: unknown): ValidationIssue[];

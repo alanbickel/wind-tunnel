@@ -115,13 +115,13 @@ t(ms)  engine calls           effects returned   inProgress  queueDepth
 
 Code: [`src/domain/components/aws/`](../../src/domain/components/aws/). `createAwsComponentRegistry()` returns a registry with all five.
 
-| `type` | Built from | Rejects with | Key config | Reports limits |
+| `type` | Built from | Rejects with (`rejectionReasons`) | Key config | Reports limits (when full) |
 |---|---|---|---|---|
-| `api-gateway` | `RateLimit` → overhead | `throttled` (HTTP 429) | `ratePerSec`, `burst`, `overhead` | `requestRate` |
-| `lambda` | `ConcurrencyLimit` (reject) + warm environments → cold start + compute | `throttled` | `concurrency`, `coldStart`, `idleTimeoutSec`, `computeTime` | `concurrency` |
-| `dynamodb` | one `RateLimit` for reads, one for writes → latency | `throttled` | `readUnitsPerSec`, `writeUnitsPerSec`, `burstSec`, `latency` | `readUnits`, `writeUnits` |
-| `rds` | `ConcurrencyLimit` on connections (reject) → `ConcurrencyLimit` on query workers (queue) → query time | `too-many-connections` | `maxConnections`, `queryWorkers`, `queryTime` | `connections`, `queryWorkers` |
-| `sqs` | send latency → unbounded `Queue` → at most `consumerMaxConcurrency` dispatched at once | never | `consumerMaxConcurrency`, `sendLatency` | `consumerConcurrency` |
+| `api-gateway` | `RateLimit` → overhead | `throttled` (HTTP 429) | `ratePerSec`, `burst`, `overhead` | `requestRate` (refuses) |
+| `lambda` | `ConcurrencyLimit` (reject) + warm environments → cold start + compute | `throttled` | `concurrency`, `coldStart`, `idleTimeoutSec`, `computeTime` | `concurrency` (refuses) |
+| `dynamodb` | one `RateLimit` for reads, one for writes → latency | `throttled` | `readUnitsPerSec`, `writeUnitsPerSec`, `burstSec`, `latency` | `readUnits`, `writeUnits` (both refuse) |
+| `rds` | `ConcurrencyLimit` on connections (reject) → `ConcurrencyLimit` on query workers (queue) → query time | `too-many-connections` | `maxConnections`, `queryWorkers`, `queryTime` | `connections` (refuses), `queryWorkers` (waits, holding `connections`) |
+| `sqs` | send latency → unbounded `Queue` → at most `consumerMaxConcurrency` dispatched at once | never | `consumerMaxConcurrency`, `sendLatency` | `consumerConcurrency` (waits, holding nothing) |
 
 Durations (`overhead`, `coldStart`, …) are distributions from [`distribution.ts`](../../src/domain/random/distribution.ts); defaults are mostly lognormal, given as a median and a p99.
 
@@ -161,6 +161,38 @@ t(ms)  engine calls  effects returned                  inProgress  queueDepth  w
 60     finish e      (none)                            0           0
 ```
 
+## Rejection reasons
+
+A rejection carries a reason, such as `too-many-connections`. With the component's ID, it's the cause of the failure the findings explain ([findings design §2.4](../design/findings.md#24-how-a-failure-reaches-a-finding)). Each type lists every reason it may reject with in its definition's `rejectionReasons` ([ADR-0016](../adr/0016-component-types-list-every-rejection-reason.md)). The list is closed: the contract fails a rejection whose reason isn't on it. A reason means something only within its type, so two types may use the same one. `timeout` is never on a list: the engine puts it on a failure when a caller stops waiting.
+
+A reason is one of these kinds:
+
+- **A limit's refusal:** a limit refuses work when it's full, and declares this reason ([What a full limit does](#what-a-full-limit-does)). Such a reason has one more rule: it's used only while its limit is exhausted, so the findings can name the limit behind a failure. RDS's `too-many-connections` is one.
+- **Any other reason**, such as a failed validation: a reason on the list that no limit declares. No rule ties it to a limit. No type has one yet.
+
+Keep each reason in one constant, used by the rejection, the list, and the limit that declares it, if any. `rds-behavior.ts` exports `TOO_MANY_CONNECTIONS`, and `rds.ts` lists its `reason`.
+
+| Mistake | Caught by |
+|---|---|
+| A rejection whose reason isn't in `rejectionReasons` | The contract |
+| `rejectionReasons` lists `timeout` | The contract |
+| A listed reason that the behavior never uses | Nothing: the contract sees only the reasons its scenario causes |
+
+## What a full limit does
+
+Each limit's `whenFull` says what happens to the next request once the limit is full ([ADR-0015](../adr/0015-findings-come-from-registered-detectors.md)):
+
+- **It refuses:** the request is rejected, with the reason the limit declares, which must be one of the type's rejection reasons. RDS `connections` refuses with `too-many-connections`. Every token bucket refuses.
+- **It makes work wait:** the request waits inside the component, and nothing is rejected. A waiting request may **hold** another limit of the same component while it waits, and the limit declares which. RDS `queryWorkers` makes queries wait, each holding one of the `connections`; SQS `consumerConcurrency` makes messages wait, holding nothing.
+
+| Mistake | Caught by |
+|---|---|
+| A token bucket that declares it waits; a refusal that names a held limit; a wait with a reason | The types: `WhenFull` is a discriminated union, and a `RateLimitGauge` takes only a refusal |
+| A refusing limit whose reason isn't in `rejectionReasons` | The contract |
+| A limit's reason used while that limit has room (the wrong limit declares it) | The contract |
+| A declaration that changes during a run; a held limit that's missing, is the limit itself, or doesn't refuse | The contract |
+| A limit that refuses but declares a wait, when its reason is listed: the rejection reads as one with no limit behind it | Not the contract. The type's own `limitValues` test, and for the template types the rejection-reason tests in [`adapters/templates/rejection-reasons/`](../../src/adapters/templates/rejection-reasons/), which check whole runs |
+
 ## The contract every definition must pass
 
 [`checkComponentContract`](../../src/domain/components/check-component-contract.ts) plays the engine's part against any definition, using the small event loop in [`ContractHarness`](../../src/domain/components/contract-harness.ts) rather than the real engine, so an engine bug can't hide a component bug. Its scenario has two overload bursts separated by a long quiet period (so warm instances go cold), random hold times standing in for nested calls, and 20% failed async deliveries. It checks that:
@@ -170,7 +202,8 @@ t(ms)  engine calls  effects returned                  inProgress  queueDepth  w
 - service times are finite and not negative;
 - `inProgress` and `queueDepth` match what the effects imply, after every call;
 - `gauges` and `counters` are finite, and counters never decrease;
-- `limits` are the same on every read, a concurrency limit's use stays within it, and a rate limit's bucket holds between 0 and its burst and never gives out more tokens than its burst and rate allow;
+- `limits` are the same on every read, declarations included; a limit whose waiting work holds another names a different limit of the same component, one that refuses; a concurrency limit's use stays within it; and a rate limit's bucket holds between 0 and its burst and never gives out more tokens than its burst and rate allow;
+- `rejectionReasons` doesn't list `timeout`; every rejection's reason, and every refusing limit's, is on it; and a rejection whose reason a limit declares happens while one such limit is exhausted;
 - the same seed produces exactly the same effects (no state shared between runs).
 
 `checkComponentContract` runs the scenario twice through `createContractHarness`, the factory that builds each run's harness ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)):
@@ -236,6 +269,7 @@ The checker has its own tests, which feed it deliberately broken definitions to 
 2. List the `actions` it accepts; set `deliversAsync` only for queue-like types.
 3. Write the run-time state as a class that implements `ComponentBehavior<T>`, in its own `<type>-behavior.ts` file. It takes a `<Class>Dependencies` object of primitive interfaces (`RateLimit`, `ConcurrencyLimit`, `ServiceTime`) and doesn't construct them itself (ADR-0009). `build` creates the primitives from the config (`TokenBucket`, `CountingSemaphore`, `SampledServiceTime`) and passes them in, taking randomness only from `context.random`. See [`aws/lambda.ts`](../../src/domain/components/aws/lambda.ts) and [`aws/lambda-behavior.ts`](../../src/domain/components/aws/lambda-behavior.ts).
 4. Return exactly one outcome from `arrive`; pass freed resources to waiters in `finish`. Each method takes one input object (`ArriveInput`, `FinishInput`, `DispatchFinishedInput`).
-5. Declare each limit the type enforces in `limits`, built once in the constructor with `concurrencyGauge` or `rateGauge` ([`limit-gauges.ts`](../../src/domain/components/limit-gauges.ts)), and test its values with `limitValues`. The reports and the run panel then show its use without changes ([ADR-0014](../adr/0014-components-report-their-limits.md)).
-6. Add a test that runs `checkComponentContract`, plus unit tests for the type's own behavior.
-7. Register it in `createAwsComponentRegistry` ([`aws/index.ts`](../../src/domain/components/aws/index.ts)), or in a new registry function for another provider.
+5. List every reason the behavior rejects with in `rejectionReasons`, each in one constant that the limit declaring it, if any, also uses (see [Rejection reasons](#rejection-reasons)).
+6. Declare each limit the type enforces in `limits`, built once in the constructor with `concurrencyGauge` or `rateGauge` ([`limit-gauges.ts`](../../src/domain/components/limit-gauges.ts)), and test its values with `limitValues`. The reports and the run panel then show its use without changes ([ADR-0014](../adr/0014-components-report-their-limits.md)). Give each limit its `whenFull` ([What a full limit does](#what-a-full-limit-does)): `{ kind: "refuse", reason }` with the one of the type's rejection reasons that its `rejected` effect carries, or `{ kind: "wait", holds }` naming the limit that waiting work keeps a slot of, if any. The findings read these instead of the type ([ADR-0015](../adr/0015-findings-come-from-registered-detectors.md)); the metrics guide lists [each type's declarations](metrics.md#limits-and-their-use).
+7. Add a test that runs `checkComponentContract`, plus unit tests for the type's own behavior.
+8. Register it in `createAwsComponentRegistry` ([`aws/index.ts`](../../src/domain/components/aws/index.ts)), or in a new registry function for another provider.

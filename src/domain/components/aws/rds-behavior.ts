@@ -5,8 +5,22 @@ import type {
   ComponentBehavior,
   Effect,
   LimitGauge,
+  RefuseWhenFull,
+  WaitWhenFull,
 } from "../component-behavior";
 import { concurrencyGauge } from "../limit-gauges";
+
+/** Refuses a connection once `max_connections` are held. */
+export const TOO_MANY_CONNECTIONS: RefuseWhenFull = {
+  kind: "refuse",
+  reason: "too-many-connections",
+};
+
+/** A query waits for a worker, keeping its connection (fidelity RDS-2). */
+const WAIT_HOLDING_CONNECTION: WaitWhenFull = {
+  kind: "wait",
+  holds: "connections",
+};
 
 export interface RdsBehaviorDependencies<T> {
   /** `max_connections`; full means rejected. */
@@ -29,8 +43,16 @@ export class RdsBehavior<T> implements ComponentBehavior<T> {
     this.workers = workers;
     this.queryTime = queryTime;
     this.limits = [
-      concurrencyGauge({ name: "connections", source: connections }),
-      concurrencyGauge({ name: "queryWorkers", source: workers }),
+      concurrencyGauge({
+        name: "connections",
+        whenFull: TOO_MANY_CONNECTIONS,
+        source: connections,
+      }),
+      concurrencyGauge({
+        name: "queryWorkers",
+        whenFull: WAIT_HOLDING_CONNECTION,
+        source: workers,
+      }),
     ];
   }
 
@@ -44,7 +66,9 @@ export class RdsBehavior<T> implements ComponentBehavior<T> {
 
   arrive({ request }: ArriveInput<T>): Effect<T>[] {
     if (this.connections.acquire(request) === "rejected") {
-      return [{ kind: "rejected", request, reason: "too-many-connections" }];
+      return [
+        { kind: "rejected", request, reason: TOO_MANY_CONNECTIONS.reason },
+      ];
     }
     // The worker line is unbounded, so the query runs now or waits.
     if (this.workers.acquire(request) !== "admitted") {

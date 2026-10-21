@@ -7,8 +7,12 @@ import type {
   Effect,
   FinishInput,
   LimitGauge,
+  WaitWhenFull,
 } from "../component-behavior";
 import { concurrencyGauge } from "../limit-gauges";
+
+/** A message waits in the backlog for a consumer, holding nothing. */
+const WAIT_IN_BACKLOG: WaitWhenFull = { kind: "wait", holds: undefined };
 
 export interface SqsBehaviorDependencies {
   /** Time for `SendMessage` to return to the sender. */
@@ -38,7 +42,11 @@ export class SqsBehavior<T> implements ComponentBehavior<T> {
     this.sendLatency = sendLatency;
     this.consumers = { limit: consumerMaxConcurrency, inUse: 0 };
     this.limits = [
-      concurrencyGauge({ name: "consumerConcurrency", source: this.consumers }),
+      concurrencyGauge({
+        name: "consumerConcurrency",
+        whenFull: WAIT_IN_BACKLOG,
+        source: this.consumers,
+      }),
     ];
   }
 

@@ -3,6 +3,8 @@ import type { RateLimit } from "../behaviors/rate-limit";
 import type {
   ConcurrencyLimitGauge,
   RateLimitGauge,
+  RefuseWhenFull,
+  WhenFull,
 } from "./component-behavior";
 
 /** What a concurrency gauge reads: a `ConcurrencyLimit`, or a plain count. */
@@ -21,6 +23,8 @@ export type RateSource = Pick<
 export interface ConcurrencyGaugeInput {
   /** camelCase, unique within the component, e.g. `connections`. */
   readonly name: string;
+  /** Refuse or wait once full; fixed for the run. */
+  readonly whenFull: WhenFull;
   /** Read live on every access. */
   readonly source: ConcurrencySource;
 }
@@ -29,6 +33,8 @@ export interface ConcurrencyGaugeInput {
 export interface RateGaugeInput {
   /** camelCase, unique within the component, e.g. `requestRate`. */
   readonly name: string;
+  /** A bucket always refuses once empty; this gives the reason. */
+  readonly whenFull: RefuseWhenFull;
   /** Read live on every access. */
   readonly source: RateSource;
 }
@@ -36,11 +42,13 @@ export interface RateGaugeInput {
 /** A live view of `source` as a behavior's limit named `name`. */
 export function concurrencyGauge({
   name,
+  whenFull,
   source,
 }: ConcurrencyGaugeInput): ConcurrencyLimitGauge {
   return {
     kind: "concurrency",
     name,
+    whenFull,
     get limit() {
       return source.limit;
     },
@@ -51,10 +59,15 @@ export function concurrencyGauge({
 }
 
 /** A live view of `source` as a behavior's limit named `name`. */
-export function rateGauge({ name, source }: RateGaugeInput): RateLimitGauge {
+export function rateGauge({
+  name,
+  whenFull,
+  source,
+}: RateGaugeInput): RateLimitGauge {
   return {
     kind: "rate",
     name,
+    whenFull,
     get ratePerSec() {
       return source.ratePerSec;
     },

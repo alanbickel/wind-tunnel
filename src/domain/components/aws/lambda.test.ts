@@ -97,13 +97,20 @@ describe("lambdaDefinition", () => {
     expect(fn.counters).toEqual({ coldStarts: 2 });
   });
 
-  // Fails if Lambda stops reporting its concurrency limit, or reports
-  // something other than the slots in use.
+  // Fails if Lambda stops reporting its concurrency limit, reports
+  // something other than the slots in use, or stops declaring that a full
+  // limit throttles.
   it("reports its concurrency limit and the slots in use", () => {
     const fn = build();
     fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
     expect(limitValues(fn)).toEqual([
-      { kind: "concurrency", name: "concurrency", limit: 2, inUse: 1 },
+      {
+        kind: "concurrency",
+        name: "concurrency",
+        whenFull: { kind: "refuse", reason: "throttled" },
+        limit: 2,
+        inUse: 1,
+      },
     ]);
   });
 

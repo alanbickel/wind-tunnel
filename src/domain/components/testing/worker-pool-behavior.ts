@@ -9,16 +9,33 @@ import type {
   ComponentBehavior,
   Effect,
   LimitGauge,
+  RefuseWhenFull,
+  WaitWhenFull,
 } from "../component-behavior";
 import { concurrencyGauge } from "../limit-gauges";
+
+/** A request waits for a worker, keeping its place in the wait line. */
+const WAIT_IN_LINE: WaitWhenFull = { kind: "wait", holds: "waitLine" };
+
+/** Rejects a request that finds the wait line full. */
+export const QUEUE_FULL: RefuseWhenFull = {
+  kind: "refuse",
+  reason: "queue-full",
+};
 
 export interface WorkerPoolBehaviorDependencies<T> {
   /** Workers, with a wait line; a full line rejects. */
   readonly workers: ConcurrencyLimit<T>;
+  /** Places in the wait line; `Infinity` if it's unbounded. */
+  readonly waitLineCapacity: number;
   readonly serviceTime: ServiceTime;
 }
 
-/** N workers with a wait line in front: ConcurrencyLimit (queue) → ServiceTime. */
+/**
+ * N workers with a wait line in front: ConcurrencyLimit (queue) →
+ * ServiceTime. Its limits mirror RDS's: `workers` makes requests wait, and
+ * each waiting request holds a place in the `waitLine`, which refuses.
+ */
 export class WorkerPoolBehavior<T> implements ComponentBehavior<T> {
   readonly limits: readonly LimitGauge[];
   private readonly workers: ConcurrencyLimit<T>;
@@ -33,14 +50,34 @@ export class WorkerPoolBehavior<T> implements ComponentBehavior<T> {
     rejected: (request) => ({
       kind: "rejected",
       request,
-      reason: "queue-full",
+      reason: QUEUE_FULL.reason,
     }),
   };
 
-  constructor({ workers, serviceTime }: WorkerPoolBehaviorDependencies<T>) {
+  constructor({
+    workers,
+    waitLineCapacity,
+    serviceTime,
+  }: WorkerPoolBehaviorDependencies<T>) {
     this.workers = workers;
     this.serviceTime = serviceTime;
-    this.limits = [concurrencyGauge({ name: "workers", source: workers })];
+    this.limits = [
+      concurrencyGauge({
+        name: "workers",
+        whenFull: WAIT_IN_LINE,
+        source: workers,
+      }),
+      concurrencyGauge({
+        name: "waitLine",
+        whenFull: QUEUE_FULL,
+        source: {
+          limit: waitLineCapacity,
+          get inUse() {
+            return workers.queued;
+          },
+        },
+      }),
+    ];
   }
 
   get inProgress(): number {

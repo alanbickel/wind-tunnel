@@ -5,8 +5,15 @@ import type {
   ComponentBehavior,
   Effect,
   LimitGauge,
+  RefuseWhenFull,
 } from "../component-behavior";
 import { rateGauge } from "../limit-gauges";
+
+/** Rejects a request that finds less than one token in the bucket. */
+export const THROTTLED: RefuseWhenFull = {
+  kind: "refuse",
+  reason: "throttled",
+};
 
 export interface DynamoDbBehaviorDependencies {
   /** Read capacity; each read takes one unit. */
@@ -30,8 +37,8 @@ export class DynamoDbBehavior<T> implements ComponentBehavior<T> {
     this.writes = writes;
     this.latency = latency;
     this.limits = [
-      rateGauge({ name: "readUnits", source: reads }),
-      rateGauge({ name: "writeUnits", source: writes }),
+      rateGauge({ name: "readUnits", whenFull: THROTTLED, source: reads }),
+      rateGauge({ name: "writeUnits", whenFull: THROTTLED, source: writes }),
     ];
   }
 
@@ -42,7 +49,7 @@ export class DynamoDbBehavior<T> implements ComponentBehavior<T> {
   arrive({ request, action, nowMs }: ArriveInput<T>): Effect<T>[] {
     const capacity = action === "write" ? this.writes : this.reads;
     if (!capacity.tryTake(nowMs)) {
-      return [{ kind: "rejected", request, reason: "throttled" }];
+      return [{ kind: "rejected", request, reason: THROTTLED.reason }];
     }
     this.running++;
     return [{ kind: "started", request, serviceMs: this.latency.next() }];

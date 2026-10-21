@@ -9,10 +9,15 @@ import type {
   ComponentBehavior,
   DispatchedEffect,
   Effect,
+  RejectedEffect,
   StartedEffect,
 } from "./component-behavior";
 import type { ComponentDefinition } from "./component-definition";
-import { checkLimits, type LimitReading } from "./contract-limit-checks";
+import {
+  checkLimits,
+  checkRejection,
+  type LimitReading,
+} from "./contract-limit-checks";
 
 export const MAX_VIOLATIONS = 20;
 
@@ -294,12 +299,11 @@ export class ContractHarness<Config> {
         this.stats.queued++;
         this.leaveArriving({ request, state, to: "queued" });
       },
-    rejected:
-      ({ request }) =>
-      (state) => {
-        this.stats.rejected++;
-        this.leaveArriving({ request, state, to: "rejected" });
-      },
+    rejected: (effect) => (state) => {
+      this.stats.rejected++;
+      this.leaveArriving({ request: effect.request, state, to: "rejected" });
+      this.checkRejection(effect);
+    },
     dispatched: (effect) => (state) => {
       this.dispatch(effect, state);
     },
@@ -333,6 +337,17 @@ export class ContractHarness<Config> {
       return;
     }
     state.phase = to;
+  }
+
+  /** A rejection must come from a full limit that declares its reason. */
+  private checkRejection({ request, reason }: RejectedEffect<number>): void {
+    const problems = checkRejection({
+      limits: this.behavior.limits ?? [],
+      nowMs: this.nowMs,
+      reason,
+      rejectionReasons: this.definition.rejectionReasons,
+    });
+    for (const problem of problems) this.violate(request, problem);
   }
 
   private dispatch(
@@ -415,6 +430,7 @@ export class ContractHarness<Config> {
       limits: this.behavior.limits ?? [],
       nowMs: this.nowMs,
       previous: this.lastLimits,
+      rejectionReasons: this.definition.rejectionReasons,
     });
     for (const problem of problems) this.violate(undefined, problem);
     this.lastLimits = reading;

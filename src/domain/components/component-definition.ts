@@ -34,6 +34,15 @@ export interface ComponentDefinition<Config> {
    * step that has `async` work.
    */
   readonly deliversAsync: boolean;
+  /**
+   * Every `reason` this type's behavior may put on a `rejected` effect,
+   * e.g. `["too-many-connections"]`; empty if it never rejects. The list is
+   * closed: the contract fails a rejection whose reason isn't on it. It
+   * includes the reasons the type's limits declare in `whenFull`, and any
+   * that no limit explains, such as a failed validation. Never `timeout`,
+   * which the engine reserves (ADR-0016).
+   */
+  readonly rejectionReasons: readonly string[];
   /** Builds fresh run-time state. Called once per component per run. */
   build<T>(config: Config, context: BuildContext): ComponentBehavior<T>;
 }

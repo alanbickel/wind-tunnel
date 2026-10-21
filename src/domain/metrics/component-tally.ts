@@ -161,10 +161,11 @@ const LIMIT_USES: KindHandlers<
   (context: LimitUseContext) => LimitUse
 > = {
   concurrency:
-    ({ name, limit, inUse, peakInUse }) =>
+    ({ name, whenFull, limit, inUse, peakInUse }) =>
     () => ({
       kind: "concurrency",
       name,
+      whenFull,
       limit,
       current: inUse,
       peak: peakInUse,
@@ -179,6 +180,7 @@ function rateLimitUse(
   return {
     kind: "rate",
     name: sample.name,
+    whenFull: sample.whenFull,
     limit: sample.burst,
     current: sample.drawnDown,
     peak: sample.peakDrawnDown,

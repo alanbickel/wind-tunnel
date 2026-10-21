@@ -260,7 +260,7 @@ Shared test fakes in `testing/` folders follow the rule. A `*.test.ts` file is e
 
 A new AWS service (or any other component type) touches these places, all in the same change:
 
-1. A `ComponentDefinition` in `src/domain/components/`, registered in the registry. The engine doesn't change.
+1. A `ComponentDefinition` in `src/domain/components/`, registered in the registry. The engine doesn't change. It lists every reason it rejects with in `rejectionReasons` ([rejection reasons](docs/architecture/component-definitions.md#rejection-reasons)). Each limit it enforces declares what it does when full: refuse, with one of those reasons, or make work wait ([what a full limit does](docs/architecture/component-definitions.md#what-a-full-limit-does)). The findings then cover the type without changes.
 2. A test that runs `checkComponentContract` against it, plus tests for its own behavior.
 3. For each place the model simplifies or guesses at AWS behavior, an entry in [`docs/design/fidelity.md`](docs/design/fidelity.md), with its ID cited in the code comment. Mark every claim about AWS as **Documented** (with a link you checked), **Observed**, or **Assumption**.
 4. Anything surprising about the service at scale goes in [AWS: Did you know?](docs/learning/aws-did-you-know.md).

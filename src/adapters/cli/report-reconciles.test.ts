@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
 import type {
   ComponentMetrics,
@@ -9,9 +9,10 @@ import {
   componentIn,
   limitIn,
 } from "../../domain/metrics/testing/snapshot-lookups";
+import type { Project } from "../../domain/model/project";
 import templateA from "../templates/template-a.json";
 import templateB from "../templates/template-b.json";
-import { runTemplate } from "../templates/testing/run-template";
+import { RUN_TIMEOUT_MS, runTemplate } from "../templates/testing/run-template";
 
 // The report derives "in progress", "unfinished", and "being delivered" by
 // subtraction and tells readers the sums add up. These tests check each
@@ -68,7 +69,12 @@ describe.each([
   ["template-a", templateA],
   ["template-b", templateB],
 ])("%s's totals reconcile", (_, template) => {
-  const { project, totals, snapshots } = runTemplate(template);
+  let project: Project;
+  let totals: MetricsSnapshot;
+  let snapshots: readonly MetricsSnapshot[];
+  beforeAll(() => {
+    ({ project, totals, snapshots } = runTemplate(template));
+  }, RUN_TIMEOUT_MS);
 
   it("leaves some work unfinished, so the checks below mean something", () => {
     const api = totals.components.api;
@@ -182,9 +188,10 @@ describe.each([
 });
 
 describe("template-b's queue", () => {
-  // Run while collecting, as above: a whole-template run inside `it` counts
-  // against the 5 s test timeout, which a busy parallel run can exceed (#15).
-  const { totals } = runTemplate(templateB);
+  let totals: MetricsSnapshot;
+  beforeAll(() => {
+    ({ totals } = runTemplate(templateB));
+  }, RUN_TIMEOUT_MS);
 
   it("is delivering exactly the messages its consumer is working on", () => {
     const queue = totals.components["orders-queue"];

@@ -373,7 +373,7 @@ The templates are `src/adapters/templates/template-a.json` and `template-b.json`
 
 ### What the templates show under the lunch rush (after the M1 tuning pass)
 
-Seed 42; other seeds give similar numbers. The full reports are in `src/adapters/cli/reports/`, and `template-scenarios.test.ts` asserts these lessons with loose thresholds on three seeds.
+Seed 42; other seeds give similar numbers. The full reports are in `src/adapters/cli/reports/`, and `src/adapters/templates/scenarios/lunch-rush.test.ts` asserts these lessons with loose thresholds on three seeds.
 
 | | Template A | Template B |
 |---|---|---|
@@ -405,7 +405,7 @@ Under the long rush, Template B degrades without failing: a finding for it is a 
 |---|---|---|
 | Domain primitives | Unit tests | Exact numbers, thanks to determinism |
 | Component definitions | Shared contract tests | Every type runs the same suite |
-| Engine | Scenario tests (`src/adapters/templates/template-scenarios.test.ts`) | Templates as fixtures; assert broad outcomes ("A has >5% errors during the spike; B has <0.1%") rather than exact values, so tuning doesn't break tests |
+| Engine | Scenario tests (`src/adapters/templates/scenarios/`) | Templates as fixtures; assert broad outcomes ("A has >5% errors during the spike; B has <0.1%") rather than exact values, so tuning doesn't break tests |
 | Persistence adapter | Integration tests | `fake-indexeddb` in Node |
 | UI | Component tests | Added in M3; kept light |
 

@@ -218,7 +218,7 @@ interface TimeWindow { readonly fromMs: number; readonly toMs: number }
 
 1. A finding cited in another's `causedBy` shows under that finding, not in the top list. Template A shows one top-level finding (refused connections) with the query-worker line beneath it, not two.
 2. Top-level findings: by severity, then `affected` (largest first), then the window's start (earliest first), then `id`, so the order is the same on every run.
-3. Warnings without an `affected` count (1.5's late writes) go together at the bottom of the list, ordered by window start. The verdict's level still names them, so a degraded run says why at the top.
+3. Warnings without an `affected` count (1.5's late writes) go at the bottom of the warnings, after the counted ones and before any notes, ordered by window start.
 
 ### 3.4 The verdict
 

@@ -1,8 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import type { MetricsRun } from "../../../domain/metrics/metrics-collector";
-import { RUN_TIMEOUT_MS } from "../testing/run-template";
 import type {
   LimitUse,
+  MetricsRun,
   MetricsSnapshot,
 } from "../../../domain/metrics/metrics-collector";
 import {
@@ -10,6 +9,7 @@ import {
   limitIn,
 } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
+import { RUN_TIMEOUT_MS } from "../testing/run-template";
 import type { Phase } from "../testing/scenario-runs";
 import {
   SEEDS,

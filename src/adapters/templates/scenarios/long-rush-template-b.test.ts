@@ -1,12 +1,14 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import type { MetricsRun } from "../../../domain/metrics/metrics-collector";
-import { RUN_TIMEOUT_MS } from "../testing/run-template";
-import type { MetricsSnapshot } from "../../../domain/metrics/metrics-collector";
+import type {
+  MetricsRun,
+  MetricsSnapshot,
+} from "../../../domain/metrics/metrics-collector";
 import {
   componentIn,
   workflowIn,
 } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
+import { RUN_TIMEOUT_MS } from "../testing/run-template";
 import {
   SEEDS,
   backlog,

@@ -34,7 +34,7 @@ Skip the [MVP design](design/mvp-design.md) for now. It's the detailed reference
 1. Find the current task in the pinned [Roadmap](https://github.com/alanbickel/wind-tunnel/issues/32): the first item that isn't done, in the first milestone that still has one ([how it works](../CONTRIBUTING.md#milestones-and-the-roadmap)).
 2. Find where the code goes in the overview's ["Where does my code go?"](architecture/architecture-overview.md#where-does-my-code-go) table, and read the guide it names.
 3. Read the [contributing guide](../CONTRIBUTING.md) before writing code. The coding standards are strict, and lint fails on a violation. (~12 min)
-4. Run `npm run check` before you commit.
+4. Run `npm run check:changed` as you work, and `npm run check` before you open a PR.
 
 ## Learn by running traces
 

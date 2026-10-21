@@ -22,7 +22,7 @@ All runs are seed 42, from `npm run simulate -- --template <id> --workload <id>`
 
 ### 1.1 Template A, lunch rush: failing
 
-> **Failing.** 28,841 of 65,963 answered requests failed (43.7%), every one refused a connection by orders-db.
+> **Failing.** 28,841 of 65,963 answered requests failed (43.7%); 11 were still in progress when the run ended.
 
 1. **What, where, when.** orders-db refused 28,841 connections from 14 s to 47 s, failing 23,183 *Get order* and 5,658 *Create order* requests. [totals: Failures; orders-db rejected = 28,841 = the sum of the workflows' failures] [snapshots: every second ending 15–47 s has failures; no other second does; the per-second sum is 28,841]
 2. **The limit.** orders-db held all 90 of its 90 connections in every second from 14 s to 47 s. [snapshots: `connections` exhausted in exactly the failing seconds] [config: `maxConnections` 90]
@@ -39,7 +39,7 @@ All runs are seed 42, from `npm run simulate -- --template <id> --workload <id>`
 
 ### 1.2 Template A, long rush: failing
 
-> **Failing.** 139,042 of 273,536 answered requests failed (50.8%), every one refused a connection by orders-db.
+> **Failing.** 139,042 of 273,536 answered requests failed (50.8%); 10 were still in progress when the run ended.
 
 1. Same mechanism as §1.1, held for longer: connections ran out from 14 s to 146 s, and requests failed in every one of those 132 seconds, all `orders-db: too-many-connections`. [totals; snapshots: failing seconds = `connections` exhausted seconds = 15–146]
 2. Query workers were full from 11 s to 149 s, with up to 74 queries waiting. [snapshots]
@@ -51,7 +51,7 @@ The long rush adds nothing new for Template A. Its reading confirms that a detec
 ### 1.3 Template A, steady day: healthy
 
 > **Healthy.** All 12,101 answered requests succeeded; 15 were still in progress when the run ended.
-> Closest to failing: orders-db connections, at most 14 of 90 (15%) in the first second, while fn-orders cold-started 62 environments; at most 13 of 90 (14%) after it.
+> Closest to failing: orders-db connections, at most 14 of 90 (15.5%) from 0 s to 1 s, while fn-orders had 62 cold starts; at most 13 of 90 (14.4%) in the seconds without cold starts.
 
 1. Nothing failed, and no limit ran out. [totals: Failures "None"; Limits "exhausted" all "-"] 12,101 + 0 + 15 = 12,116 started. [totals: Workflows]
 2. The headroom line quotes the peaks. [snapshots: per-second `peak` of each limit; fn-orders `coldStarts` 62 in the second ending at 1 s and none after]
@@ -60,7 +60,7 @@ The long rush adds nothing new for Template A. Its reading confirms that a detec
 ### 1.4 Template B, lunch rush: healthy, with a backlog
 
 > **Healthy.** All 65,966 answered requests succeeded; 8 were still in progress when the run ended.
-> Closest to failing: orders-db connections, at most 13 of 90 (14%).
+> Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
 
 **Note: writes waited in orders-queue during the rush, and landed up to 6.2 s late.**
 
@@ -77,8 +77,8 @@ The verdict's headroom line quotes only limits that refuse work (§3.4). The con
 
 ### 1.5 Template B, long rush: degraded
 
-> **Degraded.** All 273,539 answered requests succeeded, but writes landed later than a synchronous request could have waited.
-> Closest to failing: orders-db connections, at most 13 of 90 (14%).
+> **Degraded.** All 273,539 answered requests succeeded, but 1 finding is a warning; 7 were still in progress when the run ended.
+> Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
 
 **Warning: writes landed up to 32.6 s after they were accepted, past API Gateway's 29 s timeout.**
 
@@ -96,7 +96,7 @@ The headroom line needs no warm-up context, as in §1.4: fn-writer cold-started 
 ### 1.6 Template B, steady day: healthy
 
 > **Healthy.** All 12,106 answered requests succeeded; 10 were still in progress when the run ended.
-> Closest to failing: orders-db connections, at most 6 of 90 (6%).
+> Closest to failing: orders-db connections, at most 6 of 90 (6.6%).
 
 orders-queue's consumers were all busy in the first second, while fn-writer cold-started 15 environments, and at most 8 of 15 after it. That's in the Limits table; the verdict doesn't name limits that make work wait.
 
@@ -109,7 +109,7 @@ orders-queue's consumers were all busy in the first second, while fn-writer cold
 
 Not a shipped workload. It's here because it's the case the issue names: a failure whose cause starts long before it. To reproduce, set `orders-read`'s `readUnitsPerSec` to 1500 in `template-b.json` (don't commit it) and run the long rush. Under the lunch rush the same change fails nothing.
 
-> **Failing.** 4,377 *Get order* requests failed, every one throttled by orders-read after its retries ran out.
+> **Failing.** 4,377 of 273,539 answered requests failed (1.6%); 7 were still in progress when the run ended.
 
 1. **What, where, when.** orders-read throttled reads from 95 s to 141 s. 4,377 *Get order* requests failed, all `orders-read: throttled`. [totals: Failures] [snapshots: failing seconds = `readUnits` exhausted seconds = 96–141]
 2. **Why: the cause started 76 s earlier.** orders-read's read bucket was last full at 18 s. From 19 s, reads took more tokens than the bucket refilled in every second, about 1,600 a second against 1,500, so the bucket's 7,500 tokens of burst ran down by about 100 a second. It ran out at 95 s. [snapshots: `readUnits.current` < 1 last at the second ending 18 s; `takenPerSec` > `ratePerSec` in every second ending 20–96 s; `peak` 7,500 from 96 s] [config: 1,500 × `burstSec` 5 = 7,500] ADR-0014's formula gives the same time: (7,500 − 1) ÷ (1,600 − 1,500) ≈ 75 s after 19 s.

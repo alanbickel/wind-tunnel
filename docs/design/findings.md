@@ -234,7 +234,7 @@ flowchart LR
 What the diagrams show:
 
 - **Resolution is generic.** It's the same lookup for every component and every reason, so no reason gets its own logic. Reasons don't need to be unique across types (`throttled` is a token bucket in DynamoDB and a concurrency limit in Lambda), and a new type adds entries to its own table only.
-- **The declarations are checked where each type is defined.** The component guide lists [what a type declares and what catches each mistake](../architecture/component-definitions.md#what-a-type-declares-about-rejections).
+- **The declarations are checked where each type is defined.** The component guide describes [rejection reasons](../architecture/component-definitions.md#rejection-reasons) and [what a full limit does](../architecture/component-definitions.md#what-a-full-limit-does), with what catches each mistake.
 - **Several limits may share a reason.** The detector picks the one exhausted in the failing seconds, or names both (DynamoDB's two buckets).
 - **Waiting limits never appear as causes in (b).** A limit that makes work wait never rejects. It appears in (c) as the cause of another limit's refusals, or as a backlog when it holds nothing.
 - **The engine marks a timeout by its reason.** A failure is a timeout when its reason is `timeout`, so no type may list that reason, and the contract checks it.

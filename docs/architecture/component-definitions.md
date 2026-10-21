@@ -161,29 +161,37 @@ t(ms)  engine calls  effects returned                  inProgress  queueDepth  w
 60     finish e      (none)                            0           0
 ```
 
-## What a type declares about rejections
+## Rejection reasons
 
-When a request fails, the findings explain it from the failure's reason ([findings design §2.4](../design/findings.md#24-how-a-failure-reaches-a-finding)). They can only do that if each type says what its reasons mean, so a type declares three things ([ADR-0015](../adr/0015-findings-come-from-registered-detectors.md), [ADR-0016](../adr/0016-component-types-list-every-rejection-reason.md)):
+A rejection carries a reason, such as `too-many-connections`. With the component's ID, it's the cause of the failure the findings explain ([findings design §2.4](../design/findings.md#24-how-a-failure-reaches-a-finding)). Each type lists every reason it may reject with in its definition's `rejectionReasons` ([ADR-0016](../adr/0016-component-types-list-every-rejection-reason.md)). The list is closed: the contract fails a rejection whose reason isn't on it. A reason means something only within its type, so two types may use the same one. `timeout` is never on a list: the engine puts it on a failure when a caller stops waiting.
 
-| Declaration | Where | RDS |
-|---|---|---|
-| `rejectionReasons`: every reason the type may reject with. Closed: no other reason is allowed | The definition | `["too-many-connections"]` |
-| A limit that **refuses** when full, and the reason it rejects with | The limit's `whenFull`, in the behavior | `connections` refuses with `too-many-connections` |
-| A limit that **makes work wait** when full, and the limit its waiting work **holds**, if any | The limit's `whenFull` | `queryWorkers` waits, holding `connections` |
+A reason is one of these kinds:
 
-A listed reason that no limit declares is a rejection with no limit behind it, such as a failed validation. Keep each reason in one constant, and use it in the rejection, the limit, and the list: `rds-behavior.ts` exports `TOO_MANY_CONNECTIONS`, and `rds.ts` lists its `reason`.
+- **A limit's refusal:** a limit refuses work when it's full, and declares this reason ([What a full limit does](#what-a-full-limit-does)). Such a reason has one more rule: it's used only while its limit is exhausted, so the findings can name the limit behind a failure. RDS's `too-many-connections` is one.
+- **Any other reason**, such as a failed validation: a reason on the list that no limit declares. No rule ties it to a limit. No type has one yet.
 
-What catches each mistake:
+Keep each reason in one constant, used by the rejection, the list, and the limit that declares it, if any. `rds-behavior.ts` exports `TOO_MANY_CONNECTIONS`, and `rds.ts` lists its `reason`.
+
+| Mistake | Caught by |
+|---|---|
+| A rejection whose reason isn't in `rejectionReasons` | The contract |
+| `rejectionReasons` lists `timeout` | The contract |
+| A listed reason that the behavior never uses | Nothing: the contract sees only the reasons its scenario causes |
+
+## What a full limit does
+
+Each limit's `whenFull` says what happens to the next request once the limit is full ([ADR-0015](../adr/0015-findings-come-from-registered-detectors.md)):
+
+- **It refuses:** the request is rejected, with the reason the limit declares, which must be one of the type's rejection reasons. RDS `connections` refuses with `too-many-connections`. Every token bucket refuses.
+- **It makes work wait:** the request waits inside the component, and nothing is rejected. A waiting request may **hold** another limit of the same component while it waits, and the limit declares which. RDS `queryWorkers` makes queries wait, each holding one of the `connections`; SQS `consumerConcurrency` makes messages wait, holding nothing.
 
 | Mistake | Caught by |
 |---|---|
 | A token bucket that declares it waits; a refusal that names a held limit; a wait with a reason | The types: `WhenFull` is a discriminated union, and a `RateLimitGauge` takes only a refusal |
-| A rejection, or a refusing limit, whose reason isn't in `rejectionReasons` | The contract |
-| `rejectionReasons` lists `timeout`, which the engine reserves | The contract |
-| A limit declares a reason, but rejections with it come while that limit has room (the wrong limit declares it) | The contract |
+| A refusing limit whose reason isn't in `rejectionReasons` | The contract |
+| A limit's reason used while that limit has room (the wrong limit declares it) | The contract |
 | A declaration that changes during a run; a held limit that's missing, is the limit itself, or doesn't refuse | The contract |
-| A limit that refuses but declares a wait, when its reason is listed: the rejection reads as one with no limit behind it | Not the contract. The type's own `limitValues` test, and for the template types, the rejection-reason tests in [`adapters/templates/rejection-reasons/`](../../src/adapters/templates/rejection-reasons/), which check whole runs |
-| A listed reason that the behavior never uses | Nothing: the contract sees only the reasons its scenario causes |
+| A limit that refuses but declares a wait, when its reason is listed: the rejection reads as one with no limit behind it | Not the contract. The type's own `limitValues` test, and for the template types the rejection-reason tests in [`adapters/templates/rejection-reasons/`](../../src/adapters/templates/rejection-reasons/), which check whole runs |
 
 ## The contract every definition must pass
 
@@ -261,7 +269,7 @@ The checker has its own tests, which feed it deliberately broken definitions to 
 2. List the `actions` it accepts; set `deliversAsync` only for queue-like types.
 3. Write the run-time state as a class that implements `ComponentBehavior<T>`, in its own `<type>-behavior.ts` file. It takes a `<Class>Dependencies` object of primitive interfaces (`RateLimit`, `ConcurrencyLimit`, `ServiceTime`) and doesn't construct them itself (ADR-0009). `build` creates the primitives from the config (`TokenBucket`, `CountingSemaphore`, `SampledServiceTime`) and passes them in, taking randomness only from `context.random`. See [`aws/lambda.ts`](../../src/domain/components/aws/lambda.ts) and [`aws/lambda-behavior.ts`](../../src/domain/components/aws/lambda-behavior.ts).
 4. Return exactly one outcome from `arrive`; pass freed resources to waiters in `finish`. Each method takes one input object (`ArriveInput`, `FinishInput`, `DispatchFinishedInput`).
-5. Declare each limit the type enforces in `limits`, built once in the constructor with `concurrencyGauge` or `rateGauge` ([`limit-gauges.ts`](../../src/domain/components/limit-gauges.ts)), and test its values with `limitValues`. The reports and the run panel then show its use without changes ([ADR-0014](../adr/0014-components-report-their-limits.md)). Give each limit its `whenFull`: `{ kind: "refuse", reason }` with the reason its `rejected` effect carries (keep both in one constant, as `rds-behavior.ts` does), or `{ kind: "wait", holds }` naming the limit that waiting work keeps a slot of, if any. The findings read these instead of the type ([ADR-0015](../adr/0015-findings-come-from-registered-detectors.md)); the metrics guide lists [each type's declarations](metrics.md#limits-and-their-use).
-6. List every reason the behavior rejects with in `rejectionReasons`, from the same constants (see [What a type declares about rejections](#what-a-type-declares-about-rejections)).
+5. List every reason the behavior rejects with in `rejectionReasons`, each in one constant that the limit declaring it, if any, also uses (see [Rejection reasons](#rejection-reasons)).
+6. Declare each limit the type enforces in `limits`, built once in the constructor with `concurrencyGauge` or `rateGauge` ([`limit-gauges.ts`](../../src/domain/components/limit-gauges.ts)), and test its values with `limitValues`. The reports and the run panel then show its use without changes ([ADR-0014](../adr/0014-components-report-their-limits.md)). Give each limit its `whenFull` ([What a full limit does](#what-a-full-limit-does)): `{ kind: "refuse", reason }` with the one of the type's rejection reasons that its `rejected` effect carries, or `{ kind: "wait", holds }` naming the limit that waiting work keeps a slot of, if any. The findings read these instead of the type ([ADR-0015](../adr/0015-findings-come-from-registered-detectors.md)); the metrics guide lists [each type's declarations](metrics.md#limits-and-their-use).
 7. Add a test that runs `checkComponentContract`, plus unit tests for the type's own behavior.
 8. Register it in `createAwsComponentRegistry` ([`aws/index.ts`](../../src/domain/components/aws/index.ts)), or in a new registry function for another provider.

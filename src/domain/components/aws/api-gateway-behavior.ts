@@ -5,8 +5,12 @@ import type {
   ComponentBehavior,
   Effect,
   LimitGauge,
+  RefuseWhenFull,
 } from "../component-behavior";
 import { rateGauge } from "../limit-gauges";
+
+/** Rejects a request that finds less than one token in the bucket. */
+const THROTTLED: RefuseWhenFull = { kind: "refuse", reason: "throttled" };
 
 export interface ApiGatewayBehaviorDependencies {
   readonly limit: RateLimit;
@@ -25,7 +29,9 @@ export class ApiGatewayBehavior<T> implements ComponentBehavior<T> {
   constructor({ limit, overhead }: ApiGatewayBehaviorDependencies) {
     this.limit = limit;
     this.overhead = overhead;
-    this.limits = [rateGauge({ name: "requestRate", source: limit })];
+    this.limits = [
+      rateGauge({ name: "requestRate", whenFull: THROTTLED, source: limit }),
+    ];
   }
 
   get inProgress(): number {
@@ -34,7 +40,7 @@ export class ApiGatewayBehavior<T> implements ComponentBehavior<T> {
 
   arrive({ request, nowMs }: ArriveInput<T>): Effect<T>[] {
     if (!this.limit.tryTake(nowMs)) {
-      return [{ kind: "rejected", request, reason: "throttled" }];
+      return [{ kind: "rejected", request, reason: THROTTLED.reason }];
     }
     this.running++;
     return [{ kind: "started", request, serviceMs: this.overhead.next() }];

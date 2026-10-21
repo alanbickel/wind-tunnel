@@ -4,6 +4,9 @@ import type {
   ComponentBehavior,
   DispatchFinishedInput,
   Effect,
+  LimitGauge,
+  RefuseWhenFull,
+  WhenFull,
 } from "./component-behavior";
 import type { BuildContext, ComponentDefinition } from "./component-definition";
 import {
@@ -92,6 +95,47 @@ const rateTaking = ({ burst, read, left }: FakeRate): RateSource => ({
   },
 });
 
+const QUEUE_FULL: RefuseWhenFull = { kind: "refuse", reason: "queue-full" };
+const WAIT_IN_LINE: WhenFull = { kind: "wait", holds: "waitLine" };
+
+/** What the worker pool's two limits declare, and the wait line's size. */
+interface PoolDeclarations {
+  readonly workers: WhenFull;
+  readonly waitLine: WhenFull;
+  /** The default config's 8 if omitted. */
+  readonly waitLineLimit?: number;
+}
+
+/**
+ * The default worker pool's limits, read live from `b`, with their
+ * declarations replaced.
+ */
+const poolLimits = (
+  b: Behavior,
+  { workers, waitLine, waitLineLimit = 8 }: PoolDeclarations,
+): LimitGauge[] => [
+  concurrencyGauge({
+    name: "workers",
+    whenFull: workers,
+    source: {
+      limit: 4,
+      get inUse() {
+        return b.inProgress;
+      },
+    },
+  }),
+  concurrencyGauge({
+    name: "waitLine",
+    whenFull: waitLine,
+    source: {
+      limit: waitLineLimit,
+      get inUse() {
+        return b.queueDepth;
+      },
+    },
+  }),
+];
+
 const firstViolation = <C>(definition: ComponentDefinition<C>) =>
   checkComponentContract(definition).violations[0] ?? "(none)";
 
@@ -168,7 +212,14 @@ describe("checkComponentContract", () => {
     // Fails if the contract stops comparing a concurrency limit's use to its limit.
     it("a concurrency limit used beyond its limit", () => {
       const def = broken(workerPoolDefinition, (b) => ({
-        limits: [concurrencyGauge({ name: "workers", source: overOne(b) })],
+        limits: [
+          concurrencyGauge({
+            name: "workers",
+            whenFull: WAIT_IN_LINE,
+            source: overOne(b),
+          }),
+          ...(b.limits ?? []).slice(1),
+        ],
       }));
       expect(firstViolation(def)).toMatch(
         /limit workers has 2 in use out of 1/,
@@ -179,8 +230,10 @@ describe("checkComponentContract", () => {
     it("a rate limit whose taken count goes down", () => {
       const def = broken(workerPoolDefinition, (b) => ({
         limits: [
+          ...(b.limits ?? []),
           rateGauge({
             name: "rate",
+            whenFull: QUEUE_FULL,
             source: rateTaking({ burst: 1_000, read: () => b.inProgress }),
           }),
         ],
@@ -193,10 +246,12 @@ describe("checkComponentContract", () => {
     // Fails if the contract stops bounding `taken` by the burst and the rate.
     it("a rate limit that takes more than its burst and rate allow", () => {
       let reads = 0;
-      const def = broken(workerPoolDefinition, () => ({
+      const def = broken(workerPoolDefinition, (b) => ({
         limits: [
+          ...(b.limits ?? []),
           rateGauge({
             name: "rate",
+            whenFull: QUEUE_FULL,
             source: rateTaking({ burst: 1, read: () => ++reads }),
           }),
         ],
@@ -208,10 +263,12 @@ describe("checkComponentContract", () => {
 
     // Fails if the contract stops checking the bucket's level against its size.
     it("a rate limit with more tokens left than its bucket holds", () => {
-      const def = broken(workerPoolDefinition, () => ({
+      const def = broken(workerPoolDefinition, (b) => ({
         limits: [
+          ...(b.limits ?? []),
           rateGauge({
             name: "rate",
+            whenFull: QUEUE_FULL,
             source: rateTaking({
               burst: 1_000,
               read: () => 0,
@@ -233,7 +290,99 @@ describe("checkComponentContract", () => {
         },
       }));
       expect(firstViolation(def)).toMatch(
-        /limits changed from \[concurrency workers\] to \[\]/,
+        /limits changed from \[concurrency workers \(waits holding waitLine\), concurrency waitLine \(refuses queue-full\)\] to \[\]/,
+      );
+    });
+
+    // Fails if the signature that each read is compared by leaves out
+    // `whenFull`.
+    it("a limit whose declaration changes between reads", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        get limits() {
+          const workers = b.inProgress > 1 ? QUEUE_FULL : WAIT_IN_LINE;
+          return poolLimits(b, { workers, waitLine: QUEUE_FULL });
+        },
+      }));
+      expect(firstViolation(def)).toMatch(
+        /from \[concurrency workers \(waits holding waitLine\), .*\] to \[concurrency workers \(refuses queue-full\), /,
+      );
+    });
+
+    // Fails if the contract stops looking up the limit that waiting work
+    // holds, or lets a limit hold itself.
+    it.each(["queue", "workers"])("waiting that holds %s", (holds) => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        limits: poolLimits(b, {
+          workers: { kind: "wait", holds },
+          waitLine: QUEUE_FULL,
+        }),
+      }));
+      expect(firstViolation(def)).toContain(
+        `limit workers holds ${holds}, which isn't another of its component's limits.`,
+      );
+    });
+
+    // Fails if the contract accepts a held limit whatever it does when full.
+    it("waiting that holds a limit that doesn't refuse", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        limits: poolLimits(b, {
+          workers: WAIT_IN_LINE,
+          waitLine: { kind: "wait", holds: undefined },
+        }),
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limit workers holds waitLine, which doesn't refuse work/,
+      );
+    });
+
+    // Fails if the contract stops matching a rejection's reason to the
+    // limits' declarations.
+    it("a rejection whose reason no limit declares", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        limits: poolLimits(b, {
+          workers: WAIT_IN_LINE,
+          waitLine: { kind: "refuse", reason: "line-full" },
+        }),
+      }));
+      expect(firstViolation(def)).toMatch(
+        /rejected as "queue-full", which none of its limits declares/,
+      );
+    });
+
+    // Fails if the contract stops checking that the declaring concurrency
+    // limit is full when it rejects.
+    it("a rejection while the concurrency limit declaring it has room", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        limits: poolLimits(b, {
+          workers: WAIT_IN_LINE,
+          waitLine: QUEUE_FULL,
+          waitLineLimit: 9,
+        }),
+      }));
+      expect(firstViolation(def)).toMatch(
+        /rejected as "queue-full" while waitLine had room/,
+      );
+    });
+
+    // Fails if the contract reads a bucket's level wrongly when checking a
+    // rejection, e.g. as tokens taken instead of tokens left.
+    it("a rejection while the bucket declaring it has tokens", () => {
+      const def = broken(workerPoolDefinition, () => ({
+        limits: [
+          concurrencyGauge({
+            name: "workers",
+            whenFull: { kind: "wait", holds: undefined },
+            source: { limit: 4, inUse: 0 },
+          }),
+          rateGauge({
+            name: "rate",
+            whenFull: QUEUE_FULL,
+            source: rateTaking({ burst: 1_000, read: () => 0 }),
+          }),
+        ],
+      }));
+      expect(firstViolation(def)).toMatch(
+        /rejected as "queue-full" while rate had room/,
       );
     });
 

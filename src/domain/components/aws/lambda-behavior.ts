@@ -6,8 +6,12 @@ import type {
   Effect,
   FinishInput,
   LimitGauge,
+  RefuseWhenFull,
 } from "../component-behavior";
 import { concurrencyGauge } from "../limit-gauges";
+
+/** Rejects an invocation that finds every concurrency slot taken. */
+const THROTTLED: RefuseWhenFull = { kind: "refuse", reason: "throttled" };
 
 export interface LambdaBehaviorDependencies<T> {
   /** Concurrency slots; full means throttled, not queued. */
@@ -39,7 +43,11 @@ export class LambdaBehavior<T> implements ComponentBehavior<T> {
     this.computeTime = dependencies.computeTime;
     this.idleTimeoutMs = dependencies.idleTimeoutMs;
     this.limits = [
-      concurrencyGauge({ name: "concurrency", source: this.slots }),
+      concurrencyGauge({
+        name: "concurrency",
+        whenFull: THROTTLED,
+        source: this.slots,
+      }),
     ];
   }
 
@@ -53,7 +61,7 @@ export class LambdaBehavior<T> implements ComponentBehavior<T> {
 
   arrive({ request, nowMs }: ArriveInput<T>): Effect<T>[] {
     if (this.slots.acquire(request) === "rejected") {
-      return [{ kind: "rejected", request, reason: "throttled" }];
+      return [{ kind: "rejected", request, reason: THROTTLED.reason }];
     }
     // The cold start, if any, is drawn before the compute time.
     const serviceMs = this.initMs(nowMs) + this.computeTime.next();

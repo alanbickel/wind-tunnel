@@ -37,8 +37,9 @@ describe("sqsDefinition", () => {
     expect([queue.inProgress, queue.queueDepth]).toEqual([0, 1]);
   });
 
-  // Fails if SQS stops reporting its consumer limit, or the deliveries in
-  // flight against it don't go up and down with dispatches.
+  // Fails if SQS stops reporting its consumer limit, the deliveries in
+  // flight against it don't go up and down with dispatches, or it stops
+  // declaring that waiting messages hold nothing.
   it("reports deliveries in flight against the consumer limit", () => {
     const queue = build();
     for (const m of ["m1", "m2", "m3"]) {
@@ -46,7 +47,13 @@ describe("sqsDefinition", () => {
       queue.finish({ request: m, nowMs: 10 });
     }
     expect(limitValues(queue)).toEqual([
-      { kind: "concurrency", name: "consumerConcurrency", limit: 2, inUse: 2 },
+      {
+        kind: "concurrency",
+        name: "consumerConcurrency",
+        whenFull: { kind: "wait", holds: undefined },
+        limit: 2,
+        inUse: 2,
+      },
     ]);
     queue.dispatchFinished?.({ request: "m1", succeeded: true, nowMs: 20 });
     queue.dispatchFinished?.({ request: "m2", succeeded: true, nowMs: 20 });

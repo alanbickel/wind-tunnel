@@ -1,3 +1,7 @@
+import type {
+  RefuseWhenFull,
+  WhenFull,
+} from "../components/component-behavior";
 import type { LatencySummary } from "./latency-histogram";
 
 /** One component's activity over a window of simulated time. */
@@ -39,6 +43,10 @@ export interface ComponentMetrics {
  * share used at the busiest moment, and never goes over 1. Whether the limit
  * ran out depends on its kind; `limitExhausted` has the rule. Units depend
  * on `kind`: slots for concurrency, tokens for a rate limit's bucket.
+ *
+ * `name` and `whenFull` are the component's declarations. They're the same
+ * in every snapshot and the totals, so each `LimitUse` says what it is
+ * without the component type's definition.
  */
 export type LimitUse = ConcurrencyLimitUse | RateLimitUse;
 
@@ -51,6 +59,11 @@ export interface ConcurrencyLimitUse {
   readonly kind: "concurrency";
   /** camelCase and unique within the component, e.g. `connections`. */
   readonly name: string;
+  /**
+   * Whether a full limit refuses work (with which rejection reason) or
+   * makes it wait (holding which other limit, if any).
+   */
+  readonly whenFull: WhenFull;
   /** Most slots that can be held at once. */
   readonly limit: number;
   /** Slots held at the window's end. */
@@ -70,6 +83,8 @@ export interface RateLimitUse {
   readonly kind: "rate";
   /** camelCase and unique within the component, e.g. `readUnits`. */
   readonly name: string;
+  /** An empty bucket refuses work, with this rejection reason. */
+  readonly whenFull: RefuseWhenFull;
   /** The bucket's size, its burst: the most tokens it holds. */
   readonly limit: number;
   /** Tokens missing from a full bucket at the window's end. */

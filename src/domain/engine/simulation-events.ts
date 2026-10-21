@@ -1,4 +1,7 @@
-import type { ConcurrencyLimitGauge } from "../components/component-behavior";
+import type {
+  ConcurrencyLimitGauge,
+  RefuseWhenFull,
+} from "../components/component-behavior";
 import type { ComponentRegistry } from "../components/component-registry";
 import type { Project, StepAction } from "../model/project";
 import type { RandomSource } from "../random/random-source";
@@ -40,6 +43,8 @@ export interface RateLimitSample {
   readonly kind: "rate";
   /** camelCase, unique within the component, e.g. `readUnits`. */
   readonly name: string;
+  /** What the bucket does once empty: always a refusal. */
+  readonly whenFull: RefuseWhenFull;
   /** Tokens added per second. */
   readonly ratePerSec: number;
   /** Most tokens the bucket holds. */

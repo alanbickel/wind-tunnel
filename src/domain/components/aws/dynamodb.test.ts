@@ -49,7 +49,8 @@ describe("dynamoDbDefinition", () => {
   });
 
   // Fails if DynamoDB stops reporting either capacity, counts a throttled
-  // request as capacity taken, or drains the wrong bucket.
+  // request as capacity taken, drains the wrong bucket, or declares a reason
+  // other than the one it throttles with.
   it("reports read and write capacity taken and left", () => {
     const db = build({ burstSec: 0 });
     db.arrive({ request: "r1", action: "read", nowMs: 0 });
@@ -58,6 +59,7 @@ describe("dynamoDbDefinition", () => {
       {
         kind: "rate",
         name: "readUnits",
+        whenFull: { kind: "refuse", reason: "throttled" },
         ratePerSec: 10,
         burst: 1,
         taken: 1,
@@ -66,6 +68,7 @@ describe("dynamoDbDefinition", () => {
       {
         kind: "rate",
         name: "writeUnits",
+        whenFull: { kind: "refuse", reason: "throttled" },
         ratePerSec: 10,
         burst: 1,
         taken: 0,

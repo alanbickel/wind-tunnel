@@ -44,6 +44,7 @@ export const workerPoolDefinition: ComponentDefinition<WorkerPoolConfig> = {
         whenFull: "queue",
         queueCapacity: config.queueCapacity,
       }),
+      waitLineCapacity: config.queueCapacity ?? Number.POSITIVE_INFINITY,
       serviceTime: new SampledServiceTime(config.serviceTime, random),
     });
   },

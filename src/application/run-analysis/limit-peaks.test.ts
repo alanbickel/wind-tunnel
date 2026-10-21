@@ -9,6 +9,7 @@ const { project } = sampleRecord;
 const concurrency = (peak: number): LimitUse => ({
   kind: "concurrency",
   name: "concurrency",
+  whenFull: { kind: "refuse", reason: "throttled" },
   limit: 10,
   current: 0,
   peak,
@@ -18,6 +19,7 @@ const concurrency = (peak: number): LimitUse => ({
 const requestRate = (peak: number, takenPerSec: number): LimitUse => ({
   kind: "rate",
   name: "requestRate",
+  whenFull: { kind: "refuse", reason: "throttled" },
   limit: 100,
   current: 0,
   peak,

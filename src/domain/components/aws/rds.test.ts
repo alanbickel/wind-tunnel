@@ -33,8 +33,9 @@ describe("rdsDefinition", () => {
     expect(report.stats.rejected).toBeGreaterThan(0);
   });
 
-  // Fails if a waiting query stops holding a connection, or if RDS stops
-  // reporting either limit.
+  // Fails if a waiting query stops holding a connection, if RDS stops
+  // reporting either limit, or if a limit declares other than that
+  // connections refuse and query workers make queries wait holding one.
   it("queues for a worker, then rejects once connections run out", () => {
     const db = build();
     expect(db.arrive({ request: "a", action: "read", nowMs: 0 })).toEqual([
@@ -52,8 +53,20 @@ describe("rdsDefinition", () => {
     expect([db.inProgress, db.queueDepth]).toEqual([1, 2]);
     // Waiting queries hold their connection too.
     expect(limitValues(db)).toEqual([
-      { kind: "concurrency", name: "connections", limit: 3, inUse: 3 },
-      { kind: "concurrency", name: "queryWorkers", limit: 1, inUse: 1 },
+      {
+        kind: "concurrency",
+        name: "connections",
+        whenFull: { kind: "refuse", reason: "too-many-connections" },
+        limit: 3,
+        inUse: 3,
+      },
+      {
+        kind: "concurrency",
+        name: "queryWorkers",
+        whenFull: { kind: "wait", holds: "connections" },
+        limit: 1,
+        inUse: 1,
+      },
     ]);
   });
 

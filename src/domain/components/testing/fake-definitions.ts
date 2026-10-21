@@ -8,7 +8,7 @@ import type {
   ComponentDefinition,
 } from "../component-definition";
 import { MessageQueueBehavior } from "./message-queue-behavior";
-import { WorkerPoolBehavior } from "./worker-pool-behavior";
+import { QUEUE_FULL, WorkerPoolBehavior } from "./worker-pool-behavior";
 
 // Small, correct definitions for tests of the registry, validation, and the
 // contract checker. They also serve as reference implementations of
@@ -34,6 +34,7 @@ export const workerPoolDefinition: ComponentDefinition<WorkerPoolConfig> = {
   },
   actions: ["invoke", "read"],
   deliversAsync: false,
+  rejectionReasons: [QUEUE_FULL.reason],
   build<T>(
     config: WorkerPoolConfig,
     { random }: BuildContext,
@@ -68,6 +69,7 @@ export const messageQueueDefinition: ComponentDefinition<MessageQueueConfig> = {
   defaultConfig: { consumers: 2, sendMs: 1 },
   actions: ["enqueue"],
   deliversAsync: true,
+  rejectionReasons: [],
   build<T>(config: MessageQueueConfig): ComponentBehavior<T> {
     return new MessageQueueBehavior<T>(config);
   },

@@ -1,8 +1,9 @@
-import type {
-  ComponentSample,
-  EdgeAttemptFailedEvent,
-  SimulationEvent,
-  SimulationInput,
+import {
+  TIMEOUT_REASON,
+  type ComponentSample,
+  type EdgeAttemptFailedEvent,
+  type SimulationEvent,
+  type SimulationInput,
 } from "../engine/simulation-events";
 import { simulate } from "../engine/create-simulation";
 import type { Project } from "../model/project";
@@ -96,7 +97,7 @@ export class MetricsCollector {
    * the edge where it happened, against the component called.
    */
   private countTimeout({ edgeId, failure }: EdgeAttemptFailedEvent): void {
-    if (failure.reason !== "timeout") return;
+    if (failure.reason !== TIMEOUT_REASON) return;
     if (this.edgeTargets.get(edgeId) !== failure.componentId) return;
     this.window.component(failure.componentId).timeouts++;
   }

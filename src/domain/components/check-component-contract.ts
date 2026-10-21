@@ -1,3 +1,4 @@
+import { TIMEOUT_REASON } from "../engine/simulation-events";
 import type { ComponentDefinition } from "./component-definition";
 import {
   createContractHarness,
@@ -52,8 +53,10 @@ export interface ContractReport {
  *   declarations on every read, a held limit that refuses, concurrency use
  *   within the limit, and rate limits taking no more than their burst and
  *   rate allow;
- * - every rejection's reason is declared by a limit that refuses, and one
- *   such limit is full at the time (see `checkRejection`);
+ * - `rejectionReasons` doesn't list `timeout`, every refusing limit's
+ *   reason is on it, and so is every rejection's; a rejection whose reason
+ *   a limit declares comes while one such limit is full (see
+ *   `checkRejection`, ADR-0016);
  * - the same seed produces exactly the same effects.
  *
  * Each definition's test asserts that `violations` is empty.
@@ -92,6 +95,11 @@ function checkDefinition<Config>(
   }
   if (definition.actions.length === 0) {
     problems.push("The definition accepts no actions.");
+  }
+  if (definition.rejectionReasons.includes(TIMEOUT_REASON)) {
+    problems.push(
+      `rejectionReasons lists "${TIMEOUT_REASON}", which the engine reserves for callers that stop waiting.`,
+    );
   }
   return problems;
 }

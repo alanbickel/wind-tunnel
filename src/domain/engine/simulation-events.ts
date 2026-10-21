@@ -6,6 +6,12 @@ import type { ComponentRegistry } from "../components/component-registry";
 import type { Project, StepAction } from "../model/project";
 import type { RandomSource } from "../random/random-source";
 
+/**
+ * The reason on a failure the engine makes when a caller stops waiting. No
+ * component may reject with it (ADR-0016).
+ */
+export const TIMEOUT_REASON = "timeout";
+
 /** Why a call failed, and where. */
 export interface Failure {
   /** The component that rejected the request, or that the caller gave up on. */

@@ -18,7 +18,10 @@ import { concurrencyGauge } from "../limit-gauges";
 const WAIT_IN_LINE: WaitWhenFull = { kind: "wait", holds: "waitLine" };
 
 /** Rejects a request that finds the wait line full. */
-const QUEUE_FULL: RefuseWhenFull = { kind: "refuse", reason: "queue-full" };
+export const QUEUE_FULL: RefuseWhenFull = {
+  kind: "refuse",
+  reason: "queue-full",
+};
 
 export interface WorkerPoolBehaviorDependencies<T> {
   /** Workers, with a wait line; a full line rejects. */

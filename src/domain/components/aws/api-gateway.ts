@@ -7,7 +7,7 @@ import type {
   BuildContext,
   ComponentDefinition,
 } from "../component-definition";
-import { ApiGatewayBehavior } from "./api-gateway-behavior";
+import { ApiGatewayBehavior, THROTTLED } from "./api-gateway-behavior";
 
 const apiGatewayConfig = z.object({
   /** Steady requests per second before throttling (HTTP 429). */
@@ -36,6 +36,7 @@ export const apiGatewayDefinition: ComponentDefinition<ApiGatewayConfig> = {
   },
   actions: ["invoke"],
   deliversAsync: false,
+  rejectionReasons: [THROTTLED.reason],
   build<T>(
     config: ApiGatewayConfig,
     { random }: BuildContext,

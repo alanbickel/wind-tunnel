@@ -345,6 +345,7 @@ export class ContractHarness<Config> {
       limits: this.behavior.limits ?? [],
       nowMs: this.nowMs,
       reason,
+      rejectionReasons: this.definition.rejectionReasons,
     });
     for (const problem of problems) this.violate(request, problem);
   }
@@ -429,6 +430,7 @@ export class ContractHarness<Config> {
       limits: this.behavior.limits ?? [],
       nowMs: this.nowMs,
       previous: this.lastLimits,
+      rejectionReasons: this.definition.rejectionReasons,
     });
     for (const problem of problems) this.violate(undefined, problem);
     this.lastLimits = reading;

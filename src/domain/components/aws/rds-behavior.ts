@@ -11,7 +11,7 @@ import type {
 import { concurrencyGauge } from "../limit-gauges";
 
 /** Refuses a connection once `max_connections` are held. */
-const TOO_MANY_CONNECTIONS: RefuseWhenFull = {
+export const TOO_MANY_CONNECTIONS: RefuseWhenFull = {
   kind: "refuse",
   reason: "too-many-connections",
 };

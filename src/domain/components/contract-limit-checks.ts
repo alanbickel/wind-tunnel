@@ -29,6 +29,8 @@ export interface LimitCheckInput {
   readonly nowMs: number;
   /** The previous read; undefined on the first. */
   readonly previous: LimitReading | undefined;
+  /** The definition's `rejectionReasons`. */
+  readonly rejectionReasons: readonly string[];
 }
 
 /** What `checkLimits` found, and what to pass as `previous` next time. */
@@ -46,6 +48,8 @@ export interface RejectionCheckInput {
   /** Simulated time of the rejection, for the buckets' levels. */
   readonly nowMs: number;
   readonly reason: string;
+  /** The definition's `rejectionReasons`. */
+  readonly rejectionReasons: readonly string[];
 }
 
 /** What checking one limit needs besides the limit itself. */
@@ -63,6 +67,7 @@ interface GaugeCheckContext {
  *   name twice;
  * - a limit that makes work wait and holds another names a different limit
  *   of the same component, one that refuses;
+ * - a limit that refuses does so with a reason in `rejectionReasons`;
  * - a concurrency limit's use is between 0 and its limit;
  * - a rate limit's values are finite, `taken` never decreases, it never
  *   takes more than its burst plus its rate since the start allows, and its
@@ -72,13 +77,16 @@ export function checkLimits({
   limits,
   nowMs,
   previous,
+  rejectionReasons,
 }: LimitCheckInput): LimitCheckResult {
   const reading = readLimits(limits);
   const problems = [
     ...changedLimits(previous, reading),
     ...duplicateNames(limits),
     // Later reads must match this one's signature, so once is enough.
-    ...(previous === undefined ? heldLimits(limits) : []),
+    ...(previous === undefined
+      ? checkDeclarations(limits, rejectionReasons)
+      : []),
     ...limits.flatMap((limit, index) =>
       handleKind(
         GAUGE_CHECKS,
@@ -133,6 +141,34 @@ function duplicateNames(limits: readonly LimitGauge[]): string[] {
     .map((name) => `limit ${name} appears more than once.`);
 }
 
+/** Each limit's `whenFull`, against the other limits and the reasons. */
+function checkDeclarations(
+  limits: readonly LimitGauge[],
+  rejectionReasons: readonly string[],
+): string[] {
+  return [
+    ...heldLimits(limits),
+    ...limits.flatMap((limit) => checkListed(limit, rejectionReasons)),
+  ];
+}
+
+/** A refusing limit's reason is one the definition lists. */
+function checkListed(
+  limit: LimitGauge,
+  rejectionReasons: readonly string[],
+): string[] {
+  const reason = handleKind(REFUSAL_REASON, limit.whenFull);
+  if (reason === undefined || rejectionReasons.includes(reason)) return [];
+  return [
+    `limit ${limit.name} refuses with "${reason}", which rejectionReasons doesn't list.`,
+  ];
+}
+
+const REFUSAL_REASON: KindHandlers<WhenFull, string | undefined> = {
+  refuse: ({ reason }) => reason,
+  wait: () => undefined,
+};
+
 function heldLimits(limits: readonly LimitGauge[]): string[] {
   return limits.flatMap((limit) => checkHeld(limit, limits));
 }
@@ -157,22 +193,26 @@ const HELD: KindHandlers<WhenFull, string | undefined> = {
 };
 
 /**
- * The `rejected` rule of `checkComponentContract`: one of the behavior's
- * limits declares that it refuses with the effect's reason, and one of
- * those is full as it rejects, by `limitExhausted`'s rule. The findings
- * rely on it to name the limit behind a failure (ADR-0015).
+ * The `rejected` rules of `checkComponentContract` (ADR-0016): the
+ * effect's reason is in `rejectionReasons`, and if any of the behavior's
+ * limits declares it, one of those is full as it rejects, by
+ * `limitExhausted`'s rule. The findings rely on that to name the limit
+ * behind a failure (ADR-0015). A listed reason that no limit declares has
+ * no limit behind it, such as a failed validation.
  */
 export function checkRejection({
   limits,
   nowMs,
   reason,
+  rejectionReasons,
 }: RejectionCheckInput): string[] {
-  const declaring = limits.filter(
-    (l) => l.whenFull.kind === "refuse" && l.whenFull.reason === reason,
-  );
-  if (declaring.length === 0) {
-    return [`rejected as "${reason}", which none of its limits declares.`];
+  if (!rejectionReasons.includes(reason)) {
+    return [`rejected as "${reason}", which rejectionReasons doesn't list.`];
   }
+  const declaring = limits.filter(
+    (l) => handleKind(REFUSAL_REASON, l.whenFull) === reason,
+  );
+  if (declaring.length === 0) return [];
   if (declaring.some((l) => limitExhausted(handleKind(AT_PEAK, l)(nowMs)))) {
     return [];
   }

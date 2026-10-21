@@ -11,7 +11,10 @@ import type {
 import { concurrencyGauge } from "../limit-gauges";
 
 /** Rejects an invocation that finds every concurrency slot taken. */
-const THROTTLED: RefuseWhenFull = { kind: "refuse", reason: "throttled" };
+export const THROTTLED: RefuseWhenFull = {
+  kind: "refuse",
+  reason: "throttled",
+};
 
 export interface LambdaBehaviorDependencies<T> {
   /** Concurrency slots; full means throttled, not queued. */

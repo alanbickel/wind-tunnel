@@ -154,6 +154,25 @@ describe("checkComponentContract", () => {
     expect(report.stats.dispatched).toBeGreaterThan(report.stats.started);
   });
 
+  // Fails if the contract requires every rejection to come from a limit:
+  // here no limit declares queue-full, so the pool's rejections stand for
+  // a reason with no limit behind it, such as a failed validation.
+  it("passes rejections for a listed reason that no limit declares", () => {
+    const def = broken(
+      workerPoolDefinition,
+      (b) => ({
+        limits: poolLimits(b, {
+          workers: { kind: "wait", holds: undefined },
+          waitLine: { kind: "refuse", reason: "line-full" },
+        }),
+      }),
+      { rejectionReasons: ["queue-full", "line-full"] },
+    );
+    const report = checkComponentContract(def);
+    expect(report.violations).toEqual([]);
+    expect(report.stats.rejected).toBeGreaterThan(0);
+  });
+
   describe("catches broken definitions", () => {
     it("an arrival with no outcome", () => {
       const def = broken(workerPoolDefinition, (b) => ({
@@ -335,9 +354,9 @@ describe("checkComponentContract", () => {
       );
     });
 
-    // Fails if the contract stops matching a rejection's reason to the
-    // limits' declarations.
-    it("a rejection whose reason no limit declares", () => {
+    // Fails if the contract stops checking limits' reasons against the
+    // definition's `rejectionReasons`.
+    it("a refusing limit whose reason the definition doesn't list", () => {
       const def = broken(workerPoolDefinition, (b) => ({
         limits: poolLimits(b, {
           workers: WAIT_IN_LINE,
@@ -345,7 +364,33 @@ describe("checkComponentContract", () => {
         }),
       }));
       expect(firstViolation(def)).toMatch(
-        /rejected as "queue-full", which none of its limits declares/,
+        /limit waitLine refuses with "line-full", which rejectionReasons doesn't list/,
+      );
+    });
+
+    // Fails if the contract stops checking each rejection's reason against
+    // the definition's `rejectionReasons`.
+    it("a rejection whose reason the definition doesn't list", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        arrive: (input) =>
+          b
+            .arrive(input)
+            .map((e): Effect<number> =>
+              e.kind === "rejected" ? { ...e, reason: "line-full" } : e,
+            ),
+      }));
+      expect(firstViolation(def)).toMatch(
+        /rejected as "line-full", which rejectionReasons doesn't list/,
+      );
+    });
+
+    // Fails if the contract stops reserving the engine's timeout reason.
+    it("a definition that lists timeout as a rejection reason", () => {
+      const def = broken(workerPoolDefinition, () => ({}), {
+        rejectionReasons: ["queue-full", "timeout"],
+      });
+      expect(firstViolation(def)).toMatch(
+        /rejectionReasons lists "timeout", which the engine reserves/,
       );
     });
 

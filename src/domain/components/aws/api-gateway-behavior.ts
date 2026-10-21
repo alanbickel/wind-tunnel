@@ -10,7 +10,10 @@ import type {
 import { rateGauge } from "../limit-gauges";
 
 /** Rejects a request that finds less than one token in the bucket. */
-const THROTTLED: RefuseWhenFull = { kind: "refuse", reason: "throttled" };
+export const THROTTLED: RefuseWhenFull = {
+  kind: "refuse",
+  reason: "throttled",
+};
 
 export interface ApiGatewayBehaviorDependencies {
   readonly limit: RateLimit;

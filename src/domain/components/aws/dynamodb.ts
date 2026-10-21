@@ -8,7 +8,7 @@ import type {
   BuildContext,
   ComponentDefinition,
 } from "../component-definition";
-import { DynamoDbBehavior } from "./dynamo-db-behavior";
+import { DynamoDbBehavior, THROTTLED } from "./dynamo-db-behavior";
 
 const dynamoDbConfig = z.object({
   /** Provisioned read capacity units per second; each read uses one. */
@@ -46,6 +46,7 @@ export const dynamoDbDefinition: ComponentDefinition<DynamoDbConfig> = {
   },
   actions: ["read", "write"],
   deliversAsync: false,
+  rejectionReasons: [THROTTLED.reason],
   build<T>(
     config: DynamoDbConfig,
     { random }: BuildContext,

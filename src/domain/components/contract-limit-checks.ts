@@ -185,9 +185,11 @@ const AT_PEAK: KindHandlers<LimitGauge, (nowMs: number) => LimitAtPeak> = {
   concurrency:
     ({ kind, limit, inUse }) =>
     () => ({ kind, limit, peak: inUse }),
-  rate:
-    ({ kind, burst, tokensLeft }) =>
-    (nowMs) => ({ kind, limit: burst, peak: burst - tokensLeft(nowMs) }),
+  rate: (gauge) => (nowMs) => ({
+    kind: gauge.kind,
+    limit: gauge.burst,
+    peak: gauge.burst - gauge.tokensLeft(nowMs),
+  }),
 };
 
 const GAUGE_CHECKS: KindHandlers<

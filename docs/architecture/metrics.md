@@ -129,32 +129,43 @@ Two details worth knowing:
 
 A number like "90 connections" means little until you know the limit is 90. Each component declares the limits it enforces, and every snapshot reports each one's use against it ([ADR-0014](../adr/0014-components-report-their-limits.md)):
 
-| Component | Limit | Kind |
-|---|---|---|
-| API Gateway | `requestRate` | rate |
-| Lambda | `concurrency` | concurrency |
-| RDS | `connections`, `queryWorkers` | concurrency |
-| DynamoDB | `readUnits`, `writeUnits` | rate |
-| SQS | `consumerConcurrency` | concurrency |
+| Component | Limit | Kind | When full |
+|---|---|---|---|
+| API Gateway | `requestRate` | rate | refuses: `throttled` |
+| Lambda | `concurrency` | concurrency | refuses: `throttled` |
+| RDS | `connections` | concurrency | refuses: `too-many-connections` |
+| RDS | `queryWorkers` | concurrency | makes work wait, holding `connections` |
+| DynamoDB | `readUnits`, `writeUnits` | rate | refuses: `throttled` |
+| SQS | `consumerConcurrency` | concurrency | makes work wait, holding nothing |
 
 A behavior exposes `limits`, an array of live views built once from its `ConcurrencyLimit`s and `RateLimit`s:
 
 ```ts
 // rds-behavior.ts
 this.limits = [
-  concurrencyGauge({ name: "connections", source: connections }),
-  concurrencyGauge({ name: "queryWorkers", source: workers }),
+  concurrencyGauge({
+    name: "connections",
+    whenFull: TOO_MANY_CONNECTIONS, // { kind: "refuse", reason: "too-many-connections" }
+    source: connections,
+  }),
+  concurrencyGauge({
+    name: "queryWorkers",
+    whenFull: WAIT_HOLDING_CONNECTION, // { kind: "wait", holds: "connections" }
+    source: workers,
+  }),
 ];
 ```
 
-The engine reads every limit after every call into the component, so peaks are exact even when a pool fills and drains between ticks. Each `LimitUse` in a snapshot has a `limit`, its use at the window's end (`current`), and the most used at once during the window (`peak`). For every kind, `peak / limit` runs from 0 to 1. `limitExhausted` says whether the limit ran out, so a request arriving then waited or was rejected; the rule depends on the kind, below.
+**What a full limit does** is the component's declaration, `whenFull` ([ADR-0015](../adr/0015-findings-come-from-registered-detectors.md)). A limit that *refuses* rejects the next request with the declared reason, the one in a failure's cause (`orders-db: too-many-connections`). A limit that *makes work wait* queues it inside the component, and may name another limit of the same component that the waiting work *holds*: a query waiting for an RDS worker keeps its connection, so full workers end in refused connections. A token bucket has no line to wait in, so its type allows only a refusal. The findings read these declarations to explain a run without knowing component types.
+
+The engine reads every limit after every call into the component, so peaks are exact even when a pool fills and drains between ticks. Each `LimitUse` in a snapshot has its `name` and `whenFull`, the same in every snapshot and the totals, so a snapshot says what each limit is without the component's definition. It also has a `limit`, its use at the window's end (`current`), and the most used at once during the window (`peak`). For every kind, `peak / limit` runs from 0 to 1. `limitExhausted` says whether the limit ran out, so a request arriving then waited or was rejected; the rule depends on the kind, below.
 
 - **Concurrency:** slots held. RDS `connections` at 90 of 90 means every connection was taken: the limit is exhausted at `peak >= limit`.
 - **Rate:** a token bucket. Tokens refill at `ratePerSec` up to `limit` (the burst), and each request takes one. Use is how far the bucket was drawn down: tokens missing from a full bucket. A request that finds less than one token is throttled, so the bucket is exhausted once `peak` is over `limit − 1`, short of `peak / limit` = 1. Throttled requests show as `rejected`. Each rate limit also carries its flow: `takenPerSec` against `ratePerSec`.
 
 > **Key concept: a bucket's level and its flow.** Picture a water tank. The tap refills it at `ratePerSec`, and each request scoops some out. The *level* (use) says how much buffer is left; the *flow* (`takenPerSec` against `ratePerSec`) says whether it's filling or draining. You need both. At 9,900 requests per second against a 10,000 rate, the tank stays full and use reads 0%, but a 2% rise in traffic starts it draining. When it is draining, it runs out (below one token) in `(tokensLeft − 1) / (takenPerSec − ratePerSec)` seconds. Whether a given request is throttled depends on the level when it arrives, which is why use is the level and the flow is context. See [API Gateway's throttle](../learning/aws-did-you-know.md#api-gateway-has-account-level-throttling) and [DynamoDB's burst capacity](../learning/aws-did-you-know.md#dynamodb-saves-up-unused-capacity-for-bursts).
 
-[`checkComponentContract`](../../src/domain/components/check-component-contract.ts) checks every limit: the same limits on every read, concurrency use within its limit, a bucket holding between 0 and its burst, and no more tokens taken than the burst plus the rate allow. `limitPeaks` ([`application/run-analysis/`](../../src/application/run-analysis/limit-peaks.ts)) gives each limit's highest use so far, for the CLI report and the run panel.
+[`checkComponentContract`](../../src/domain/components/check-component-contract.ts) checks every limit: the same limits and declarations on every read, a held limit that refuses, concurrency use within its limit, a bucket holding between 0 and its burst, and no more tokens taken than the burst plus the rate allow. It also checks that every rejection's reason is declared by a limit that's exhausted at the time. The tests in [`adapters/templates/rejection-reasons/`](../../src/adapters/templates/rejection-reasons/) check the same in whole template runs, against each second's `LimitUse`, which is what the findings read. `limitPeaks` ([`application/run-analysis/`](../../src/application/run-analysis/limit-peaks.ts)) gives each limit's highest use so far, for the CLI report and the run panel.
 
 ## Type-specific gauges and counters
 

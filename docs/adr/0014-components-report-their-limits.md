@@ -41,3 +41,7 @@ A per-second flow is an exact count, but it can't explain a throttle. It also go
 - Reading a bucket's level after every call must not change the run, so `RateLimit.available` only reads. Before this, it refilled the bucket, which could shift later refills by floating-point steps.
 - A new component type with a limit declares it in its behavior. The engine, the collector, and both displays pick it up without changes.
 - Whether AWS throttles exactly like our bucket (API Gateway's scope, DynamoDB's burst and adaptive capacity) is a fidelity question, tracked in [`docs/design/fidelity.md`](../design/fidelity.md). This ADR only decides what we report.
+
+## Addendum (2026-10-21): what a full limit does
+
+[ADR-0015](0015-findings-come-from-registered-detectors.md) adds a field to the shapes above. Each `LimitGauge`, and so each `LimitUse` in every snapshot and the totals, also carries `whenFull`: whether the limit refuses work (with its rejection reason) or makes it wait (holding which other limit, if any). `concurrencyGauge` and `rateGauge` take it as an input. A rate view may only refuse. The decision here is unchanged.

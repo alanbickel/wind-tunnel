@@ -64,6 +64,8 @@ describe.each(SEEDS)("the lunch rush, with seed %i", (seed) => {
     b = runScenario({ project: projectB, workloadId: "lunch-rush", seed });
   }, RUN_TIMEOUT_MS);
 
+  // Fails if the two templates' lunch rushes differ, such as Template B's
+  // peak cut to 1,900 requests/s.
   it("sends the same requests to both templates", () => {
     for (const id of ["get-order", "create-order"]) {
       expect(b.totals.workflows[id]?.started).toBe(
@@ -99,6 +101,10 @@ describe.each(SEEDS)("the lunch rush, with seed %i", (seed) => {
       });
     });
 
+    // Fails if orders-db's queryWorkers rises to 64: queries stop backing up,
+    // so neither its connections nor fn-orders' concurrency runs out. Raising
+    // maxConnections alone isn't enough: at 5,000, queued queries hold all
+    // 1,000 of fn-orders' executions and it throttles instead.
     it("fails requests in every second of the peak", () => {
       for (const snapshot of during(a.snapshots, PEAK)) {
         expect(failed(snapshot)).toBeGreaterThan(0);
@@ -118,6 +124,8 @@ describe.each(SEEDS)("the lunch rush, with seed %i", (seed) => {
       expect(a.totals.components["orders-db"]?.rejected).toBe(failures);
     });
 
+    // Fails if orders-db's queryWorkers drops to 3: requests are still failing
+    // in the 10 s after the spike.
     it("recovers after the spike", () => {
       const after = during(a.snapshots, AFTER);
       expect(after.map(failed)).toEqual(after.map(() => 0));
@@ -165,6 +173,8 @@ describe.each(SEEDS)("the lunch rush, with seed %i", (seed) => {
       );
     });
 
+    // Fails if orders-queue's consumerMaxConcurrency rises to 20: no backlog
+    // builds, and the writes' p99 lands in about 250 ms.
     it("answers writes quickly while the writes themselves land late", () => {
       const answered = b.totals.workflows["create-order"]?.latency?.p99Ms;
       const landed = b.totals.components["orders-queue"]?.asyncLatency?.p99Ms;

@@ -170,7 +170,7 @@ DynamoDB's read and write buckets both refuse with `throttled`. The detector pic
 
 ### 2.4 How a failure reaches a finding
 
-Two diagrams. The first shows where a rejection reason travels, from the component that rejects to the finding that explains it. The second shows how a detector turns one failure cause into an explanation. Solid boxes are built; dashed ones are designed but not built yet (#62 onward).
+Three diagrams. The first shows where a rejection reason travels, from the component that rejects to the finding that explains it. The second resolves a failure cause to a limit, and the third explains why that limit ran out. Solid boxes in (a) are built; dashed ones are designed but not built yet (#62 onward).
 
 **(a) Where reasons travel.** A component names its reason, the engine attaches the component's ID, and the failure reaches the snapshots unchanged, however many callers it passes through. The declarations travel on a separate path, with each limit's use.
 
@@ -197,43 +197,49 @@ flowchart TB
     classDef planned fill:#fff,stroke:#1168bd,color:#1168bd,stroke-dasharray:5 5
 ```
 
-**(b) How a cause is resolved.** failed-requests makes one finding per cause, and its *limit-refused* helper explains the cause by looking it up in the declarations of that cause's own component. Red boxes are cases no part of the design covers yet.
+**(b) Resolving a cause.** Each failure cause is a component C and a reason R. failed-requests resolves it with one lookup in C's declaration table, the same for every component and every reason; the reason is only the key. A cause has one of three outcomes. Red outcomes are ones the design doesn't yet explain.
 
 ```mermaid
-flowchart TD
-    cause["Failure cause C: R<br/>from workflows.failures"]
-    timeout{"Is R timeout?"}
-    lookup{"Does a limit of C declare<br/>that it refuses with R?"}
-    tout["Failure finding naming C<br/>Nothing explains why C was slow"]:::gap
-    none["Failure finding naming C and R<br/>No limit explains it, and the<br/>wording isn't designed"]:::gap
-    pick["limit-refused: name the declaring limit<br/>exhausted in the failing seconds,<br/>or both if two are (DynamoDB)"]
-    held{"Does a limit of C that makes<br/>work wait hold it?"}
-    rate{"Is it a rate limit?"}
-    whl["waiting-holds-limit note, as the cause<br/>RDS queryWorkers holding connections"]
-    drained["bucket-drained note, as the cause<br/>DynamoDB readUnits in §1.7"]
-    alone["The limit is the whole explanation<br/>Lambda concurrency"]
-    cause --> timeout
-    timeout -->|yes| tout
-    timeout -->|no| lookup
-    lookup -->|no| none
-    lookup -->|yes| pick
-    pick --> held
-    held -->|yes| whl
-    held -->|no| rate
-    rate -->|yes| drained
-    rate -->|no| alone
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart LR
+    engine["Engine timeout<br/>C did not answer in time"]
+    reject["Component rejection<br/>C returned rejected, R"]
+    table[("C's declarations<br/>refusing limit → reason")]
+    lookup["Look up R"]
+    timeout["<b>Timeout at C</b><br/>Cause: not modeled"]:::gap
+    refusal["<b>Refusal by limit L of C</b><br/>Explained in (c)"]
+    other["<b>Rejection by C for R</b><br/>Cause: not capacity; not modeled"]:::gap
+    engine --> timeout
+    reject --> lookup
+    table -.-> lookup
+    lookup -->|"L declares R"| refusal
+    lookup -->|"no limit declares R"| other
     classDef gap fill:#fff,stroke:#b00020,color:#b00020,stroke-dasharray:5 5
 ```
 
-What the two diagrams show:
+**(c) Explaining an exhausted limit.** Why L ran out depends on L's kind and on the declarations of C's other limits, not on the reason. Each rule is a separate detector. Every rule that applies adds a cause note (`causedBy`), so the rules have no order. If none applies, L itself is the root cause.
 
-- **A reason means something only within its component.** A cause is a component and a reason, and only that component's declarations resolve it. Reasons don't need to be unique across types: `throttled` is a token bucket in DynamoDB and a concurrency limit in Lambda. A new type adds entries to its own table, not to a shared list, so the lookup doesn't grow harder as types are added.
-- **Each limit declares one reason; several limits may share one.** The detector tells DynamoDB's two buckets apart by which one was exhausted in the failing seconds.
-- **The waiting half of `whenFull` uses no reasons.** A limit that makes work wait never rejects. It reaches a finding as the cause of another limit's refusals (waiting-holds-limit) or as a backlog (holds nothing).
-- **Reasons survive only on final failures.** `rejected` counts every refused attempt but doesn't keep its reason. A rejection that a retry later rescued shows up in `rejected` alone. retries-absorbed compares a component's `rejected` with its failures by cause. That comparison is exact only while the component refuses with one reason: one with two reasons and retries can't say which reason the rescued attempts had. Counting rejections by reason per component, as workflows count failures by cause, would close this gap.
-- **Of three kinds of cause, only one is designed.** A refusal by a declared limit is covered. A timeout is made by the engine, and no limit declares it, so its finding names the slow component but nothing explains why. A rejection for a reason no limit declares, such as a request that fails validation, would name its cause and nothing more. No component models one yet. Failed async deliveries never reach `workflows.failures` at all: they're counted in the queue's `asyncFailed` (Roadmap M5, item 9).
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 320}}}%%
+flowchart LR
+    limit["<b>Limit L of C</b><br/>refuses, exhausted"]
+    held["<b>waiting-holds-limit</b><br/>Cause: waiting limit W of C exhausted,<br/>and W declares holds L<br/>e.g. RDS queryWorkers → connections"]
+    drained["<b>bucket-drained</b><br/>Cause: takenPerSec over ratePerSec<br/>since the bucket was last full<br/>e.g. DynamoDB readUnits, §1.7"]
+    root["<b>No rule applies</b><br/>L is the root cause<br/>e.g. Lambda concurrency"]
+    limit -->|"a limit of C<br/>holds L"| held
+    limit -->|"L is a rate limit"| drained
+    limit -->|"neither"| root
+```
 
-The component contract and the rejection-reason tests check the lookup's "yes" branch: a reason that a limit declares really comes from that limit when it's full. What a reason with no declaring limit should mean is still open.
+What the diagrams show:
+
+- **Resolution is generic.** It's the same lookup for every component and every reason, so no reason gets its own logic. Reasons don't need to be unique across types (`throttled` is a token bucket in DynamoDB and a concurrency limit in Lambda), and a new type adds entries to its own table only.
+- **One invariant covers the table.** Within a component, a reason that a limit declares is used only for that limit's refusals, and only when the limit is exhausted. The component contract and the rejection-reason tests check this. Reasons no limit declares fall outside it.
+- **Several limits may share a reason.** The detector picks the one exhausted in the failing seconds, or names both (DynamoDB's two buckets).
+- **Waiting limits never appear as causes in (b).** A limit that makes work wait never rejects. It appears in (c) as the cause of another limit's refusals, or as a backlog when it holds nothing.
+- **The engine marks a timeout by its reason.** A failure is a timeout when its reason is `timeout`, so a component must not reject with that reason. Nothing checks this yet.
+- **Reasons survive only on final failures.** `rejected` counts every refused attempt without its reason, so a rejection that a retry rescued appears only in that count. retries-absorbed compares `rejected` with the failures by cause, which is exact only for a component that refuses with one reason. Counting rejections by reason per component would close this gap.
+- **Two outcomes in (b) are unexplained,** shown in red. A timeout names the component that didn't answer, but not why. A rejection for an undeclared reason (none is modeled yet; a failed validation would be one) names its component and reason only. Failed async deliveries never reach `workflows.failures`: they're counted in the queue's `asyncFailed` (Roadmap M5, item 9).
 
 ## 3. The shape
 

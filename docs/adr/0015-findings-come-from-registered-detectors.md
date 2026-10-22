@@ -76,7 +76,7 @@ These are copied into each snapshot's `LimitUse`, so the read model needs only t
 
 **Decision.**
 
-- **A run that isn't failing names a refusing limit that ran out while its component refused work,** instead of quoting the limit closest to refusing work. The line gives the limit, the seconds it was out, how many attempts its component refused in those seconds, and that no request failed with its rejections. A limit that reached its size but refused nothing still has headroom of 0, and keeps the "closest to failing" line at 100.0%. The rule is the same for every run, not only those with queues.
+- **A run that isn't failing names a refusing limit that ran out while its component refused work,** instead of quoting the limit closest to refusing work. The line gives the limit, the seconds it was out, how many attempts its component refused in those seconds, and that no request failed with its rejections. A limit that reached its size but refused nothing still has headroom of 0, and keeps the "closest to failing" line at 100.0%. That line still names the highest share among the refusing limits that didn't refuse, so a run can show both lines. The rule is the same for every run, not only those with queues.
 - **The catalog is also keyed by component type and finding kind,** for fixes that depend on what happened at a component rather than on one of its limits, such as SQS's redrive policy under failed deliveries.
 
 **Consequences.**

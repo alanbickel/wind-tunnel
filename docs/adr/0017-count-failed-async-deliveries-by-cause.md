@@ -19,11 +19,11 @@ The findings design for such a run ([§1.8](../design/findings.md#18-variant-tem
 
 1. **The engine reports the cause of a failed delivery.** `ComponentAsyncFinishedEvent` carries the `Failure` that ended a failed delivery, or none for one that succeeded, as `workflow-finished` carries a request's.
 2. **Metrics count failed deliveries by cause.** `ComponentMetrics` gains `asyncFailures`, failed deliveries by cause, keyed in the same `"<component>: <reason>"` form as `workflows.failures`. `asyncFailed` stays, and equals the sum of `asyncFailures`; a reconcile test checks it.
-3. **The precedent:** where the engine counts work that ended in failure, the count carries the failure's cause, so a finding can trace it instead of inferring it.
+3. **The precedent:** where the engine counts a final outcome, a request's or a delivery's, a failed outcome carries its cause, so a finding can trace it instead of inferring it.
 
 ## Consequences
 
 - A failed-deliveries detector resolves each cause to its limit with the same lookup as failed-requests (ADR-0015), and retries-absorbed can tell a refusal that a queue redelivered from one that a caller retried.
 - `MetricsSnapshot` changes shape. Snapshots aren't persisted, so no stored data needs migrating, but every place that builds a `ComponentMetrics` (the collector and test fixtures such as `sample-snapshots.ts`) gains the field.
 - Snapshots grow by one record per component; it's empty for every component but a queue whose deliveries failed.
-- The rule doesn't reach `rejected`, which counts refused attempts, retried ones included, without their reason (§2.4). That's a refusal, not work that ended in failure, so it's out of scope here; counting rejections by reason would follow the same pattern if a detector needs it.
+- The rule doesn't reach the per-component counts of attempts, which aren't final outcomes. `rejected` counts refused attempts, retried ones included, without their reason (§2.4). `failed` counts a component's work that ended because a nested call failed (fn-writer's 90 in §1.8); its cause is that call's, and it reaches the request's or the delivery's outcome. `timeouts` counts callers that gave up, and is itself a cause, the callee and `timeout`. Counting any of them by cause would follow the same pattern if a detector needs it.

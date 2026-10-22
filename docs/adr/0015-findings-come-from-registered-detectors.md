@@ -20,6 +20,8 @@ A run screen full of tables and charts leaves the diagnosis to the reader. M5's 
 - A detector returns whole findings, and `findRun` nests them only by cause. A sentence that adds to another detector's finding, such as which limit refused the failed requests, is a helper that detector calls, not a registered detector.
 - Detectors are generic: none branches on a component's type. What a type knows reaches them through its limit declarations, below, and through a catalog of fixes and AWS facts keyed by component type and limit.
 
+> **Changed by the [addendum of 2026-10-22 (failed deliveries)](#addendum-2026-10-22-failed-deliveries).**
+
 **Components declare what each limit does when it's full.** Alongside ADR-0014's `LimitGauge`, a limit declares:
 
 - whether it **refuses** work when full (RDS `connections`, Lambda `concurrency`, every token bucket) or **makes it wait** (RDS `queryWorkers`, SQS `consumerConcurrency`);
@@ -35,6 +37,8 @@ These are copied into each snapshot's `LimitUse`, so the read model needs only t
 **Rules fire on exact states, not tuned thresholds:** a failed request, an exhausted limit, a message still waiting at a second's end, or a latency past a timeout the project sets. A percentile compared with a timeout says when the comparison is within the histogram's error.
 
 **Every run has a verdict:** *failing* if any finding is a failure, *degraded* if any is a warning, otherwise *healthy*. It gives the request counts, and, unless the run is failing, the limit closest to refusing work, with its peak and limit. A peak that came only during cold starts is given with that context, and never hidden.
+
+> **Changed by the [addendum of 2026-10-22 (failed deliveries)](#addendum-2026-10-22-failed-deliveries).**
 
 **Every fix carries its evidence.** A fix is Documented (with a URL), Observed (with its source, such as a scenario test), or an Assumption, and names the fidelity entries that could change it. A test checks that each catalog entry has one.
 
@@ -65,3 +69,18 @@ These are copied into each snapshot's `LimitUse`, so the read model needs only t
 - One note can show beneath several findings: a note that names no limit shows beneath every finding at its component, such as a refusal and a timeout there.
 - Consumers that need a finding's component or reason read the key's fields. Turning a kind into words for the run panel is Roadmap item 10.
 - The shape in the [findings design §3.1](../design/findings.md#31-a-finding) still shows `id` and `detectorId`; its "As built" notes say what changed.
+
+## Addendum, 2026-10-22 (failed deliveries)
+
+**Context.** A queue's delivery can fail when a component it calls refuses, and the queue tries the message again, so no request fails ([findings design §1.8](../design/findings.md#18-variant-template-b-lunch-rush-database-connections-cut-to-10-healthy-with-failed-deliveries)). Two points above don't fit that run. The verdict quotes "the limit closest to refusing work" as headroom, but there the limit was out and refused 90 attempts: it read "at most 10 of 10 (100.0%)", which hides the refusals. And the fix that belongs to a failed delivery, a redrive policy with a dead-letter queue, is advice about the queue under that kind of finding, not about the refusing limit, so a catalog keyed only by type and limit has nowhere to put it. Found while designing the failed-deliveries finding ([#69](https://github.com/alanbickel/wind-tunnel/issues/69)).
+
+**Decision.**
+
+- **A run that isn't failing names a refusing limit that ran out while its component refused work,** instead of quoting the limit closest to refusing work. The line gives the limit, the seconds it was out, how many attempts its component refused in those seconds, and that no request failed with its rejections. A limit that reached its size but refused nothing still has headroom of 0, and keeps the "closest to failing" line at 100.0%. The rule is the same for every run, not only those with queues.
+- **The catalog is also keyed by component type and finding kind,** for fixes that depend on what happened at a component rather than on one of its limits, such as SQS's redrive policy under failed deliveries.
+
+**Consequences.**
+
+- The verdict reads each refusing component's `rejected` per snapshot, alongside its limits' peaks.
+- `rejected` doesn't split refusals by limit, so when two refusing limits of one component ran out (DynamoDB's read and write buckets), the line names both with one count.
+- A finding's fixes can come from two catalog entries, the limit's and the kind's. The rule that a note leaves out fixes already shown above it still compares catalog entries.

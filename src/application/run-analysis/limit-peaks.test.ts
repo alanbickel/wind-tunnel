@@ -44,7 +44,8 @@ const snapshots = [
 
 describe("limitPeaks", () => {
   // Fails if the peak or the busiest flow is the latest second's rather than
-  // the highest, or if the rows leave architecture order.
+  // the highest, if the rows leave architecture order, or if a row drops
+  // what the limit does when it's full.
   it("gives each limit its highest peak so far, in architecture order", () => {
     expect(limitPeaks({ project, workloadId: "steady", snapshots })).toEqual([
       {

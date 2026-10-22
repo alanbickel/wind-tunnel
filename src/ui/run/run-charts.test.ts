@@ -29,6 +29,8 @@ const snapshots = [
 ];
 
 describe("runCharts", () => {
+  // Fails if a series plots the running total instead of the second's
+  // count, or in progress isn't carried from second to second.
   it("counts requests per second, with the running total in progress", () => {
     const requests = chartTitled(
       runCharts({ project, workloadId: "steady", snapshots }),
@@ -54,6 +56,7 @@ describe("runCharts", () => {
     ]);
   });
 
+  // Fails if a second without latency is plotted as 0 instead of left out.
   it("leaves a gap in latency for a second with no successful request", () => {
     const charts = runCharts({ project, workloadId: "steady", snapshots });
 
@@ -63,6 +66,8 @@ describe("runCharts", () => {
     expect(valuesOf(latencyChart, "read")).toEqual([[1, 30]]);
   });
 
+  // Fails if a component's series appears only once it has work, which
+  // would shift the colors of the series after it.
   it("draws every component from the start, so colors don't shift", () => {
     const first = runCharts({
       project,
@@ -87,6 +92,8 @@ describe("runCharts", () => {
     ]);
   });
 
+  // Fails if a chart, or a chart's series, is missing until the first
+  // snapshot arrives.
   it("has every chart's series, with no points, before the first snapshot", () => {
     const charts = runCharts({ project, workloadId: "steady", snapshots: [] });
 

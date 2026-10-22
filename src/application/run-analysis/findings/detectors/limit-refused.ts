@@ -209,9 +209,9 @@ function attemptsAndRequests({
 }
 
 /**
- * Walks back from the first failure while a named limit stays out: the
- * cause may have begun before the first request failed, for example while
- * retries still got every request through.
+ * Walks back from the first failure while a named limit that was out then
+ * stays out: the cause may have begun before the first request failed, for
+ * example while retries still got every request through.
  */
 function earlierStart(
   named: readonly LimitExhaustion[],
@@ -236,8 +236,13 @@ interface WalkBackInput {
   readonly from: number;
 }
 
-/** The first index of the unbroken run of seconds out that ends at `from`. */
+/**
+ * The first index of the unbroken run of seconds out that ends at `from`,
+ * or `from` if the limit wasn't out then: a run that ended earlier doesn't
+ * lead into the first failure.
+ */
 function firstOfRun({ run, ref, from }: WalkBackInput): number {
+  if (!exhaustedIn(run.snapshots[from], ref)) return from;
   let index = from;
   while (index > 0 && exhaustedIn(run.snapshots[index - 1], ref)) index--;
   return index;

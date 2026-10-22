@@ -20,6 +20,12 @@ const readUnits = (peak: number): LimitUse => ({
   takenPerSec: 60,
 });
 
+/** table's write bucket of 100 tokens, which refuses as `readUnits` does. */
+const writeUnits = (peak: number): LimitUse => ({
+  ...readUnits(peak),
+  name: "writeUnits",
+});
+
 const THROTTLED = "table: throttled";
 
 /** Every sentence of the finding, as plain text. */
@@ -80,6 +86,35 @@ describe("failed-requests", () => {
   it("walks back to where the limit first ran out", () => {
     const [finding] = detector.detect(sampleRun(throttled));
     expect(finding?.causeWindow).toEqual({ fromMs: 0, toMs: 3_000 });
+  });
+
+  // Fails if the walk-back follows a named limit that wasn't out at the
+  // first failure: writeUnits' run of seconds out ended before it.
+  it("walks back only along a limit that was out at the first failure", () => {
+    const failing = {
+      started: 1,
+      failed: 1,
+      failures: { [THROTTLED]: 1 },
+    };
+    const snapshots = [
+      sampleSnapshot({ second: 1, table: { limits: [writeUnits(100)] } }),
+      sampleSnapshot({
+        second: 2,
+        table: { limits: [readUnits(100), writeUnits(100)] },
+      }),
+      sampleSnapshot({
+        second: 3,
+        read: failing,
+        table: { rejected: 1, limits: [readUnits(100), writeUnits(10)] },
+      }),
+      sampleSnapshot({
+        second: 4,
+        read: failing,
+        table: { rejected: 1, limits: [readUnits(100), writeUnits(100)] },
+      }),
+    ];
+    const [finding] = detector.detect(sampleRun(snapshots));
+    expect(finding?.causeWindow).toEqual({ fromMs: 1_000, toMs: 4_000 });
   });
 
   // Fails if refused attempts are equated with failed requests when the

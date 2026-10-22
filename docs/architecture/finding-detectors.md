@@ -9,7 +9,7 @@ A run's tables show what happened. A **finding** says what it means: what broke 
 | Field | Holds |
 |---|---|
 | `key` | Which finding it is: its `kind` (the detector's ID), its `componentId` (where), and a `reason` or `limitName` when a kind needs one to tell two findings at a component apart. Compared field by field, never joined into a string |
-| `severity` | `failure` (requests failed), `warning` (work finished later than the project's own timeout lets a caller wait), or `note` |
+| `severity` | `failure` (requests failed), `warning` (work finished later than the project's own timeout lets a caller wait, or messages were still waiting when a finished run ended), or `note` |
 | `limitNames` | The component's limits the finding is about: the ones that refused its requests, or the one a note reads |
 | `window`, `causeWindow` | When. `causeWindow` starts earlier when the cause began before the first bad second |
 | `summary`, `reasons` | The sentences, as a `Message`: text, numbers with a unit, component references, and times |
@@ -28,8 +28,10 @@ flowchart LR
     S --> D2["late-async-work"]
     S --> D3["waiting-holds-limit"]
     S --> D4["bucket-drained"]
-    C["catalog/<br/>fixes by type and limit"] -.-> D1 & D2 & D3 & D4
-    D1 & D2 & D3 & D4 -->|"DetectedFinding[]"| F["findRun<br/>link causes, nest, order, verdict"]
+    S --> D5["retries-absorbed"]
+    S --> D6["backlog"]
+    C["catalog/<br/>fixes by type and limit"] -.-> D1 & D2 & D3 & D4 & D5 & D6
+    D1 & D2 & D3 & D4 & D5 & D6 -->|"DetectedFinding[]"| F["findRun<br/>link causes, nest, order, verdict"]
     S --> F
     F -->|"RunFindings"| CLI["findings-report.ts<br/>adapters/cli/"]
     F -->|"RunFindings"| UI["run panel<br/>(Roadmap M5)"]
@@ -48,7 +50,7 @@ flowchart LR
 ## Rules every detector keeps
 
 - **Generic.** No detector branches on a component's type. What a type knows comes from its limit declarations (`LimitUse.whenFull`: refuse with which reason, or wait holding which limit) and the catalog. Choose between behaviors with lookup maps (CONTRIBUTING rule 4).
-- **Exact states, no tuned thresholds.** A detector fires on a failed request, an exhausted limit (`limitExhausted`), or a latency past a timeout the project sets. A percentile is a bucket's upper bound, so a comparison within `PERCENTILE_ERROR` says so.
+- **Exact states, no tuned thresholds.** A detector fires on a failed request, an exhausted limit (`limitExhausted`), a message still waiting at the end of a second, or a latency past a timeout the project sets. A percentile is a bucket's upper bound, so a comparison within `PERCENTILE_ERROR` says so.
 - **Snapshots only.** `RunSoFar` holds per-second snapshots, which is all the browser has. Percentiles of separate seconds can't be merged into the run's, so a detector quotes per-second percentiles and exact maxima.
 - **Pure and cheap.** The same run gives the same findings in the same order, and the run panel calls `findRun` as snapshots arrive, so read the snapshots in one pass.
 - **Whole findings.** A detector returns whole findings, with keys that are stable across re-runs: its own ID as the `kind`, the component, and a reason or limit if the kind needs one. A sentence that adds to another detector's finding is a helper that detector calls, not a detector.
@@ -68,6 +70,9 @@ A failure finding can't see the other detectors' findings, so it can't cite its 
 |---|---|---|---|
 | waiting-holds-limit | the waiting limit (RDS `queryWorkers`) | the limit its waiting work holds (`connections`) | §1.1's refused connections |
 | bucket-drained | the bucket (DynamoDB `readUnits`) | the same bucket | §1.7's throttled reads |
+| backlog | the waiting limit that holds nothing (SQS `consumerConcurrency`) | the same limit | §1.5's and §1.7's late writes; at the top level in §1.4, which has none |
+
+retries-absorbed explains nothing, so it shows at the top level.
 
 A failure and its cause often share a fix: raising RDS `queryWorkers` is advice for both `connections` and `queryWorkers`. The catalog uses one `Fix` object for both, and a note beneath a finding leaves out the fixes, and the Learn more, that a finding above it already shows.
 
@@ -108,6 +113,6 @@ Findings
         Cause began at 11 s.
 ```
 
-failed-requests found one cause in the workflows' `failures`, so it wrote one finding whose `affected` is that cause's 28,841 failures. To name the limit, it looked up orders-db's limits that declare they refuse with `too-many-connections`, and found `connections` exhausted in every failing second (the *limit-refused* part). Refused attempts equal failed requests because nothing retried them; in [findings.md §1.7](../design/findings.md#17-variant-template-b-long-rush-read-capacity-cut-to-1500-a-second-failing), retries make them differ, and the finding says "attempts aren't requests". The last two lines of finding 1 are the *recovery* part.
+failed-requests found one cause in the workflows' `failures`, so it wrote one finding whose `affected` is that cause's 28,841 failures. To name the limit, it looked up orders-db's limits that declare they refuse with `too-many-connections`, and found `connections` exhausted in every failing second (the *limit-refused* part). Refused attempts equal failed requests because nothing retried them, so the finding says so. In [findings.md §1.7](../design/findings.md#17-variant-template-b-long-rush-read-capacity-cut-to-1500-a-second-failing), retries make them differ: the finding leaves the comparison to a retries-absorbed note, so the report says it once. The last two lines of finding 1 are the *recovery* part.
 
 Note 1.1 says why the connections ran out. orders-db's `queryWorkers` declare that they make work wait, holding `connections`. They were out from 11 s, so waiting-holds-limit wrote a note about `queryWorkers` that explains `connections`. Finding 1 is about `connections`, so `findRun` put the note beneath it. The note shows no fixes of its own: its catalog entry's three fixes are all among finding 1's.

@@ -4,9 +4,11 @@ import {
   findRun,
   type RunFindings,
 } from "../../../application/run-analysis/findings/find-run";
+import { BACKLOG } from "../../../application/run-analysis/findings/detectors/backlog";
 import { BUCKET_DRAINED } from "../../../application/run-analysis/findings/detectors/bucket-drained";
 import { FAILED_REQUESTS } from "../../../application/run-analysis/findings/detectors/failed-requests";
 import { LATE_ASYNC_WORK } from "../../../application/run-analysis/findings/detectors/late-async-work";
+import { RETRIES_ABSORBED } from "../../../application/run-analysis/findings/detectors/retries-absorbed";
 import { WAITING_HOLDS_LIMIT } from "../../../application/run-analysis/findings/detectors/waiting-holds-limit";
 import type {
   Finding,
@@ -84,6 +86,14 @@ export function bucketDrained(
   limitName: string,
 ): FindingKey {
   return findingKey({ kind: BUCKET_DRAINED, componentId, limitName });
+}
+
+export function retriesAbsorbed(componentId: string): FindingKey {
+  return findingKey({ kind: RETRIES_ABSORBED, componentId });
+}
+
+export function backlog(queueId: string, limitName: string): FindingKey {
+  return findingKey({ kind: BACKLOG, componentId: queueId, limitName });
 }
 
 /** A run and what `findRun` made of it. */

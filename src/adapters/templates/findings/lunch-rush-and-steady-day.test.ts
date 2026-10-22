@@ -1,4 +1,5 @@
 import {
+  backlog,
   describeFindings,
   failedRequests,
   waitingHoldsLimit,
@@ -46,7 +47,19 @@ describeFindings([
     project: projectB,
     workloadId: "lunch-rush",
     reading: "1.4",
-    findings: [],
+    findings: [
+      {
+        key: backlog("orders-queue", "consumerConcurrency"),
+        causeFromMs: 15_000,
+        // findings.md §1.4, sentences 1 to 3.
+        sentences: [
+          "Messages waited for orders-queue's consumerConcurrency from 17 s, and its backlog was empty by 54 s.",
+          "All 15 of its consumerConcurrency were busy in every second from 15 s to 54 s, so messages arriving then waited for one. They were also all busy in 1 other second.",
+          "It peaked at 1,937 messages in the second ending at 43 s. From 17 s to then, messages arrived at 385 a second and were delivered at 312, so it grew by about 73 a second.",
+          "Deliveries in those seconds landed up to 6.2 s after their requests; the highest p99 of a second was 6.2 s.",
+        ],
+      },
+    ],
   },
   {
     name: "Template B, steady day",

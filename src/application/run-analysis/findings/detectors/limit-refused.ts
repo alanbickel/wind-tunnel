@@ -174,8 +174,9 @@ function exhaustionEvidence(
 type AttemptsPart = Pick<LimitRefusal, "reasons" | "evidence">;
 
 /**
- * Refused attempts against failed requests: equal when nothing retried
- * them, more when callers retried, since attempts aren't requests.
+ * Refused attempts against failed requests, when they're equal: nothing
+ * retried them. When callers retried, the retries-absorbed note compares
+ * them, so the sentence appears once.
  */
 function attemptsAndRequests({
   run,
@@ -183,16 +184,12 @@ function attemptsAndRequests({
   failedAtComponent,
 }: LimitRefusedInput): AttemptsPart {
   const { componentId } = cause;
-  const rejected = run.snapshots.reduce(
-    (n, s) => n + (s.components[componentId]?.rejected ?? 0),
-    0,
-  );
-  const reason =
-    rejected === failedAtComponent
-      ? say`${component(componentId)} refused ${count(rejected)} ${plural(rejected, ["attempt", "attempts"])}, and each one failed a request.`
-      : say`${component(componentId)} refused ${count(rejected)} attempts, but ${count(failedAtComponent)} requests failed with its rejections: callers retried, so attempts aren't requests.`;
+  const rejected = rejectedAt(run, componentId);
+  if (rejected !== failedAtComponent) return { reasons: [], evidence: [] };
   return {
-    reasons: [reason],
+    reasons: [
+      say`${component(componentId)} refused ${count(rejected)} ${plural(rejected, ["attempt", "attempts"])}, and each one failed a request.`,
+    ],
     evidence: [
       {
         what: `${componentId}: attempts rejected`,
@@ -206,6 +203,14 @@ function attemptsAndRequests({
       },
     ],
   };
+}
+
+/** Attempts the component refused so far, retried ones included. */
+function rejectedAt(run: RunSoFar, componentId: string): number {
+  return run.snapshots.reduce(
+    (n, s) => n + (s.components[componentId]?.rejected ?? 0),
+    0,
+  );
 }
 
 /**

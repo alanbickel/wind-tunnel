@@ -123,19 +123,33 @@ describe("failed-requests", () => {
     expect(finding?.causeWindow).toEqual({ fromMs: 1_000, toMs: 4_000 });
   });
 
-  // Fails if refused attempts are equated with failed requests when the
-  // caller retried, or the limit behind the reason isn't named.
-  it("names the bucket, and says attempts aren't requests", () => {
+  // Fails if the limit behind the reason isn't named, or the finding
+  // compares refused attempts with failed requests when the caller retried:
+  // the retries-absorbed note says that, so the report says it once.
+  it("names the bucket, and leaves retried attempts to retries-absorbed", () => {
     const [finding] = detector.detect(sampleRun(throttled));
     expect(sentences(finding)).toEqual([
       "3 requests failed with table: throttled, from 1000ms to 3000ms.",
       "That's 3 Read item requests, 0.1 of the 30 answered.",
       "The most in one second was 2, in the second ending at 2000ms.",
       "table's readUnits bucket, which holds 100 tokens, had less than one left in every second with these failures.",
-      "table refused 17 attempts, but 3 requests failed with its rejections: callers retried, so attempts aren't requests.",
       "The last failure was in the second ending at 3000ms, and none followed in the 2000 after it.",
       "After it, table's readUnits peaked at 10 of 100 tokens drawn.",
     ]);
+  });
+
+  // Fails if the finding stops saying that refused attempts and failed
+  // requests are equal when nothing retried them.
+  it("says each refused attempt failed a request when nothing retried", () => {
+    const once = sampleSnapshot({
+      second: 1,
+      read: { started: 2, failed: 2, failures: { [THROTTLED]: 2 } },
+      table: { rejected: 2, limits: [readUnits(100)] },
+    });
+    const [finding] = detector.detect(sampleRun([once]));
+    expect(sentences(finding)).toContain(
+      "table refused 2 attempts, and each one failed a request.",
+    );
   });
 
   // Fails if the catalog's advice for the named limit isn't attached.

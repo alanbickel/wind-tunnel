@@ -85,7 +85,8 @@ export interface Explains {
 /**
  * - `failure`: requests failed;
  * - `warning`: nothing failed, but work finished later than the project's
- *   own timeout lets a synchronous caller wait;
+ *   own timeout lets a synchronous caller wait, or messages were still
+ *   waiting when a finished run ended;
  * - `note`: worth knowing, or the cause of another finding.
  *
  * Requests still in progress when a run ends are normal: they appear only

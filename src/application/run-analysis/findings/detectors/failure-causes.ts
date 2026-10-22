@@ -33,6 +33,19 @@ export function isTimeout(cause: FailureCause): boolean {
 }
 
 /**
+ * Requests that failed because the component rejected them, over all its
+ * reasons; timeouts at the component don't count.
+ */
+export function failedWithRejections(
+  causes: readonly FailureCause[],
+  componentId: string,
+): number {
+  return causes
+    .filter((c) => c.componentId === componentId && !isTimeout(c))
+    .reduce((n, c) => n + c.failed, 0);
+}
+
+/**
  * Every cause of failed requests so far, in the order each first failed,
  * read in one pass over the snapshots.
  */

@@ -1,9 +1,11 @@
 import { createFindingsCatalog } from "./catalog/create-findings-catalog";
 import type { FindingsCatalog } from "./catalog/type-advice";
 import type { Detector } from "./detector";
+import { backlogDetector } from "./detectors/backlog";
 import { bucketDrainedDetector } from "./detectors/bucket-drained";
 import { failedRequestsDetector } from "./detectors/failed-requests";
 import { lateAsyncWorkDetector } from "./detectors/late-async-work";
+import { retriesAbsorbedDetector } from "./detectors/retries-absorbed";
 import { waitingHoldsLimitDetector } from "./detectors/waiting-holds-limit";
 
 /**
@@ -18,5 +20,7 @@ export function createDetectors(
     lateAsyncWorkDetector(catalog),
     waitingHoldsLimitDetector(catalog),
     bucketDrainedDetector(catalog),
+    retriesAbsorbedDetector(catalog),
+    backlogDetector(catalog),
   ];
 }

@@ -15,7 +15,12 @@ import {
 } from "../message";
 import { findingKey } from "../finding-key";
 import { spanOf } from "../time-window";
-import { failureCauses, isTimeout, type FailureCause } from "./failure-causes";
+import {
+  failedWithRejections,
+  failureCauses,
+  isTimeout,
+  type FailureCause,
+} from "./failure-causes";
 import { limitRefused, type LimitRefusal } from "./limit-refused";
 import { recovery } from "./recovery";
 
@@ -100,9 +105,7 @@ function refusalOf(
   { run, causes }: FailureContext,
 ): LimitRefusal | undefined {
   if (isTimeout(cause)) return undefined;
-  const failedAtComponent = causes
-    .filter((c) => c.componentId === cause.componentId && !isTimeout(c))
-    .reduce((n, c) => n + c.failed, 0);
+  const failedAtComponent = failedWithRejections(causes, cause.componentId);
   return limitRefused({ run, cause, failedAtComponent });
 }
 

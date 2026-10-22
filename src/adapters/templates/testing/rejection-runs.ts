@@ -107,10 +107,36 @@ export function withReadUnitsPerSec(
   project: Project,
   readUnitsPerSec: number,
 ): Project {
+  return withConfig(project, {
+    id: "orders-read",
+    config: { readUnitsPerSec },
+  });
+}
+
+/**
+ * The project with orders-queue's `consumerMaxConcurrency` replaced: with
+ * fewer consumers, Template B's lunch-rush backlog outlasts the run. Built
+ * in tests only; the template keeps its setting.
+ */
+export function withConsumerMaxConcurrency(
+  project: Project,
+  consumerMaxConcurrency: number,
+): Project {
+  return withConfig(project, {
+    id: "orders-queue",
+    config: { consumerMaxConcurrency },
+  });
+}
+
+/** A component, and the settings of its config to replace. */
+interface ConfigChange {
+  readonly id: string;
+  readonly config: Readonly<Record<string, unknown>>;
+}
+
+function withConfig(project: Project, { id, config }: ConfigChange): Project {
   const components = project.architecture.components.map((c) =>
-    c.id === "orders-read"
-      ? { ...c, config: { ...c.config, readUnitsPerSec } }
-      : c,
+    c.id === id ? { ...c, config: { ...c.config, ...config } } : c,
   );
   return { ...project, architecture: { ...project.architecture, components } };
 }

@@ -20,10 +20,13 @@ export function spanOf({ snapshots, first, last }: SpanInput): TimeWindow {
 export interface SecondsTally {
   /** The first such index, or undefined if none has been read. */
   first: number | undefined;
+  /** The last index read; 0 until one is. */
   last: number;
+  /** How many indexes were read. */
   count: number;
 }
 
+/** A tally with no seconds read. */
 export function noSeconds(): SecondsTally {
   return { first: undefined, last: 0, count: 0 };
 }

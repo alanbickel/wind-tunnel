@@ -254,7 +254,7 @@ function evidenceOf({ bucket, tally, drain }: DrainedFindingInput): Evidence[] {
       source: "snapshots",
     },
     {
-      what: `${name}: seconds in the drain (from the last second ending with current < 1, to the first second out)`,
+      what: `${name}: seconds in the drain (after the last second ending with current < 1, through the first second out)`,
       value: drain.seconds,
       source: "snapshots",
     },

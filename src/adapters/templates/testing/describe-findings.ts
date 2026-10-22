@@ -50,6 +50,7 @@ export function describeFindings(cases: readonly FindingsCase[]): void {
     const read = readRunOf(c);
     itCountsEachCause(read);
     itSpansEachCause(read);
+    itStartsNoCauseEarly(read);
     itReconcilesTheVerdict(read);
     itListsTheFindings(read, c.findingIds);
     itPrintsTheQuotedVerdict(read, c.reading);
@@ -70,8 +71,7 @@ function readRunOf({ project, workloadId }: FindingsCase): ReadRunGetter {
 }
 
 function itCountsEachCause(read: ReadRunGetter): void {
-  // Fails if a cause gets no finding (a timeout, or a reason no limit
-  // declares, being skipped), two findings, or a count other than the
+  // Fails if a cause gets no finding or two, or a count other than the
   // failures the totals give it.
   it("gives each failure cause one finding, counting its failed requests", () => {
     const { run, findings } = read();
@@ -99,6 +99,19 @@ function itSpansEachCause(read: ReadRunGetter): void {
       expect(finding.window, finding.id).toEqual(
         secondsWith(run.snapshots, cause),
       );
+    }
+  });
+}
+
+function itStartsNoCauseEarly(read: ReadRunGetter): void {
+  // Fails if failed-requests walks back along a limit that wasn't out
+  // before the first failure. In every shipped run, the limits it names run
+  // out in exactly the failing seconds (findings.md §3.1); the earlier
+  // starts belong to the note detectors, so their arrival shows up here.
+  it("gives no failure finding a cause window before its first failure", () => {
+    const { findings } = read();
+    for (const finding of failureFindings(findings)) {
+      expect(finding.causeWindow, finding.id).toBeUndefined();
     }
   });
 }

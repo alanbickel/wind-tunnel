@@ -289,6 +289,8 @@ interface TimeWindow { readonly fromMs: number; readonly toMs: number }
 - **The cause can come first.** `causeWindow` starts when the cause began: 11 s for Template A's line (window 14–47 s), 19 s for the variant's drain (window 95–141 s). The panel shades both. Detectors find it by walking back from the window through the per-second state, not by looking only inside the window.
 - **Fixes carry evidence.** A `Fix` has a message and a claim: `documented` (URL), `observed` (source), or `assumption`, plus fidelity IDs. A fix without a source can't be built.
 
+As built (#62), failed-requests' `causeWindow` walks back only along the refusing limits it names, while one stays out. In §1.1 and §1.7 those limits run out in exactly the failing seconds, so neither failure finding has a `causeWindow`. The 11 s and 19 s starts belong to the note findings for the waiting limit and the drained bucket, which come later (Roadmap item 8).
+
 As built (#62), `Fix` also has a `scope` (`wind-tunnel` or `aws`), a Documented claim carries its link's title, and an Observed claim names a test file and the test in it. `Evidence` is a number, what it is, and its source. [`finding.ts`](../../src/application/run-analysis/findings/finding.ts) is the reference; the [findings guide](../architecture/finding-detectors.md) shows a finding printed.
 
 ### 3.2 Severity

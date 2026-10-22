@@ -108,8 +108,8 @@ describe("waiting-holds-limit", () => {
       "Requests waited for table's workers, holding its slots while they waited.",
       "All 2 of its workers were busy in every second from 2000ms to 5000ms, so requests arriving then waited for one. They were also all busy in 1 other second.",
       "Each waiting request holds one of its slots: 2 running and up to 2 waiting is 4, and its slots peaked at 4 of 4.",
-      "Its slots ran out in 2 seconds from 3000ms to 5000ms, 1000 after the waiting began at 2000ms.",
-      "While its slots were out, table finished 2 requests a second on average, against 5 arriving.",
+      "Its slots ran out while its workers were all busy in 2 seconds from 3000ms to 5000ms, 1000 after the waiting began at 2000ms.",
+      "While its workers were all busy and its slots were out, table finished 2 requests a second on average, against 5 arriving.",
     ]);
   });
 
@@ -122,16 +122,25 @@ describe("waiting-holds-limit", () => {
     expect(sentences(finding).slice(1)).toEqual([
       "All 2 of its workers were busy in 2 seconds from 1000ms to 3000ms, so requests arriving then waited for one.",
       "Each waiting request holds one of its slots: 2 running and up to 1 waiting is 3, and its slots peaked at 3 of 4.",
-      "Its slots never ran out, so no request was refused for one.",
-      "While its workers were out, table finished 2 requests a second on average, against 3 arriving.",
+      "Its slots never ran out while its workers were all busy.",
+      "While its workers were all busy, table finished 2 requests a second on average, against 3 arriving.",
     ]);
   });
 
   // Fails if findRun hides a note that explains nothing, or nests it
-  // beneath a finding it doesn't explain.
+  // beneath a finding it doesn't explain: here, timeouts at the same
+  // component, which no limit refused.
   it("shows at the top level when it explains no other finding", () => {
-    const { findings } = findRun(sampleRun(slotsHeld), createDetectors());
-    expect(findings.map((n) => [n.finding.key.kind, n.causes.length])).toEqual([
+    const timedOut = sampleSnapshot({
+      second: 5,
+      table: { limits: [workers(1), slots(1)] },
+      read: { started: 1, failed: 1, failures: { "table: timeout": 1 } },
+    });
+    const run = sampleRun([...slotsHeld, timedOut]);
+    const { findings } = findRun(run, createDetectors());
+    const tree = findings.map((n) => [n.finding.key.kind, n.causes.length]);
+    expect(tree).toEqual([
+      ["failed-requests", 0],
       ["waiting-holds-limit", 0],
     ]);
   });

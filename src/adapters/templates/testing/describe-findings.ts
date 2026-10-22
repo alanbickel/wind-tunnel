@@ -104,10 +104,11 @@ function itSpansEachCause(read: ReadRunGetter): void {
 }
 
 function itStartsNoCauseEarly(read: ReadRunGetter): void {
-  // Fails if failed-requests walks back along a limit that wasn't out
-  // before the first failure. In every shipped run, the limits it names run
-  // out in exactly the failing seconds (findings.md §3.1); the earlier
-  // starts belong to the note detectors, so their arrival shows up here.
+  // Fails if failed-requests' walk-back stops checking whether the limit was
+  // out, or a failure finding gets a cause window in a shipped run. In every
+  // shipped run, the limits it names run out in exactly the failing seconds
+  // (findings.md §3.1); the earlier starts belong on the note detectors' own
+  // findings, so their arrival shows up here.
   it("gives no failure finding a cause window before its first failure", () => {
     const { findings } = read();
     for (const finding of failureFindings(findings)) {

@@ -128,3 +128,10 @@ The AWS SDKs automatically retry `ProvisionedThroughputExceededException`. Dynam
 
 **At scale:** throttling often shows up as latency, not errors. Requests slow down by seconds while the SDK retries, and errors appear only once retries run out.
 **Source:** [DynamoDB error handling](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html), [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html), [DynamoDB provisioned capacity](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html)
+
+### A failed SQS message waits out the visibility timeout before it's retried
+
+When a Lambda function fails on an SQS message, the message isn't retried at once: it stays hidden until the queue's **visibility timeout** ends (**30 s by default**), then becomes visible again. Lambda recommends a visibility timeout of **at least six times the function's timeout**, so a retry can wait minutes. By default, an error anywhere in a batch returns the whole batch. With a redrive policy, a message received more than `maxReceiveCount` times moves to a dead-letter queue; Lambda recommends setting it to **at least 5**.
+
+**At scale:** a database refusing a few connections looks harmless to the API, because users were told "accepted". But every write that failed once lands at least a visibility timeout late, and one that keeps failing ends up in the dead-letter queue, where nothing writes it unless you redrive it. Watch the function's errors and the dead-letter queue, not only the queue's backlog.
+**Source:** [Creating and configuring an SQS event source mapping](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-configure.html), [SQS visibility timeout](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html)

@@ -4,7 +4,18 @@ import {
   findRun,
   type RunFindings,
 } from "../../../application/run-analysis/findings/find-run";
-import type { Finding } from "../../../application/run-analysis/findings/finding";
+import { BUCKET_DRAINED } from "../../../application/run-analysis/findings/detectors/bucket-drained";
+import { FAILED_REQUESTS } from "../../../application/run-analysis/findings/detectors/failed-requests";
+import { LATE_ASYNC_WORK } from "../../../application/run-analysis/findings/detectors/late-async-work";
+import { WAITING_HOLDS_LIMIT } from "../../../application/run-analysis/findings/detectors/waiting-holds-limit";
+import type {
+  Finding,
+  FindingKey,
+} from "../../../application/run-analysis/findings/finding";
+import {
+  findingKey,
+  sameKey,
+} from "../../../application/run-analysis/findings/finding-key";
 import type { FindingNode } from "../../../application/run-analysis/findings/order-findings";
 import type {
   MetricsRun,
@@ -13,7 +24,7 @@ import type {
 import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
 import findingsDoc from "../../../../docs/design/findings.md?raw";
-import { formatVerdict } from "../../cli/findings-report";
+import { formatMessage, formatVerdict } from "../../cli/findings-report";
 import { RUN_TIMEOUT_MS } from "./run-template";
 import { runScenario } from "./scenario-runs";
 
@@ -31,8 +42,48 @@ export interface FindingsCase {
   readonly workloadId: string;
   /** The section of findings.md that quotes this run's verdict, e.g. "1.1". */
   readonly reading: string;
-  /** The top-level findings' IDs, in order. */
-  readonly findingIds: readonly string[];
+  /** The top-level findings, in order, each with its causes beneath it. */
+  readonly findings: readonly ExpectedFinding[];
+}
+
+/** A finding expected in the tree, with the findings beneath it. */
+export interface ExpectedFinding {
+  readonly key: FindingKey;
+  /** Where its `causeWindow` starts. Left out: it has none. */
+  readonly causeFromMs?: number;
+  /**
+   * Its summary and reasons as the CLI prints them. Left out: not checked,
+   * since `findings-report.test.ts`'s snapshots pin the shipped runs.
+   */
+  readonly sentences?: readonly string[];
+  /** Left out: none. */
+  readonly causes?: readonly ExpectedFinding[];
+}
+
+/** failed-requests' key for a cause. */
+export function failedRequests(
+  componentId: string,
+  reason: string,
+): FindingKey {
+  return findingKey({ kind: FAILED_REQUESTS, componentId, reason });
+}
+
+export function lateAsyncWork(queueId: string): FindingKey {
+  return findingKey({ kind: LATE_ASYNC_WORK, componentId: queueId });
+}
+
+export function waitingHoldsLimit(
+  componentId: string,
+  limitName: string,
+): FindingKey {
+  return findingKey({ kind: WAITING_HOLDS_LIMIT, componentId, limitName });
+}
+
+export function bucketDrained(
+  componentId: string,
+  limitName: string,
+): FindingKey {
+  return findingKey({ kind: BUCKET_DRAINED, componentId, limitName });
 }
 
 /** A run and what `findRun` made of it. */
@@ -52,7 +103,8 @@ export function describeFindings(cases: readonly FindingsCase[]): void {
     itSpansEachCause(read);
     itStartsNoCauseEarly(read);
     itReconcilesTheVerdict(read);
-    itListsTheFindings(read, c.findingIds);
+    itListsTheFindings(read, c.findings);
+    itPrintsThePinnedSentences(read, c.findings);
     itPrintsTheQuotedVerdict(read, c.reading);
   });
 }
@@ -76,11 +128,8 @@ function itCountsEachCause(read: ReadRunGetter): void {
   it("gives each failure cause one finding, counting its failed requests", () => {
     const { run, findings } = read();
     const failures = failureFindings(findings);
-    const counted = failures.map((f) => [f.id, f.affected]);
-    const expected = [...causesIn(run.totals)].map(([cause, n]) => [
-      `failed-requests:${cause}`,
-      n,
-    ]);
+    const counted = failures.map((f) => [causeOf(f), f.affected]);
+    const expected = [...causesIn(run.totals)];
     expect(counted.sort()).toEqual(expected.sort());
     const failed = sum(
       Object.values(run.totals.workflows).map((w) => w.failed),
@@ -95,10 +144,8 @@ function itSpansEachCause(read: ReadRunGetter): void {
   it("spans each failure finding from the first to the last second with its cause", () => {
     const { run, findings } = read();
     for (const finding of failureFindings(findings)) {
-      const cause = finding.id.slice("failed-requests:".length);
-      expect(finding.window, finding.id).toEqual(
-        secondsWith(run.snapshots, cause),
-      );
+      const cause = causeOf(finding);
+      expect(finding.window, cause).toEqual(secondsWith(run.snapshots, cause));
     }
   });
 }
@@ -112,7 +159,7 @@ function itStartsNoCauseEarly(read: ReadRunGetter): void {
   it("gives no failure finding a cause window before its first failure", () => {
     const { findings } = read();
     for (const finding of failureFindings(findings)) {
-      expect(finding.causeWindow, finding.id).toBeUndefined();
+      expect(finding.causeWindow, causeOf(finding)).toBeUndefined();
     }
   });
 }
@@ -137,13 +184,63 @@ function itReconcilesTheVerdict(read: ReadRunGetter): void {
   });
 }
 
-function itListsTheFindings(read: ReadRunGetter, ids: readonly string[]): void {
+function itListsTheFindings(
+  read: ReadRunGetter,
+  expected: readonly ExpectedFinding[],
+): void {
   // Fails if a detector stops firing, fires where the reading finds
-  // nothing, or the order of the top level changes.
-  it("lists the expected findings in order", () => {
+  // nothing, a cause shows anywhere but beneath what it explains, the order
+  // changes, or a cause window starts at another second.
+  it("lists the expected findings in order, each cause beneath what it explains", () => {
     const { findings } = read();
-    expect(findings.findings.map((n) => n.finding.id)).toEqual(ids);
+    expect(actualTree(findings.findings)).toEqual(expectedTree(expected));
   });
+}
+
+/** A finding's place in the tree, as the tests compare it. */
+interface TreeNode {
+  readonly key: FindingKey;
+  readonly causeFromMs: number | undefined;
+  readonly causes: readonly TreeNode[];
+}
+
+function actualTree(nodes: readonly FindingNode[]): TreeNode[] {
+  return nodes.map(({ finding, causes }) => ({
+    key: finding.key,
+    causeFromMs: finding.causeWindow?.fromMs,
+    causes: actualTree(causes),
+  }));
+}
+
+function expectedTree(nodes: readonly ExpectedFinding[]): TreeNode[] {
+  return nodes.map((n) => ({
+    key: n.key,
+    causeFromMs: n.causeFromMs,
+    causes: expectedTree(n.causes ?? []),
+  }));
+}
+
+function itPrintsThePinnedSentences(
+  read: ReadRunGetter,
+  expected: readonly ExpectedFinding[],
+): void {
+  const pinned = flatten(expected).filter((e) => e.sentences !== undefined);
+  if (pinned.length === 0) return;
+  // Fails if a pinned finding's summary or reasons quote other numbers or
+  // seconds than the reading's.
+  it("says what the reading says in the pinned findings", () => {
+    const { findings } = read();
+    const all = findings.findings.flatMap(walk);
+    for (const { key, sentences } of pinned) {
+      const finding = all.find((f) => sameKey(f.key, key));
+      const text = [finding?.summary ?? [], ...(finding?.reasons ?? [])];
+      expect(text.map(formatMessage), key.kind).toEqual(sentences);
+    }
+  });
+}
+
+function flatten(nodes: readonly ExpectedFinding[]): ExpectedFinding[] {
+  return nodes.flatMap((n) => [n, ...flatten(n.causes ?? [])]);
 }
 
 function itPrintsTheQuotedVerdict(read: ReadRunGetter, reading: string): void {
@@ -156,13 +253,19 @@ function itPrintsTheQuotedVerdict(read: ReadRunGetter, reading: string): void {
   });
 }
 
+/** The node's finding, then every finding beneath it. */
+function walk(node: FindingNode): Finding[] {
+  return [node.finding, ...node.causes.flatMap(walk)];
+}
+
 /** Every failure finding, causes included. */
 function failureFindings({ findings }: RunFindings): Finding[] {
-  const walk = (node: FindingNode): Finding[] => [
-    node.finding,
-    ...node.causes.flatMap(walk),
-  ];
   return findings.flatMap(walk).filter((f) => f.severity === "failure");
+}
+
+/** A failure finding's cause, as the snapshots key it. */
+function causeOf({ key }: Finding): string {
+  return `${key.componentId}: ${key.reason ?? ""}`;
 }
 
 /** Failed requests by cause, over every workflow. */

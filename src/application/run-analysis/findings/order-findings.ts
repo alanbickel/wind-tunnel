@@ -1,8 +1,13 @@
 import { lookup } from "../../../domain/shared/kind-handlers";
-import type { Finding, Severity } from "./finding";
+import type { Finding, FindingKey, Severity } from "./finding";
+import { compareKeys, sameKey } from "./finding-key";
 
 /** A finding, with the findings it follows from beneath it. */
 export interface FindingNode {
+  /**
+   * The finding, less the fixes and Learn more that a finding above it
+   * already shows: a failure and its cause often share a fix.
+   */
   readonly finding: Finding;
   /** The findings its `causedBy` names, ordered as the top level is. */
   readonly causes: readonly FindingNode[];
@@ -11,45 +16,74 @@ export interface FindingNode {
 /**
  * The findings as a tree, in a fully determined order (findings.md §3.3). A
  * finding cited in another's `causedBy` shows beneath it, not at the top.
- * A `causedBy` ID that no finding has is ignored, and a cycle of causes is
+ * A `causedBy` key that no finding has is ignored, and a cycle of causes is
  * broken where it's first met, so every finding shows at least once.
  */
 export function orderFindings(findings: readonly Finding[]): FindingNode[] {
-  const byId = new Map(findings.map((f) => [f.id, f]));
-  const cited = new Set(findings.flatMap((f) => f.causedBy));
   const sorted = [...findings].sort(compareFindings);
-  const shown = new Set<string>();
-  const uncited = sorted.filter((f) => !cited.has(f.id));
-  const top = uncited.map((f) => nodeOf(f, { byId, shown, path: new Set() }));
+  const context: TreeContext = { sorted, shown: [], above: [] };
+  const top = sorted
+    .filter((f) => !isCited(f, findings))
+    .map((f) => nodeOf(f, context));
   // Findings only reachable through a cycle of causes.
   for (const finding of sorted) {
-    if (!shown.has(finding.id)) {
-      top.push(nodeOf(finding, { byId, shown, path: new Set() }));
+    if (!includesKey(context.shown, finding.key)) {
+      top.push(nodeOf(finding, context));
     }
   }
   return top;
 }
 
-/** The findings by ID, and which have been shown, while the tree is built. */
+/** The findings, and which have been shown, while the tree is built. */
 interface TreeContext {
-  readonly byId: ReadonlyMap<string, Finding>;
-  readonly shown: Set<string>;
-  /** IDs on the way down from the top, so a cycle stops. */
-  readonly path: ReadonlySet<string>;
+  /** Every finding, in `compareFindings` order. */
+  readonly sorted: readonly Finding[];
+  readonly shown: FindingKey[];
+  /**
+   * The findings on the way down from the top: a cycle stops at them, and
+   * their fixes aren't repeated beneath them.
+   */
+  readonly above: readonly Finding[];
 }
 
 function nodeOf(finding: Finding, context: TreeContext): FindingNode {
-  context.shown.add(finding.id);
-  const path = new Set([...context.path, finding.id]);
-  const causes = finding.causedBy
-    .flatMap((id) => {
-      const cause = context.byId.get(id);
-      return cause === undefined || path.has(id) ? [] : [cause];
-    })
-    .sort(compareFindings);
+  context.shown.push(finding.key);
+  const above = [...context.above, finding];
+  const causes = context.sorted.filter(
+    (c) =>
+      includesKey(finding.causedBy, c.key) &&
+      !includesKey(
+        above.map((a) => a.key),
+        c.key,
+      ),
+  );
   return {
-    finding,
-    causes: causes.map((c) => nodeOf(c, { ...context, path })),
+    finding: withoutRepeats(finding, context.above),
+    causes: causes.map((c) => nodeOf(c, { ...context, above })),
+  };
+}
+
+function isCited(finding: Finding, findings: readonly Finding[]): boolean {
+  return findings.some((f) => includesKey(f.causedBy, finding.key));
+}
+
+function includesKey(keys: readonly FindingKey[], key: FindingKey): boolean {
+  return keys.some((k) => sameKey(k, key));
+}
+
+/**
+ * The finding without the fixes, or the Learn more, that a finding above it
+ * shows. A fix is the same when it's the same catalog entry: two limits'
+ * advice share one `Fix` object (`catalog/`).
+ */
+function withoutRepeats(finding: Finding, above: readonly Finding[]): Finding {
+  if (above.length === 0) return finding;
+  const shownFixes = new Set(above.flatMap((a) => a.fixes));
+  const learnMoreShown = above.some((a) => a.learnMore === finding.learnMore);
+  return {
+    ...finding,
+    fixes: finding.fixes.filter((fix) => !shownFixes.has(fix)),
+    learnMore: learnMoreShown ? undefined : finding.learnMore,
   };
 }
 
@@ -63,19 +97,13 @@ const SEVERITY_RANK: Readonly<Record<Severity, number>> = {
 /**
  * By severity; then `affected`, largest first, with uncounted findings
  * after the counted ones; then the window's start, earliest first; then
- * `id`, so the order is the same on every run.
+ * the key, field by field, so the order is the same on every run.
  */
 export function compareFindings(a: Finding, b: Finding): number {
   return (
     lookup(SEVERITY_RANK, a.severity) - lookup(SEVERITY_RANK, b.severity) ||
     (b.affected ?? -1) - (a.affected ?? -1) ||
     a.window.fromMs - b.window.fromMs ||
-    compareIds(a.id, b.id)
+    compareKeys(a.key, b.key)
   );
-}
-
-/** By code unit, not locale, so the order doesn't depend on the machine. */
-function compareIds(a: string, b: string): number {
-  if (a === b) return 0;
-  return a < b ? -1 : 1;
 }

@@ -5,15 +5,15 @@ import type { Message } from "./message";
  * when, why, and what would fix it (findings.md §3.1).
  */
 export interface Finding {
-  /**
-   * Stable across re-runs of the same project, e.g.
-   * `"failed-requests:orders-db: too-many-connections"`.
-   */
-  readonly id: string;
-  readonly detectorId: string;
+  /** Which finding this is, stable across re-runs of the same project. */
+  readonly key: FindingKey;
   readonly severity: Severity;
-  /** Where: the component to highlight. */
-  readonly componentId: string;
+  /**
+   * The limits of `key.componentId` the finding is about, if any: the ones
+   * that refused its failed requests, or the one a note reads. A note whose
+   * `explains` names one of them shows beneath it.
+   */
+  readonly limitNames: readonly string[];
   /** When: from the start of its first second to the end of its last. */
   readonly window: TimeWindow;
   /**
@@ -30,14 +30,56 @@ export interface Finding {
   readonly fixes: readonly Fix[];
   /** Anchor in `docs/learning/aws-did-you-know.md`. */
   readonly learnMore: string | undefined;
-  /** Findings this one follows from, by ID. They show beneath it. */
-  readonly causedBy: readonly string[];
+  /**
+   * For a cause note, what it explains: `findRun` puts it beneath every
+   * other finding that matches. Undefined for a finding that explains
+   * nothing.
+   */
+  readonly explains: Explains | undefined;
+  /**
+   * The findings this one follows from, which show beneath it. `findRun`
+   * fills it from the other findings' `explains`, so no detector needs to
+   * know another exists.
+   */
+  readonly causedBy: readonly FindingKey[];
   /**
    * Requests or messages affected, for ordering. Reconciles with the
    * totals. Undefined when the metrics can't count it exactly, such as late
    * deliveries.
    */
   readonly affected: number | undefined;
+}
+
+/** A finding as a detector returns it, before `findRun` links its causes. */
+export type DetectedFinding = Omit<Finding, "causedBy">;
+
+/**
+ * A finding's identity: what kind it is, where, and the typed values that
+ * tell two findings of a kind apart at one component. Compared field by
+ * field (`sameKey`), never joined into a string, so a consumer reads each
+ * field rather than parsing one.
+ */
+export interface FindingKey {
+  /** The ID of the detector that made it, e.g. `"waiting-holds-limit"`. */
+  readonly kind: string;
+  /** Where: the component to highlight. */
+  readonly componentId: string;
+  /** The rejection reason a failure cause is about, e.g. `"throttled"`. */
+  readonly reason: string | undefined;
+  /** The limit a note is about, e.g. `"queryWorkers"`. */
+  readonly limitName: string | undefined;
+}
+
+/**
+ * What a cause note explains: a component and, optionally, one of its
+ * limits. Without a limit, it explains every finding at the component; a
+ * timeout or a late delivery has no limit, because reasons belong to
+ * components (ADR-0016).
+ */
+export interface Explains {
+  readonly componentId: string;
+  /** Matches only findings whose `limitNames` include it. */
+  readonly limitName: string | undefined;
 }
 
 /**

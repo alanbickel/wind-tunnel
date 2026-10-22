@@ -1,6 +1,6 @@
 # ADR-0015: Findings come from registered detectors; components declare what each limit does when it's full
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-10-22
 - **Date:** 2026-10-21
 
 ## Context
@@ -30,6 +30,8 @@ These are copied into each snapshot's `LimitUse`, so the read model needs only t
 
 **A finding has a fixed shape.** It has a severity (`failure`, `warning`, `note`), a component, a time window, a separate cause window that may start earlier, a summary, its reasons, the numbers it quotes (each with its source: totals, snapshots, or config), fixes, a link to an AWS fact, and the IDs of the findings it follows from. Its text is a list of parts (text, numbers with units, component references, times), worded in `application/` and formatted by the CLI and the UI. Display formatting stays outside `application/`, as ADR-0013 decided.
 
+> **Changed by the [addendum of 2026-10-22](#addendum-2026-10-22).**
+
 **Rules fire on exact states, not tuned thresholds:** a failed request, an exhausted limit, a message still waiting at a second's end, or a latency past a timeout the project sets. A percentile compared with a timeout says when the comparison is within the histogram's error.
 
 **Every run has a verdict:** *failing* if any finding is a failure, *degraded* if any is a warning, otherwise *healthy*. It gives the request counts, and, unless the run is failing, the limit closest to refusing work, with its peak and limit. A peak that came only during cold starts is given with that context, and never hidden.
@@ -44,3 +46,22 @@ These are copied into each snapshot's `LimitUse`, so the read model needs only t
 - `RunSoFar` must say whether the run has finished, because a queue backlog still waiting is a warning only at the end. Requests still in progress when a run ends are normal and appear only in the verdict's counts. `RunSoFar` gains the workload ID.
 - Some sentences an expert would say are out of reach: what-if claims ("at 250 requests a second, the workers fill"), claims about the architecture rather than the metrics ("the consumer cap keeps the database's connections down"), and exact counts above a latency. The design lists them; the catalog cites the tests that prove the what-if fixes until re-runs can.
 - Wording now lives in `application/`, which only formatted numbers before. Changing a sentence changes the CLI report's snapshots, so the report tests catch accidental rewording.
+
+## Addendum, 2026-10-22
+
+**Context.** The decision above gives a finding "the IDs of the findings it follows from", but not who writes them. The detector that owns a failure can't: it doesn't see the other detectors' findings, and if it predicted their IDs, every new cause detector would mean editing it. Running the detectors in order would make the rules depend on each other, against the findings design's "the rules have no order" ([§2.4](../design/findings.md#24-how-a-failure-reaches-a-finding)). The IDs were also strings that joined a detector's ID and its subject (`"failed-requests:orders-db: too-many-connections"`), so a reader had to parse them to learn the component or reason. Found while building the first cause notes ([#67](https://github.com/alanbickel/wind-tunnel/issues/67)).
+
+**Decision.**
+
+- **A finding's identity is a key, not a string.** `FindingKey` is a `kind` (the ID of the detector that made it, which replaces `detectorId`), the `componentId` (which replaces the finding's own), and the typed values that tell two findings of a kind apart at one component: a rejection `reason` or a `limitName`, each optional. Keys are compared field by field, never joined into a string, and the final tiebreak in the findings' order compares them field by field, by code unit.
+- **A finding says which of its component's limits it's about** (`limitNames`), if any: the limits that refused its failed requests, or the one a note reads.
+- **A cause note says what it explains** (`explains`): a component and, optionally, one of its limits. The limit is optional because reasons belong to components, not limits ([ADR-0016](0016-component-types-list-every-rejection-reason.md)): a timeout has no limit.
+- **`findRun` fills `causedBy`,** a list of keys: each note goes beneath every other finding at the component it explains, about the limit it names if it names one. A detector returns findings without `causedBy` (`DetectedFinding`), so no detector knows another exists.
+- **A cause doesn't repeat what's above it.** Where a note shows beneath a finding, the fixes and the Learn-more link that the finding above already shows are left out of the note. A fix counts as the same when it's the same catalog entry.
+
+**Consequences.**
+
+- A new cause detector is still one file and one line in `createDetectors`. It names what it explains; the finding it explains doesn't change.
+- One note can show beneath several findings: a note that names no limit shows beneath every finding at its component, such as a refusal and a timeout there.
+- Consumers that need a finding's component or reason read the key's fields. Turning a kind into words for the run panel is Roadmap item 10.
+- The shape in the [findings design §3.1](../design/findings.md#31-a-finding) still shows `id` and `detectorId`; its "As built" notes say what changed.

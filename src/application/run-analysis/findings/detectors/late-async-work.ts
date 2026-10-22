@@ -7,7 +7,7 @@ import type {
 import type { RunSoFar } from "../../run-so-far";
 import { adviceFor, type FindingsCatalog } from "../catalog/type-advice";
 import type { Detector } from "../detector";
-import type { Evidence, Finding } from "../finding";
+import type { DetectedFinding, Evidence } from "../finding";
 import {
   at,
   component,
@@ -19,6 +19,7 @@ import {
   share,
   type Message,
 } from "../message";
+import { findingKey } from "../finding-key";
 import { spanOf } from "../time-window";
 import { asyncTargets, type AsyncTarget } from "./async-targets";
 
@@ -136,18 +137,18 @@ interface LateFindingInput {
   readonly first: number;
 }
 
-function lateFinding(input: LateFindingInput): Finding {
+function lateFinding(input: LateFindingInput): DetectedFinding {
   const { target, late, run, first, catalog } = input;
+  const limitNames = [...late.waitingLimitsOut];
   const advice = adviceFor(catalog, {
     project: run.project,
     componentId: target.queueId,
-    limitNames: [...late.waitingLimitsOut],
+    limitNames,
   });
   return {
-    id: `${LATE_ASYNC_WORK}:${target.queueId}`,
-    detectorId: LATE_ASYNC_WORK,
+    key: findingKey({ kind: LATE_ASYNC_WORK, componentId: target.queueId }),
     severity: "warning",
-    componentId: target.queueId,
+    limitNames,
     window: spanOf({ snapshots: run.snapshots, first, last: late.last }),
     causeWindow: undefined,
     summary: summaryOf(input),
@@ -159,7 +160,7 @@ function lateFinding(input: LateFindingInput): Finding {
     ],
     evidence: evidenceOf(input),
     ...advice,
-    causedBy: [],
+    explains: undefined,
     // The histogram gives percentiles, not counts above a value.
     affected: undefined,
   };

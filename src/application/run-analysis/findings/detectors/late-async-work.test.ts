@@ -74,9 +74,13 @@ describe("late-async-work", () => {
   it("warns from the first to the last second whose p99 is over the entry edge's timeout", () => {
     const [finding] = detector.detect(run(queued, late));
     expect(finding).toMatchObject({
-      id: "late-async-work:table",
+      key: {
+        kind: "late-async-work",
+        componentId: "table",
+        reason: undefined,
+        limitName: undefined,
+      },
       severity: "warning",
-      componentId: "table",
       window: { fromMs: 0, toMs: 2_000 },
       affected: undefined,
     });
@@ -114,9 +118,10 @@ describe("late-async-work", () => {
     expect(detector.detect(run(direct, late))).toEqual([]);
   });
 
-  // Fails if the advice comes from a limit that didn't run out (idle), or
-  // from one that refuses rather than makes work wait (refusing).
-  it("carries the advice for the queue's waiting limits that ran out", () => {
+  // Fails if the advice, or the limits the finding is about, include a limit
+  // that didn't run out (idle), or one that refuses rather than makes work
+  // wait (refusing).
+  it("is about the queue's waiting limits that ran out, with their advice", () => {
     const fix: Fix = {
       scope: "wind-tunnel",
       message: say`Add consumers.`,
@@ -154,6 +159,10 @@ describe("late-async-work", () => {
     const [finding] = lateAsyncWorkDetector(catalog).detect(
       run(queued, snapshots),
     );
-    expect(finding).toMatchObject({ fixes: [fix], learnMore: "consumers" });
+    expect(finding).toMatchObject({
+      limitNames: ["consumers"],
+      fixes: [fix],
+      learnMore: "consumers",
+    });
   });
 });

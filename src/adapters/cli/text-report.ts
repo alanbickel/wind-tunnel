@@ -220,7 +220,7 @@ function extras(m: ComponentMetrics): string {
   return parts.join(", ");
 }
 
-/** Failed deliveries by cause, most first, e.g. ` (orders-db: throttled 3)`. */
+/** Failed deliveries by cause, most first, e.g. ` (orders-db: too-many-connections 3)`. */
 function byCause({ asyncFailures }: ComponentMetrics): string {
   const causes = Object.entries(asyncFailures)
     .sort(([, a], [, b]) => b - a)

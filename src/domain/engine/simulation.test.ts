@@ -265,6 +265,8 @@ describe("simulate", () => {
     expect(query && query.timeMs - start).toBe(532);
   });
 
+  // Fails if the engine attaches a failure to a delivery that succeeded,
+  // even an undefined one (e.g. it spreads `{ failure }` unconditionally).
   it("answers the user once the message is sent, and runs async work later", () => {
     const root: Step = {
       componentId: "api",
@@ -304,9 +306,9 @@ describe("simulate", () => {
       componentId: "queue",
       latencyMs: 76,
     });
-    expect(
-      ofKind(events, "component-async-finished")[0]?.failure,
-    ).toBeUndefined();
+    expect(ofKind(events, "component-async-finished")[0]).not.toHaveProperty(
+      "failure",
+    );
   });
 
   it("is deterministic", () => {

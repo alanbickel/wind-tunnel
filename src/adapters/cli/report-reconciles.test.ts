@@ -3,6 +3,7 @@ import { createAwsComponentRegistry } from "../../domain/components/aws";
 import type {
   ComponentMetrics,
   LimitUse,
+  MetricsRun,
   MetricsSnapshot,
 } from "../../domain/metrics/metrics-collector";
 import {
@@ -15,6 +16,7 @@ import templateB from "../templates/template-b.json";
 import { withMaxConnections } from "../templates/testing/rejection-runs";
 import { RUN_TIMEOUT_MS, runTemplate } from "../templates/testing/run-template";
 import { projectB, runScenario } from "../templates/testing/scenario-runs";
+import { formatReport } from "./text-report";
 
 // The report derives "in progress", "unfinished", and "being delivered" by
 // subtraction and tells readers the sums add up. These tests check each
@@ -221,14 +223,13 @@ describe("template-b's queue", () => {
 // connections. No shipped run has a failed delivery, so this variant is the
 // one that gives the failed-delivery counts something to reconcile.
 describe("template-b's failed deliveries, with 10 database connections", () => {
+  const project = withMaxConnections(projectB, 10);
+  let run: MetricsRun;
   let totals: MetricsSnapshot;
   let snapshots: readonly MetricsSnapshot[];
   beforeAll(() => {
-    ({ totals, snapshots } = runScenario({
-      project: withMaxConnections(projectB, 10),
-      workloadId: "lunch-rush",
-      seed: 42,
-    }));
+    run = runScenario({ project, workloadId: "lunch-rush", seed: 42 });
+    ({ totals, snapshots } = run);
   }, RUN_TIMEOUT_MS);
 
   // Fails if a failed delivery is counted in asyncFailed without its cause,
@@ -255,5 +256,15 @@ describe("template-b's failed deliveries, with 10 database connections", () => {
     expect(componentIn(totals, "orders-queue").asyncFailures).toEqual({
       "orders-db: too-many-connections": 90,
     });
+  });
+
+  // Fails if the Components table stops listing a component's failed
+  // deliveries by cause after its "async failed" count.
+  it("prints orders-queue's failed deliveries by cause in the report", () => {
+    const workload = project.workloads.find((w) => w.id === "lunch-rush");
+    if (workload === undefined) throw new Error("template-b has no lunch-rush");
+    expect(formatReport({ project, workload, run })).toContain(
+      "async failed=90 (orders-db: too-many-connections 90)",
+    );
   });
 });

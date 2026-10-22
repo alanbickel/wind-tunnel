@@ -8,7 +8,7 @@ import { bucketDrainedDetector } from "./bucket-drained";
 
 const detector = bucketDrainedDetector(createFindingsCatalog());
 
-/** table's read bucket of 10 tokens, refilling 5 a second. */
+/** One second of table's read bucket of 10 tokens. */
 interface BucketSecond {
   readonly second: number;
   /** Tokens missing at the second's end. */
@@ -16,9 +16,12 @@ interface BucketSecond {
   /** Most tokens missing during the second. */
   readonly peak: number;
   readonly takenPerSec: number;
+  /** 5 if left out. */
+  readonly ratePerSec?: number;
 }
 
-function second({ second: n, current, peak, takenPerSec }: BucketSecond) {
+function second(bucket: BucketSecond) {
+  const { second: n, current, peak, takenPerSec, ratePerSec = 5 } = bucket;
   const readUnits: LimitUse = {
     kind: "rate",
     name: "readUnits",
@@ -26,7 +29,7 @@ function second({ second: n, current, peak, takenPerSec }: BucketSecond) {
     limit: 10,
     current,
     peak,
-    ratePerSec: 5,
+    ratePerSec,
     takenPerSec,
   };
   return sampleSnapshot({ second: n, table: { limits: [readUnits] } });
@@ -92,17 +95,20 @@ describe("bucket-drained", () => {
 
   // Fails if a bucket drained within one second gets a cause window, or a
   // formula from a flow no faster than the refill, or a last-full time
-  // other than the run's start when it was never full.
+  // other than the run's start when it was never full before it ran out
+  // (the second it ran out ends full again: its refill is larger than its
+  // burst, as API Gateway's may be).
   it("says so when the tokens went within the second it ran out", () => {
+    const ratePerSec = 20;
     const sudden = [
-      second({ second: 1, current: 2, peak: 2, takenPerSec: 4 }),
-      second({ second: 2, current: 4, peak: 9.5, takenPerSec: 5 }),
+      second({ second: 1, current: 2, peak: 2, takenPerSec: 4, ratePerSec }),
+      second({ second: 2, current: 0, peak: 9.5, takenPerSec: 15, ratePerSec }),
     ];
     const [finding] = detector.detect(sampleRun(sudden));
     expect(finding?.causeWindow).toBeUndefined();
     expect(sentences(finding).slice(1)).toEqual([
       "It was last full at 0ms.",
-      "In the second it ran out, requests took 5 tokens, no more than its refill of 5 a second, but faster than the refill within the second.",
+      "In the second it ran out, requests took 15 tokens, no more than its refill of 20 a second, but faster than the refill within the second.",
       "Its burst of 10 tokens lasted between 0 and 1000.",
     ]);
   });

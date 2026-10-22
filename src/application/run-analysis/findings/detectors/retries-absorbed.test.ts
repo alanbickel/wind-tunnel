@@ -152,6 +152,22 @@ describe("retries-absorbed", () => {
     expect(finding?.fixes.length).toBeGreaterThan(0);
   });
 
+  // Fails if a limit that ran out only while retries absorbed its refusals
+  // goes unnamed because requests failed elsewhere at the component, or the
+  // limit the failure finding names is named twice.
+  it("names a limit no failure finding names, even when requests failed", () => {
+    const writeUnits: LimitUse = { ...readUnits(99.5), name: "writeUnits" };
+    const writesRetried = second({
+      second: 6,
+      rejected: 6,
+      failed: 0,
+      p99Ms: 100,
+      limits: [writeUnits],
+    });
+    const [finding] = detector.detect(sampleRun([...absorbed, writesRetried]));
+    expect(finding?.limitNames).toEqual(["writeUnits"]);
+  });
+
   // Fails if the note fires when every refused attempt failed a request,
   // or when nothing was refused.
   it("says nothing when no retry got a refused request through", () => {

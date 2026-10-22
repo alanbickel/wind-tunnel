@@ -26,6 +26,7 @@ import {
   spanOfTally,
   type SecondsTally,
 } from "../time-window";
+import { limitRefused } from "./limit-refused";
 import {
   failedWithRejections,
   failureCauses,
@@ -45,9 +46,9 @@ export const RETRIES_ABSORBED = "retries-absorbed";
  * one reason only when the component refuses with one (§2.4). Its reasons
  * are those its limits declare and any its failures carry.
  *
- * When requests failed with its rejections, the failure finding names the
- * limit, its fixes, and its causes, so the note leaves them out. When none
- * did, the note is the only place they can show.
+ * The note names the refusing limits that ran out, with their fixes and
+ * causes, except those a failure finding already names: limit-refused names
+ * a limit that was out in a second with the component's failures.
  */
 export function retriesAbsorbedDetector(catalog: FindingsCatalog): Detector {
   return {
@@ -182,8 +183,7 @@ interface AbsorbedFindingInput {
 
 function absorbedFinding(input: AbsorbedFindingInput): DetectedFinding {
   const { componentId, tally, window, run, catalog } = input;
-  // Its limits only when no failure finding names them (see the detector).
-  const limitNames = input.failed === 0 ? [...tally.limitsOut] : [];
+  const limitNames = limitsNamedOnlyHere(input);
   return {
     key: findingKey({ kind: RETRIES_ABSORBED, componentId }),
     severity: "note",
@@ -203,6 +203,24 @@ function absorbedFinding(input: AbsorbedFindingInput): DetectedFinding {
     // A note counts nothing: refused attempts aren't requests.
     affected: undefined,
   };
+}
+
+/** The limits that ran out while it refused, less those a failure finding names. */
+function limitsNamedOnlyHere(input: AbsorbedFindingInput): string[] {
+  const named = limitsNamedByFailures(input);
+  return [...input.tally.limitsOut].filter((name) => !named.has(name));
+}
+
+function limitsNamedByFailures({
+  componentId,
+  failed,
+  causes,
+  run,
+}: AbsorbedFindingInput): Set<string> {
+  const refusals = causes
+    .filter((c) => c.componentId === componentId && !isTimeout(c))
+    .map((cause) => limitRefused({ run, cause, failedAtComponent: failed }));
+  return new Set(refusals.flatMap((r) => r.limits.map((l) => l.name)));
 }
 
 function summaryOf({

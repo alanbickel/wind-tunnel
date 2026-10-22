@@ -114,8 +114,9 @@ interface BacklogTally {
   /** Over the seconds with a backlog so far, and up to the peak's. */
   readonly flow: Flow;
   peakFlow: Flow;
-  /** Of the deliveries in the seconds with a backlog: exact, not a bound. */
+  /** The slowest delivery in the seconds with a backlog: exact. */
   slowestMs: number;
+  /** The highest p99 of one of those seconds: a bucket's upper bound. */
   highestP99Ms: number;
   /** Over every second: messages accepted, and delivered. */
   accepted: number;

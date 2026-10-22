@@ -76,7 +76,17 @@ function sentences(finding: DetectedFinding | undefined): string[] {
 // waiting + consumers busy.
 const start = [
   second({ second: 1, current: 1, peak: 4, depth: 0, peakDepth: 1 }),
-  second({ second: 2, current: 2, peak: 3, depth: 0, peakDepth: 0 }),
+  // Second 2's delivery is slower than any with a backlog.
+  second({
+    second: 2,
+    current: 2,
+    peak: 3,
+    depth: 0,
+    peakDepth: 0,
+    arrivals: 1,
+    delivered: 1,
+    slowestMs: 5_000,
+  }),
   second({ second: 3, current: 4, peak: 4, depth: 0, peakDepth: 2 }),
   second({
     second: 4,
@@ -113,7 +123,7 @@ const emptied = [
   }),
 ];
 // The same, but 3 messages are still waiting when the run ends, and all 4
-// consumers are delivering: 24 accepted = 17 delivered + 3 + 4.
+// consumers are delivering: 25 accepted = 18 delivered + 3 + 4.
 const stillWaiting = [
   ...start,
   second({
@@ -178,7 +188,7 @@ describe("backlog", () => {
       "Messages waited for table's consumers from 3000ms, and 3 were still waiting when the run ended.",
     );
     expect(text.at(-1)).toBe(
-      "When the run ended, 3 messages were still waiting: of the 24 accepted, 17 had been delivered and 4 were being delivered.",
+      "When the run ended, 3 messages were still waiting: of the 25 accepted, 18 had been delivered and 4 were being delivered.",
     );
   });
 
@@ -193,7 +203,7 @@ describe("backlog", () => {
       "Messages waited for table's consumers from 3000ms, and 5 are still waiting so far.",
     );
     expect(text.at(-1)).toBe(
-      "So far, 5 messages are waiting: of the 13 accepted, 4 have been delivered and 4 are being delivered.",
+      "So far, 5 messages are waiting: of the 14 accepted, 5 have been delivered and 4 are being delivered.",
     );
   });
 

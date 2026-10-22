@@ -30,7 +30,7 @@ import { limitRefused } from "./limit-refused";
 import {
   failedWithRejections,
   failureCauses,
-  isTimeout,
+  rejectionCauses,
   type FailureCause,
 } from "./failure-causes";
 
@@ -217,9 +217,9 @@ function limitsNamedByFailures({
   causes,
   run,
 }: AbsorbedFindingInput): Set<string> {
-  const refusals = causes
-    .filter((c) => c.componentId === componentId && !isTimeout(c))
-    .map((cause) => limitRefused({ run, cause, failedAtComponent: failed }));
+  const refusals = rejectionCauses(causes, componentId).map((cause) =>
+    limitRefused({ run, cause, failedAtComponent: failed }),
+  );
   return new Set(refusals.flatMap((r) => r.limits.map((l) => l.name)));
 }
 
@@ -274,9 +274,7 @@ function reasonsOf({
   const declared = limits.flatMap((l) =>
     l.whenFull.kind === "refuse" ? [l.whenFull.reason] : [],
   );
-  const failedWith = causes
-    .filter((c) => c.componentId === componentId && !isTimeout(c))
-    .map((c) => c.reason);
+  const failedWith = rejectionCauses(causes, componentId).map((c) => c.reason);
   return [...new Set([...declared, ...failedWith])];
 }
 

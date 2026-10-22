@@ -71,9 +71,9 @@ describe("bucket-drained", () => {
     });
   });
 
-  // Fails if the cause window starts anywhere but the first second of the
-  // run over the refill that led into the first second out, or the window
-  // isn't the seconds out.
+  // Fails if the cause window starts anywhere but the end of the last full
+  // second before the first second out, or the window isn't the seconds
+  // out.
   it("starts its cause where the drain began", () => {
     const [finding] = detector.detect(sampleRun(drained));
     expect(finding?.window).toEqual({ fromMs: 3_000, toMs: 5_000 });
@@ -86,36 +86,63 @@ describe("bucket-drained", () => {
   it("quotes when it was last full, the flow over the drain, and how long it lasted", () => {
     expect(sentences(detector.detect(sampleRun(drained))[0])).toEqual([
       "table's readUnits bucket drained from 1000ms and ran out in the second ending at 4000ms.",
-      "It was last full at 1000ms.",
-      "From 1000ms, requests took more tokens than it refills in every second: 8 a second on average, against a refill of 5.",
+      "It was last full at 1000ms. From then, requests took 8 tokens a second on average, against a refill of 5.",
       "Its burst of 10 tokens lasted between 2000 and 3000.",
       "At that flow, a full bucket lasts about 3000: (burst − 1) ÷ (flow − refill).",
     ]);
   });
 
-  // Fails if a bucket drained within one second gets a cause window, or a
-  // formula from a flow no faster than the refill, or a last-full time
-  // other than the run's start when it was never full before it ran out
-  // (the second it ran out ends full again: its refill is larger than its
-  // burst, as API Gateway's may be).
+  // Fails if the drain starts after a second at or under the refill rather
+  // than where the bucket was last full (here, the run's start: it was never
+  // full before it ran out), so the burst and the formula would be about a
+  // bucket already part drawn, and the mean flow would leave seconds out.
+  it("measures the drain from the last full bucket, through seconds at the refill", () => {
+    const split = [
+      second({ second: 1, current: 2, peak: 2, takenPerSec: 7 }),
+      second({ second: 2, current: 2, peak: 2, takenPerSec: 5 }),
+      second({ second: 3, current: 5, peak: 5, takenPerSec: 8 }),
+      second({ second: 4, current: 9, peak: 9.5, takenPerSec: 9 }),
+    ];
+    const [finding] = detector.detect(sampleRun(split));
+    expect(finding?.causeWindow).toEqual({ fromMs: 0, toMs: 4_000 });
+    expect(sentences(finding)).toEqual([
+      "table's readUnits bucket drained from 0ms and ran out in the second ending at 4000ms.",
+      "It was last full at 0ms. From then, requests took 7.25 tokens a second on average, against a refill of 5.",
+      "Its burst of 10 tokens lasted between 3000 and 4000.",
+      "At that flow, a full bucket lasts about 4000: (burst − 1) ÷ (flow − refill).",
+    ]);
+  });
+
+  // Fails if a bucket drained within one second gets a cause window, a
+  // formula from a flow no faster than the refill, or a drain that starts
+  // after the second it ran out (that second ends full again: its refill
+  // is larger than its burst, as API Gateway's may be).
   it("says so when the tokens went within the second it ran out", () => {
     const ratePerSec = 20;
     const sudden = [
-      second({ second: 1, current: 2, peak: 2, takenPerSec: 4, ratePerSec }),
+      second({ second: 1, current: 0.5, peak: 2, takenPerSec: 4, ratePerSec }),
       second({ second: 2, current: 0, peak: 9.5, takenPerSec: 15, ratePerSec }),
     ];
     const [finding] = detector.detect(sampleRun(sudden));
     expect(finding?.causeWindow).toBeUndefined();
     expect(sentences(finding).slice(1)).toEqual([
-      "It was last full at 0ms.",
-      "In the second it ran out, requests took 15 tokens, no more than its refill of 20 a second, but faster than the refill within the second.",
+      "It was last full at 1000ms. From then, requests took 15 tokens a second on average, no more than its refill of 20 a second, but faster than the refill within a second.",
       "Its burst of 10 tokens lasted between 0 and 1000.",
     ]);
   });
 
-  // Fails if a bucket that never ran out gets a note, or a concurrency
-  // limit is read as a bucket.
-  it("says nothing of a bucket that never ran out, or of other limits", () => {
+  // Fails if a bucket that came within one token of running out, but no
+  // closer, gets a note.
+  it("says nothing of a bucket that never ran out", () => {
+    const run = sampleRun([
+      second({ second: 1, current: 4, peak: 4, takenPerSec: 9 }),
+      second({ second: 2, current: 9, peak: 9, takenPerSec: 10 }),
+    ]);
+    expect(detector.detect(run)).toEqual([]);
+  });
+
+  // Fails if a concurrency limit is read as a bucket.
+  it("says nothing of other limits", () => {
     const full: LimitUse = {
       kind: "concurrency",
       name: "slots",
@@ -125,8 +152,7 @@ describe("bucket-drained", () => {
       peak: 4,
     };
     const run = sampleRun([
-      second({ second: 1, current: 8, peak: 8.5, takenPerSec: 9 }),
-      sampleSnapshot({ second: 2, table: { limits: [full] } }),
+      sampleSnapshot({ second: 1, table: { limits: [full] } }),
     ]);
     expect(detector.detect(run)).toEqual([]);
   });

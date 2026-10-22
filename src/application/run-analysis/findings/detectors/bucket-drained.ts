@@ -30,9 +30,9 @@ export const BUCKET_DRAINED = "bucket-drained";
  * beneath the finding about that limit's refusals.
  *
  * Its `window` is the seconds the bucket was out. Its `causeWindow` starts
- * where the drain began: the first second of the unbroken run of seconds,
- * leading into the first one out, in which `takenPerSec` was over
- * `ratePerSec`.
+ * where the drain began: the end of the last second before the first one
+ * out that ended with the bucket full, or the run's start if none did. So
+ * the burst and the formula it quotes are about a full bucket.
  */
 export function bucketDrainedDetector(catalog: FindingsCatalog): Detector {
   return {
@@ -67,7 +67,7 @@ function buckets(run: RunSoFar): Bucket[] {
   });
 }
 
-/** The drain that led into the first second out. */
+/** The drain that led into the first second out, from a full bucket. */
 interface Drain {
   /** The index of its first second. */
   readonly start: number;
@@ -80,12 +80,11 @@ interface Drain {
 interface BucketTally {
   /** Seconds in which the bucket ran out. */
   readonly out: SecondsTally;
-  /** The last second before the first out that ended with a full bucket. */
-  lastFull: number | undefined;
-  /** The current unbroken run of seconds taking more than the refill. */
-  runStart: number | undefined;
-  runSeconds: number;
-  runTaken: number;
+  /** The first second after the last one that ended with a full bucket. */
+  drainStart: number;
+  /** Seconds read since `drainStart`, and the tokens taken in them. */
+  drainSeconds: number;
+  drainTaken: number;
   /** Set at the first second out. */
   drain: Drain | undefined;
 }
@@ -100,10 +99,9 @@ interface BucketSecond {
 function tallyBucket(bucket: Bucket, run: RunSoFar): BucketTally {
   const tally: BucketTally = {
     out: noSeconds(),
-    lastFull: undefined,
-    runStart: undefined,
-    runSeconds: 0,
-    runTaken: 0,
+    drainStart: 0,
+    drainSeconds: 0,
+    drainTaken: 0,
     drain: undefined,
   };
   const ref: LimitRef = {
@@ -126,40 +124,31 @@ function tallyBucket(bucket: Bucket, run: RunSoFar): BucketTally {
   return tally;
 }
 
-/** Tracks the level and the drain up to the first second out. */
+/** Tracks the drain since the bucket was last full, up to the first second out. */
 function addBeforeOut(tally: BucketTally, second: BucketSecond): void {
   const { use, index, exhausted } = second;
-  // Fewer than one token missing at the second's end: full.
-  if (!exhausted && use.current < 1) tally.lastFull = index;
-  addToRun(tally, second);
-  if (exhausted) tally.drain = drainOf(tally, second);
-}
-
-function addToRun(tally: BucketTally, { use, index }: BucketSecond): void {
-  if (use.takenPerSec <= use.ratePerSec) {
-    tally.runStart = undefined;
-    tally.runSeconds = 0;
-    tally.runTaken = 0;
+  tally.drainSeconds++;
+  tally.drainTaken += use.takenPerSec;
+  if (exhausted) {
+    tally.drain = drainOf(tally);
     return;
   }
-  tally.runStart ??= index;
-  tally.runSeconds++;
-  tally.runTaken += use.takenPerSec;
+  // Fewer than one token missing at the second's end: full, so a drain
+  // that leads into running out starts after it.
+  if (use.current < 1) startDrainAfter(tally, index);
 }
 
-/**
- * The run of seconds leading into the first out. If the second it ran out
- * took no more than the refill, the tokens went faster within that second,
- * and the drain is that second alone.
- */
-function drainOf(tally: BucketTally, { use, index }: BucketSecond): Drain {
-  if (tally.runStart === undefined) {
-    return { start: index, seconds: 1, takenPerSec: use.takenPerSec };
-  }
+function startDrainAfter(tally: BucketTally, index: number): void {
+  tally.drainStart = index + 1;
+  tally.drainSeconds = 0;
+  tally.drainTaken = 0;
+}
+
+function drainOf(tally: BucketTally): Drain {
   return {
-    start: tally.runStart,
-    seconds: tally.runSeconds,
-    takenPerSec: tally.runTaken / tally.runSeconds,
+    start: tally.drainStart,
+    seconds: tally.drainSeconds,
+    takenPerSec: tally.drainTaken / tally.drainSeconds,
   };
 }
 
@@ -184,11 +173,7 @@ function drainedFinding(input: DrainedFindingInput): DetectedFinding {
     window: out,
     causeWindow: causeWindowOf(input),
     summary: say`${component(componentId)}'s ${use.name} bucket drained from ${at(drainStartMs(input))} and ran out in the second ending at ${at(firstOutEndMs(input))}.`,
-    reasons: [
-      lastFullSentence(input),
-      flowSentence(input),
-      ...lastedSentences(input),
-    ],
+    reasons: [flowSentence(input), ...lastedSentences(input)],
     evidence: evidenceOf(input),
     ...adviceFor(catalog, {
       project: run.project,
@@ -215,23 +200,20 @@ function causeWindowOf(input: DrainedFindingInput): TimeWindow | undefined {
   return { fromMs: drainStartMs(input), toMs: input.out.toMs };
 }
 
-/** A bucket starts full, so with no full second before, it was full at the start. */
-function lastFullSentence({ tally, run }: DrainedFindingInput): Message {
-  const { lastFull } = tally;
-  const fullMs =
-    lastFull === undefined
-      ? (run.snapshots[0]?.startMs ?? 0)
-      : (run.snapshots[lastFull]?.endMs ?? 0);
-  return say`It was last full at ${at(fullMs)}.`;
-}
-
+/**
+ * When it was last full, where the drain starts (a bucket starts full, so
+ * with no full second before, that's the run's start), and the mean flow
+ * since. A mean no faster than the refill means the tokens went faster than
+ * that within a second.
+ */
 function flowSentence(input: DrainedFindingInput): Message {
   const { drain, bucket } = input;
+  const from = say`It was last full at ${at(drainStartMs(input))}. From then, requests took ${count(drain.takenPerSec)} tokens a second on average`;
   const rate = count(bucket.use.ratePerSec);
   if (drain.takenPerSec <= bucket.use.ratePerSec) {
-    return say`In the second it ran out, requests took ${count(drain.takenPerSec)} tokens, no more than its refill of ${rate} a second, but faster than the refill within the second.`;
+    return say`${from}, no more than its refill of ${rate} a second, but faster than the refill within a second.`;
   }
-  return say`From ${at(drainStartMs(input))}, requests took more tokens than it refills in every second: ${count(drain.takenPerSec)} a second on average, against a refill of ${rate}.`;
+  return say`${from}, against a refill of ${rate}.`;
 }
 
 /**
@@ -272,7 +254,7 @@ function evidenceOf({ bucket, tally, drain }: DrainedFindingInput): Evidence[] {
       source: "snapshots",
     },
     {
-      what: `${name}: seconds in the drain (takenPerSec over ratePerSec, leading into the first second out)`,
+      what: `${name}: seconds in the drain (from the last second ending with current < 1, to the first second out)`,
       value: drain.seconds,
       source: "snapshots",
     },

@@ -12,7 +12,9 @@ import {
 import type { Project } from "../../domain/model/project";
 import templateA from "../templates/template-a.json";
 import templateB from "../templates/template-b.json";
+import { withMaxConnections } from "../templates/testing/rejection-runs";
 import { RUN_TIMEOUT_MS, runTemplate } from "../templates/testing/run-template";
+import { projectB, runScenario } from "../templates/testing/scenario-runs";
 
 // The report derives "in progress", "unfinished", and "being delivered" by
 // subtraction and tells readers the sums add up. These tests check each
@@ -212,5 +214,46 @@ describe("template-b's queue", () => {
       queue.completed - queue.asyncSucceeded - queue.queueDepth;
     expect(limitIn(queue, "consumerConcurrency").current).toBe(delivering);
     expect(delivering).toBeGreaterThan(0);
+  });
+});
+
+// findings.md §1.8: Template B's lunch rush with orders-db cut to 10
+// connections. No shipped run has a failed delivery, so this variant is the
+// one that gives the failed-delivery counts something to reconcile.
+describe("template-b's failed deliveries, with 10 database connections", () => {
+  let totals: MetricsSnapshot;
+  let snapshots: readonly MetricsSnapshot[];
+  beforeAll(() => {
+    ({ totals, snapshots } = runScenario({
+      project: withMaxConnections(projectB, 10),
+      workloadId: "lunch-rush",
+      seed: 42,
+    }));
+  }, RUN_TIMEOUT_MS);
+
+  // Fails if a failed delivery is counted in asyncFailed without its cause,
+  // or if the totals stop adding up the windows' causes.
+  it("adds up each component's failed deliveries by cause to asyncFailed", () => {
+    for (const snapshot of [...snapshots, totals]) {
+      for (const [id, m] of Object.entries(snapshot.components)) {
+        const byCause = Object.values(m.asyncFailures).reduce(
+          (n, failed) => n + failed,
+          0,
+        );
+        expect(byCause, `${id} at ${String(snapshot.endMs)} ms`).toBe(
+          m.asyncFailed,
+        );
+      }
+    }
+    expect(componentIn(totals, "orders-queue").asyncFailed).toBeGreaterThan(0);
+  });
+
+  // Fails if the engine stops passing the failure that ended a delivery to
+  // the observer, or passes the failure of the queue's own step instead of
+  // the call that was refused.
+  it("traces every failed delivery to orders-db's refusals", () => {
+    expect(componentIn(totals, "orders-queue").asyncFailures).toEqual({
+      "orders-db: too-many-connections": 90,
+    });
   });
 });

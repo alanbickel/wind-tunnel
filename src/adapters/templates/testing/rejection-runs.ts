@@ -128,6 +128,22 @@ export function withConsumerMaxConcurrency(
   });
 }
 
+/**
+ * The project with orders-db's `maxConnections` replaced: findings.md §1.8's
+ * variant of Template B at 10, whose lunch rush refuses some of fn-writer's
+ * calls, so those deliveries fail and are redelivered. Built in tests only;
+ * the template keeps its setting.
+ */
+export function withMaxConnections(
+  project: Project,
+  maxConnections: number,
+): Project {
+  return withConfig(project, {
+    id: "orders-db",
+    config: { maxConnections },
+  });
+}
+
 /** A component, and the settings of its config to replace. */
 interface ConfigChange {
   readonly id: string;

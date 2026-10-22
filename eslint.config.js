@@ -175,6 +175,7 @@ const STATE_CLASSES = [
   "Tally",
   "ComponentTally",
   "WorkflowTally",
+  "CauseCounts",
 ];
 /** Classes whose job is to build other objects. */
 const FACTORY_SUFFIXES = ["\\w+Factory", "\\w+Builder"];

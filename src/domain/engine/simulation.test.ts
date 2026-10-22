@@ -303,8 +303,10 @@ describe("simulate", () => {
       requestId: 0,
       componentId: "queue",
       latencyMs: 76,
-      succeeded: true,
     });
+    expect(
+      ofKind(events, "component-async-finished")[0]?.failure,
+    ).toBeUndefined();
   });
 
   it("is deterministic", () => {

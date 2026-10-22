@@ -59,7 +59,9 @@ function journeyText(startMs: number): KindHandlers<RequestEvent, JourneyLine> {
     "component-dispatched": (e) => [e.componentId, "dispatched"],
     "component-async-finished": (e) => [
       e.componentId,
-      `async work done (${String(e.succeeded)})`,
+      e.failure === undefined
+        ? "async work done"
+        : `async work failed (${cause(e.failure)})`,
     ],
   };
 }

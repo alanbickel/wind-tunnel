@@ -25,6 +25,12 @@ export interface ComponentMetrics {
   /** Queue-like components: deliveries of async work that ended. */
   readonly asyncSucceeded: number;
   readonly asyncFailed: number;
+  /**
+   * Failed deliveries by cause, e.g. `"orders-db: too-many-connections"`,
+   * as `WorkflowMetrics.failures` counts failed requests. Sums to
+   * `asyncFailed`; empty if none failed.
+   */
+  readonly asyncFailures: Readonly<Record<string, number>>;
   /** Time from the user's request to the end of a successful delivery. */
   readonly asyncLatency: LatencySummary | undefined;
   /** Type-specific values at the window's end. */

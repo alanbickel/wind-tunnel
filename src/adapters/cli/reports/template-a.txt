@@ -60,7 +60,7 @@ arrivals = ok + failed + rejected + unfinished. "unfinished" work was still runn
 "timeouts" isn't part of that sum: the caller stopped waiting, but the component still finished the work as ok or failed.
 Latencies are in ms (bucket upper bounds, up to 5% high), of ok work. "busy" is work running; "queue" is work waiting.
 Queues: "ok" counts messages accepted. Each is then delivered (async ok), waiting in the backlog, or being delivered.
-"async failed" counts failed deliveries; those messages go back to the backlog and are tried again.
+"async failed" counts failed deliveries, with their causes in parentheses; those messages go back to the backlog and are tried again.
 
 Limits
 ======

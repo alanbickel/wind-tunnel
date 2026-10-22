@@ -6,7 +6,7 @@ To write one, or to change a decision, follow [ADRs in the contributing guide](.
 
 | ADR | Decision |
 |---|---|
-| [0001](0001-record-architecture-decisions.md) | Record architecture decisions |
+| [0001](0001-record-architecture-decisions.md) | Record architecture decisions; an accepted ADR's text is never reworded, and a dated addendum may change part of its decision |
 | [0002](0002-use-clean-architecture-layering.md) | Use Clean Architecture layering with an enforced dependency rule |
 | [0003](0003-browser-only-react-typescript-app.md) | Build a browser-only app with TypeScript, React, and Vite |
 | [0004](0004-persist-projects-in-indexeddb.md) | Persist projects in IndexedDB as versioned documents; ship templates as bundled data |

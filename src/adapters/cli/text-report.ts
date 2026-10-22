@@ -19,6 +19,10 @@ import {
   workflowSeconds,
   type WorkflowSecond,
 } from "../../application/run-analysis/workflow-seconds";
+import { createDetectors } from "../../application/run-analysis/findings/create-detectors";
+import { findRun } from "../../application/run-analysis/findings/find-run";
+import { formatFindings, formatVerdict } from "./findings-report";
+import { count, seconds, shareDown } from "./text-format";
 
 /** The run to report on, and the project and workload it ran. */
 export interface ReportInput {
@@ -28,19 +32,24 @@ export interface ReportInput {
 }
 
 /**
- * Renders a run's metrics as plain text for a terminal: totals per workflow
- * and component, failure causes, then one row per snapshot. Deterministic,
+ * Renders a run as plain text for a terminal: the verdict and findings, then
+ * totals per workflow and component, failure causes, limits, and one row
+ * per snapshot. Deterministic,
  * so tests can compare it to a file snapshot.
  */
 export function formatReport(input: ReportInput): string {
-  const { project, run } = input;
+  const { project, workload, run } = input;
   const { totals, snapshots } = run;
+  const soFar = { project, workloadId: workload.id, snapshots };
+  const findings = findRun(soFar, createDetectors());
   const sections = [
     heading(input),
+    section("Verdict", formatVerdict(findings.verdict)),
+    section("Findings", formatFindings(findings)),
     section("Workflows", workflowTable(totals)),
     section("Failures", failureTotals(totals)),
     section("Components", componentTable(project, totals)),
-    section("Limits", limitTable(limitPeaks({ project, snapshots }))),
+    section("Limits", limitTable(limitPeaks(soFar))),
     section("Workflows per second", workflowTimeline(snapshots)),
     section("Components per second", componentTimeline(project, snapshots)),
   ];
@@ -364,10 +373,6 @@ function table(headers: string[], rows: string[][]): string {
   return [line(headers), rule, ...rows.map(line)].join("\n");
 }
 
-function count(n: number): string {
-  return n.toLocaleString("en-US");
-}
-
 function ms(value: number | undefined): string {
   return value === undefined ? "-" : count(Math.round(value));
 }
@@ -380,19 +385,4 @@ function flow(rate: RateFlow | undefined): string {
   if (rate === undefined) return "-";
   const taken = count(Math.round(rate.busiestTakenPerSec));
   return `${taken} of ${count(rate.ratePerSec)} per s`;
-}
-
-/**
- * A share as a percentage rounded down to 0.1%, so 100% only shows when it's
- * all of it. The slack keeps float error (0.29 × 1000 = 289.999…) from
- * rounding an exact share down a step.
- */
-function shareDown(fraction: number | undefined): string {
-  if (fraction === undefined) return "-";
-  const tenths = Math.floor(1000 * fraction + 1e-9);
-  return `${(tenths / 10).toFixed(1)}%`;
-}
-
-function seconds(timeMs: number): string {
-  return String(Math.round(timeMs / 100) / 10);
 }

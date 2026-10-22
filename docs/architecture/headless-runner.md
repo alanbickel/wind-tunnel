@@ -37,7 +37,7 @@ flowchart LR
 | Use case | [`run-simulation.ts`](../../src/application/use-cases/run-simulation.ts) | Picks the workload (the first, unless `--workload` names one), applies `--seed`, and runs it through the `SimulationRunner` port. The browser runs the same use case |
 | Runner | [`in-process-simulation-runner.ts`](../../src/adapters/simulation/in-process-simulation-runner.ts) | The `SimulationRunner` port on the caller's thread, over `simulateWithMetrics`. The browser uses a Web Worker instead ([the user interface guide](user-interface.md#a-run-from-click-to-chart)) |
 | Templates | [`bundled-template-catalog.ts`](../../src/adapters/templates/bundled-template-catalog.ts) | The `TemplateCatalog` port over the bundled JSON; `--help` lists its templates |
-| Report | [`text-report.ts`](../../src/adapters/cli/text-report.ts) | Turns a `MetricsRun` into tables |
+| Report | [`text-report.ts`](../../src/adapters/cli/text-report.ts), [`findings-report.ts`](../../src/adapters/cli/findings-report.ts) | Turns a `MetricsRun` into the verdict, the findings, and tables |
 
 Two choices worth knowing about:
 
@@ -46,14 +46,16 @@ Two choices worth knowing about:
 
 ## Reading the report
 
-The report has six sections:
+The report has eight sections:
 
-1. **Workflows:** requests started, succeeded, failed, and still in progress, with end-to-end latency percentiles for the successful ones.
-2. **Failures:** why requests failed, as `component: reason`.
-3. **Components:** run totals per component, with type-specific counters such as Lambda `coldStarts`.
-4. **Limits:** each component's limits, the most of each used at once, and, for a rate limit's token bucket, its busiest second's flow against its rate ([how to read them](metrics.md#limits-and-their-use)).
-5. **Workflows per second:** traffic, requests in progress, and p99 latency over time. This is where a spike shows up.
-6. **Components per second:** each component's peak use of each limit every second (or its peak work in progress, if it has no limits), plus its queue depth.
+1. **Verdict:** failing, degraded, or healthy, with the request counts and, unless failing, the limit closest to refusing work.
+2. **Findings:** what broke or slowed down, where, when, why, and what would fix it ([Findings and detectors](finding-detectors.md)).
+3. **Workflows:** requests started, succeeded, failed, and still in progress, with end-to-end latency percentiles for the successful ones.
+4. **Failures:** why requests failed, as `component: reason`.
+5. **Components:** run totals per component, with type-specific counters such as Lambda `coldStarts`.
+6. **Limits:** each component's limits, the most of each used at once, and, for a rate limit's token bucket, its busiest second's flow against its rate ([how to read them](metrics.md#limits-and-their-use)).
+7. **Workflows per second:** traffic, requests in progress, and p99 latency over time. This is where a spike shows up.
+8. **Components per second:** each component's peak use of each limit every second (or its peak work in progress, if it has no limits), plus its queue depth.
 
 Latencies are in milliseconds and come from the histogram buckets, so they can read up to 5% high (see [How metrics work](metrics.md)).
 
@@ -76,7 +78,22 @@ The report computes "in progress", "unfinished", and "being delivered" by subtra
 
 ## Worked example: Template A's lunch rush
 
-This excerpt is from [`reports/template-a.txt`](../../src/adapters/cli/reports/template-a.txt), a file snapshot written by `simulate-command.test.ts`. Tuning changes the numbers; run `npx vitest run -u src/adapters/cli` to update it.
+These excerpts are from [`reports/template-a.txt`](../../src/adapters/cli/reports/template-a.txt), a file snapshot written by `simulate-command.test.ts`. Tuning changes the numbers; run `npx vitest run src/adapters/cli --update` to update it.
+
+The report opens with its reading of the run:
+
+```text
+Verdict
+=======
+Failing. 28,841 of 65,963 answered requests failed (43.7%); 11 were still in progress when the run ended.
+
+Findings
+========
+1. Failure: 28,841 requests failed with orders-db: too-many-connections, from 14 s to 47 s.
+   - That's 23,183 Get order and 5,658 Create order requests, 43.7% of the 65,963 answered.
+```
+
+The tables below it are the evidence. Failures gives the same cause:
 
 ```text
 Failures

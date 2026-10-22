@@ -113,13 +113,18 @@ function RunResults({ project, workload, snapshots }: RunResultsProps) {
         <progress value={doneSec} max={totalSec} aria-label="Simulated time" />
         {doneSec} of {totalSec} simulated seconds
       </p>
-      <RunMetrics project={project} snapshots={deferredSnapshots} />
+      <RunMetrics
+        project={project}
+        workloadId={workload.id}
+        snapshots={deferredSnapshots}
+      />
     </div>
   );
 }
 
 interface RunMetricsProps {
   readonly project: Project;
+  readonly workloadId: string;
   readonly snapshots: readonly MetricsSnapshot[];
 }
 
@@ -129,9 +134,13 @@ interface RunMetricsProps {
  */
 const RunMetrics = memo(function RunMetrics({
   project,
+  workloadId,
   snapshots,
 }: RunMetricsProps) {
-  const run = useMemo(() => ({ project, snapshots }), [project, snapshots]);
+  const run = useMemo(
+    () => ({ project, workloadId, snapshots }),
+    [project, workloadId, snapshots],
+  );
   const charts = useMemo(() => runCharts(run), [run]);
 
   return (

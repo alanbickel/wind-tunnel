@@ -21,8 +21,12 @@ const snapshots = [
 ];
 
 describe("workflowTotals", () => {
+  // Fails if a snapshot is dropped from the sums, or in progress isn't
+  // started minus answered.
   it("adds up the snapshots and shows what's still in progress", () => {
-    expect(workflowTotals({ project, snapshots })).toEqual([
+    expect(
+      workflowTotals({ project, workloadId: "steady", snapshots }),
+    ).toEqual([
       {
         id: "read",
         label: "Read item",
@@ -34,8 +38,13 @@ describe("workflowTotals", () => {
     ]);
   });
 
+  // Fails if no snapshots means no rows instead of a row of zeros.
   it("is all zeros before the first snapshot", () => {
-    const [read] = workflowTotals({ project, snapshots: [] });
+    const [read] = workflowTotals({
+      project,
+      workloadId: "steady",
+      snapshots: [],
+    });
     expect(read).toMatchObject({ started: 0, inProgress: 0 });
   });
 });
@@ -76,8 +85,10 @@ describe("allWorkflows", () => {
 });
 
 describe("componentTotals", () => {
+  // Fails if the rows leave architecture order, or unfinished isn't
+  // arrivals minus completed, failed, and rejected.
   it("lists every component in architecture order, with unfinished work", () => {
-    const rows = componentTotals({ project, snapshots });
+    const rows = componentTotals({ project, workloadId: "steady", snapshots });
 
     expect(rows.map((r) => r.label)).toEqual(["API", "Function", "Table"]);
     expect(rows[1]).toEqual({

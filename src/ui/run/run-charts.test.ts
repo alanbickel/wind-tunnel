@@ -29,8 +29,13 @@ const snapshots = [
 ];
 
 describe("runCharts", () => {
+  // Fails if a series plots the running total instead of the second's
+  // count, or in progress isn't carried from second to second.
   it("counts requests per second, with the running total in progress", () => {
-    const requests = chartTitled(runCharts({ project, snapshots }), "Requests");
+    const requests = chartTitled(
+      runCharts({ project, workloadId: "steady", snapshots }),
+      "Requests",
+    );
 
     expect(valuesOf(requests, "started")).toEqual([
       [1, 5],
@@ -51,8 +56,9 @@ describe("runCharts", () => {
     ]);
   });
 
+  // Fails if a second without latency is plotted as 0 instead of left out.
   it("leaves a gap in latency for a second with no successful request", () => {
-    const charts = runCharts({ project, snapshots });
+    const charts = runCharts({ project, workloadId: "steady", snapshots });
 
     const latencyChart = chartTitled(charts, "Latency");
 
@@ -60,8 +66,14 @@ describe("runCharts", () => {
     expect(valuesOf(latencyChart, "read")).toEqual([[1, 30]]);
   });
 
+  // Fails if a component's series appears only once it has work, which
+  // would shift the colors of the series after it.
   it("draws every component from the start, so colors don't shift", () => {
-    const first = runCharts({ project, snapshots: snapshots.slice(0, 1) });
+    const first = runCharts({
+      project,
+      workloadId: "steady",
+      snapshots: snapshots.slice(0, 1),
+    });
     const busy = chartTitled(first, "Work in progress");
 
     expect(busy.series.map((s) => s.label)).toEqual([
@@ -69,7 +81,7 @@ describe("runCharts", () => {
       "Function",
       "Table",
     ]);
-    const all = runCharts({ project, snapshots });
+    const all = runCharts({ project, workloadId: "steady", snapshots });
     expect(valuesOf(chartTitled(all, "Work in progress"), "fn")).toEqual([
       [1, 0],
       [2, 7],
@@ -80,8 +92,10 @@ describe("runCharts", () => {
     ]);
   });
 
+  // Fails if a chart, or a chart's series, is missing until the first
+  // snapshot arrives.
   it("has every chart's series, with no points, before the first snapshot", () => {
-    const charts = runCharts({ project, snapshots: [] });
+    const charts = runCharts({ project, workloadId: "steady", snapshots: [] });
 
     expect(charts).toHaveLength(4);
     for (const chart of charts) {

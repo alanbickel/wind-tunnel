@@ -44,15 +44,17 @@ const snapshots = [
 
 describe("limitPeaks", () => {
   // Fails if the peak or the busiest flow is the latest second's rather than
-  // the highest, or if the rows leave architecture order.
+  // the highest, if the rows leave architecture order, or if a row drops
+  // what the limit does when it's full.
   it("gives each limit its highest peak so far, in architecture order", () => {
-    expect(limitPeaks({ project, snapshots })).toEqual([
+    expect(limitPeaks({ project, workloadId: "steady", snapshots })).toEqual([
       {
         id: "api requestRate",
         componentId: "api",
         componentLabel: "API",
         name: "requestRate",
         kind: "rate",
+        whenFull: { kind: "refuse", reason: "throttled" },
         limit: 100,
         peak: 90,
         peakShare: 0.9,
@@ -65,6 +67,7 @@ describe("limitPeaks", () => {
         componentLabel: "Function",
         name: "concurrency",
         kind: "concurrency",
+        whenFull: { kind: "refuse", reason: "throttled" },
         limit: 10,
         peak: 4,
         peakShare: 0.4,
@@ -79,6 +82,7 @@ describe("limitPeaks", () => {
   it("marks a bucket exhausted once less than one token is left", () => {
     const [row] = limitPeaks({
       project,
+      workloadId: "steady",
       snapshots: [
         sampleSnapshot({ second: 1, api: { limits: [requestRate(99.5, 0)] } }),
       ],
@@ -91,6 +95,7 @@ describe("limitPeaks", () => {
     const zero = { ...concurrency(0), limit: 0 };
     const [row] = limitPeaks({
       project,
+      workloadId: "steady",
       snapshots: [sampleSnapshot({ second: 1, fn: { limits: [zero] } })],
     });
     expect(row).toMatchObject({ peak: 0, peakShare: undefined });
@@ -98,6 +103,8 @@ describe("limitPeaks", () => {
 
   // Fails if it reads limits from a snapshot that isn't there.
   it("is empty before the first snapshot", () => {
-    expect(limitPeaks({ project, snapshots: [] })).toEqual([]);
+    expect(
+      limitPeaks({ project, workloadId: "steady", snapshots: [] }),
+    ).toEqual([]);
   });
 });

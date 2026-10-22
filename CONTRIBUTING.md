@@ -292,7 +292,8 @@ Some docs quote output that a test generates or checks. Change them together:
 | Doc | Test |
 |---|---|
 | Excerpts in the [engine](docs/architecture/simulation-engine.md), [component](docs/architecture/component-definitions.md), [domain model](docs/architecture/domain-model.md), and [metrics](docs/architecture/metrics.md) guides | Snapshot traces in `src/domain/traces/`, one test file per guide; refresh with `npx vitest run -u src/domain/traces`, then update the excerpt in the guide |
-| The sample reports in the [headless runner guide](docs/architecture/headless-runner.md) | Snapshots in `src/adapters/cli/reports/`; refresh with `npx vitest run -u src/adapters/cli` and read the diff |
+| The sample reports in the [headless runner guide](docs/architecture/headless-runner.md) and the [findings guide](docs/architecture/finding-detectors.md) | Snapshots in `src/adapters/cli/reports/`; refresh with `npx vitest run -u src/adapters/cli` and read the diff |
+| The verdict quoted under each reading in [findings.md §1](docs/design/findings.md#1-hand-written-readings) | `describeFindings` in `src/adapters/templates/findings/`, which compares the CLI's verdict for each run with the doc's quote; change the doc to match what the code prints |
 | Excerpts in the [user interface guide](docs/architecture/user-interface.md) | The snapshot trace in `src/ui/traces/`; refresh with `npx vitest run src/ui/traces --update`, then update the excerpts in the guide |
 | Each template's lesson in [MVP design §7](docs/design/mvp-design.md) | The scenario tests in `src/adapters/templates/scenarios/` |
 

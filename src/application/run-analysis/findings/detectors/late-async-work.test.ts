@@ -114,8 +114,8 @@ describe("late-async-work", () => {
     expect(detector.detect(run(direct, late))).toEqual([]);
   });
 
-  // Fails if the advice comes from a limit that didn't run out, or from
-  // one that refuses rather than makes work wait.
+  // Fails if the advice comes from a limit that didn't run out (idle), or
+  // from one that refuses rather than makes work wait (refusing).
   it("carries the advice for the queue's waiting limits that ran out", () => {
     const fix: Fix = {
       scope: "wind-tunnel",
@@ -123,12 +123,14 @@ describe("late-async-work", () => {
       claim: { kind: "assumption" },
       fidelityIds: [],
     };
+    const otherFix: Fix = { ...fix, message: say`Raise the rate.` };
     const catalog: FindingsCatalog = new Map([
       [
         "dynamodb",
         {
           type: "dynamodb",
           limits: {
+            refusing: { fixes: [otherFix], learnMore: "refusing" },
             consumers: { fixes: [fix], learnMore: "consumers" },
             idle: { fixes: [fix], learnMore: "idle" },
           },
@@ -143,7 +145,11 @@ describe("late-async-work", () => {
       current: 0,
       peak,
     });
-    const limits = [waiting("consumers", 2), waiting("idle", 1)];
+    const refusing: LimitUse = {
+      ...waiting("refusing", 2),
+      whenFull: { kind: "refuse", reason: "throttled" },
+    };
+    const limits = [refusing, waiting("consumers", 2), waiting("idle", 1)];
     const snapshots = [second(1, 30_000, limits), second(2, 40_000, limits)];
     const [finding] = lateAsyncWorkDetector(catalog).detect(
       run(queued, snapshots),

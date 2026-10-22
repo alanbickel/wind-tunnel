@@ -28,7 +28,7 @@ The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architec
 - **Imports point inward only:** `ui`/`adapters` → `application` → `domain`. `ui/` gets adapters through dependency injection and may import only types from `domain/`.
 - **`domain/` and `application/` are deterministic.** No `Math.random`, `Date.now`, or `new Date`; no React, DOM, Worker, or Node APIs. Randomness comes from a seeded `RandomSource` and time from the `Clock` port, so the same seed always gives the same run. Libraries are allowed there only when an ADR approves them ([ADR-0005](docs/adr/0005-use-zod-for-schema-validation.md)).
 - **Register, don't edit the engine (Open/Closed).** A new component type is a new `ComponentDefinition` added to the registry. It returns effects to the engine and never schedules events itself ([ADR-0006](docs/adr/0006-components-return-effects-to-the-engine.md)). See [Adding a component type](#adding-a-component-type).
-- **Significant decisions get an ADR** in `docs/adr/` (copy [the template](docs/adr/template.md)). An accepted ADR's body and decision are never edited. A later change that affects it, without changing the decision, gets a dated addendum at the end; a changed decision gets a new ADR that supersedes the old one ([ADR-0001](docs/adr/0001-record-architecture-decisions.md)).
+- **Significant decisions get an ADR** in `docs/adr/` (copy [the template](docs/adr/template.md)). An accepted ADR's text is never reworded or removed. A later change that affects it, or changes part of its decision, gets a dated addendum at the end; when its main decision no longer holds, a new ADR supersedes it ([ADR-0001](docs/adr/0001-record-architecture-decisions.md)).
 
 ## Coding standards
 
@@ -331,8 +331,10 @@ Every document must be reachable from the map in the [root README](README.md#doc
 
 Record a significant decision as an ADR in `docs/adr/`, copying [the template](docs/adr/template.md), and list it in the [ADR overview](docs/adr/adr-overview.md). "Significant" is defined in [ADR-0001](docs/adr/0001-record-architecture-decisions.md).
 
-- **Never edit an accepted ADR's body or decision.** To note how a later change affects it (a signature it quotes has changed, a file it links has moved), append a dated addendum.
-- **To change the decision,** write a new ADR that supersedes it, and update only the old one's status line.
+- **Never reword or remove what an accepted ADR records:** its context, decision, rationale, and consequences. That information is what makes ADRs a record you can audit.
+- **To note how a later change affects it** (a signature it quotes has changed, a file it links has moved), append a dated addendum.
+- **To change part of its decision,** append a dated addendum with its own context, decision, and consequences. Mark each point it changes with a line directly after it, and set the status to `Accepted; amended YYYY-MM-DD`. [ADR-0001](docs/adr/0001-record-architecture-decisions.md)'s addendum of 2026-10-22 gives the format.
+- **When its main decision no longer holds** (the one its title states), write a new ADR that supersedes it, and update only the old one's status line.
 - **One exception:** ADRs 0002, 0003, and 0005 were edited in place when the project was renamed from Cloud Builder to Wind Tunnel, as a one-off.
 
 ## Milestones and the roadmap

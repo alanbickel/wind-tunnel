@@ -1,5 +1,6 @@
 import { limitExhausted } from "../../../domain/metrics/limit-exhausted";
 import { lookup } from "../../../domain/shared/kind-handlers";
+import type { RunSoFar } from "../run-so-far";
 import { count, say, type Message } from "./message";
 import type {
   LimitUse,
@@ -41,4 +42,24 @@ const UNITS: Readonly<Record<LimitUse["kind"], string>> = {
 /** "13 of 90", or "7,497 of 7,500 tokens drawn" for a rate limit. */
 export function amountOf(limit: LimitSize, amount: number): Message {
   return say`${count(amount)} of ${count(limit.limit)}${lookup(UNITS, limit.kind)}`;
+}
+
+/** One limit of one component, as the latest snapshot reports it. */
+export interface ComponentLimit {
+  readonly componentId: string;
+  readonly use: LimitUse;
+}
+
+/**
+ * Every limit the latest snapshot reports, by component in project order.
+ * The declarations never change during a run, so the latest is enough.
+ */
+export function reportedLimits(run: RunSoFar): ComponentLimit[] {
+  const last = run.snapshots.at(-1);
+  return run.project.architecture.components.flatMap(({ id }) =>
+    (last?.components[id]?.limits ?? []).map((use) => ({
+      componentId: id,
+      use,
+    })),
+  );
 }

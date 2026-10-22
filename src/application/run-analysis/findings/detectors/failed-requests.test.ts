@@ -3,7 +3,7 @@ import type { LimitUse } from "../../../../domain/metrics/metrics-snapshot";
 import { messageText, sampleRun } from "../../../testing/sample-findings";
 import { sampleSnapshot } from "../../../testing/sample-snapshots";
 import { createFindingsCatalog } from "../catalog/create-findings-catalog";
-import type { Finding } from "../finding";
+import type { DetectedFinding } from "../finding";
 import { failedRequestsDetector } from "./failed-requests";
 
 const detector = failedRequestsDetector(createFindingsCatalog());
@@ -29,7 +29,7 @@ const writeUnits = (peak: number): LimitUse => ({
 const THROTTLED = "table: throttled";
 
 /** Every sentence of the finding, as plain text. */
-function sentences(finding: Finding | undefined): string[] {
+function sentences(finding: DetectedFinding | undefined): string[] {
   if (finding === undefined) return [];
   return [finding.summary, ...finding.reasons].map(messageText);
 }
@@ -68,14 +68,20 @@ const throttled = [
 ];
 
 describe("failed-requests", () => {
-  // Fails if the finding's count, window, or ID drifts from the cause's
-  // failures in the snapshots.
+  // Fails if the finding's count, window, or key drifts from the cause's
+  // failures in the snapshots, or it stops saying which limit refused them.
   it("gives the cause one failure, counting its requests over its seconds", () => {
     const [finding] = detector.detect(sampleRun(throttled));
     expect(finding).toMatchObject({
-      id: "failed-requests:table: throttled",
+      key: {
+        kind: "failed-requests",
+        componentId: "table",
+        reason: "throttled",
+        limitName: undefined,
+      },
       severity: "failure",
-      componentId: "table",
+      limitNames: ["readUnits"],
+      explains: undefined,
       affected: 3,
       window: { fromMs: 1_000, toMs: 3_000 },
     });

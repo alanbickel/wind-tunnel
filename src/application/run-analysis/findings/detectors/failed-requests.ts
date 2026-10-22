@@ -2,7 +2,7 @@ import { allWorkflows, workflowTotals } from "../../run-totals";
 import type { RunSoFar } from "../../run-so-far";
 import { adviceFor, type FindingsCatalog } from "../catalog/type-advice";
 import type { Detector } from "../detector";
-import type { Evidence, Finding, TimeWindow } from "../finding";
+import type { DetectedFinding, Evidence, TimeWindow } from "../finding";
 import {
   at,
   component,
@@ -13,6 +13,7 @@ import {
   share,
   type Message,
 } from "../message";
+import { findingKey } from "../finding-key";
 import { spanOf } from "../time-window";
 import { failureCauses, isTimeout, type FailureCause } from "./failure-causes";
 import { limitRefused, type LimitRefusal } from "./limit-refused";
@@ -48,35 +49,49 @@ interface FailureContext {
   readonly answered: number;
 }
 
-function failureFinding(cause: FailureCause, context: FailureContext): Finding {
+function failureFinding(
+  cause: FailureCause,
+  context: FailureContext,
+): DetectedFinding {
   const { run } = context;
+  const { componentId, reason } = cause;
   const refusal = refusalOf(cause, context);
-  const limits = refusal?.limits ?? [];
-  const advice = adviceFor(context.catalog, {
-    project: run.project,
-    componentId: cause.componentId,
-    limitNames: limits.map((l) => l.name),
-  });
+  const limitNames = (refusal?.limits ?? []).map((l) => l.name);
   const window = windowOf(cause, run);
   return {
-    id: `${FAILED_REQUESTS}:${cause.cause}`,
-    detectorId: FAILED_REQUESTS,
+    key: findingKey({ kind: FAILED_REQUESTS, componentId, reason }),
     severity: "failure",
-    componentId: cause.componentId,
+    limitNames,
     window,
     causeWindow: causeWindowOf({ refusal, window, run }),
     summary: summaryOf(cause, window),
-    reasons: [
-      workflowsSentence(cause, context),
-      worstSentence(cause, run),
-      ...(refusal?.reasons ?? [timeoutSentence(cause)]),
-      ...recovery({ run, cause, limits }),
-    ],
+    reasons: reasonsOf({ cause, context, refusal }),
     evidence: [...causeEvidence(cause, context), ...(refusal?.evidence ?? [])],
-    ...advice,
-    causedBy: [],
+    ...adviceFor(context.catalog, {
+      project: run.project,
+      componentId,
+      limitNames,
+    }),
+    explains: undefined,
     affected: cause.failed,
   };
+}
+
+/** A cause, what's read besides it, and the limit-refused part, if any. */
+interface ReasonsInput {
+  readonly cause: FailureCause;
+  readonly context: FailureContext;
+  readonly refusal: LimitRefusal | undefined;
+}
+
+function reasonsOf({ cause, context, refusal }: ReasonsInput): Message[] {
+  const { run } = context;
+  return [
+    workflowsSentence(cause, context),
+    worstSentence(cause, run),
+    ...(refusal?.reasons ?? [timeoutSentence(cause)]),
+    ...recovery({ run, cause, limits: refusal?.limits ?? [] }),
+  ];
 }
 
 /** The limit-refused part, for a rejection; a timeout has none. */

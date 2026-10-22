@@ -1,4 +1,5 @@
-import type { Finding } from "../run-analysis/findings/finding";
+import type { Finding, FindingKey } from "../run-analysis/findings/finding";
+import { findingKey } from "../run-analysis/findings/finding-key";
 import type { Message, MessagePart } from "../run-analysis/findings/message";
 import type { RunSoFar } from "../run-analysis/run-so-far";
 import type { MetricsSnapshot } from "../../domain/metrics/metrics-snapshot";
@@ -11,10 +12,9 @@ import { sampleRecord } from "./sample-record";
 /** A note with nothing in it; override the fields a test needs. */
 export function sampleFinding(overrides: Partial<Finding> = {}): Finding {
   return {
-    id: "sample",
-    detectorId: "sample",
+    key: sampleKey("sample"),
     severity: "note",
-    componentId: "fn",
+    limitNames: [],
     window: { fromMs: 0, toMs: 1_000 },
     causeWindow: undefined,
     summary: [],
@@ -22,10 +22,16 @@ export function sampleFinding(overrides: Partial<Finding> = {}): Finding {
     evidence: [],
     fixes: [],
     learnMore: undefined,
+    explains: undefined,
     causedBy: [],
     affected: undefined,
     ...overrides,
   };
+}
+
+/** A key of the given kind at `fn`, the sample's function. */
+export function sampleKey(kind: string): FindingKey {
+  return findingKey({ kind, componentId: "fn" });
 }
 
 /** `sampleRecord`'s run of its 5 s `steady` workload, as far as `snapshots`. */

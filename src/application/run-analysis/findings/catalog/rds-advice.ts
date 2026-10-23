@@ -3,7 +3,9 @@ import { say } from "../message";
 import type { TypeAdvice } from "./type-advice";
 
 // Readings: findings.md §1.1, sentences 7 to 12. AWS links checked
-// 2026-10-21.
+// 2026-10-21. Advice that holds only when waiting queries hold the
+// connections (§1.1.3) is queryWorkers', so it shows under waiting-holds-
+// limit's note and not where the connections ran out on their own (§1.8.8).
 
 const LUNCH_RUSH_TEST = {
   kind: "observed",
@@ -62,6 +64,10 @@ export const rdsAdvice: TypeAdvice = {
   type: "rds",
   limits: {
     connections: {
+      fixes: [LARGER_INSTANCE, READ_REPLICAS],
+      learnMore: "rds-connection-limits-depend-on-instance-size",
+    },
+    queryWorkers: {
       fixes: [
         RAISE_QUERY_WORKERS,
         MORE_CONNECTIONS_ALONE,
@@ -69,11 +75,8 @@ export const rdsAdvice: TypeAdvice = {
         READ_REPLICAS,
         NOT_RDS_PROXY,
       ],
-      learnMore: "rds-connection-limits-depend-on-instance-size",
-    },
-    queryWorkers: {
-      fixes: [RAISE_QUERY_WORKERS, LARGER_INSTANCE, READ_REPLICAS],
       learnMore: undefined,
     },
   },
+  kinds: {},
 };

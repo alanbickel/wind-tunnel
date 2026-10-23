@@ -1,5 +1,10 @@
 import { limitExhausted } from "../../../domain/metrics/limit-exhausted";
-import { lookup } from "../../../domain/shared/kind-handlers";
+import {
+  handleKind,
+  lookup,
+  type KindHandlers,
+} from "../../../domain/shared/kind-handlers";
+import type { WhenFull } from "../../../domain/components/component-behavior";
 import type { RunSoFar } from "../run-so-far";
 import { count, say, type Message } from "./message";
 import type {
@@ -62,4 +67,19 @@ export function reportedLimits(run: RunSoFar): ComponentLimit[] {
       use,
     })),
   );
+}
+
+/** Whether waiting work holds nothing: a backlog, not a held limit. */
+const HOLDS_NOTHING: KindHandlers<WhenFull, boolean> = {
+  refuse: () => false,
+  wait: ({ holds }) => holds === undefined,
+};
+
+/**
+ * Whether the limit makes work wait and holds nothing while it does, as a
+ * queue's consumers do: its waiting work is a backlog, and its slots held
+ * are messages being delivered.
+ */
+export function holdsNothing(use: LimitUse): boolean {
+  return handleKind(HOLDS_NOTHING, use.whenFull);
 }

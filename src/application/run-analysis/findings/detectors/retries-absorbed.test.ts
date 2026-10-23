@@ -179,6 +179,30 @@ describe("retries-absorbed", () => {
     expect(detector.detect(sampleRun(absorbed.slice(0, 1)))).toEqual([]);
   });
 
+  // Fails if a refusal that failed a queue's delivery is read as one a
+  // caller retried (findings.md §1.8.8), or the deliveries go uncounted
+  // when the note does fire.
+  it("counts refusals that failed deliveries alongside failed requests", () => {
+    const delivery = (failed: number): MetricsSnapshot =>
+      sampleSnapshot({
+        second: 2,
+        read: {
+          started: 10,
+          succeeded: 9,
+          failed: 1,
+          failures: { [THROTTLED]: 1 },
+        },
+        fn: { asyncFailures: { [THROTTLED]: failed } },
+        table: { rejected: 3, limits: [readUnits(99.5)] },
+      });
+    const first = second({ second: 1, rejected: 0, failed: 0, p99Ms: 100 });
+    expect(detector.detect(sampleRun([first, delivery(2)]))).toEqual([]);
+    const [finding] = detector.detect(sampleRun([first, delivery(1)]));
+    expect(sentences(finding)[0]).toBe(
+      "table refused 3 attempts, but only 1 request and 1 delivery failed with its rejections: callers retried the rest.",
+    );
+  });
+
   // Fails if the attempts are split by reason, or said to be of one reason,
   // when the component's limits refuse with two.
   it("says it can't split the attempts when the component refuses with several reasons", () => {

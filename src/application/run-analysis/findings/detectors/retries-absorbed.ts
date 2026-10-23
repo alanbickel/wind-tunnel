@@ -19,6 +19,7 @@ import {
   plural,
   say,
   type Message,
+  type PluralForms,
 } from "../message";
 import {
   addSecond,
@@ -28,19 +29,24 @@ import {
 } from "../time-window";
 import { limitRefused } from "./limit-refused";
 import {
-  failedWithRejections,
-  failureCauses,
+  endedByRejections,
   rejectionCauses,
+  runCauses,
+  type EndedByRejections,
   type FailureCause,
+  type RunCauses,
 } from "./failure-causes";
 
 export const RETRIES_ABSORBED = "retries-absorbed";
 
 /**
- * A note for each component that refused more attempts than requests
- * failed with its rejections, a run in which none failed included
- * (findings.md §2.1): callers retried the rest, so the refusals may show
- * only as latency. It explains nothing, so it shows at the top level.
+ * A note for each component that refused more attempts than requests and
+ * deliveries failed with its rejections, a run in which none failed
+ * included (findings.md §2.1): callers retried the rest, so the refusals
+ * may show only as latency. A refusal that failed a delivery wasn't
+ * retried by a caller: its queue tried the message again, which
+ * failed-deliveries says. It explains nothing, so it shows at the top
+ * level.
  *
  * `rejected` counts attempts without their reason, so the two counts are of
  * one reason only when the component refuses with one (§2.4). Its reasons
@@ -54,17 +60,23 @@ export function retriesAbsorbedDetector(catalog: FindingsCatalog): Detector {
   return {
     id: RETRIES_ABSORBED,
     detect: (run) => {
-      const causes = failureCauses(run);
+      const causes = runCauses(run);
       return run.project.architecture.components.flatMap(({ id }) => {
-        const failed = failedWithRejections(causes, id);
+        const ended = endedByRejections(causes, id);
         const tally = tallyRefusals(run, id);
         const window = spanOfTally(run.snapshots, tally.refusing);
-        if (tally.rejected <= failed || window === undefined) return [];
-        const input = { componentId: id, failed, tally, window };
+        if (tally.rejected <= endedCount(ended) || window === undefined)
+          return [];
+        const input = { componentId: id, ended, tally, window };
         return [absorbedFinding({ ...input, causes, run, catalog })];
       });
     },
   };
+}
+
+/** Requests and deliveries that the component's rejections failed. */
+function endedCount({ requests, deliveries }: EndedByRejections): number {
+  return requests + deliveries;
 }
 
 /** One workflow's p99 in each second, before and during the refusals. */
@@ -171,12 +183,12 @@ function calls(step: Step, componentId: string): boolean {
 /** Everything a note is built from. */
 interface AbsorbedFindingInput {
   readonly componentId: string;
-  /** Requests that failed with its rejections. */
-  readonly failed: number;
+  /** Requests and deliveries that failed with its rejections. */
+  readonly ended: EndedByRejections;
   readonly tally: RefusalTally;
   /** From the first second with a refusal to the last. */
   readonly window: TimeWindow;
-  readonly causes: readonly FailureCause[];
+  readonly causes: RunCauses;
   readonly run: RunSoFar;
   readonly catalog: FindingsCatalog;
 }
@@ -211,28 +223,49 @@ function limitsNamedOnlyHere(input: AbsorbedFindingInput): string[] {
   return [...input.tally.limitsOut].filter((name) => !named.has(name));
 }
 
+/** The limits a failed-requests or failed-deliveries finding names. */
 function limitsNamedByFailures({
   componentId,
-  failed,
+  ended,
   causes,
   run,
 }: AbsorbedFindingInput): Set<string> {
-  const refusals = rejectionCauses(causes, componentId).map((cause) =>
-    limitRefused({ run, cause, failedAtComponent: failed }),
+  const refusals = rejectionsAt(causes, componentId).map((cause) =>
+    limitRefused({ run, cause, endedAtComponent: ended }),
   );
   return new Set(refusals.flatMap((r) => r.limits.map((l) => l.name)));
 }
 
+/** The component's own rejections that failed requests or deliveries. */
+function rejectionsAt(causes: RunCauses, componentId: string): FailureCause[] {
+  return [
+    ...rejectionCauses(causes.requests, componentId),
+    ...rejectionCauses(causes.deliveries, componentId),
+  ];
+}
+
 function summaryOf({
   componentId,
-  failed,
+  ended,
   tally,
 }: AbsorbedFindingInput): Message {
   const refused = say`${component(componentId)} refused ${count(tally.rejected)} ${plural(tally.rejected, ["attempt", "attempts"])}`;
-  if (failed === 0) {
+  const failed = failedParts(ended);
+  if (failed.length === 0) {
     return say`${refused}, but no request failed with its rejections: callers retried every one.`;
   }
-  return say`${refused}, but only ${count(failed)} ${plural(failed, ["request", "requests"])} failed with its rejections: callers retried the rest.`;
+  return say`${refused}, but only ${listOf(failed)} failed with its rejections: callers retried the rest.`;
+}
+
+/** "4,377 requests", "90 deliveries", or both; none if neither failed. */
+function failedParts({ requests, deliveries }: EndedByRejections): Message[] {
+  const parts: readonly (readonly [number, PluralForms])[] = [
+    [requests, ["request", "requests"]],
+    [deliveries, ["delivery", "deliveries"]],
+  ];
+  return parts
+    .filter(([n]) => n > 0)
+    .map(([n, forms]) => say`${count(n)} ${plural(n, forms)}`);
 }
 
 function secondsSentence({ tally, window }: AbsorbedFindingInput): Message {
@@ -274,7 +307,7 @@ function reasonsOf({
   const declared = limits.flatMap((l) =>
     l.whenFull.kind === "refuse" ? [l.whenFull.reason] : [],
   );
-  const failedWith = rejectionCauses(causes, componentId).map((c) => c.reason);
+  const failedWith = rejectionsAt(causes, componentId).map((c) => c.reason);
   return [...new Set([...declared, ...failedWith])];
 }
 
@@ -307,7 +340,7 @@ function medianOf(values: readonly number[]): number | undefined {
 
 function evidenceOf({
   componentId,
-  failed,
+  ended,
   tally,
 }: AbsorbedFindingInput): Evidence[] {
   const evidence: Evidence[] = [
@@ -318,7 +351,12 @@ function evidenceOf({
     },
     {
       what: `${componentId}: requests failed with its rejections`,
-      value: failed,
+      value: ended.requests,
+      source: "totals",
+    },
+    {
+      what: `${componentId}: deliveries failed with its rejections`,
+      value: ended.deliveries,
       source: "totals",
     },
     {

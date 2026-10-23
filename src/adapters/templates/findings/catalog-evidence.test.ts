@@ -15,10 +15,10 @@ const TEST_SOURCES: Readonly<Record<string, string>> = import.meta.glob(
   { query: "?raw", import: "default", eager: true },
 );
 
-/** Each limit's advice, labeled "type limit". */
+/** Each limit's and each finding kind's advice, labeled "type key". */
 const entries = [...createFindingsCatalog().values()].flatMap((advice) =>
-  Object.entries(advice.limits).map(([limit, entry]) => ({
-    label: `${advice.type} ${limit}`,
+  Object.entries({ ...advice.limits, ...advice.kinds }).map(([key, entry]) => ({
+    label: `${advice.type} ${key}`,
     entry,
   })),
 );
@@ -46,12 +46,14 @@ function anchorOf(heading: string): string {
 }
 
 describe("the findings catalog", () => {
-  // Fails if an entry is added with no fixes, or a type with no limits.
-  it("has advice for the limits the findings name", () => {
+  // Fails if an entry is added with no fixes, a type with no limits, or a
+  // finding kind's entry is left out of these checks.
+  it("has advice for the limits and kinds the findings name", () => {
     expect(entries.map((e) => e.label)).toEqual([
       "rds connections",
       "rds queryWorkers",
       "sqs consumerConcurrency",
+      "sqs failed-deliveries",
       "dynamodb readUnits",
     ]);
     for (const { label, entry } of entries) {

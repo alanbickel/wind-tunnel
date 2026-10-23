@@ -14,14 +14,19 @@ import {
   type Message,
 } from "../message";
 import { findingKey } from "../finding-key";
-import { spanOf } from "../time-window";
 import {
-  failedWithRejections,
-  failureCauses,
+  causeWindowOf,
+  refusalOf,
+  refusalReasons,
+  windowOf,
+} from "./cause-parts";
+import {
   isTimeout,
+  runCauses,
   type FailureCause,
+  type RunCauses,
 } from "./failure-causes";
-import { limitRefused, type LimitRefusal } from "./limit-refused";
+import type { LimitRefusal } from "./limit-refused";
 import { recovery } from "./recovery";
 
 export const FAILED_REQUESTS = "failed-requests";
@@ -36,9 +41,9 @@ export function failedRequestsDetector(catalog: FindingsCatalog): Detector {
   return {
     id: FAILED_REQUESTS,
     detect: (run) => {
-      const causes = failureCauses(run);
+      const causes = runCauses(run);
       const answered = answeredRequests(run);
-      return causes.map((cause) =>
+      return causes.requests.map((cause) =>
         failureFinding(cause, { run, catalog, causes, answered }),
       );
     },
@@ -49,7 +54,8 @@ export function failedRequestsDetector(catalog: FindingsCatalog): Detector {
 interface FailureContext {
   readonly run: RunSoFar;
   readonly catalog: FindingsCatalog;
-  readonly causes: readonly FailureCause[];
+  /** Every cause of failed requests and of failed deliveries. */
+  readonly causes: RunCauses;
   /** Requests answered so far, succeeded or failed, over every workflow. */
   readonly answered: number;
 }
@@ -94,50 +100,14 @@ function reasonsOf({ cause, context, refusal }: ReasonsInput): Message[] {
   return [
     workflowsSentence(cause, context),
     worstSentence(cause, run),
-    ...(refusal?.reasons ?? [timeoutSentence(cause)]),
+    ...refusalReasons(cause, refusal),
     ...recovery({ run, cause, limits: refusal?.limits ?? [] }),
   ];
-}
-
-/** The limit-refused part, for a rejection; a timeout has none. */
-function refusalOf(
-  cause: FailureCause,
-  { run, causes }: FailureContext,
-): LimitRefusal | undefined {
-  if (isTimeout(cause)) return undefined;
-  const failedAtComponent = failedWithRejections(causes, cause.componentId);
-  return limitRefused({ run, cause, failedAtComponent });
 }
 
 function answeredRequests(run: RunSoFar): number {
   const all = allWorkflows(workflowTotals(run));
   return all.succeeded + all.failed;
-}
-
-function windowOf(cause: FailureCause, run: RunSoFar): TimeWindow {
-  return spanOf({
-    snapshots: run.snapshots,
-    first: cause.seconds[0] ?? 0,
-    last: cause.seconds.at(-1) ?? 0,
-  });
-}
-
-/** Where the cause began, if before the window, and the window it leads to. */
-interface CauseWindowInput {
-  readonly refusal: LimitRefusal | undefined;
-  readonly window: TimeWindow;
-  readonly run: RunSoFar;
-}
-
-function causeWindowOf({
-  refusal,
-  window,
-  run,
-}: CauseWindowInput): TimeWindow | undefined {
-  const start = refusal?.causeStartIndex;
-  if (start === undefined) return undefined;
-  const fromMs = run.snapshots[start]?.startMs ?? window.fromMs;
-  return { fromMs, toMs: window.toMs };
 }
 
 function summaryOf(cause: FailureCause, window: TimeWindow): Message {
@@ -155,7 +125,7 @@ function workflowsSentence(
   { run, answered }: FailureContext,
 ): Message {
   const names = new Map(run.project.workflows.map((w) => [w.id, w.name]));
-  const parts = [...cause.byWorkflow].map(
+  const parts = [...cause.bySource].map(
     ([id, failed]) => say`${count(failed)} ${names.get(id) ?? id}`,
   );
   return say`That's ${listOf(parts)} ${plural(cause.failed, ["request", "requests"])}, ${share(cause.failed / answered)} of the ${count(answered)} answered.`;
@@ -164,10 +134,6 @@ function workflowsSentence(
 function worstSentence({ worst }: FailureCause, run: RunSoFar): Message {
   const endMs = run.snapshots[worst.index]?.endMs ?? 0;
   return say`The most in one second was ${count(worst.failed)}, in the second ending at ${at(endMs)}.`;
-}
-
-function timeoutSentence({ componentId }: FailureCause): Message {
-  return say`The caller stopped waiting for ${component(componentId)}. No limit explains a timeout, so the run can't say why it was slow.`;
 }
 
 function causeEvidence(
@@ -180,7 +146,7 @@ function causeEvidence(
       value: cause.failed,
       source: "totals",
     },
-    ...[...cause.byWorkflow].map(([id, failed]): Evidence => ({
+    ...[...cause.bySource].map(([id, failed]): Evidence => ({
       what: `${cause.cause}: failed ${id} requests`,
       value: failed,
       source: "totals",

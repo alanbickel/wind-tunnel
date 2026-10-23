@@ -9,7 +9,7 @@ A run's tables show what happened. A **finding** says what it means: what broke 
 | Field | Holds |
 |---|---|
 | `key` | Which finding it is: its `kind` (the detector's ID), its `componentId` (where), and a `reason` or `limitName` when a kind needs one to tell two findings at a component apart. Compared field by field, never joined into a string |
-| `severity` | `failure` (requests failed), `warning` (work finished later than the project's own timeout lets a caller wait, or messages were still waiting when a finished run ended), or `note` |
+| `severity` | `failure` (requests failed), `warning` (work finished later than the project's own timeout lets a caller wait, messages were still waiting when a finished run ended, or a delivery failed in its last second), or `note` |
 | `limitNames` | The component's limits the finding is about: the ones that refused its requests, or the one a note reads |
 | `window`, `causeWindow` | When. `causeWindow` starts earlier when the cause began before the first bad second |
 | `summary`, `reasons` | The sentences, as a `Message`: text, numbers with a unit, component references, and times |
@@ -30,8 +30,9 @@ flowchart LR
     S --> D4["bucket-drained"]
     S --> D5["retries-absorbed"]
     S --> D6["backlog"]
-    C["catalog/<br/>fixes by type and limit"] -.-> D1 & D2 & D3 & D4 & D5 & D6
-    D1 & D2 & D3 & D4 & D5 & D6 -->|"DetectedFinding[]"| F["findRun<br/>link causes, nest, order, verdict"]
+    S --> D7["failed-deliveries"]
+    C["catalog/<br/>fixes by type, and by limit or kind"] -.-> D1 & D2 & D3 & D4 & D5 & D6 & D7
+    D1 & D2 & D3 & D4 & D5 & D6 & D7 -->|"DetectedFinding[]"| F["findRun<br/>link causes, nest, order, verdict"]
     S --> F
     F -->|"RunFindings"| CLI["findings-report.ts<br/>adapters/cli/"]
     F -->|"RunFindings"| UI["run panel<br/>(Roadmap M5)"]
@@ -42,9 +43,9 @@ flowchart LR
 | Shapes | [`finding.ts`](../../src/application/run-analysis/findings/finding.ts), [`finding-key.ts`](../../src/application/run-analysis/findings/finding-key.ts), [`message.ts`](../../src/application/run-analysis/findings/message.ts) | `Finding`, `FindingKey`, `Explains`, `Fix`, `Claim`, `Evidence`; comparing keys; `Message` and the `say` template tag that builds one |
 | Role | [`detector.ts`](../../src/application/run-analysis/findings/detector.ts) | `Detector`: `{ id, detect(run) }` |
 | Defaults | [`create-detectors.ts`](../../src/application/run-analysis/findings/create-detectors.ts) | Lists the detectors, as `createAwsComponentRegistry` lists the types |
-| Detectors | [`detectors/`](../../src/application/run-analysis/findings/detectors/) | One file each, plus the helpers a detector calls (`limit-refused`, `recovery`) |
-| Reading a run | [`find-run.ts`](../../src/application/run-analysis/findings/find-run.ts), [`link-causes.ts`](../../src/application/run-analysis/findings/link-causes.ts), [`order-findings.ts`](../../src/application/run-analysis/findings/order-findings.ts), [`verdict.ts`](../../src/application/run-analysis/findings/verdict.ts), [`headroom.ts`](../../src/application/run-analysis/findings/headroom.ts) | Runs the detectors, links each cause note to what it explains, nests and orders the findings, and adds the verdict with the limit closest to refusing work |
-| Catalog | [`catalog/`](../../src/application/run-analysis/findings/catalog/) | One file of advice per component type, listed by `createFindingsCatalog` |
+| Detectors | [`detectors/`](../../src/application/run-analysis/findings/detectors/) | One file each, plus the helpers a detector calls (`limit-refused`, `recovery`, and `cause-parts`, which failed-requests and failed-deliveries share) |
+| Reading a run | [`find-run.ts`](../../src/application/run-analysis/findings/find-run.ts), [`link-causes.ts`](../../src/application/run-analysis/findings/link-causes.ts), [`order-findings.ts`](../../src/application/run-analysis/findings/order-findings.ts), [`verdict.ts`](../../src/application/run-analysis/findings/verdict.ts), [`headroom.ts`](../../src/application/run-analysis/findings/headroom.ts), [`no-headroom.ts`](../../src/application/run-analysis/findings/no-headroom.ts) | Runs the detectors, links each cause note to what it explains, nests and orders the findings, and adds the verdict with the limits that ran out and refused, and the limit closest to refusing work |
+| Catalog | [`catalog/`](../../src/application/run-analysis/findings/catalog/) | One file of advice per component type, listed by `createFindingsCatalog`. A type's advice is keyed by limit (`limits`), or by finding kind (`kinds`) for advice about what happened at the component rather than one of its limits, such as SQS's redrive policy under failed-deliveries |
 | CLI | [`findings-report.ts`](../../src/adapters/cli/findings-report.ts) | Formats the verdict and the findings as text |
 
 ## Rules every detector keeps
@@ -72,16 +73,16 @@ A failure finding can't see the other detectors' findings, so it can't cite its 
 | bucket-drained | the bucket (DynamoDB `readUnits`) | the same bucket | §1.7's throttled reads |
 | backlog | the waiting limit that holds nothing (SQS `consumerConcurrency`) | the same limit | §1.5's and §1.7's late writes; at the top level in §1.4, which has none |
 
-retries-absorbed explains nothing, so it shows at the top level.
+retries-absorbed and failed-deliveries explain nothing, so they show at the top level.
 
-A failure and its cause often share a fix: raising RDS `queryWorkers` is advice for both `connections` and `queryWorkers`. The catalog uses one `Fix` object for both, and a note beneath a finding leaves out the fixes, and the Learn more, that a finding above it already shows.
+A failure and its cause often share a fix: a larger RDS instance is advice for both `connections` and `queryWorkers`. The catalog uses one `Fix` object for both, and a note beneath a finding leaves out the fixes, and the Learn more, that a finding above it already shows. Advice that holds only for one cause belongs to that cause's entry: "raise `queryWorkers`" is `queryWorkers`' alone, so it shows beneath refused connections when waiting queries held them (§1.1), and not when the connections ran out on their own (§1.8).
 
 ## Adding a detector
 
 1. Write the reading first: what an expert would say about a run where it fires, with each number's source, as [findings.md §1](../design/findings.md#1-hand-written-readings) does.
 2. Add a file in `detectors/` that exports a factory returning a `Detector`, taking the catalog if it gives fixes. Build sentences with `say`, and put each quoted number in `evidence`. For a cause note, set `explains`: it then shows beneath what it explains, with no other change.
 3. Add one line to `createDetectors`.
-4. If its fixes depend on a type, add them to that type's file in `catalog/`, each with its claim. [`catalog-evidence.test.ts`](../../src/adapters/templates/findings/catalog-evidence.test.ts) checks that every link, test, fidelity ID, and Learn-more anchor exists.
+4. If its fixes depend on a type, add them to that type's file in `catalog/`, each with its claim: under the limit they fix, or under the detector's ID in `kinds` if they're about the kind of finding rather than a limit. A detector that gives kind advice reads it with `kindAdviceFor`. [`catalog-evidence.test.ts`](../../src/adapters/templates/findings/catalog-evidence.test.ts) checks that every link, test, fidelity ID, and Learn-more anchor exists.
 5. Test it with `sampleSnapshot` beside the detector, then update the expected findings in [`src/adapters/templates/findings/`](../../src/adapters/templates/findings/), which run every template and check the findings against the totals and the verdicts findings.md quotes.
 6. Refresh the report snapshots (`npx vitest run src/adapters/cli --update`) and read the diff.
 
@@ -115,4 +116,4 @@ Findings
 
 failed-requests found one cause in the workflows' `failures`, so it wrote one finding whose `affected` is that cause's 28,841 failures. To name the limit, it looked up orders-db's limits that declare they refuse with `too-many-connections`, and found `connections` exhausted in every failing second (the *limit-refused* part). Refused attempts equal failed requests because nothing retried them, so the finding says so. In [findings.md §1.7](../design/findings.md#17-variant-template-b-long-rush-read-capacity-cut-to-1500-a-second-failing), retries make them differ: the finding leaves the comparison to a retries-absorbed note, so the report says it once. The last two lines of finding 1 are the *recovery* part.
 
-Note 1.1 says why the connections ran out. orders-db's `queryWorkers` declare that they make work wait, holding `connections`. They were out from 11 s, so waiting-holds-limit wrote a note about `queryWorkers` that explains `connections`. Finding 1 is about `connections`, so `findRun` put the note beneath it. The note shows no fixes of its own: its catalog entry's three fixes are all among finding 1's.
+Note 1.1 says why the connections ran out. orders-db's `queryWorkers` declare that they make work wait, holding `connections`. They were out from 11 s, so waiting-holds-limit wrote a note about `queryWorkers` that explains `connections`. Finding 1 is about `connections`, so `findRun` put the note beneath it. The note shows only the fixes that hold because waiting queries held the connections, such as raising `queryWorkers`: its catalog entry's other two are among finding 1's, so they're left out.

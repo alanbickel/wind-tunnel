@@ -180,6 +180,7 @@ describe("waiting-holds-limit", () => {
         "dynamodb",
         {
           type: "dynamodb",
+          kinds: {},
           limits: {
             workers: { fixes: [own], learnMore: "workers" },
             slots: { fixes: [fix("Add slots.")], learnMore: "slots" },

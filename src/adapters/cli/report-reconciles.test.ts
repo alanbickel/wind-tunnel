@@ -16,6 +16,10 @@ import templateB from "../templates/template-b.json";
 import { withMaxConnections } from "../templates/testing/rejection-runs";
 import { RUN_TIMEOUT_MS, runTemplate } from "../templates/testing/run-template";
 import { projectB, runScenario } from "../templates/testing/scenario-runs";
+import { createDetectors } from "../../application/run-analysis/findings/create-detectors";
+import { FAILED_DELIVERIES } from "../../application/run-analysis/findings/detectors/failed-deliveries";
+import { findRun } from "../../application/run-analysis/findings/find-run";
+import type { Finding } from "../../application/run-analysis/findings/finding";
 import { formatReport } from "./text-report";
 
 // The report derives "in progress", "unfinished", and "being delivered" by
@@ -258,6 +262,36 @@ describe("template-b's failed deliveries, with 10 database connections", () => {
     });
   });
 
+  // Fails if the failed-deliveries finding's attempts don't add up, or
+  // quote other counts than the totals: attempts (fn-writer's arrivals) =
+  // delivered + failed + being delivered, and messages accepted = delivered
+  // + waiting + being delivered (findings.md §1.8.6). "Being delivered" is
+  // the consumers' slots held, so the second sum is a check, not a
+  // remainder.
+  it("reconciles the failed-deliveries finding's attempts with the totals", () => {
+    const soFar = { project, workloadId: "lunch-rush", snapshots };
+    const findings = findRun(soFar, createDetectors()).findings;
+    const finding = findings
+      .map((n) => n.finding)
+      .find((f) => f.key.kind === FAILED_DELIVERIES);
+    const quoted = (what: string): number => evidenceValue(finding, what);
+    const queue = componentIn(totals, "orders-queue");
+    const delivered = quoted("orders-queue: deliveries (asyncSucceeded)");
+    const failed = quoted("orders-queue: failed deliveries (asyncFailed)");
+    const beingDelivered = quoted("orders-queue: being delivered");
+    const waiting = quoted("orders-queue: queueDepth");
+    expect([delivered, failed, waiting]).toEqual([
+      queue.asyncSucceeded,
+      queue.asyncFailed,
+      queue.queueDepth,
+    ]);
+    expect(delivered + failed + beingDelivered).toBe(
+      componentIn(totals, "fn-writer").arrivals,
+    );
+    expect(delivered + waiting + beingDelivered).toBe(queue.completed);
+    expect(failed).toBe(90);
+  });
+
   // Fails if the Components table stops listing a component's failed
   // deliveries by cause after its "async failed" count.
   it("prints orders-queue's failed deliveries by cause in the report", () => {
@@ -268,3 +302,10 @@ describe("template-b's failed deliveries, with 10 database connections", () => {
     );
   });
 });
+
+/** The value of the finding's evidence whose description starts with `what`. */
+function evidenceValue(finding: Finding | undefined, what: string): number {
+  const found = finding?.evidence.find((e) => e.what.startsWith(what));
+  if (found === undefined) throw new Error(`No evidence for "${what}"`);
+  return found.value;
+}

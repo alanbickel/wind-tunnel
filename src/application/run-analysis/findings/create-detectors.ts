@@ -3,6 +3,7 @@ import type { FindingsCatalog } from "./catalog/type-advice";
 import type { Detector } from "./detector";
 import { backlogDetector } from "./detectors/backlog";
 import { bucketDrainedDetector } from "./detectors/bucket-drained";
+import { failedDeliveriesDetector } from "./detectors/failed-deliveries";
 import { failedRequestsDetector } from "./detectors/failed-requests";
 import { lateAsyncWorkDetector } from "./detectors/late-async-work";
 import { retriesAbsorbedDetector } from "./detectors/retries-absorbed";
@@ -17,6 +18,7 @@ export function createDetectors(
 ): Detector[] {
   return [
     failedRequestsDetector(catalog),
+    failedDeliveriesDetector(catalog),
     lateAsyncWorkDetector(catalog),
     waitingHoldsLimitDetector(catalog),
     bucketDrainedDetector(catalog),

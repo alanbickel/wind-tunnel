@@ -134,6 +134,7 @@ describe("late-async-work", () => {
         "dynamodb",
         {
           type: "dynamodb",
+          kinds: {},
           limits: {
             refusing: { fixes: [otherFix], learnMore: "refusing" },
             consumers: { fixes: [fix], learnMore: "consumers" },

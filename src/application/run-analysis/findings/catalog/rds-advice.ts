@@ -79,4 +79,16 @@ export const rdsAdvice: TypeAdvice = {
     },
   },
   kinds: {},
+  wording: {
+    reasons: {
+      "too-many-connections": {
+        long: "too-many-connections",
+        short: "too-many-connections",
+      },
+    },
+    limits: {
+      connections: { long: "connections", short: "connections" },
+      queryWorkers: { long: "queryWorkers", short: "queryWorkers" },
+    },
+  },
 };

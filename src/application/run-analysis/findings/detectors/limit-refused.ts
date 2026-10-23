@@ -1,26 +1,24 @@
 import type { LimitUse } from "../../../../domain/metrics/metrics-snapshot";
 import {
   handleKind,
-  lookup,
   type KindHandlers,
 } from "../../../../domain/shared/kind-handlers";
 import type { RunSoFar } from "../../run-so-far";
 import type { Evidence } from "../finding";
 import { exhaustedIn, type LimitRef } from "../limit-ref";
-import {
-  component,
-  count,
-  listOf,
-  plural,
-  say,
-  type Message,
-} from "../message";
 import type { EndedByRejections, FailureCause } from "./failure-causes";
+import type {
+  EndedWork,
+  LimitRefusedStatement,
+  NoLimitRefusesStatement,
+  NoRefusingLimitRanOutStatement,
+  RefusedAttemptsFailedStatement,
+} from "./limit-refused-phrases";
 
 // The limit-refused part of failed-requests and failed-deliveries
-// (findings.md §2.1): which limit refused the failed work. It writes reasons
-// into those detectors' findings, so it's a helper they call, not a
-// detector.
+// (findings.md §2.1): which limit refused the failed work. It adds reasons
+// to those detectors' findings, so it's a helper they call, not a
+// detector. Its phrases are in `limit-refused-phrases.ts`.
 
 /** A failure cause that a component rejected, and how it was counted. */
 export interface LimitRefusedInput {
@@ -40,7 +38,7 @@ export interface LimitRefusal {
    * one second with these failures. Both, if two did (DynamoDB's buckets).
    */
   readonly limits: readonly LimitUse[];
-  readonly reasons: readonly Message[];
+  readonly reasons: readonly LimitRefusedStatement[];
   readonly evidence: readonly Evidence[];
   /**
    * The first snapshot of the unbroken run of seconds in which a named limit
@@ -75,7 +73,7 @@ export function limitRefused(input: LimitRefusedInput): LimitRefusal {
   return {
     limits: named.map((e) => e.limit),
     reasons: [
-      ...named.map((e) => exhaustedSentence(e, input)),
+      ...named.map((e) => exhaustedStatement(e, input)),
       ...attempts.reasons,
     ],
     evidence: [
@@ -106,55 +104,51 @@ function exhaustion(
   return { limit, secondsOut };
 }
 
-/** The sentence for a cause that no exhausted limit explains. */
+/** The statement for a cause that no exhausted limit explains. */
 interface UnexplainedInput {
   readonly input: LimitRefusedInput;
   readonly declared: readonly LimitUse[];
 }
 
-function unexplained({ input, declared }: UnexplainedInput): Message {
+function unexplained({
+  input,
+  declared,
+}: UnexplainedInput): NoLimitRefusesStatement | NoRefusingLimitRanOutStatement {
   const { componentId, reason } = input.cause;
   if (declared.length === 0) {
-    return say`No limit of ${component(componentId)} refuses with ${reason}, so the run can't say what ran out.`;
+    return { kind: "no-limit-refuses", componentId, reason };
   }
-  const names = listOf(declared.map((l) => say`${l.name}`));
-  return say`${component(componentId)}'s ${names} refuse with ${reason}, but none ran out in a second with these failures.`;
+  return {
+    kind: "no-refusing-limit-ran-out",
+    componentId,
+    reason,
+    limitNames: declared.map((l) => l.name),
+  };
 }
 
-/** "in every second with these failures", or in how many of them. */
-function coverage(
-  { secondsOut }: LimitExhaustion,
-  cause: FailureCause,
-): Message {
-  if (secondsOut === cause.seconds.length) {
-    return say`in every second with these failures`;
-  }
-  return say`in ${count(secondsOut)} of the ${count(cause.seconds.length)} seconds with these failures`;
-}
-
-/** The sentence for an exhausted limit, by its kind. */
-const EXHAUSTED_SENTENCES: KindHandlers<
+/** The statement for an exhausted limit, by its kind. */
+const EXHAUSTED_KINDS: KindHandlers<
   LimitUse,
-  (where: Message, componentId: string) => Message
+  "limit-held-all" | "bucket-ran-out"
 > = {
-  concurrency:
-    ({ name, limit }) =>
-    (where, componentId) =>
-      say`${component(componentId)} held all ${count(limit)} of its ${name} ${where}.`,
-  rate:
-    ({ name, limit }) =>
-    (where, componentId) =>
-      say`${component(componentId)}'s ${name} bucket, which holds ${count(limit)} tokens, had less than one left ${where}.`,
+  concurrency: () => "limit-held-all",
+  rate: () => "bucket-ran-out",
 };
 
-function exhaustedSentence(
+function exhaustedStatement(
   e: LimitExhaustion,
   { cause }: LimitRefusedInput,
-): Message {
-  return handleKind(EXHAUSTED_SENTENCES, e.limit)(
-    coverage(e, cause),
-    cause.componentId,
-  );
+): LimitRefusedStatement {
+  return {
+    kind: handleKind(EXHAUSTED_KINDS, e.limit),
+    componentId: cause.componentId,
+    limitName: e.limit.name,
+    limit: e.limit.limit,
+    coverage: {
+      secondsOut: e.secondsOut,
+      secondsFailing: cause.seconds.length,
+    },
+  };
 }
 
 function exhaustionEvidence(
@@ -172,13 +166,13 @@ function exhaustionEvidence(
   ];
 }
 
-/** The attempts sentence and its numbers. */
+/** The attempts statement and its numbers. */
 type AttemptsPart = Pick<LimitRefusal, "reasons" | "evidence">;
 
 /**
  * Refused attempts against the requests and deliveries they failed, when
  * they're equal: nothing retried them. When callers retried, the
- * retries-absorbed note compares them, so the sentence appears once.
+ * retries-absorbed note compares them, so the comparison appears once.
  */
 function attemptsAndRequests({
   run,
@@ -190,16 +184,19 @@ function attemptsAndRequests({
   if (rejected !== ended.requests + ended.deliveries) {
     return { reasons: [], evidence: [] };
   }
-  const what = lookup(ENDED_WORK, endedWork(ended));
+  const statement: RefusedAttemptsFailedStatement = {
+    kind: "refused-attempts-failed",
+    componentId,
+    rejected,
+    ended: endedWork(ended),
+  };
   return {
-    reasons: [
-      say`${component(componentId)} refused ${count(rejected)} ${plural(rejected, ["attempt", "attempts"])}, and each one failed ${what}.`,
-    ],
+    reasons: [statement],
     evidence: attemptsEvidence({ componentId, rejected, ended }),
   };
 }
 
-/** The counts the attempts sentence compares. */
+/** The counts the attempts statement compares. */
 interface AttemptsEvidenceInput {
   readonly componentId: string;
   readonly rejected: number;
@@ -222,15 +219,6 @@ function attemptsEvidence({
     source: "totals",
   }));
 }
-
-/** Which kinds of work the rejections ended. */
-type EndedWork = "requests" | "deliveries" | "both";
-
-const ENDED_WORK: Readonly<Record<EndedWork, string>> = {
-  requests: "a request",
-  deliveries: "a delivery",
-  both: "a request or a delivery",
-};
 
 function endedWork({ requests, deliveries }: EndedByRejections): EndedWork {
   if (deliveries === 0) return "requests";

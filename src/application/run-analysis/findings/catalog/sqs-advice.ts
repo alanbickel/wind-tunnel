@@ -90,4 +90,13 @@ export const sqsAdvice: TypeAdvice = {
         "a-failed-sqs-message-waits-out-the-visibility-timeout-before-its-retried",
     },
   },
+  wording: {
+    reasons: {},
+    limits: {
+      consumerConcurrency: {
+        long: "consumerConcurrency",
+        short: "consumerConcurrency",
+      },
+    },
+  },
 };

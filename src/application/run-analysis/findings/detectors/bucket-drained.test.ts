@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { LimitUse } from "../../../../domain/metrics/metrics-snapshot";
-import { messageText, sampleRun } from "../../../testing/sample-findings";
+import { sampleRun } from "../../../testing/sample-findings";
 import { sampleSnapshot } from "../../../testing/sample-snapshots";
 import { createFindingsCatalog } from "../catalog/create-findings-catalog";
 import type { DetectedFinding } from "../finding";
+import type { Statement } from "../phrase";
 import { bucketDrainedDetector } from "./bucket-drained";
 
 const detector = bucketDrainedDetector(createFindingsCatalog());
@@ -35,11 +36,14 @@ function second(bucket: BucketSecond) {
   return sampleSnapshot({ second: n, table: { limits: [readUnits] } });
 }
 
-/** Every sentence of the finding, as plain text. */
-function sentences(finding: DetectedFinding | undefined): string[] {
+/** The finding's summary, then its reasons. */
+function statements(finding: DetectedFinding | undefined): Statement[] {
   if (finding === undefined) return [];
-  return [finding.summary, ...finding.reasons].map(messageText);
+  return [finding.summary, ...finding.reasons];
 }
+
+/** table's read bucket, as the summary names it. */
+const bucket = { componentId: "table", limitName: "readUnits" };
 
 // Full after second 1; reads take more than the refill from second 2; the
 // bucket runs out in seconds 4 and 5, and is refilling in second 6.
@@ -84,11 +88,16 @@ describe("bucket-drained", () => {
   // lasted isn't bounded by the second it ran out, or the formula drifts
   // from (burst − 1) ÷ (flow − refill).
   it("quotes when it was last full, the flow over the drain, and how long it lasted", () => {
-    expect(sentences(detector.detect(sampleRun(drained))[0])).toEqual([
-      "table's readUnits bucket drained from 1000ms and ran out in the second ending at 4000ms.",
-      "It was last full at 1000ms. From then, requests took 8 tokens a second on average, against a refill of 5.",
-      "Its burst of 10 tokens lasted between 2000 and 3000.",
-      "At that flow, a full bucket lasts about 3000: (burst − 1) ÷ (flow − refill).",
+    expect(statements(detector.detect(sampleRun(drained))[0])).toEqual([
+      {
+        kind: "bucket-drained",
+        ...bucket,
+        drainFromMs: 1_000,
+        firstOutEndMs: 4_000,
+      },
+      { kind: "drain-flow", fullAtMs: 1_000, takenPerSec: 8, ratePerSec: 5 },
+      { kind: "burst-lasted", burst: 10, atLeastMs: 2_000, atMostMs: 3_000 },
+      { kind: "burst-predicted", predictedMs: 3_000 },
     ]);
   });
 
@@ -105,11 +114,16 @@ describe("bucket-drained", () => {
     ];
     const [finding] = detector.detect(sampleRun(split));
     expect(finding?.causeWindow).toEqual({ fromMs: 0, toMs: 4_000 });
-    expect(sentences(finding)).toEqual([
-      "table's readUnits bucket drained from 0ms and ran out in the second ending at 4000ms.",
-      "It was last full at 0ms. From then, requests took 7.25 tokens a second on average, against a refill of 5.",
-      "Its burst of 10 tokens lasted between 3000 and 4000.",
-      "At that flow, a full bucket lasts about 4000: (burst − 1) ÷ (flow − refill).",
+    expect(statements(finding)).toEqual([
+      {
+        kind: "bucket-drained",
+        ...bucket,
+        drainFromMs: 0,
+        firstOutEndMs: 4_000,
+      },
+      { kind: "drain-flow", fullAtMs: 0, takenPerSec: 7.25, ratePerSec: 5 },
+      { kind: "burst-lasted", burst: 10, atLeastMs: 3_000, atMostMs: 4_000 },
+      { kind: "burst-predicted", predictedMs: 4_000 },
     ]);
   });
 
@@ -125,9 +139,9 @@ describe("bucket-drained", () => {
     ];
     const [finding] = detector.detect(sampleRun(sudden));
     expect(finding?.causeWindow).toBeUndefined();
-    expect(sentences(finding).slice(1)).toEqual([
-      "It was last full at 1000ms. From then, requests took 15 tokens a second on average, no more than its refill of 20 a second, but faster than the refill within a second.",
-      "Its burst of 10 tokens lasted between 0 and 1000.",
+    expect(statements(finding).slice(1)).toEqual([
+      { kind: "drain-flow", fullAtMs: 1_000, takenPerSec: 15, ratePerSec: 20 },
+      { kind: "burst-lasted", burst: 10, atLeastMs: 0, atMostMs: 1_000 },
     ]);
   });
 

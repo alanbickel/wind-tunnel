@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { LimitUse } from "../../../../domain/metrics/metrics-snapshot";
-import { messageText, sampleRun } from "../../../testing/sample-findings";
+import { sampleRun } from "../../../testing/sample-findings";
 import { sampleSnapshot } from "../../../testing/sample-snapshots";
 import { createFindingsCatalog } from "../catalog/create-findings-catalog";
 import type { DetectedFinding } from "../finding";
+import type { Statement } from "../phrase";
 import { failedRequestsDetector } from "./failed-requests";
 
 const detector = failedRequestsDetector(createFindingsCatalog());
@@ -28,10 +29,10 @@ const writeUnits = (peak: number): LimitUse => ({
 
 const THROTTLED = "table: throttled";
 
-/** Every sentence of the finding, as plain text. */
-function sentences(finding: DetectedFinding | undefined): string[] {
+/** The finding's summary, then its reasons. */
+function statements(finding: DetectedFinding | undefined): Statement[] {
   if (finding === undefined) return [];
-  return [finding.summary, ...finding.reasons].map(messageText);
+  return [finding.summary, ...finding.reasons];
 }
 
 // The bucket runs out in second 1, while fn's retries still get every read
@@ -128,13 +129,36 @@ describe("failed-requests", () => {
   // the retries-absorbed note says that, so the report says it once.
   it("names the bucket, and leaves retried attempts to retries-absorbed", () => {
     const [finding] = detector.detect(sampleRun(throttled));
-    expect(sentences(finding)).toEqual([
-      "3 requests failed with table: throttled, from 1000ms to 3000ms.",
-      "That's 3 Read item requests, 0.1 of the 30 answered.",
-      "The most in one second was 2, in the second ending at 2000ms.",
-      "table's readUnits bucket, which holds 100 tokens, had less than one left in every second with these failures.",
-      "The last failure was in the second ending at 3000ms, and none followed in the 2000 after it.",
-      "After it, table's readUnits peaked at 10 of 100 tokens drawn.",
+    expect(statements(finding)).toEqual([
+      {
+        kind: "requests-failed",
+        componentId: "table",
+        reason: "throttled",
+        failed: 3,
+        window: { fromMs: 1_000, toMs: 3_000 },
+      },
+      {
+        kind: "failed-by-workflow",
+        workflows: [{ workflowId: "read", failed: 3 }],
+        failed: 3,
+        answered: 30,
+      },
+      { kind: "worst-second", failed: 2, endMs: 2_000 },
+      {
+        kind: "bucket-ran-out",
+        componentId: "table",
+        limitName: "readUnits",
+        limit: 100,
+        coverage: { secondsOut: 2, secondsFailing: 2 },
+      },
+      { kind: "failures-stopped", lastFailedMs: 3_000, quietMs: 2_000 },
+      {
+        kind: "limit-peaked-after",
+        componentId: "table",
+        limitName: "readUnits",
+        limit: { kind: "rate", limit: 100 },
+        peak: 10,
+      },
     ]);
   });
 
@@ -147,9 +171,12 @@ describe("failed-requests", () => {
       table: { rejected: 2, limits: [readUnits(100)] },
     });
     const [finding] = detector.detect(sampleRun([once]));
-    expect(sentences(finding)).toContain(
-      "table refused 2 attempts, and each one failed a request.",
-    );
+    expect(statements(finding)).toContainEqual({
+      kind: "refused-attempts-failed",
+      componentId: "table",
+      rejected: 2,
+      ended: "requests",
+    });
   });
 
   // Fails if the catalog's advice for the named limit isn't attached.
@@ -173,12 +200,16 @@ describe("failed-requests", () => {
     const [finding] = detector.detect(sampleRun(snapshots));
     expect(finding?.affected).toBe(4);
     expect(finding?.fixes).toEqual([]);
-    expect(sentences(finding).slice(0, 1)).toEqual([
-      "4 requests failed because fn didn't answer in time, from 0ms to 1000ms.",
-    ]);
-    expect(sentences(finding)).toContain(
-      "The caller stopped waiting for fn. No limit explains a timeout, so the run can't say why it was slow.",
-    );
+    expect(finding?.summary).toEqual({
+      kind: "requests-timed-out",
+      componentId: "fn",
+      failed: 4,
+      window: { fromMs: 0, toMs: 1_000 },
+    });
+    expect(statements(finding)).toContainEqual({
+      kind: "caller-stopped-waiting",
+      componentId: "fn",
+    });
   });
 
   // Fails if a reason that no limit declares is dropped instead of being
@@ -192,15 +223,20 @@ describe("failed-requests", () => {
       }),
     ];
     const [finding] = detector.detect(sampleRun(snapshots));
-    expect(sentences(finding)).toContain(
-      "No limit of table refuses with throttled, so the run can't say what ran out.",
-    );
+    expect(statements(finding)).toContainEqual({
+      kind: "no-limit-refuses",
+      componentId: "table",
+      reason: "throttled",
+    });
   });
 
   // Fails if a run still going reads as recovered, or as ended.
   it("says the failures go on when the latest second still has them", () => {
     const [finding] = detector.detect(sampleRun(throttled.slice(0, 3)));
-    expect(sentences(finding)).toContain("Requests are still failing with it.");
+    expect(statements(finding)).toContainEqual({
+      kind: "requests-still-failing",
+      finished: false,
+    });
   });
 
   // Fails if a run without failures gets a failure finding.

@@ -34,4 +34,13 @@ export const dynamoDbAdvice: TypeAdvice = {
     },
   },
   kinds: {},
+  wording: {
+    reasons: {
+      throttled: { long: "throttled", short: "throttled" },
+    },
+    limits: {
+      readUnits: { long: "readUnits", short: "readUnits" },
+      writeUnits: { long: "writeUnits", short: "writeUnits" },
+    },
+  },
 };

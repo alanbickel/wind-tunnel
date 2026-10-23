@@ -351,6 +351,8 @@ As built (#67), a finding is identified by a `key` (`kind`, `componentId`, and a
 
 As built (#62), `Fix` also has a `scope` (`wind-tunnel` or `aws`), a Documented claim carries its link's title, and an Observed claim names a test file and the test in it. `Evidence` is a number, what it is, and its source. [`finding.ts`](../../src/application/run-analysis/findings/finding.ts) is the reference; the [findings guide](../architecture/finding-detectors.md) shows a finding printed.
 
+As built (#77), `summary` and `reasons` hold `Statement`s rather than `Message`s: a `kind` and the values the sentence quotes, such as `{ kind: "worst-second", failed: 1_216, endMs: 32_000 }`. The verdict's summary and its two lines are statements too. A `Phrasebook` built from the detectors' registered phrases words each one as a `Message`, in a long form (the sentence quoted above, which the CLI prints) or a short one (a clause that reads after "but", for the run panel's verdict line). A component type registers its words for its rejection reasons and limits in the catalog; every type's are its raw IDs for now. The "message is parts, not a string" point above still holds for what the phrasebook returns. [ADR-0015](../adr/0015-findings-come-from-registered-detectors.md#addendum-2026-10-23)'s third addendum records the decision, and the [findings guide](../architecture/finding-detectors.md#how-a-finding-is-worded) shows both forms.
+
 ### 3.2 Severity
 
 | Severity | When | Examples |

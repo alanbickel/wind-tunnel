@@ -1,0 +1,2 @@
+Verdict: all 12,101 answered requests succeeded
+Closest to failing: orders-db connections peaked at 14 of 90 (15.5%)

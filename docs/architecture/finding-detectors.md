@@ -12,13 +12,13 @@ A run's tables show what happened. A **finding** says what it means: what broke 
 | `severity` | `failure` (requests failed), `warning` (work finished later than the project's own timeout lets a caller wait, messages were still waiting when a finished run ended, or a delivery failed in its last second), or `note` |
 | `limitNames` | The component's limits the finding is about: the ones that refused its requests, or the one a note reads |
 | `window`, `causeWindow` | When. `causeWindow` starts earlier when the cause began before the first bad second |
-| `summary`, `reasons` | The sentences, as a `Message`: text, numbers with a unit, component references, and times |
+| `summary`, `reasons` | What it says, as `Statement`s: a `kind` and the numbers, components, times, and IDs its sentence quotes. A phrasebook words them ([below](#how-a-finding-is-worded)) |
 | `evidence` | Each number quoted, with its source: `totals`, `snapshots`, or `config` |
 | `fixes`, `learnMore` | From the catalog. Each fix is Documented (a link), Observed (a test), or an Assumption, plus fidelity IDs |
 | `explains`, `causedBy` | For a cause note, what it explains: a component and, optionally, one of its limits. `findRun` fills `causedBy` with the keys of the notes that explain a finding; they show beneath it |
 | `affected` | The requests it counts, for ordering; undefined on notes |
 
-The wording lives in `application/`, so the CLI and the run panel say the same sentences. Each formats the parts its own way: the CLI prints components by ID and times in seconds.
+A finding holds values, not words, so a test or a filter can read what it says without parsing a sentence. The words live in `application/` too, so the CLI and the run panel say the same thing.
 
 ## How it fits together
 
@@ -34,19 +34,23 @@ flowchart LR
     C["catalog/<br/>fixes by type, and by limit or kind"] -.-> D1 & D2 & D3 & D4 & D5 & D6 & D7
     D1 & D2 & D3 & D4 & D5 & D6 & D7 -->|"DetectedFinding[]"| F["findRun<br/>link causes, nest, order, verdict"]
     S --> F
+    D1 & D2 & D3 & D4 & D5 & D6 & D7 -.->|"phrases"| PB["phrasebook<br/>long and short forms"]
+    C -.->|"a type's words"| PB
     F -->|"RunFindings"| CLI["findings-report.ts<br/>adapters/cli/"]
     F -->|"RunFindings"| UI["run panel<br/>(Roadmap M5)"]
+    PB -.->|"Message"| CLI & UI
 ```
 
 | Piece | File | Job |
 |---|---|---|
 | Shapes | [`finding.ts`](../../src/application/run-analysis/findings/finding.ts), [`finding-key.ts`](../../src/application/run-analysis/findings/finding-key.ts), [`message.ts`](../../src/application/run-analysis/findings/message.ts) | `Finding`, `FindingKey`, `Explains`, `Fix`, `Claim`, `Evidence`; comparing keys; `Message` and the `say` template tag that builds one |
+| Wording | [`phrase.ts`](../../src/application/run-analysis/findings/phrase.ts), [`phrasebook.ts`](../../src/application/run-analysis/findings/phrasebook.ts), [`create-phrasebook.ts`](../../src/application/run-analysis/findings/create-phrasebook.ts), [`verdict-phrases.ts`](../../src/application/run-analysis/findings/verdict-phrases.ts) | `Statement`, `Phrase` (a long and a short form), `Vocabulary` (a type's words for its IDs, and the workflows' names); the `Phrasebook` role and the factory that builds one from the detectors' phrases and the verdict's |
 | Role | [`detector.ts`](../../src/application/run-analysis/findings/detector.ts) | `Detector`: `{ id, detect(run) }` |
 | Defaults | [`create-detectors.ts`](../../src/application/run-analysis/findings/create-detectors.ts) | Lists the detectors, as `createAwsComponentRegistry` lists the types |
-| Detectors | [`detectors/`](../../src/application/run-analysis/findings/detectors/) | One file each, plus the helpers a detector calls (`limit-refused`, `recovery`, and `cause-parts`, which failed-requests and failed-deliveries share) |
+| Detectors | [`detectors/`](../../src/application/run-analysis/findings/detectors/) | One file each, with its statements and phrases beside it in a `-phrases` file, plus the helpers a detector calls (`limit-refused`, `recovery`, and `cause-parts`, which failed-requests and failed-deliveries share), each with its own phrases |
 | Reading a run | [`find-run.ts`](../../src/application/run-analysis/findings/find-run.ts), [`link-causes.ts`](../../src/application/run-analysis/findings/link-causes.ts), [`order-findings.ts`](../../src/application/run-analysis/findings/order-findings.ts), [`verdict.ts`](../../src/application/run-analysis/findings/verdict.ts), [`headroom.ts`](../../src/application/run-analysis/findings/headroom.ts), [`no-headroom.ts`](../../src/application/run-analysis/findings/no-headroom.ts) | Runs the detectors, links each cause note to what it explains, nests and orders the findings, and adds the verdict with the limits that ran out and refused, and the limit closest to refusing work |
-| Catalog | [`catalog/`](../../src/application/run-analysis/findings/catalog/) | One file of advice per component type, listed by `createFindingsCatalog`. A type's advice is keyed by limit (`limits`), or by finding kind (`kinds`) for advice about what happened at the component rather than one of its limits, such as SQS's redrive policy under failed-deliveries |
-| CLI | [`findings-report.ts`](../../src/adapters/cli/findings-report.ts) | Formats the verdict and the findings as text |
+| Catalog | [`catalog/`](../../src/application/run-analysis/findings/catalog/) | One file of advice per component type, listed by `createFindingsCatalog`. A type's advice is keyed by limit (`limits`), or by finding kind (`kinds`) for advice about what happened at the component rather than one of its limits, such as SQS's redrive policy under failed-deliveries. Each type also registers its words for its rejection reasons and limits (`wording`) |
+| CLI | [`findings-report.ts`](../../src/adapters/cli/findings-report.ts) | Words the verdict and the findings in their long forms, and formats them as text |
 
 ## Rules every detector keeps
 
@@ -57,6 +61,25 @@ flowchart LR
 - **Whole findings.** A detector returns whole findings, with keys that are stable across re-runs: its own ID as the `kind`, the component, and a reason or limit if the kind needs one. A sentence that adds to another detector's finding is a helper that detector calls, not a detector.
 - **Never name another detector's findings.** A cause note says what it explains, and `findRun` does the linking ([below](#how-a-cause-note-is-linked)).
 - **Counts reconcile.** A finding's `affected` must add up with the totals, or be `undefined` when the metrics can't count it exactly.
+
+## How a finding is worded
+
+A detector returns statements, not sentences. Each kind of statement is a typed value, declared in the detector's `-phrases` file beside the phrase that words it. failed-requests' worst second, for example:
+
+```ts
+{ kind: "worst-second", failed: 1_216, endMs: 32_000 }
+```
+
+A `Phrasebook`, built by `createPhrasebook({ project, detectors })`, words a statement at the length its consumer asks for:
+
+| Length | Reads as | Who asks |
+|---|---|---|
+| `long` | The most in one second was 1,216, in the second ending at 32 s. | The CLI, and the run panel's list of findings |
+| `short` | the most in one second was 1,216, ending at 32 s | The run panel's verdict line, after "but" |
+
+Every phrase has both forms, with no fallback, so the phrasebook never knows who's asking. A long form is a whole sentence; a short form is a clause with no closing period. Both return a `Message`, still in parts, which the CLI and the UI each format their own way: the CLI prints components by ID and times in seconds.
+
+A phrase gets a `Vocabulary` along with its statement: the words a component's type registers in the catalog for its rejection reasons and limits, and the workflows' names. An ID with no words prints as it is; today every type's words are its raw IDs, such as `too-many-connections` and `queryWorkers`. A phrase never branches on a component's type.
 
 ## How a cause note is linked
 
@@ -80,11 +103,12 @@ A failure and its cause often share a fix: a larger RDS instance is advice for b
 ## Adding a detector
 
 1. Write the reading first: what an expert would say about a run where it fires, with each number's source, as [findings.md §1](../design/findings.md#1-hand-written-readings) does.
-2. Add a file in `detectors/` that exports a factory returning a `Detector`, taking the catalog if it gives fixes. Build sentences with `say`, and put each quoted number in `evidence`. For a cause note, set `explains`: it then shows beneath what it explains, with no other change.
-3. Add one line to `createDetectors`.
-4. If its fixes depend on a type, add them to that type's file in `catalog/`, each with its claim: under the limit they fix, or under the detector's ID in `kinds` if they're about the kind of finding rather than a limit. A detector that gives kind advice reads it with `kindAdviceFor`. [`catalog-evidence.test.ts`](../../src/adapters/templates/findings/catalog-evidence.test.ts) checks that every link, test, fidelity ID, and Learn-more anchor exists.
-5. Test it with `sampleSnapshot` beside the detector, then update the expected findings in [`src/adapters/templates/findings/`](../../src/adapters/templates/findings/), which run every template and check the findings against the totals and the verdicts findings.md quotes.
-6. Refresh the report snapshots (`npx vitest run src/adapters/cli --update`) and read the diff.
+2. Add a file in `detectors/` that exports a factory returning a `Detector`, taking the catalog if it gives fixes. Its findings' `summary` and `reasons` are statements, and each number a statement quotes goes in `evidence` too. For a cause note, set `explains`: it then shows beneath what it explains, with no other change.
+3. Beside it, add a `-phrases` file that declares each kind of statement and a `Phrases` table with a phrase for each: a `long` form that's a whole sentence, and a `short` form that's a clause with no closing period and reads after "but". Build both with `say`. Register the table as the detector's `phrases`; the types don't compile while a kind lacks a phrase or a form. A kind's name must be unique across detectors.
+4. Add one line to `createDetectors`.
+5. If its fixes depend on a type, add them to that type's file in `catalog/`, each with its claim: under the limit they fix, or under the detector's ID in `kinds` if they're about the kind of finding rather than a limit. A detector that gives kind advice reads it with `kindAdviceFor`. [`catalog-evidence.test.ts`](../../src/adapters/templates/findings/catalog-evidence.test.ts) checks that every link, test, fidelity ID, and Learn-more anchor exists.
+6. Test it with `sampleSnapshot` beside the detector, asserting the statements its findings carry. Test the words in a `-phrases.test.ts` with `checkPhrases`, with a case for every kind, at both lengths. Then update the expected findings in [`src/adapters/templates/findings/`](../../src/adapters/templates/findings/), which run every template and check the findings against the totals and the verdicts findings.md quotes.
+7. Refresh the report snapshots (`npx vitest run src/adapters/cli --update`) and the per-run files in `src/adapters/cli/reports/findings/`, long forms and short (`npx vitest run src/adapters/templates/findings --update`), and read the diff.
 
 A new component type needs none of this: declare its limits fully and its failures get findings. Add catalog advice for it when you have fixes with evidence.
 

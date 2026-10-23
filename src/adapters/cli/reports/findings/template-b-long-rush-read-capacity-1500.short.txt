@@ -1,0 +1,28 @@
+Verdict: 4,377 of 273,539 answered requests failed
+
+1. 4,377 requests failed with orders-read: throttled
+   - that's 1.6% of the 273,539 answered
+   - the most in one second was 199, ending at 116 s
+   - orders-read's readUnits bucket ran out
+   - the last failure was at 141 s, with none in the 59 s after it
+   - after the last failure, orders-read's readUnits peaked at 7,497 of 7,500 tokens drawn
+   1.1. orders-read's readUnits bucket drained from 18 s and ran out by 96 s
+        - requests took 1,595 tokens a second on average, against a refill of 1,500
+        - its burst of 7,500 tokens lasted at most 78 s
+        - at that flow, a full bucket lasts about 78.9 s
+
+2. work queued in orders-queue finished past the 29 s api waits for fn-api
+   - the p99 of deliveries was over 29 s in 23 seconds
+   - in 6 of those seconds, the p99 may have been under 29 s
+   - users were answered quickly, because a request ends once its work is queued
+   - api stops waiting for fn-api after 29 s
+   2.1. messages waited for orders-queue's consumerConcurrency from 17 s to 184 s
+        - all 15 of orders-queue's consumerConcurrency were busy from 15 s to 184 s
+        - the backlog peaked at 10,200 messages at 142 s
+        - deliveries landed up to 32.8 s after their requests
+
+3. orders-read refused 64,201 attempts, and only 4,377 requests failed with them
+   - orders-read refused attempts in 46 seconds
+   - the difference isn't how many requests the retries saved, since attempts aren't requests
+   - orders-read refuses only with throttled
+   - Get order's p99 was 185 ms in the median second while orders-read refused attempts

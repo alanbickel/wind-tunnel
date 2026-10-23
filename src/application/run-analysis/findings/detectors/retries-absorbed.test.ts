@@ -5,11 +5,12 @@ import type {
   MetricsSnapshot,
 } from "../../../../domain/metrics/metrics-snapshot";
 import type { Project } from "../../../../domain/model/project";
-import { messageText, sampleRun } from "../../../testing/sample-findings";
+import { sampleRun } from "../../../testing/sample-findings";
 import { sampleRecord } from "../../../testing/sample-record";
 import { sampleSnapshot } from "../../../testing/sample-snapshots";
 import { createFindingsCatalog } from "../catalog/create-findings-catalog";
 import type { DetectedFinding } from "../finding";
+import type { Statement } from "../phrase";
 import { retriesAbsorbedDetector } from "./retries-absorbed";
 
 const detector = retriesAbsorbedDetector(createFindingsCatalog());
@@ -61,10 +62,10 @@ function second(s: RefusalSecond): MetricsSnapshot {
   });
 }
 
-/** Every sentence of the finding, as plain text. */
-function sentences(finding: DetectedFinding | undefined): string[] {
+/** The finding's summary, then its reasons. */
+function statements(finding: DetectedFinding | undefined): Statement[] {
   if (finding === undefined) return [];
-  return [finding.summary, ...finding.reasons].map(messageText);
+  return [finding.summary, ...finding.reasons];
 }
 
 // table refuses 17 attempts in seconds 3 to 5, and 3 requests fail with it.
@@ -111,12 +112,30 @@ describe("retries-absorbed", () => {
       },
     });
     const [finding] = detector.detect(sampleRun([...absorbed, others]));
-    expect(sentences(finding)).toEqual([
-      "table refused 17 attempts, but only 3 requests failed with its rejections: callers retried the rest.",
-      "It refused attempts in 3 seconds from 2000ms to 5000ms.",
-      "Attempts aren't requests: a request refused twice and then served counts as two refused attempts, so the difference isn't how many requests the retries saved.",
-      "It refuses only with throttled, so the attempts and the requests are both throttled rejections.",
-      "While it refused attempts, Read item's p99 was 250 in the median second, and up to 300, against 100 in the median second before.",
+    expect(statements(finding)).toEqual([
+      {
+        kind: "retries-absorbed",
+        componentId: "table",
+        rejected: 17,
+        failedRequests: 3,
+        failedDeliveries: 0,
+      },
+      {
+        kind: "refusing-seconds",
+        componentId: "table",
+        seconds: 3,
+        window: { fromMs: 2_000, toMs: 5_000 },
+      },
+      { kind: "attempts-are-not-requests" },
+      { kind: "refusal-reasons", componentId: "table", reasons: ["throttled"] },
+      {
+        kind: "latency-while-refusing",
+        componentId: "table",
+        workflowId: "read",
+        medianMs: 250,
+        highestMs: 300,
+        beforeMs: 100,
+      },
     ]);
   });
 
@@ -142,9 +161,13 @@ describe("retries-absorbed", () => {
       }),
     );
     const [finding] = detector.detect(sampleRun(hidden));
-    expect(sentences(finding)[0]).toBe(
-      "table refused 17 attempts, but no request failed with its rejections: callers retried every one.",
-    );
+    expect(finding?.summary).toEqual({
+      kind: "retries-absorbed",
+      componentId: "table",
+      rejected: 17,
+      failedRequests: 0,
+      failedDeliveries: 0,
+    });
     expect(finding?.limitNames).toEqual(["readUnits"]);
     expect(finding?.learnMore).toBe(
       "dynamodb-saves-up-unused-capacity-for-bursts",
@@ -198,9 +221,13 @@ describe("retries-absorbed", () => {
     const first = second({ second: 1, rejected: 0, failed: 0, p99Ms: 100 });
     expect(detector.detect(sampleRun([first, delivery(2)]))).toEqual([]);
     const [finding] = detector.detect(sampleRun([first, delivery(1)]));
-    expect(sentences(finding)[0]).toBe(
-      "table refused 3 attempts, but only 1 request and 1 delivery failed with its rejections: callers retried the rest.",
-    );
+    expect(finding?.summary).toEqual({
+      kind: "retries-absorbed",
+      componentId: "table",
+      rejected: 3,
+      failedRequests: 1,
+      failedDeliveries: 1,
+    });
   });
 
   // Fails if the attempts are split by reason, or said to be of one reason,
@@ -223,9 +250,11 @@ describe("retries-absorbed", () => {
         limits: [slots],
       }),
     ]);
-    expect(sentences(detector.detect(run)[0])).toContain(
-      "It refuses with throttled and full, and refused attempts aren't counted by reason, so the run can't say how many of each were retried.",
-    );
+    expect(statements(detector.detect(run)[0])).toContainEqual({
+      kind: "refusal-reasons",
+      componentId: "table",
+      reasons: ["throttled", "full"],
+    });
   });
 
   // Fails if the latency of a workflow that only hands work off to the
@@ -253,8 +282,12 @@ describe("retries-absorbed", () => {
       ],
     };
     const run = { ...sampleRun(absorbed), project };
-    const text = sentences(detector.detect(run)[0]);
-    expect(text).toHaveLength(4);
-    expect(text.join(" ")).not.toContain("p99");
+    const kinds = statements(detector.detect(run)[0]).map((s) => s.kind);
+    expect(kinds).toEqual([
+      "retries-absorbed",
+      "refusing-seconds",
+      "attempts-are-not-requests",
+      "refusal-reasons",
+    ]);
   });
 });

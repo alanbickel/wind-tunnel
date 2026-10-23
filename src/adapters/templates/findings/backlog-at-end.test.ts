@@ -8,7 +8,6 @@ import { BACKLOG } from "../../../application/run-analysis/findings/detectors/ba
 import type { Finding } from "../../../application/run-analysis/findings/finding";
 import type { MetricsRun } from "../../../domain/metrics/metrics-collector";
 import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
-import { formatMessage } from "../../cli/findings-report";
 import { withConsumerMaxConcurrency } from "../testing/rejection-runs";
 import { RUN_TIMEOUT_MS } from "../testing/run-template";
 import { projectB, runScenario } from "../testing/scenario-runs";
@@ -51,10 +50,12 @@ describe("Template B, lunch rush, 12 consumers", () => {
   it("warns of the messages still waiting when the run ended", () => {
     const findings = findingsFor();
     const finding = backlogIn(findings);
-    expect(finding).toMatchObject({ severity: "warning", affected: 825 });
-    expect(formatMessage(finding?.summary ?? [])).toBe(
-      "Messages waited for orders-queue's consumerConcurrency from 16 s, and 825 were still waiting when the run ended.",
-    );
+    expect(finding).toMatchObject({
+      severity: "warning",
+      affected: 825,
+      summary: { kind: BACKLOG, state: "waiting", waiting: 825 },
+      window: { fromMs: 16_000 },
+    });
     expect(findings.verdict.title).toBe("Degraded");
   });
 
@@ -86,10 +87,12 @@ describe("Template B, lunch rush, 12 consumers", () => {
   it("keeps the backlog a note, so far, when the run stops early", () => {
     const findings = findingsFor(50);
     const finding = backlogIn(findings);
-    expect(finding).toMatchObject({ severity: "note", affected: undefined });
-    expect(formatMessage(finding?.summary ?? [])).toBe(
-      "Messages waited for orders-queue's consumerConcurrency from 16 s, and 2,934 are still waiting so far.",
-    );
+    expect(finding).toMatchObject({
+      severity: "note",
+      affected: undefined,
+      summary: { kind: BACKLOG, state: "waiting-so-far", waiting: 2_934 },
+      window: { fromMs: 16_000 },
+    });
     expect(findings.verdict.title).toBe("Healthy so far");
   });
 });

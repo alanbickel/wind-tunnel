@@ -1,0 +1,14 @@
+Verdict: 28,841 of 65,963 answered requests failed
+
+1. 28,841 requests failed with orders-db: too-many-connections
+   - that's 43.7% of the 65,963 answered
+   - the most in one second was 1,216, ending at 32 s
+   - orders-db held all 90 of its connections
+   - every attempt orders-db refused failed a request
+   - the last failure was at 47 s, with none in the 13 s after it
+   - after the last failure, orders-db's connections peaked at 29 of 90
+   1.1. requests waited for orders-db's queryWorkers, holding its connections
+        - all 16 of orders-db's queryWorkers were busy from 11 s to 49 s
+        - each waiting request holds one of orders-db's connections
+        - orders-db's connections ran out while its queryWorkers were all busy
+        - orders-db finished 896 requests a second, against 1,770 arriving

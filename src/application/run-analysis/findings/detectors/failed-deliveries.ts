@@ -18,23 +18,17 @@ import type {
 import { findingKey } from "../finding-key";
 import { holdsNothing } from "../limit-ref";
 import {
-  at,
-  component,
-  count,
-  duration,
-  listOf,
-  plural,
-  say,
-  share,
-  type Message,
-} from "../message";
-import {
   causeWindowOf,
   refusalOf,
   refusalReasons,
   windowOf,
   type CauseContext,
 } from "./cause-parts";
+import {
+  FAILED_DELIVERIES_PHRASES,
+  type FailedDeliveriesStatement,
+  type QueueAttemptsStatement,
+} from "./failed-deliveries-phrases";
 import { isTimeout, runCauses, type FailureCause } from "./failure-causes";
 
 export const FAILED_DELIVERIES = "failed-deliveries";
@@ -61,6 +55,7 @@ export function failedDeliveriesDetector(catalog: FindingsCatalog): Detector {
         deliveryFinding(cause, { run, causes, catalog }),
       );
     },
+    phrases: FAILED_DELIVERIES_PHRASES,
   };
 }
 
@@ -88,10 +83,10 @@ function deliveryFinding(
     causeWindow: causeWindowOf({ refusal, window, run }),
     summary: summaryOf(cause, window),
     reasons: [
-      ...queues.flatMap(queueSentences),
+      ...queues.flatMap(queueStatements),
       ...refusalReasons(cause, refusal),
-      lookup(END_SENTENCES, end)({ cause, run }),
-      ...queues.map(waitingAtEndSentence),
+      lookup(END_STATEMENTS, end)({ cause, run }),
+      ...queues.map(waitingAtEnd),
     ],
     evidence: [...causeEvidence(cause), ...queues.flatMap(queueEvidence)],
     ...adviceOf({ cause, limitNames, context }),
@@ -175,32 +170,41 @@ function beingDeliveredIn(
   return limits.filter(holdsNothing).reduce((n, l) => n + l.current, 0);
 }
 
-/** Its delivery attempts: delivered + failed + being delivered. */
-function attemptsOf(q: QueueDeliveries): number {
-  return q.delivered + q.failedAll + q.beingDelivered;
-}
-
-function summaryOf(cause: FailureCause, window: TimeWindow): Message {
-  const n = cause.failed;
-  const deliveries = say`${count(n)} ${plural(n, ["delivery", "deliveries"])} from ${listOf([...cause.bySource.keys()].map((id) => say`${component(id)}`))}`;
-  const seconds = cause.seconds.length;
-  const when = say`in ${count(seconds)} ${plural(seconds, ["second", "seconds"])} from ${at(window.fromMs)} to ${at(window.toMs)}`;
-  const back = say`and ${plural(n, ["it", "each"])} went back to be tried again`;
-  if (isTimeout(cause)) {
-    return say`${deliveries} failed because ${component(cause.componentId)} didn't answer in time, ${when}, ${back}.`;
-  }
-  return say`${component(cause.componentId)} refused ${deliveries} with ${cause.reason} ${when}, ${back}.`;
+function summaryOf(
+  cause: FailureCause,
+  window: TimeWindow,
+): FailedDeliveriesStatement {
+  const failed = {
+    componentId: cause.componentId,
+    failed: cause.failed,
+    queueIds: [...cause.bySource.keys()],
+    seconds: cause.seconds.length,
+    window,
+  };
+  if (isTimeout(cause)) return { kind: "deliveries-timed-out", ...failed };
+  return { kind: "deliveries-refused", reason: cause.reason, ...failed };
 }
 
 /**
  * The queue's share of its attempts, which add up, and the backlog a
  * failed delivery went back into.
  */
-function queueSentences(q: QueueDeliveries): Message[] {
-  const attempts = attemptsOf(q);
+function queueStatements(q: QueueDeliveries): FailedDeliveriesStatement[] {
+  const attempts: QueueAttemptsStatement = {
+    kind: "queue-attempts",
+    queueId: q.queueId,
+    failed: q.failed,
+    delivered: q.delivered,
+    failedAll: q.failedAll,
+    beingDelivered: q.beingDelivered,
+  };
   return [
-    say`That's ${count(q.failed)} of ${component(q.queueId)}'s ${count(attempts)} delivery attempts (${share(q.failed / attempts)}). Of those, ${count(q.delivered)} were delivered, ${count(q.failedAll)} failed, and ${count(q.beingDelivered)} ${plural(q.beingDelivered, ["was", "were"])} still being delivered.`,
-    say`A failed delivery waits in the backlog again: ${component(q.queueId)} had up to ${count(q.mostWaiting)} ${plural(q.mostWaiting, ["message", "messages"])} waiting in a second with one of these failures.`,
+    attempts,
+    {
+      kind: "failed-delivery-waits",
+      queueId: q.queueId,
+      mostWaiting: q.mostWaiting,
+    },
   ];
 }
 
@@ -229,22 +233,27 @@ interface EndInput {
   readonly run: RunSoFar;
 }
 
-const END_SENTENCES: Readonly<
-  Record<DeliveryEnd, (input: EndInput) => Message>
+const END_STATEMENTS: Readonly<
+  Record<DeliveryEnd, (input: EndInput) => FailedDeliveriesStatement>
 > = {
   stopped: ({ cause, run }) => {
-    const lastMs = run.snapshots[cause.seconds.at(-1) ?? 0]?.endMs ?? 0;
-    const quietMs = (run.snapshots.at(-1)?.endMs ?? 0) - lastMs;
-    return say`The last failed in the second ending at ${at(lastMs)}, and none failed in the ${duration(quietMs)} after it.`;
+    const lastFailedMs = run.snapshots[cause.seconds.at(-1) ?? 0]?.endMs ?? 0;
+    const quietMs = (run.snapshots.at(-1)?.endMs ?? 0) - lastFailedMs;
+    return { kind: "deliveries-stopped-failing", lastFailedMs, quietMs };
   },
-  failing: () =>
-    say`Deliveries were still failing with it in the run's last second, so nothing in the run says those messages will land.`,
-  "failing-so-far": () => say`Deliveries are still failing with it.`,
+  failing: () => ({ kind: "deliveries-still-failing", finished: true }),
+  "failing-so-far": () => ({
+    kind: "deliveries-still-failing",
+    finished: false,
+  }),
 };
 
-function waitingAtEndSentence(q: QueueDeliveries): Message {
-  const n = q.waitingAtEnd;
-  return say`At the end of the last second, ${component(q.queueId)} had ${n === 0 ? "no" : count(n)} ${plural(n, ["message", "messages"])} waiting.`;
+function waitingAtEnd(q: QueueDeliveries): FailedDeliveriesStatement {
+  return {
+    kind: "queue-waiting-at-end",
+    queueId: q.queueId,
+    waiting: q.waitingAtEnd,
+  };
 }
 
 /** A cause, the limits that refused it, and what's read besides. */
@@ -286,7 +295,7 @@ function causeEvidence(cause: FailureCause): Evidence[] {
   ];
 }
 
-/** The numbers the queue's sentences quote. */
+/** The numbers the queue's statements quote. */
 function queueEvidence(q: QueueDeliveries): Evidence[] {
   const read: readonly (readonly [string, number, Evidence["source"]])[] = [
     ["failed deliveries with this cause (asyncFailures)", q.failed, "totals"],

@@ -20,21 +20,17 @@ import {
   reportedLimits,
 } from "../limit-ref";
 import {
-  at,
-  component,
-  count,
-  duration,
-  plural,
-  say,
-  type Message,
-} from "../message";
-import {
   addSecond,
   noSeconds,
   spanOf,
   spanOfTally,
   type SecondsTally,
 } from "../time-window";
+import {
+  BACKLOG_PHRASES,
+  type BacklogState,
+  type BacklogStatement,
+} from "./backlog-phrases";
 
 export const BACKLOG = "backlog";
 
@@ -66,6 +62,7 @@ export function backlogDetector(catalog: FindingsCatalog): Detector {
         if (window === undefined || tally.out.count === 0) return [];
         return [backlogFinding({ limit, tally, window, run, catalog })];
       }),
+    phrases: BACKLOG_PHRASES,
   };
 }
 
@@ -204,13 +201,6 @@ function setPeak(tally: BacklogTally, { index, metrics }: MetricsSecond): void {
   tally.peakFlow = { ...tally.flow };
 }
 
-/**
- * - `emptied`: no message was waiting at the end of the last second;
- * - `waiting`: some were, at the end of a finished run;
- * - `waiting-so-far`: some were, and the run hasn't finished.
- */
-type BacklogState = "emptied" | "waiting" | "waiting-so-far";
-
 const SEVERITIES: Readonly<Record<BacklogState, Severity>> = {
   emptied: "note",
   waiting: "warning",
@@ -237,12 +227,12 @@ function backlogFinding(input: BacklogFindingInput): DetectedFinding {
     limitNames: [limit.use.name],
     window,
     causeWindow: causeWindowOf(input),
-    summary: lookup(SUMMARIES, end.state)({ input, end }),
+    summary: summaryOf({ input, end }),
     reasons: [
-      busySentence(input),
-      peakSentence(input),
-      ...latencySentences(input),
-      ...lookup(END_SENTENCES, end.state)({ input, end }),
+      busyStatement(input),
+      peakStatement(input),
+      ...latencyStatements(input),
+      ...endStatements({ input, end }),
     ],
     evidence: [...evidenceOf(input), ...endEvidence({ input, end })],
     ...adviceFor(catalog, {
@@ -290,23 +280,22 @@ function causeWindowOf({
   return { fromMs: run.snapshots[start]?.startMs ?? 0, toMs: window.toMs };
 }
 
-/** A finding's input and how its backlog ended, for the end's sentences. */
+/** A finding's input and how its backlog ended, for the end's statements. */
 interface EndInput {
   readonly input: BacklogFindingInput;
   readonly end: BacklogEnd;
 }
 
-const SUMMARIES: Readonly<Record<BacklogState, (e: EndInput) => Message>> = {
-  emptied: ({ input }) =>
-    say`${backedUp(input)} from ${at(input.window.fromMs)}, and its backlog was empty by ${at(input.window.toMs)}.`,
-  waiting: ({ input, end }) =>
-    say`${backedUp(input)} from ${at(input.window.fromMs)}, and ${count(end.waiting)} ${plural(end.waiting, ["was", "were"])} still waiting when the run ended.`,
-  "waiting-so-far": ({ input, end }) =>
-    say`${backedUp(input)} from ${at(input.window.fromMs)}, and ${count(end.waiting)} ${plural(end.waiting, ["is", "are"])} still waiting so far.`,
-};
-
-function backedUp({ limit }: BacklogFindingInput): Message {
-  return say`Messages waited for ${component(limit.componentId)}'s ${limit.use.name}`;
+function summaryOf({ input, end }: EndInput): BacklogStatement {
+  const { limit, window } = input;
+  return {
+    kind: "backlog",
+    componentId: limit.componentId,
+    limitName: limit.use.name,
+    state: end.state,
+    window,
+    waiting: end.waiting,
+  };
 }
 
 /**
@@ -314,23 +303,24 @@ function backedUp({ limit }: BacklogFindingInput): Message {
  * backlog, and how many other seconds it was out; or, if the limit wasn't
  * out then, every second it was.
  */
-function busySentence(input: BacklogFindingInput): Message {
+function busyStatement(input: BacklogFindingInput): BacklogStatement {
   const { limit, tally, run } = input;
-  const all = say`All ${count(limit.use.limit)} of its ${limit.use.name} were busy`;
+  const busy = {
+    componentId: limit.componentId,
+    limitName: limit.use.name,
+    limit: limit.use.limit,
+  };
   const start = tally.causeStart;
   if (start === undefined) {
-    const n = tally.out.count;
-    return say`${all} in ${count(n)} ${plural(n, ["second", "seconds"])}.`;
+    return { kind: "consumers-busy", ...busy, seconds: tally.out.count };
   }
-  const span = spanOf({
+  const window = spanOf({
     snapshots: run.snapshots,
     first: start,
     last: tally.causeRunLast,
   });
-  const during = say`${all} in every second from ${at(span.fromMs)} to ${at(span.toMs)}, so messages arriving then waited for one.`;
-  const other = tally.out.count - causeRunLength(tally);
-  if (other === 0) return during;
-  return say`${during} They were also all busy in ${count(other)} other ${plural(other, ["second", "seconds"])}.`;
+  const otherSeconds = tally.out.count - causeRunLength(tally);
+  return { kind: "consumers-busy-run", ...busy, window, otherSeconds };
 }
 
 /** Seconds in the run that `causeStart` begins; 0 if it isn't set. */
@@ -343,20 +333,32 @@ function causeRunLength(tally: BacklogTally): number {
  * The peak and when it came, and the mean flow over the seconds with a
  * backlog up to it: arrivals over deliveries is how fast it grew.
  */
-function peakSentence({ tally, window, run }: BacklogFindingInput): Message {
-  const peakEndMs = run.snapshots[tally.peakIndex]?.endMs ?? 0;
+function peakStatement({
+  tally,
+  window,
+  run,
+}: BacklogFindingInput): BacklogStatement {
   const { seconds, arrivals, delivered } = tally.peakFlow;
-  const growthPerSec = (arrivals - delivered) / seconds;
-  const peak = say`It peaked at ${count(tally.peak)} ${plural(tally.peak, ["message", "messages"])} in the second ending at ${at(peakEndMs)}. From ${at(window.fromMs)} to then, messages arrived at ${count(arrivals / seconds)} a second and were delivered at ${count(delivered / seconds)}`;
-  if (growthPerSec <= 0) return say`${peak}.`;
-  return say`${peak}, so it grew by about ${count(growthPerSec)} a second.`;
+  return {
+    kind: "backlog-peak",
+    peak: tally.peak,
+    peakEndMs: run.snapshots[tally.peakIndex]?.endMs ?? 0,
+    fromMs: window.fromMs,
+    arrivalsPerSec: arrivals / seconds,
+    deliveredPerSec: delivered / seconds,
+    growthPerSec: (arrivals - delivered) / seconds,
+  };
 }
 
 /** The slowest delivery, exact, and the highest p99 of a second, a bound. */
-function latencySentences({ tally }: BacklogFindingInput): Message[] {
+function latencyStatements({ tally }: BacklogFindingInput): BacklogStatement[] {
   if (tally.slowestMs === 0) return [];
   return [
-    say`Deliveries in those seconds landed up to ${duration(tally.slowestMs)} after their requests; the highest p99 of a second was ${duration(tally.highestP99Ms)}.`,
+    {
+      kind: "backlog-latency",
+      slowestMs: tally.slowestMs,
+      highestP99Ms: tally.highestP99Ms,
+    },
   ];
 }
 
@@ -364,17 +366,20 @@ function latencySentences({ tally }: BacklogFindingInput): Message[] {
  * For messages still waiting, how the accepted ones add up: delivered,
  * waiting, and being delivered (the CLI's Components note for queues).
  */
-const END_SENTENCES: Readonly<
-  Record<BacklogState, (e: EndInput) => Message[]>
-> = {
-  emptied: () => [],
-  waiting: ({ input, end: { waiting, beingDelivered } }) => [
-    say`When the run ended, ${count(waiting)} ${plural(waiting, ["message was", "messages were"])} still waiting: of the ${count(input.tally.accepted)} accepted, ${count(input.tally.delivered)} had been delivered and ${count(beingDelivered)} ${plural(beingDelivered, ["was", "were"])} being delivered.`,
-  ],
-  "waiting-so-far": ({ input, end: { waiting, beingDelivered } }) => [
-    say`So far, ${count(waiting)} ${plural(waiting, ["message is", "messages are"])} waiting: of the ${count(input.tally.accepted)} accepted, ${count(input.tally.delivered)} have been delivered and ${count(beingDelivered)} ${plural(beingDelivered, ["is", "are"])} being delivered.`,
-  ],
-};
+function endStatements({ input, end }: EndInput): BacklogStatement[] {
+  if (end.state === "emptied") return [];
+  return [
+    {
+      kind: "backlog-at-end",
+      componentId: input.limit.componentId,
+      finished: end.state === "waiting",
+      waiting: end.waiting,
+      accepted: input.tally.accepted,
+      delivered: input.tally.delivered,
+      beingDelivered: end.beingDelivered,
+    },
+  ];
+}
 
 function evidenceOf(input: BacklogFindingInput): Evidence[] {
   return [
@@ -440,7 +445,7 @@ function deliveryEvidence({ limit, tally }: BacklogFindingInput): Evidence[] {
   ];
 }
 
-/** The numbers the end's sentence adds up, when messages are waiting. */
+/** The numbers the end's statement adds up, when messages are waiting. */
 function endEvidence({ input, end }: EndInput): Evidence[] {
   if (end.state === "emptied") return [];
   const id = input.limit.componentId;

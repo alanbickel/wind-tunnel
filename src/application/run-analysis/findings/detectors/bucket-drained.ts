@@ -13,13 +13,16 @@ import type { Detector } from "../detector";
 import type { DetectedFinding, Evidence, TimeWindow } from "../finding";
 import { findingKey } from "../finding-key";
 import { limitUseIn, reportedLimits, type LimitRef } from "../limit-ref";
-import { at, component, count, duration, say, type Message } from "../message";
 import {
   addSecond,
   noSeconds,
   spanOfTally,
   type SecondsTally,
 } from "../time-window";
+import {
+  BUCKET_DRAINED_PHRASES,
+  type BucketDrainedStatement,
+} from "./bucket-drained-phrases";
 
 export const BUCKET_DRAINED = "bucket-drained";
 
@@ -45,6 +48,7 @@ export function bucketDrainedDetector(catalog: FindingsCatalog): Detector {
         if (out === undefined || drain === undefined) return [];
         return [drainedFinding({ bucket, tally, drain, out, run, catalog })];
       }),
+    phrases: BUCKET_DRAINED_PHRASES,
   };
 }
 
@@ -172,8 +176,8 @@ function drainedFinding(input: DrainedFindingInput): DetectedFinding {
     limitNames: [use.name],
     window: out,
     causeWindow: causeWindowOf(input),
-    summary: say`${component(componentId)}'s ${use.name} bucket drained from ${at(drainStartMs(input))} and ran out in the second ending at ${at(firstOutEndMs(input))}.`,
-    reasons: [flowSentence(input), ...lastedSentences(input)],
+    summary: summaryOf(input),
+    reasons: [flowStatement(input), ...lastedStatements(input)],
     evidence: evidenceOf(input),
     ...adviceFor(catalog, {
       project: run.project,
@@ -183,6 +187,17 @@ function drainedFinding(input: DrainedFindingInput): DetectedFinding {
     explains: { componentId, limitName: use.name },
     // A note counts nothing: the failures it explains are counted once.
     affected: undefined,
+  };
+}
+
+function summaryOf(input: DrainedFindingInput): BucketDrainedStatement {
+  const { componentId, use } = input.bucket;
+  return {
+    kind: "bucket-drained",
+    componentId,
+    limitName: use.name,
+    drainFromMs: drainStartMs(input),
+    firstOutEndMs: firstOutEndMs(input),
   };
 }
 
@@ -206,14 +221,13 @@ function causeWindowOf(input: DrainedFindingInput): TimeWindow | undefined {
  * since. A mean no faster than the refill means the tokens went faster than
  * that within a second.
  */
-function flowSentence(input: DrainedFindingInput): Message {
-  const { drain, bucket } = input;
-  const from = say`It was last full at ${at(drainStartMs(input))}. From then, requests took ${count(drain.takenPerSec)} tokens a second on average`;
-  const rate = count(bucket.use.ratePerSec);
-  if (drain.takenPerSec <= bucket.use.ratePerSec) {
-    return say`${from}, no more than its refill of ${rate} a second, but faster than the refill within a second.`;
-  }
-  return say`${from}, against a refill of ${rate}.`;
+function flowStatement(input: DrainedFindingInput): BucketDrainedStatement {
+  return {
+    kind: "drain-flow",
+    fullAtMs: drainStartMs(input),
+    takenPerSec: input.drain.takenPerSec,
+    ratePerSec: input.bucket.use.ratePerSec,
+  };
 }
 
 /**
@@ -221,18 +235,22 @@ function flowSentence(input: DrainedFindingInput): Message {
  * lasts (burst − 1) ÷ (flow − refill), since it throttles at less than one
  * token left. A flow no faster than the refill gives no formula.
  */
-function lastedSentences(input: DrainedFindingInput): Message[] {
+function lastedStatements(
+  input: DrainedFindingInput,
+): BucketDrainedStatement[] {
   const { bucket, drain } = input;
   const { limit, ratePerSec } = bucket.use;
   const startMs = drainStartMs(input);
-  const lasted = say`Its burst of ${count(limit)} tokens lasted between ${duration(firstOutStartMs(input) - startMs)} and ${duration(firstOutEndMs(input) - startMs)}.`;
+  const lasted: BucketDrainedStatement = {
+    kind: "burst-lasted",
+    burst: limit,
+    atLeastMs: firstOutStartMs(input) - startMs,
+    atMostMs: firstOutEndMs(input) - startMs,
+  };
   const excessPerSec = drain.takenPerSec - ratePerSec;
   if (excessPerSec <= 0) return [lasted];
   const predictedMs = ((limit - 1) / excessPerSec) * 1_000;
-  return [
-    lasted,
-    say`At that flow, a full bucket lasts about ${duration(predictedMs)}: (burst − 1) ÷ (flow − refill).`,
-  ];
+  return [lasted, { kind: "burst-predicted", predictedMs }];
 }
 
 function firstOutStartMs({ tally, run }: DrainedFindingInput): number {

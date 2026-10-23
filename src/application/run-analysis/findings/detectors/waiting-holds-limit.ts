@@ -13,21 +13,11 @@ import type { Detector } from "../detector";
 import type { DetectedFinding, Evidence, TimeWindow } from "../finding";
 import { findingKey } from "../finding-key";
 import {
-  amountOf,
   exhaustedIn,
   limitUseIn,
   reportedLimits,
   type LimitRef,
 } from "../limit-ref";
-import {
-  at,
-  component,
-  count,
-  duration,
-  plural,
-  say,
-  type Message,
-} from "../message";
 import {
   addSecond,
   noSeconds,
@@ -35,6 +25,11 @@ import {
   spanOfTally,
   type SecondsTally,
 } from "../time-window";
+import {
+  WAITING_HOLDS_LIMIT_PHRASES,
+  type WaitingFlowStatement,
+  type WaitingHoldsLimitStatement,
+} from "./waiting-holds-limit-phrases";
 
 export const WAITING_HOLDS_LIMIT = "waiting-holds-limit";
 
@@ -60,6 +55,7 @@ export function waitingHoldsLimitDetector(catalog: FindingsCatalog): Detector {
         if (busy === undefined) return [];
         return [waitingFinding({ pair, tally, busy, run, catalog })];
       }),
+    phrases: WAITING_HOLDS_LIMIT_PHRASES,
   };
 }
 
@@ -207,12 +203,12 @@ function waitingFinding(input: WaitingFindingInput): DetectedFinding {
     limitNames: [pair.waiting.name],
     window,
     causeWindow: causeWindowOf(input, window),
-    summary: say`Requests waited for ${component(pair.componentId)}'s ${pair.waiting.name}, holding its ${pair.held.name} while they waited.`,
+    summary: summaryOf(pair),
     reasons: [
-      busySentence(input),
-      holdsSentence(input),
-      heldSentence(input),
-      flowSentence(input),
+      busyStatement(input),
+      holdsStatement(input),
+      heldStatement(input),
+      flowStatement(input),
     ],
     evidence: evidenceOf(input),
     ...adviceFor(catalog, {
@@ -223,6 +219,15 @@ function waitingFinding(input: WaitingFindingInput): DetectedFinding {
     explains: { componentId: pair.componentId, limitName: pair.held.name },
     // A note counts nothing: the failures it explains are counted once.
     affected: undefined,
+  };
+}
+
+function summaryOf(pair: HeldPair): WaitingHoldsLimitStatement {
+  return {
+    kind: "waiting-holds-limit",
+    componentId: pair.componentId,
+    waitingLimit: pair.waiting.name,
+    heldLimit: pair.held.name,
   };
 }
 
@@ -241,28 +246,40 @@ function causeWindowOf(
  * how many other seconds the waiting limit was out; or, if the held limit
  * never ran out, every second it was.
  */
-function busySentence(input: WaitingFindingInput): Message {
+function busyStatement(input: WaitingFindingInput): WaitingHoldsLimitStatement {
   const { pair, tally, busy, run } = input;
-  const all = say`All ${count(pair.waiting.limit)} of its ${pair.waiting.name} were busy`;
+  const limit = {
+    componentId: pair.componentId,
+    limitName: pair.waiting.name,
+    limit: pair.waiting.limit,
+  };
   const start = tally.causeStart;
   if (start === undefined) {
-    const n = tally.full.count;
-    return say`${all} in ${count(n)} ${plural(n, ["second", "seconds"])} from ${at(busy.fromMs)} to ${at(busy.toMs)}, so requests arriving then waited for one.`;
+    const seconds = tally.full.count;
+    return { kind: "waiting-limit-busy", ...limit, seconds, window: busy };
   }
-  const span = spanOf({
+  const window = spanOf({
     snapshots: run.snapshots,
     first: start,
     last: tally.causeRunLast,
   });
-  const other = tally.full.count - causeRunLength(tally);
-  const during = say`${all} in every second from ${at(span.fromMs)} to ${at(span.toMs)}, so requests arriving then waited for one.`;
-  if (other === 0) return during;
-  return say`${during} They were also all busy in ${count(other)} other ${plural(other, ["second", "seconds"])}.`;
+  const otherSeconds = tally.full.count - causeRunLength(tally);
+  return { kind: "waiting-limit-busy-run", ...limit, window, otherSeconds };
 }
 
-function holdsSentence({ pair, tally }: WaitingFindingInput): Message {
-  const running = pair.waiting.limit;
-  return say`Each waiting request holds one of its ${pair.held.name}: ${count(running)} running and up to ${count(tally.waitingPeak)} waiting is ${count(running + tally.waitingPeak)}, and its ${pair.held.name} peaked at ${amountOf(pair.held, tally.heldPeak)}.`;
+function holdsStatement({
+  pair,
+  tally,
+}: WaitingFindingInput): WaitingHoldsLimitStatement {
+  return {
+    kind: "waiting-holds",
+    componentId: pair.componentId,
+    heldLimit: pair.held.name,
+    held: { kind: pair.held.kind, limit: pair.held.limit },
+    running: pair.waiting.limit,
+    waitingPeak: tally.waitingPeak,
+    heldPeak: tally.heldPeak,
+  };
 }
 
 /**
@@ -270,28 +287,32 @@ function holdsSentence({ pair, tally }: WaitingFindingInput): Message {
  * long after the waiting began. It reads only those seconds: a held limit
  * that runs out on its own isn't this note's.
  */
-function heldSentence(input: WaitingFindingInput): Message {
+function heldStatement(input: WaitingFindingInput): WaitingHoldsLimitStatement {
   const { pair, tally, run } = input;
+  const limits = {
+    componentId: pair.componentId,
+    waitingLimit: pair.waiting.name,
+    heldLimit: pair.held.name,
+  };
   const out = spanOfTally(run.snapshots, tally.both);
-  const busy = say`while its ${pair.waiting.name} were all busy`;
-  if (out === undefined) {
-    return say`Its ${pair.held.name} never ran out ${busy}.`;
-  }
-  const n = tally.both.count;
-  const ranOut = say`Its ${pair.held.name} ran out ${busy} in ${count(n)} ${plural(n, ["second", "seconds"])} from ${at(out.fromMs)} to ${at(out.toMs)}`;
-  const cause = causeWindowOf(input, out);
-  if (cause === undefined) return say`${ranOut}.`;
-  return say`${ranOut}, ${duration(out.fromMs - cause.fromMs)} after the waiting began at ${at(cause.fromMs)}.`;
+  if (out === undefined) return { kind: "held-never-ran-out", ...limits };
+  return {
+    kind: "held-ran-out",
+    ...limits,
+    seconds: tally.both.count,
+    window: out,
+    waitingFromMs: causeWindowOf(input, out)?.fromMs,
+  };
 }
 
-/** The seconds the flow sentence covers: the window's. */
+/** The seconds the flow statement covers: the window's. */
 interface FlowScope {
   readonly flow: Flow;
   readonly seconds: number;
   /** The limits that were out in those seconds, for the evidence. */
   readonly limitsOut: string;
-  /** The same, as the sentence says it. */
-  readonly during: Message;
+  /** The held limit, if it was out in those seconds too. */
+  readonly heldOut: string | undefined;
 }
 
 /** The seconds with both limits out, or with the waiting one, if never both. */
@@ -302,21 +323,28 @@ function flowScope({ pair, tally }: WaitingFindingInput): FlowScope {
       flow: tally.bothFlow,
       seconds: tally.both.count,
       limitsOut: `both ${waiting.name} and ${held.name}`,
-      during: say`While its ${waiting.name} were all busy and its ${held.name} were out`,
+      heldOut: held.name,
     };
   }
   return {
     flow: tally.fullFlow,
     seconds: tally.full.count,
     limitsOut: waiting.name,
-    during: say`While its ${waiting.name} were all busy`,
+    heldOut: undefined,
   };
 }
 
 /** Throughput against arrivals, over the seconds the window covers. */
-function flowSentence(input: WaitingFindingInput): Message {
-  const { flow, seconds, during } = flowScope(input);
-  return say`${during}, ${component(input.pair.componentId)} finished ${count(flow.completed / seconds)} requests a second on average, against ${count(flow.arrivals / seconds)} arriving.`;
+function flowStatement(input: WaitingFindingInput): WaitingFlowStatement {
+  const { flow, seconds, heldOut } = flowScope(input);
+  return {
+    kind: "waiting-flow",
+    componentId: input.pair.componentId,
+    waitingLimit: input.pair.waiting.name,
+    heldLimit: heldOut,
+    completedPerSec: flow.completed / seconds,
+    arrivalsPerSec: flow.arrivals / seconds,
+  };
 }
 
 function evidenceOf(input: WaitingFindingInput): Evidence[] {
@@ -370,7 +398,7 @@ function secondsEvidence({ pair, tally }: WaitingFindingInput): Evidence[] {
   ];
 }
 
-/** The sums the flow sentence divides, over the seconds it covers. */
+/** The sums the flow statement divides, over the seconds it covers. */
 function flowEvidence(input: WaitingFindingInput): Evidence[] {
   const { flow, limitsOut: out } = flowScope(input);
   const id = input.pair.componentId;

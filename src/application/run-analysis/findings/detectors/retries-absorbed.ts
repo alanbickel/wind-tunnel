@@ -11,23 +11,17 @@ import type { Detector } from "../detector";
 import type { DetectedFinding, Evidence, TimeWindow } from "../finding";
 import { findingKey } from "../finding-key";
 import {
-  at,
-  component,
-  count,
-  duration,
-  listOf,
-  plural,
-  say,
-  type Message,
-  type PluralForms,
-} from "../message";
-import {
   addSecond,
   noSeconds,
   spanOfTally,
   type SecondsTally,
 } from "../time-window";
 import { limitRefused } from "./limit-refused";
+import {
+  RETRIES_ABSORBED_PHRASES,
+  type LatencyWhileRefusingStatement,
+  type RetriesAbsorbedStatement,
+} from "./retries-absorbed-phrases";
 import {
   endedByRejections,
   rejectionCauses,
@@ -71,6 +65,7 @@ export function retriesAbsorbedDetector(catalog: FindingsCatalog): Detector {
         return [absorbedFinding({ ...input, causes, run, catalog })];
       });
     },
+    phrases: RETRIES_ABSORBED_PHRASES,
   };
 }
 
@@ -194,7 +189,7 @@ interface AbsorbedFindingInput {
 }
 
 function absorbedFinding(input: AbsorbedFindingInput): DetectedFinding {
-  const { componentId, tally, window, run, catalog } = input;
+  const { componentId, window, run, catalog } = input;
   const limitNames = limitsNamedOnlyHere(input);
   return {
     key: findingKey({ kind: RETRIES_ABSORBED, componentId }),
@@ -203,18 +198,42 @@ function absorbedFinding(input: AbsorbedFindingInput): DetectedFinding {
     window,
     causeWindow: undefined,
     summary: summaryOf(input),
-    reasons: [
-      secondsSentence(input),
-      say`Attempts aren't requests: a request refused twice and then served counts as two refused attempts, so the difference isn't how many requests the retries saved.`,
-      reasonsSentence(input),
-      ...tally.p99s.flatMap((p99s) => latencySentences(p99s, run.project)),
-    ],
+    reasons: statementsOf(input),
     evidence: evidenceOf(input),
     ...adviceFor(catalog, { project: run.project, componentId, limitNames }),
     explains: undefined,
     // A note counts nothing: refused attempts aren't requests.
     affected: undefined,
   };
+}
+
+function summaryOf({
+  componentId,
+  ended,
+  tally,
+}: AbsorbedFindingInput): RetriesAbsorbedStatement {
+  return {
+    kind: "retries-absorbed",
+    componentId,
+    rejected: tally.rejected,
+    failedRequests: ended.requests,
+    failedDeliveries: ended.deliveries,
+  };
+}
+
+function statementsOf(input: AbsorbedFindingInput): RetriesAbsorbedStatement[] {
+  const { componentId, tally, window } = input;
+  return [
+    {
+      kind: "refusing-seconds",
+      componentId,
+      seconds: tally.refusing.count,
+      window,
+    },
+    { kind: "attempts-are-not-requests" },
+    { kind: "refusal-reasons", componentId, reasons: reasonsOf(input) },
+    ...tally.p99s.flatMap((p99s) => latencyStatements(p99s, componentId)),
+  ];
 }
 
 /** The limits that ran out while it refused, less those a failure finding names. */
@@ -244,59 +263,6 @@ function rejectionsAt(causes: RunCauses, componentId: string): FailureCause[] {
   ];
 }
 
-function summaryOf({
-  componentId,
-  ended,
-  tally,
-}: AbsorbedFindingInput): Message {
-  const refused = say`${component(componentId)} refused ${count(tally.rejected)} ${plural(tally.rejected, ["attempt", "attempts"])}`;
-  const failed = failedParts(ended);
-  if (failed.length === 0) {
-    return say`${refused}, but no request failed with its rejections: callers retried every one.`;
-  }
-  return say`${refused}, but only ${listOf(failed)} failed with its rejections: callers retried the rest.`;
-}
-
-/** "4,377 requests", "90 deliveries", or both; none if neither failed. */
-function failedParts({ requests, deliveries }: EndedByRejections): Message[] {
-  const parts: readonly (readonly [number, PluralForms])[] = [
-    [requests, ["request", "requests"]],
-    [deliveries, ["delivery", "deliveries"]],
-  ];
-  return parts
-    .filter(([n]) => n > 0)
-    .map(([n, forms]) => say`${count(n)} ${plural(n, forms)}`);
-}
-
-function secondsSentence({ tally, window }: AbsorbedFindingInput): Message {
-  const n = tally.refusing.count;
-  return say`It refused attempts in ${count(n)} ${plural(n, ["second", "seconds"])} from ${at(window.fromMs)} to ${at(window.toMs)}.`;
-}
-
-/** How many reasons the component refuses with, for the sentence. */
-type ReasonCount = "none" | "one" | "several";
-
-const REASON_SENTENCES: Readonly<
-  Record<ReasonCount, (reasons: readonly string[]) => Message>
-> = {
-  none: () =>
-    say`None of its limits declares a rejection reason, and no request failed with one, so the run can't say why it refused.`,
-  one: ([reason = ""]) =>
-    say`It refuses only with ${reason}, so the attempts and the requests are both ${reason} rejections.`,
-  several: (reasons) =>
-    say`It refuses with ${listOf(reasons.map((r) => say`${r}`))}, and refused attempts aren't counted by reason, so the run can't say how many of each were retried.`,
-};
-
-function reasonsSentence(input: AbsorbedFindingInput): Message {
-  const reasons = reasonsOf(input);
-  return lookup(REASON_SENTENCES, reasonCount(reasons.length))(reasons);
-}
-
-function reasonCount(n: number): ReasonCount {
-  if (n === 0) return "none";
-  return n === 1 ? "one" : "several";
-}
-
 /** The reasons its limits declare, then any other its failures carry. */
 function reasonsOf({
   componentId,
@@ -317,18 +283,21 @@ function reasonsOf({
  * can't be merged, so the median second stands in for the typical one, and
  * the cold starts of a run's first seconds don't move it.
  */
-function latencySentences(p99s: WorkflowP99s, project: Project): Message[] {
-  const during = medianOf(p99s.duringMs);
-  if (during === undefined) return [];
-  const name =
-    project.workflows.find((w) => w.id === p99s.workflowId)?.name ??
-    p99s.workflowId;
-  const highestMs = Math.max(...p99s.duringMs);
-  const lasted = say`While it refused attempts, ${name}'s p99 was ${duration(during)} in the median second, and up to ${duration(highestMs)}`;
-  const before = medianOf(p99s.beforeMs);
-  if (before === undefined) return [say`${lasted}.`];
+function latencyStatements(
+  p99s: WorkflowP99s,
+  componentId: string,
+): LatencyWhileRefusingStatement[] {
+  const medianMs = medianOf(p99s.duringMs);
+  if (medianMs === undefined) return [];
   return [
-    say`${lasted}, against ${duration(before)} in the median second before.`,
+    {
+      kind: "latency-while-refusing",
+      componentId,
+      workflowId: p99s.workflowId,
+      medianMs,
+      highestMs: Math.max(...p99s.duringMs),
+      beforeMs: medianOf(p99s.beforeMs),
+    },
   ];
 }
 
@@ -368,7 +337,7 @@ function evidenceOf({
   return [...evidence, ...tally.p99s.flatMap(p99Evidence)];
 }
 
-/** The medians the latency sentence quotes, for the seconds that have one. */
+/** The medians the latency statement quotes, for the seconds that have one. */
 function p99Evidence(p99s: WorkflowP99s): Evidence[] {
   return [
     ...medianEvidence(p99s, {

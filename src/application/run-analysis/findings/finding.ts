@@ -1,4 +1,5 @@
 import type { Message } from "./message";
+import type { Statement } from "./phrase";
 
 /**
  * One thing a run did that the developer should know about: what, where,
@@ -21,11 +22,11 @@ export interface Finding {
    * cause began to the end of `window`.
    */
   readonly causeWindow: TimeWindow | undefined;
-  /** What happened, in one sentence. */
-  readonly summary: Message;
+  /** What happened, as one statement; a phrasebook words it. */
+  readonly summary: Statement;
   /** Why, in causal order. */
-  readonly reasons: readonly Message[];
-  /** The numbers the sentences quote, each with where it came from. */
+  readonly reasons: readonly Statement[];
+  /** The numbers the statements quote, each with where it came from. */
   readonly evidence: readonly Evidence[];
   readonly fixes: readonly Fix[];
   /** Anchor in `docs/learning/aws-did-you-know.md`. */

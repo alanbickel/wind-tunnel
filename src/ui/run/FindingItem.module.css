@@ -1,0 +1,40 @@
+/* Numbered in the summary, as the CLI numbers them ("1.1"), not by the list. */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A cause sits indented beneath the finding it explains. */
+.list .list {
+  margin-top: var(--space-2);
+  padding-inline-start: var(--space-5);
+}
+
+.item + .item {
+  margin-top: var(--space-3);
+}
+
+.summary {
+  margin: 0;
+  max-width: var(--prose-max-width);
+}
+
+/* The severity's label carries its meaning; the color repeats it. */
+.failure,
+.warning,
+.note {
+  font-weight: var(--font-weight-bold);
+}
+
+.failure {
+  color: var(--color-status-error);
+}
+
+.warning {
+  color: var(--color-status-warn);
+}
+
+.note {
+  color: var(--color-text-muted);
+}

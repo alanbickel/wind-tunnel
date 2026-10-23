@@ -212,6 +212,19 @@ function requestTotals(): string {
   return `requests (run totals): started ${String(started)} = succeeded ${String(succeeded)} + failed ${String(failed)} + in progress ${String(inProgress)}`;
 }
 
+/** The verdict's title and summary, and how many findings are listed. */
+function verdictLine(): string {
+  const region = screen.getByRole("region", {
+    name: /^(Healthy|Degraded|Failing)/,
+  });
+  const title = region.querySelector("h4")?.textContent ?? "";
+  const summary = region.querySelector("p")?.textContent ?? "";
+  const findings = within(region).queryAllByRole("button", {
+    name: /^About finding/,
+  }).length;
+  return `verdict "${title}": "${summary}" ${String(findings)} findings`;
+}
+
 /** The top bar's breadcrumb, crumb by crumb, without the drawn separators. */
 function breadcrumb(): string {
   const nav = screen.getByRole("navigation", { name: "Breadcrumb" });
@@ -236,6 +249,7 @@ function traceRunScreen(trace: Trace): void {
   trace.screen(
     `progress ${String(progress.value)} of ${String(progress.max)} simulated seconds`,
   );
+  trace.screen(verdictLine());
   trace.screen(requestTotals());
   traceCharts(trace);
 }

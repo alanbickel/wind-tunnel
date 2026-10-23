@@ -131,17 +131,24 @@ describe("RunPanel", () => {
     const { runner } = renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    expect(status()).toBe("Running Steady…");
+    expect(status()).toBe("Running Steady… Healthy so far.");
     runner.send(
       sampleSnapshot({ second: 1, read: { started: 5, succeeded: 2 } }),
     );
-    runner.send(sampleSnapshot({ second: 2, read: { started: 3, failed: 1 } }));
+    // A failure has a cause, as in a real run, so the verdict can find it.
+    runner.send(
+      sampleSnapshot({
+        second: 2,
+        read: { started: 3, failed: 1, failures: { "table: throttled": 1 } },
+        table: { arrivals: 1, rejected: 1 },
+      }),
+    );
 
     expect(requestsSoFar()).toEqual(["All workflows", "8", "2", "1", "5"]);
     expect(screen.getByText("2 of 5 simulated seconds")).toBeTruthy();
     expect(screen.getAllByRole("figure")).toHaveLength(4);
     await runner.finish();
-    expect(status()).toBe("Finished Steady.");
+    expect(status()).toBe("Finished Steady. Failing so far.");
     expect(screen.getByRole("button", { name: "Run" })).toBeTruthy();
   });
 
@@ -175,7 +182,9 @@ describe("RunPanel", () => {
     });
 
     expect(runner.stopped).toBe(true);
-    expect(status()).toBe("Stopped Steady after 1 of 5 simulated seconds.");
+    expect(status()).toBe(
+      "Stopped Steady after 1 of 5 simulated seconds. Healthy so far.",
+    );
     expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
   });
 
@@ -197,7 +206,7 @@ describe("RunPanel", () => {
     fireEvent.change(picker, { target: { value: "spike" } });
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
 
-    expect(status()).toBe("Running Spike…");
+    expect(status()).toBe("Running Spike… Healthy so far.");
     expect((picker as HTMLSelectElement).disabled).toBe(true);
     expect(runner.runs).toBe(1);
   });
@@ -228,7 +237,7 @@ describe("RunPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Stop" }));
 
     expect(runner.runs).toBe(1);
-    expect(status()).toBe("Finished Steady.");
+    expect(status()).toBe("Finished Steady. Healthy so far.");
   });
 
   it("ignores a second Run that lands before React re-renders", () => {

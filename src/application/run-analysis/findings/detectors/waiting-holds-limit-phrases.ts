@@ -9,12 +9,8 @@ import {
   say,
   type Message,
 } from "../message";
-import {
-  limitsOf,
-  type Phrases,
-  type Statement,
-  type Vocabulary,
-} from "../phrase";
+import type { Phrases, Statement } from "../phrase";
+import { limitsOf, type Vocabulary } from "../vocabulary";
 
 /** A limit that makes work wait, and the limit its waiting work holds. */
 interface HeldPairStatement extends Statement {

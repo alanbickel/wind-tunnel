@@ -11,7 +11,8 @@ import {
   type Message,
   type PluralForms,
 } from "../message";
-import type { Phrases, Statement, Vocabulary } from "../phrase";
+import type { Phrases, Statement } from "../phrase";
+import type { Vocabulary } from "../vocabulary";
 
 /** A component refused more attempts than failed work with its rejections. */
 export interface RetriedRefusalsStatement extends Statement {

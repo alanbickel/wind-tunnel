@@ -17,13 +17,8 @@ import {
 } from "./message";
 import type { RefusingLimits } from "./no-headroom";
 import type { VerdictLevel } from "./verdict";
-import {
-  limitsOf,
-  type Phrase,
-  type Phrases,
-  type Statement,
-  type Vocabulary,
-} from "./phrase";
+import type { Phrase, Phrases, Statement } from "./phrase";
+import { limitsOf, type Vocabulary } from "./vocabulary";
 
 /** The verdict's request counts, by its level. */
 export interface VerdictSummaryStatement extends Statement {

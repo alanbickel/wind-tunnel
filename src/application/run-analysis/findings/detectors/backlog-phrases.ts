@@ -9,13 +9,8 @@ import {
   say,
   type Message,
 } from "../message";
-import {
-  limitsOf,
-  type Phrase,
-  type Phrases,
-  type Statement,
-  type Vocabulary,
-} from "../phrase";
+import type { Phrase, Phrases, Statement } from "../phrase";
+import { limitsOf, type Vocabulary } from "../vocabulary";
 
 /**
  * - `emptied`: no message was waiting at the end of the last second;

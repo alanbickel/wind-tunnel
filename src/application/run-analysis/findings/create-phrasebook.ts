@@ -7,16 +7,10 @@ import {
   type TypeWording,
 } from "./catalog/type-advice";
 import type { Detector } from "./detector";
-import type {
-  ComponentWordInput,
-  Length,
-  Phrase,
-  PhraseTable,
-  Statement,
-  Vocabulary,
-} from "./phrase";
+import type { Length, Phrase, PhraseTable, Statement } from "./phrase";
 import type { Phrasebook } from "./phrasebook";
 import { VERDICT_PHRASES } from "./verdict-phrases";
+import type { ComponentWordInput, Vocabulary } from "./vocabulary";
 
 /** The project whose findings are worded, and what words them. */
 export interface CreatePhrasebookInput {

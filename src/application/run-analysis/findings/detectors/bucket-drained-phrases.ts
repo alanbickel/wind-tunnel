@@ -1,5 +1,6 @@
 import { at, component, count, duration, say } from "../message";
-import { limitsOf, type Phrases, type Statement } from "../phrase";
+import type { Phrases, Statement } from "../phrase";
+import { limitsOf } from "../vocabulary";
 
 /** The bucket drained from full and ran out. */
 export interface BucketRanDryStatement extends Statement {

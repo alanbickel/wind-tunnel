@@ -35,8 +35,8 @@ const finished = [
 ];
 
 describe("verdictOf", () => {
-  // Fails if the counts leave out requests in progress, or the wording
-  // drops them.
+  // Fails if the summary statement leaves out the requests in progress, or
+  // counts them as answered.
   it("gives a healthy run's counts, with those still in progress", () => {
     const verdict = verdictOf(sampleRun(finished), []);
     expect(verdict).toMatchObject({
@@ -102,7 +102,8 @@ describe("verdictOf", () => {
     expect(verdict.headroomLine).toBeUndefined();
   });
 
-  // Fails if "answered" counts requests still in progress.
+  // Fails if the summary statement counts requests still in progress as
+  // answered.
   it("says when no request has been answered", () => {
     const snapshots = [sampleSnapshot({ second: 1, read: { started: 3 } })];
     expect(verdictOf(sampleRun(snapshots), []).summary).toMatchObject({

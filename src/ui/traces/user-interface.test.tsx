@@ -317,7 +317,8 @@ const TRACE_TIMEOUT_MS = 30_000;
 
 // Fails if useSimulationRun's onSnapshot stops storing snapshots: progress,
 // totals, and every chart stay at zero. Also fails if App stops naming the
-// open project in the breadcrumb.
+// open project in the breadcrumb, or if the run panel stops showing the
+// verdict, or its title, summary, or number of findings changes.
 it(
   "traces a user from a template to a run's charts",
   async () => {

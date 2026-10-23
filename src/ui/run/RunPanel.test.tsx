@@ -147,6 +147,8 @@ describe("RunPanel", () => {
     expect(screen.getByRole("region", { name: "Run" }).tabIndex).toBe(0);
   });
 
+  // Fails if the status line stops ending with the verdict's title, or a
+  // failed request with a cause doesn't turn the verdict to Failing.
   it("fills in totals and charts as snapshots arrive, then finishes", async () => {
     const { runner } = renderPanel();
 
@@ -191,6 +193,8 @@ describe("RunPanel", () => {
     expect(progress.value).toBe(progress.max);
   });
 
+  // Fails if Stop doesn't stop the runner, the totals drop what arrived, or
+  // the stopped status line loses the verdict's title.
   it("stops partway and keeps what it got", async () => {
     const { runner } = renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
@@ -219,6 +223,8 @@ describe("RunPanel", () => {
     );
   });
 
+  // Fails if Run runs another workload than the one picked, the picker
+  // stays usable while running, or the status line loses the verdict's title.
   it("runs the workload picked, and locks the picker while it runs", () => {
     const { runner } = renderPanel(twoWorkloads);
     const picker = screen.getByRole("combobox", { name: "Workload" });
@@ -247,6 +253,8 @@ describe("RunPanel", () => {
     expect(stop.getAttribute("aria-disabled")).toBe("true");
   });
 
+  // Fails if a late Stop click starts a new run, or the finished status
+  // line loses the verdict's title.
   it("ignores a click on Stop that lands after the run ended", async () => {
     // In the browser a busy page delayed Stop clicks until the run had
     // ended; with one Run/Stop button, each late click started a new run.

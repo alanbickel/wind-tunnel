@@ -100,6 +100,26 @@ function status(): string | null {
   return screen.getByRole("status").textContent;
 }
 
+/**
+ * Every text the status region commits while `action` runs, in order: what
+ * a screen reader could announce, including texts replaced in the same act.
+ */
+function statusesDuring(action: () => void): (string | null)[] {
+  const region = screen.getByRole("status");
+  const observer = new MutationObserver(() => undefined);
+  observer.observe(region, {
+    subtree: true,
+    characterData: true,
+    characterDataOldValue: true,
+  });
+  action();
+  // Each record holds the text it replaced; the first replaced the text
+  // from before the action.
+  const replaced = observer.takeRecords().map((record) => record.oldValue);
+  observer.disconnect();
+  return [...replaced.slice(1), region.textContent];
+}
+
 function requestsSoFar(): (string | null)[] {
   const table = screen.getByRole("table", { name: "Requests (run totals)" });
   const footer = table.querySelector("tfoot tr");
@@ -238,6 +258,34 @@ describe("RunPanel", () => {
 
     expect(runner.runs).toBe(1);
     expect(status()).toBe("Finished Steady. Healthy so far.");
+  });
+
+  // Fails if the status line pairs a new run with the previous run's
+  // verdict while the deferred snapshots catch up: it reads "Running
+  // Steady… Failing so far." for a commit, and a screen reader can say so.
+  it("never announces the previous run's verdict as a new run starts", async () => {
+    const { runner } = renderPanel();
+    const run = screen.getByRole("button", { name: "Run" });
+    fireEvent.click(run);
+    runner.send(
+      sampleSnapshot({
+        second: 1,
+        read: { started: 1, failed: 1, failures: { "table: throttled": 1 } },
+        table: { arrivals: 1, rejected: 1 },
+      }),
+    );
+    await runner.finish();
+    expect(status()).toBe("Finished Steady. Failing so far.");
+
+    const statuses = statusesDuring(() => {
+      fireEvent.click(run);
+    });
+
+    // No title until the deferred render reaches the new run.
+    expect(statuses).toEqual([
+      "Running Steady…",
+      "Running Steady… Healthy so far.",
+    ]);
   });
 
   it("ignores a second Run that lands before React re-renders", () => {

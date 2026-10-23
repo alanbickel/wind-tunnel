@@ -45,10 +45,19 @@ export interface RunFailed {
   readonly problem: string;
 }
 
-export interface SimulationRun {
-  readonly phase: RunPhase;
+/** The latest run's snapshots, and which run they're from. */
+export interface RunReceived {
+  /** Counts the runs started, so one run's snapshots aren't taken for the next's. */
+  readonly runId: number;
   /** The latest run's snapshots, in order; they grow while it runs. */
   readonly snapshots: readonly MetricsSnapshot[];
+}
+
+/** Before the first run. */
+const NOTHING_RECEIVED: RunReceived = { runId: 0, snapshots: [] };
+
+export interface SimulationRun extends RunReceived {
+  readonly phase: RunPhase;
   /** Runs a workload; does nothing while a run is going. */
   readonly start: (workload: Workload) => void;
   /** Stops the run that's going, if any. */
@@ -62,7 +71,7 @@ export interface SimulationRun {
 export function useSimulationRun(project: Project): SimulationRun {
   const { runSimulation } = useUseCases();
   const [phase, setPhase] = useState<RunPhase>({ status: "idle" });
-  const [snapshots, setSnapshots] = useState<readonly MetricsSnapshot[]>([]);
+  const [received, setReceived] = useState(NOTHING_RECEIVED);
   // Set while a run is going. State lags a render behind, so a double-click
   // would see the phase as idle twice; the ref changes at once.
   const going = useRef<AbortController>(undefined);
@@ -79,7 +88,7 @@ export function useSimulationRun(project: Project): SimulationRun {
       if (going.current !== undefined) return;
       const controller = new AbortController();
       going.current = controller;
-      const context = { runSimulation, project, setPhase, setSnapshots };
+      const context = { runSimulation, project, setPhase, setReceived };
       void runWorkload({ workload, controller }, context).finally(() => {
         going.current = undefined;
       });
@@ -91,7 +100,7 @@ export function useSimulationRun(project: Project): SimulationRun {
     going.current?.abort();
   }, []);
 
-  return { phase, snapshots, start, stop };
+  return { phase, ...received, start, stop };
 }
 
 interface RunWorkloadInput {
@@ -105,22 +114,25 @@ interface RunWorkloadContext {
   readonly runSimulation: UseCases["runSimulation"];
   readonly project: Project;
   readonly setPhase: (phase: RunPhase) => void;
-  readonly setSnapshots: Dispatch<SetStateAction<readonly MetricsSnapshot[]>>;
+  readonly setReceived: Dispatch<SetStateAction<RunReceived>>;
 }
 
 /** Starts a run afresh, collects its snapshots, and records how it ended. */
 function runWorkload(
   { workload, controller }: RunWorkloadInput,
-  { runSimulation, project, setPhase, setSnapshots }: RunWorkloadContext,
+  { runSimulation, project, setPhase, setReceived }: RunWorkloadContext,
 ): Promise<void> {
   setPhase({ status: "running", workload });
-  setSnapshots([]);
+  setReceived(({ runId }) => ({ runId: runId + 1, snapshots: [] }));
   const attempt = runSimulation.execute({
     project,
     workloadId: workload.id,
     stopSignal: controller.signal,
     onSnapshot: (snapshot) => {
-      setSnapshots((previous) => [...previous, snapshot]);
+      setReceived(({ runId, snapshots }) => ({
+        runId,
+        snapshots: [...snapshots, snapshot],
+      }));
     },
   });
   return settleRun({ attempt, workload, setPhase });

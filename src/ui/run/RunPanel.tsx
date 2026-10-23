@@ -28,15 +28,11 @@ export interface RunPanelProps {
 export function RunPanel({ project }: RunPanelProps) {
   const run = useSimulationRun(project);
   const workload = workloadOf(run.phase);
-  const meaning = useRunFindings({
-    project,
-    workload,
-    snapshots: run.snapshots,
-  });
+  const meaning = useRunFindings({ project, workload, received: run });
   const status = statusText({
     phase: run.phase,
     seconds: simulatedSec(run.snapshots),
-    verdict: meaning?.findings.verdict,
+    verdict: currentVerdict(meaning),
   });
 
   return (
@@ -55,6 +51,14 @@ export function RunPanel({ project }: RunPanelProps) {
       )}
     </Panel>
   );
+}
+
+/**
+ * The verdict of the latest run, once the deferred render reaches it;
+ * the run before's would be announced as this one's.
+ */
+function currentVerdict(meaning: RunMeaning | undefined): Verdict | undefined {
+  return meaning?.current ? meaning.findings.verdict : undefined;
 }
 
 /** The workload the latest run ran, if there has been one. */
@@ -92,7 +96,7 @@ interface StatusTextInput {
   readonly phase: RunPhase;
   /** Simulated seconds received. */
   readonly seconds: number;
-  /** What the run means so far, if it has started. */
+  /** What the run means so far, if it has started and caught up. */
   readonly verdict: Verdict | undefined;
 }
 

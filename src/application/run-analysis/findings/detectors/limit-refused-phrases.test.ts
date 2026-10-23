@@ -31,7 +31,19 @@ describe("limit-refused's phrases", () => {
             },
             long: "table's readUnits and writeUnits refuse with throttled, but none ran out in a second with these failures.",
             short:
-              "none of table's readUnits and writeUnits ran out while it refused with throttled",
+              "table's readUnits and writeUnits never ran out while it refused with throttled",
+          },
+          {
+            name: "a declared limit that never ran out",
+            statement: {
+              kind: "no-refusing-limit-ran-out",
+              componentId: "fn",
+              reason: "throttled",
+              limitNames: ["concurrency"],
+            },
+            long: "fn's concurrency refuses with throttled, but it never ran out in a second with these failures.",
+            short:
+              "fn's concurrency never ran out while it refused with throttled",
           },
           {
             name: "a concurrency limit out in every failing second",

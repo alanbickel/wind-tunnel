@@ -6,8 +6,10 @@ import {
   plural,
   say,
   type Message,
+  type PluralForms,
 } from "../message";
-import type { Phrases, Statement, Vocabulary } from "../phrase";
+import type { Phrases, Statement } from "../phrase";
+import type { Vocabulary } from "../vocabulary";
 
 // What limit-refused says about a failure cause: which limit refused it,
 // or that none explains it, and whether every refused attempt failed.
@@ -108,6 +110,9 @@ function limitsOf(s: NoRefusingLimitRanOutStatement, v: Vocabulary): Message {
   );
 }
 
+const REFUSE: PluralForms = ["refuses", "refuse"];
+const NONE_RAN_OUT: PluralForms = ["it never ran out", "none ran out"];
+
 /**
  * How limit-refused words its statements, at both lengths. A detector that
  * makes them registers it as its `phrases`.
@@ -121,9 +126,9 @@ export const LIMIT_REFUSED_PHRASES: Phrases<LimitRefusedStatement> = {
   },
   "no-refusing-limit-ran-out": {
     long: (s, v) =>
-      say`${component(s.componentId)}'s ${limitsOf(s, v)} refuse with ${reasonOf(s, v)}, but none ran out in a second with these failures.`,
+      say`${component(s.componentId)}'s ${limitsOf(s, v)} ${plural(s.limitNames.length, REFUSE)} with ${reasonOf(s, v)}, but ${plural(s.limitNames.length, NONE_RAN_OUT)} in a second with these failures.`,
     short: (s, v) =>
-      say`none of ${component(s.componentId)}'s ${limitsOf(s, v)} ran out while it refused with ${reasonOf(s, v)}`,
+      say`${component(s.componentId)}'s ${limitsOf(s, v)} never ran out while it refused with ${reasonOf(s, v)}`,
   },
   "limit-held-all": {
     long: (s, v) =>

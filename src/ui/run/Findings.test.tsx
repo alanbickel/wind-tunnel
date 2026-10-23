@@ -100,9 +100,15 @@ describe("Findings", () => {
   afterEach(cleanup);
 
   // Fails if the severity shows only by color, the numbering stops
-  // matching the CLI's, or a cause isn't nested in the finding it explains.
+  // matching the CLI's, a cause isn't nested in the finding it explains, or
+  // a finding's control isn't described by its summary.
   it("labels each finding's severity in words, with its causes beneath it", () => {
     renderFindings([failure, cause]);
+    const description = "1. Failure: 1,234 requests failed at fn.";
+
+    expect(
+      screen.getByRole("button", { name: "About finding 1", description }),
+    ).toBeTruthy();
 
     expect(summaryOf("1")).toBe("1. Failure: 1,234 requests failed at fn.");
     expect(summaryOf("1.1")).toBe("1.1. Note: Requests waited.");

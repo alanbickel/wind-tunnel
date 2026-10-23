@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import type { Severity } from "../../application/run-analysis/findings/finding";
 import { SEVERITY_LABELS } from "../../application/run-analysis/findings/message-format";
 import type { FindingNode } from "../../application/run-analysis/findings/order-findings";
@@ -28,11 +28,13 @@ export interface FindingItemProps {
  */
 export function FindingItem({ node, number, word }: FindingItemProps) {
   const { finding } = node;
+  // "About finding 1" alone doesn't say which finding; its summary does.
+  const summaryId = useId();
   return (
     <li className={styles.item}>
       <Explained
         title={
-          <p className={styles.summary}>
+          <p id={summaryId} className={styles.summary}>
             {number}.{" "}
             <span className={SEVERITY_CLASSES[finding.severity]}>
               {SEVERITY_LABELS[finding.severity]}:
@@ -41,6 +43,7 @@ export function FindingItem({ node, number, word }: FindingItemProps) {
           </p>
         }
         subject={`finding ${number}`}
+        describedBy={summaryId}
       >
         <FindingDetails finding={finding} word={word} />
       </Explained>

@@ -44,6 +44,7 @@ This is the map of every document. New to the code? Start with [Getting started]
 | [Decisions (ADRs)](docs/adr/adr-overview.md) | Why things are the way they are, one decision per record |
 | [MVP design](docs/design/mvp-design.md) | The detailed reference: domain model, engine, document format, templates, and testing strategy |
 | [Findings](docs/design/findings.md) | What a run should tell you: hand-written readings of the template runs, the detectors that would write them, and the shape of a finding and the verdict |
+| [User experience](docs/design/user-experience.md) | How reading a run and changing the architecture fit together: journeys, layout, the interaction model, and the data each step needs (in progress, #81) |
 | [Fidelity](docs/design/fidelity.md) | Where Wind Tunnel differs from AWS, and which way each difference skews results |
 | [AWS: Did you know?](docs/learning/aws-did-you-know.md) | AWS limits and at-scale behaviors the simulation models, with sources |
 | [React: Mental model and pitfalls](docs/learning/react-mental-model.md) | React behaviors that surprise newcomers, why React works that way, and where each shows up here |

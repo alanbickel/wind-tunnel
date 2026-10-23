@@ -29,7 +29,7 @@ describeFindings([
         key: cause,
         // findings.md §1.8, sentences 1, 2, 5 (its first half), 6, and 7.
         sentences: [
-          "orders-db refused 90 deliveries from orders-queue with too-many-connections, and each went back to be tried again.",
+          "orders-db refused 90 deliveries from orders-queue with too-many-connections in 33 seconds from 16 s to 53 s, and each went back to be tried again.",
           "That's 90 of orders-queue's 13,191 delivery attempts (0.6%). Of those, 13,097 were delivered, 90 failed, and 4 were still being delivered.",
           "A failed delivery waits in the backlog again: orders-queue had up to 1,970 messages waiting in a second with one of these failures.",
           "orders-db held all 10 of its connections in every second with these failures.",

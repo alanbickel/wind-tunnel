@@ -38,20 +38,33 @@ import { runScenario } from "./scenario-runs";
 // are split across the files in `../findings/` so they go to different
 // test workers.
 
-/** A run to read, and what its findings should be. */
-export interface FindingsCase {
+/**
+ * A run to read, and what its findings should be. Its verdict is either
+ * quoted by a reading in findings.md or pinned in the case, never both.
+ */
+export type FindingsCase = QuotedCase | PinnedCase;
+
+/** What every case gives, whichever way its verdict is checked. */
+interface CaseBase {
   readonly name: string;
   readonly project: Project;
   readonly workloadId: string;
-  /** The section of findings.md that quotes this run's verdict, e.g. "1.1". */
-  readonly reading?: string;
-  /**
-   * For a run no reading quotes: its verdict as the CLI prints it. A case
-   * gives this or `reading`.
-   */
-  readonly verdict?: string;
   /** The top-level findings, in order, each with its causes beneath it. */
   readonly findings: readonly ExpectedFinding[];
+}
+
+/** A run whose verdict a reading in findings.md quotes. */
+interface QuotedCase extends CaseBase {
+  /** The section of findings.md that quotes this run's verdict, e.g. "1.1". */
+  readonly reading: string;
+  readonly verdict?: never;
+}
+
+/** A run no reading quotes. */
+interface PinnedCase extends CaseBase {
+  readonly reading?: never;
+  /** Its verdict as the CLI prints it. */
+  readonly verdict: string;
 }
 
 /** A finding expected in the tree, with the findings beneath it. */
@@ -266,13 +279,11 @@ function flatten(nodes: readonly ExpectedFinding[]): ExpectedFinding[] {
   return nodes.flatMap((n) => [n, ...flatten(n.causes ?? [])]);
 }
 
-function itPrintsTheVerdict(
-  read: ReadRunGetter,
-  { reading, verdict }: FindingsCase,
-): void {
-  const expected = reading === undefined ? verdict : quotedVerdict(reading);
+function itPrintsTheVerdict(read: ReadRunGetter, c: FindingsCase): void {
+  const expected =
+    c.reading === undefined ? c.verdict : quotedVerdict(c.reading);
   const quote =
-    reading === undefined ? "pinned" : `findings.md §${reading} quotes`;
+    c.reading === undefined ? "pinned" : `findings.md §${c.reading} quotes`;
   // Fails if the verdict's level, counts, or headroom lines differ from the
   // summary findings.md quotes for the run, so the doc and the code can't
   // drift apart; or, for a run no reading quotes, from the pinned verdict.

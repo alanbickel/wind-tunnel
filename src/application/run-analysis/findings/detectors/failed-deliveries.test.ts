@@ -118,11 +118,11 @@ describe("failed-deliveries", () => {
   // Fails if the attempts don't add up (delivered + failed + being
   // delivered), the backlog is read from a second without a failure, the
   // refusals aren't matched to the deliveries they failed, or the end of
-  // the failures is misread.
+  // the failures is misread, or the summary leaves out when they began.
   it("quotes the queue's attempts, which add up, and when the failures stopped", () => {
     const [finding] = detector.detect(sampleRun(recovered));
     expect(sentences(finding)).toEqual([
-      "table refused 3 deliveries from fn with throttled, and each went back to be tried again.",
+      "table refused 3 deliveries from fn with throttled in 2 seconds from 1000ms to 3000ms, and each went back to be tried again.",
       "That's 3 of fn's 52 delivery attempts (0.057692307692307696). Of those, 47 were delivered, 3 failed, and 2 were still being delivered.",
       "A failed delivery waits in the backlog again: fn had up to 9 messages waiting in a second with one of these failures.",
       "table's readUnits bucket, which holds 100 tokens, had less than one left in every second with these failures.",
@@ -190,7 +190,7 @@ describe("failed-deliveries", () => {
     const [finding] = detector.detect(sampleRun([timedOut]));
     expect(finding?.key.reason).toBe("timeout");
     expect(messageText(finding?.summary ?? [])).toBe(
-      "1 delivery from fn failed because table didn't answer in time, and it went back to be tried again.",
+      "1 delivery from fn failed because table didn't answer in time, in 1 second from 0ms to 1000ms, and it went back to be tried again.",
     );
   });
 

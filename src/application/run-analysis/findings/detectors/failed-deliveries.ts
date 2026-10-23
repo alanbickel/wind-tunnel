@@ -9,7 +9,12 @@ import {
   type FindingsCatalog,
 } from "../catalog/type-advice";
 import type { Detector } from "../detector";
-import type { DetectedFinding, Evidence, Severity } from "../finding";
+import type {
+  DetectedFinding,
+  Evidence,
+  Severity,
+  TimeWindow,
+} from "../finding";
 import { findingKey } from "../finding-key";
 import { holdsNothing } from "../limit-ref";
 import {
@@ -81,7 +86,7 @@ function deliveryFinding(
     limitNames,
     window,
     causeWindow: causeWindowOf({ refusal, window, run }),
-    summary: summaryOf(cause),
+    summary: summaryOf(cause, window),
     reasons: [
       ...queues.flatMap(queueSentences),
       ...refusalReasons(cause, refusal),
@@ -175,14 +180,16 @@ function attemptsOf(q: QueueDeliveries): number {
   return q.delivered + q.failedAll + q.beingDelivered;
 }
 
-function summaryOf(cause: FailureCause): Message {
+function summaryOf(cause: FailureCause, window: TimeWindow): Message {
   const n = cause.failed;
   const deliveries = say`${count(n)} ${plural(n, ["delivery", "deliveries"])} from ${listOf([...cause.bySource.keys()].map((id) => say`${component(id)}`))}`;
+  const seconds = cause.seconds.length;
+  const when = say`in ${count(seconds)} ${plural(seconds, ["second", "seconds"])} from ${at(window.fromMs)} to ${at(window.toMs)}`;
   const back = say`and ${plural(n, ["it", "each"])} went back to be tried again`;
   if (isTimeout(cause)) {
-    return say`${deliveries} failed because ${component(cause.componentId)} didn't answer in time, ${back}.`;
+    return say`${deliveries} failed because ${component(cause.componentId)} didn't answer in time, ${when}, ${back}.`;
   }
-  return say`${component(cause.componentId)} refused ${deliveries} with ${cause.reason}, ${back}.`;
+  return say`${component(cause.componentId)} refused ${deliveries} with ${cause.reason} ${when}, ${back}.`;
 }
 
 /**

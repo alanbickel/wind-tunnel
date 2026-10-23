@@ -23,7 +23,11 @@ import { createDetectors } from "../../application/run-analysis/findings/create-
 import { createPhrasebook } from "../../application/run-analysis/findings/create-phrasebook";
 import { findRun } from "../../application/run-analysis/findings/find-run";
 import { formatFindings, formatVerdict } from "./findings-report";
-import { count, seconds, shareDown } from "./text-format";
+import {
+  count,
+  seconds,
+  shareDown,
+} from "../../application/run-analysis/number-format";
 
 /** The run to report on, and the project and workload it ran. */
 export interface ReportInput {

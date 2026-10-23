@@ -29,11 +29,8 @@ import type {
 import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
 import findingsDoc from "../../../../docs/design/findings.md?raw";
-import {
-  formatFindings,
-  formatMessage,
-  formatVerdict,
-} from "../../cli/findings-report";
+import { formatMessage } from "../../../application/run-analysis/findings/message-format";
+import { formatFindings, formatVerdict } from "../../cli/findings-report";
 import { formatShortForms } from "./format-short-forms";
 import { RUN_TIMEOUT_MS } from "./run-template";
 import { runScenario } from "./scenario-runs";

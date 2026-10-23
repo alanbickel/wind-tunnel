@@ -37,6 +37,7 @@ const verdict: Verdict = {
     finished: true,
     requests,
     warnings: 0,
+    topWarning: undefined,
   },
   headroom: undefined,
   noHeadroom: [],

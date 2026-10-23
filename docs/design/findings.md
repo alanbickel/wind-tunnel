@@ -78,7 +78,7 @@ The verdict's headroom line quotes only limits that refuse work (§3.4). The con
 
 ### 1.5 Template B, long rush: degraded
 
-> **Degraded.** All 273,539 answered requests succeeded, but 1 finding is a warning; 7 were still in progress when the run ended.
+> **Degraded.** All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s api waits for fn-api; 7 were still in progress when the run ended.
 > Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
 
 **Warning: writes landed up to 32.6 s after they were accepted, past API Gateway's 29 s timeout.**

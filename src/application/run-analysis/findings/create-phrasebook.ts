@@ -32,11 +32,7 @@ export function createPhrasebook(input: CreatePhrasebookInput): Phrasebook {
     VERDICT_PHRASES,
     ...detectors.map((d) => d.phrases),
   ]);
-  const vocabularies: Readonly<Record<Length, Vocabulary>> = {
-    long: vocabularyOf({ project, catalog, length: "long" }),
-    short: vocabularyOf({ project, catalog, length: "short" }),
-  };
-  return {
+  const phrasebook: Phrasebook = {
     word: (statement, length) => {
       const phrase = phrases.get(statement.kind);
       if (phrase === undefined) {
@@ -45,6 +41,12 @@ export function createPhrasebook(input: CreatePhrasebookInput): Phrasebook {
       return phrase[length](statement, lookup(vocabularies, length));
     },
   };
+  const quote = (statement: Statement) => phrasebook.word(statement, "short");
+  const vocabularies: Readonly<Record<Length, Vocabulary>> = {
+    long: vocabularyOf({ project, catalog, length: "long", quote }),
+    short: vocabularyOf({ project, catalog, length: "short", quote }),
+  };
+  return phrasebook;
 }
 
 /** Every table's phrases by kind; throws if two differ for one kind. */
@@ -62,11 +64,15 @@ function phrasesOf(
   return phrases;
 }
 
-/** What the vocabulary looks words up in, and at which length. */
+/**
+ * What the vocabulary looks words up in, at which length, and how it words
+ * a statement it quotes.
+ */
 interface VocabularyInput {
   readonly project: Project;
   readonly catalog: FindingsCatalog;
   readonly length: Length;
+  readonly quote: Vocabulary["quote"];
 }
 
 function vocabularyOf(input: VocabularyInput): Vocabulary {
@@ -75,6 +81,7 @@ function vocabularyOf(input: VocabularyInput): Vocabulary {
     reason: (word) => typeWord(input, { word, entries: (w) => w.reasons }),
     limit: (word) => typeWord(input, { word, entries: (w) => w.limits }),
     workflow: (id) => names.get(id) ?? id,
+    quote: input.quote,
   };
 }
 

@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { checkPhrases } from "../../testing/check-phrases";
+import {
+  SAID_PHRASES,
+  said,
+  type SaidStatement,
+} from "../../testing/sample-findings";
 import type { LimitPeak } from "../limit-peaks";
 import type { WorkflowTotals } from "../run-totals";
+import { say } from "./message";
 import type { RefusingLimits } from "./no-headroom";
-import { VERDICT_PHRASES } from "./verdict-phrases";
+import { VERDICT_PHRASES, type VerdictStatement } from "./verdict-phrases";
 
 /** Requests over every workflow, with the counts given. */
 function requests(
@@ -55,7 +61,14 @@ function refusing(
   };
 }
 
-const summary = { kind: "verdict-summary", warnings: 0 } as const;
+const summary = {
+  kind: "verdict-summary",
+  warnings: 0,
+  topWarning: undefined,
+} as const;
+
+/** A warning's short form, as the verdict names it. */
+const late = said(say`work finished late`);
 
 describe("the verdict's phrases", () => {
   // Fails if a phrase's long or short form is worded other than its case
@@ -63,8 +76,9 @@ describe("the verdict's phrases", () => {
   // or a kind the table registers has no case here.
   it("words every case at both lengths", () => {
     expect(
-      checkPhrases({
-        phrases: VERDICT_PHRASES,
+      checkPhrases<VerdictStatement | SaidStatement>({
+        phrases: { ...VERDICT_PHRASES, ...SAID_PHRASES },
+        shared: [SAID_PHRASES],
         cases: [
           {
             name: "a healthy run's counts, finished",
@@ -89,15 +103,29 @@ describe("the verdict's phrases", () => {
             short: "all 7 answered requests succeeded",
           },
           {
-            name: "a degraded run's counts",
+            name: "a degraded run's counts, with one warning",
             statement: {
               ...summary,
               level: "degraded",
               finished: true,
               requests: requests({ succeeded: 9, failed: 0, inProgress: 1 }),
               warnings: 1,
+              topWarning: late,
             },
-            long: "All 9 answered requests succeeded, but 1 finding is a warning; 1 was still in progress when the run ended.",
+            long: "All 9 answered requests succeeded, but work finished late; 1 was still in progress when the run ended.",
+            short: "all 9 answered requests succeeded",
+          },
+          {
+            name: "a degraded run's counts, with several warnings",
+            statement: {
+              ...summary,
+              level: "degraded",
+              finished: false,
+              requests: requests({ succeeded: 9, failed: 0, inProgress: 0 }),
+              warnings: 3,
+              topWarning: late,
+            },
+            long: "All 9 answered requests succeeded, but work finished late, and 2 more warnings.",
             short: "all 9 answered requests succeeded",
           },
           {

@@ -2,7 +2,7 @@ import type { RunFindings } from "../../../application/run-analysis/findings/fin
 import type { FindingNode } from "../../../application/run-analysis/findings/order-findings";
 import type { Statement } from "../../../application/run-analysis/findings/phrase";
 import type { Phrasebook } from "../../../application/run-analysis/findings/phrasebook";
-import { formatMessage } from "../../cli/findings-report";
+import { formatMessage } from "../../../application/run-analysis/findings/message-format";
 
 // Every statement of a run in its short form, laid out as the CLI lays out
 // the long forms, so a reviewer reads each short form once (#77). The run

@@ -9,6 +9,7 @@ import type { Finding, Severity } from "./finding";
 import { headroom, type Headroom } from "./headroom";
 import type { LimitRef } from "./limit-ref";
 import { noHeadroom, type RefusingLimits } from "./no-headroom";
+import { compareFindings } from "./order-findings";
 import type {
   ClosestToFailingStatement,
   NoHeadroomStatement,
@@ -60,6 +61,7 @@ export function verdictOf(
   findings: readonly Finding[],
 ): Verdict {
   const level = levelOf(findings);
+  const warnings = findings.filter((f) => f.severity === "warning");
   const finished = runFinished(run);
   const requests = allWorkflows(workflowTotals(run));
   const refusing = level === "failing" ? [] : noHeadroom(run);
@@ -75,7 +77,8 @@ export function verdictOf(
       level,
       finished,
       requests,
-      warnings: findings.filter((f) => f.severity === "warning").length,
+      warnings: warnings.length,
+      topWarning: warnings.sort(compareFindings)[0]?.summary,
     },
     noHeadroom: refusing,
     noHeadroomLine: noHeadroomLine(refusing),

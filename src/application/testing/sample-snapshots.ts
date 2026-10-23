@@ -21,6 +21,7 @@ export function componentMetrics(
     peakQueueDepth: 0,
     asyncSucceeded: 0,
     asyncFailed: 0,
+    asyncFailures: {},
     asyncLatency: undefined,
     gauges: {},
     counters: {},

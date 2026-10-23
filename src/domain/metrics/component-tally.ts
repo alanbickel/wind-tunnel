@@ -5,6 +5,7 @@ import type {
 } from "../engine/simulation-events";
 import type { LimitSample, RateLimitSample } from "../engine/simulation-events";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
+import { CauseCounts } from "./cause-counts";
 import { LatencyHistogram } from "./latency-histogram";
 import type {
   ComponentMetrics,
@@ -41,6 +42,7 @@ export class ComponentTally {
   peakQueueDepth = 0;
   asyncSucceeded = 0;
   asyncFailed = 0;
+  readonly asyncFailures = new CauseCounts();
   readonly asyncLatency = new LatencyHistogram();
   gauges: Readonly<Record<string, number>> = {};
   /** Increase per counter in this window. */
@@ -62,9 +64,10 @@ export class ComponentTally {
   }
 
   /** Records a delivery of async work that ended. */
-  finishAsync({ latencyMs, succeeded }: ComponentAsyncFinishedEvent): void {
-    if (!succeeded) {
+  finishAsync({ latencyMs, failure }: ComponentAsyncFinishedEvent): void {
+    if (failure !== undefined) {
       this.asyncFailed++;
+      this.asyncFailures.record(failure);
       return;
     }
     this.asyncSucceeded++;
@@ -110,6 +113,7 @@ export class ComponentTally {
     this.peakQueueDepth = Math.max(this.peakQueueDepth, window.peakQueueDepth);
     this.asyncSucceeded += window.asyncSucceeded;
     this.asyncFailed += window.asyncFailed;
+    this.asyncFailures.add(window.asyncFailures);
     this.asyncLatency.merge(window.asyncLatency);
     this.gauges = window.gauges;
     // Over the whole run, the increase is the running total.
@@ -130,6 +134,7 @@ export class ComponentTally {
     this.latency.reset();
     this.asyncSucceeded = 0;
     this.asyncFailed = 0;
+    this.asyncFailures.clear();
     this.asyncLatency.reset();
   }
 
@@ -147,6 +152,7 @@ export class ComponentTally {
       peakQueueDepth: this.peakQueueDepth,
       asyncSucceeded: this.asyncSucceeded,
       asyncFailed: this.asyncFailed,
+      asyncFailures: this.asyncFailures.toRecord(),
       asyncLatency: this.asyncLatency.summary(),
       gauges: this.gauges,
       counters: { ...this.counters },

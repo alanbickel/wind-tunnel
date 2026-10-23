@@ -144,11 +144,15 @@ export interface ComponentDispatchedEvent extends ComponentEventBase {
   readonly kind: "component-dispatched";
 }
 
-/** A delivery of async work ended; `latencyMs` counts from the workflow's start. */
+/**
+ * A delivery of async work ended; `latencyMs` counts from the workflow's
+ * start. `failure` is set if the delivery failed, with the cause that
+ * ended it (ADR-0017).
+ */
 export interface ComponentAsyncFinishedEvent extends ComponentEventBase {
   readonly kind: "component-async-finished";
   readonly latencyMs: number;
-  readonly succeeded: boolean;
+  readonly failure?: Failure;
 }
 
 /**

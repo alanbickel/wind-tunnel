@@ -112,6 +112,7 @@ Per **component**:
 | `inProgress`, `queueDepth` | tick | At the window's end |
 | `peakInProgress`, `peakQueueDepth` | tick | Highest during the window; the engine tracks them after every call into the component |
 | `asyncSucceeded`, `asyncFailed`, `asyncLatency` | `component-async-finished` events | Queue-like components: deliveries of async work, timed from the user's request |
+| `asyncFailures` | `component-async-finished` events | Failed deliveries grouped by cause, as a workflow's `failures` are (`"db: too-many-connections"`); sums to `asyncFailed` ([ADR-0017](../adr/0017-count-failed-async-deliveries-by-cause.md)) |
 | `gauges` | tick | Type-specific values at the window's end (no AWS component has one today) |
 | `counters` | tick | Type-specific counts during the window, e.g. Lambda `coldStarts` |
 | `limits` | tick | Each of the component's limits with its use: at the window's end, and its peak during it (see [Limits](#limits-and-their-use)) |

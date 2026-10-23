@@ -185,7 +185,7 @@ const COMPONENT_NOTES = [
   `"timeouts" isn't part of that sum: the caller stopped waiting, but the component still finished the work as ok or failed.`,
   'Latencies are in ms (bucket upper bounds, up to 5% high), of ok work. "busy" is work running; "queue" is work waiting.',
   'Queues: "ok" counts messages accepted. Each is then delivered (async ok), waiting in the backlog, or being delivered.',
-  '"async failed" counts failed deliveries; those messages go back to the backlog and are tried again.',
+  '"async failed" counts failed deliveries, with their causes in parentheses; those messages go back to the backlog and are tried again.',
 ];
 
 function componentTable(project: Project, totals: MetricsSnapshot): string {
@@ -205,7 +205,7 @@ function extras(m: ComponentMetrics): string {
   const parts: string[] = [];
   if (m.asyncSucceeded + m.asyncFailed > 0) {
     parts.push(`async ok=${count(m.asyncSucceeded)}`);
-    parts.push(`async failed=${count(m.asyncFailed)}`);
+    parts.push(`async failed=${count(m.asyncFailed)}${byCause(m)}`);
     parts.push(`backlog=${count(m.queueDepth)}`);
     // Accepted messages neither delivered nor waiting.
     const delivering = m.completed - m.asyncSucceeded - m.queueDepth;
@@ -218,6 +218,14 @@ function extras(m: ComponentMetrics): string {
     parts.push(`${name}=${count(value)}`);
   }
   return parts.join(", ");
+}
+
+/** Failed deliveries by cause, most first, e.g. ` (orders-db: too-many-connections 3)`. */
+function byCause({ asyncFailures }: ComponentMetrics): string {
+  const causes = Object.entries(asyncFailures)
+    .sort(([, a], [, b]) => b - a)
+    .map(([cause, failed]) => `${cause} ${count(failed)}`);
+  return causes.length === 0 ? "" : ` (${causes.join("; ")})`;
 }
 
 /** The unit of each kind of limit's numbers. */

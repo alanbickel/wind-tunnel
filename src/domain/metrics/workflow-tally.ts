@@ -1,7 +1,5 @@
-import type {
-  Failure,
-  WorkflowFinishedEvent,
-} from "../engine/simulation-events";
+import type { WorkflowFinishedEvent } from "../engine/simulation-events";
+import { CauseCounts } from "./cause-counts";
 import { LatencyHistogram } from "./latency-histogram";
 import type { WorkflowMetrics } from "./metrics-snapshot";
 
@@ -9,13 +7,14 @@ export class WorkflowTally {
   started = 0;
   succeeded = 0;
   failed = 0;
-  readonly failures = new Map<string, number>();
+  readonly failures = new CauseCounts();
   readonly latency = new LatencyHistogram();
 
   /** Records a user request that got an answer, successful or not. */
   finish({ latencyMs, failure }: WorkflowFinishedEvent): void {
     if (failure !== undefined) {
-      this.fail(failure);
+      this.failed++;
+      this.failures.record(failure);
       return;
     }
     this.succeeded++;
@@ -26,9 +25,7 @@ export class WorkflowTally {
     this.started += window.started;
     this.succeeded += window.succeeded;
     this.failed += window.failed;
-    for (const [cause, count] of window.failures) {
-      this.failures.set(cause, (this.failures.get(cause) ?? 0) + count);
-    }
+    this.failures.add(window.failures);
     this.latency.merge(window.latency);
   }
 
@@ -45,14 +42,8 @@ export class WorkflowTally {
       started: this.started,
       succeeded: this.succeeded,
       failed: this.failed,
-      failures: Object.fromEntries(this.failures),
+      failures: this.failures.toRecord(),
       latency: this.latency.summary(),
     };
-  }
-
-  private fail(failure: Failure): void {
-    this.failed++;
-    const cause = `${failure.componentId}: ${failure.reason}`;
-    this.failures.set(cause, (this.failures.get(cause) ?? 0) + 1);
   }
 }

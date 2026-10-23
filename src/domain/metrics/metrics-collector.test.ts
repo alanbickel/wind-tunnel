@@ -3,7 +3,11 @@ import { createAwsComponentRegistry } from "../components/aws";
 import type { SimulationEvent } from "../engine/simulation-events";
 import type { Edge, Project } from "../model/project";
 import { limitExhausted } from "./limit-exhausted";
-import { simulateWithMetrics } from "./metrics-collector";
+import {
+  MetricsCollector,
+  simulateWithMetrics,
+  type MetricsSnapshot,
+} from "./metrics-collector";
 import {
   componentIn,
   limitIn,
@@ -244,5 +248,65 @@ describe("simulateWithMetrics", () => {
     expect(totals.components["fn"]?.failed).toBe(2 * requests);
     expect(get?.failures).toEqual({ "db: timeout": requests });
     expect(get?.latency).toBeUndefined();
+  });
+});
+
+describe("MetricsCollector", () => {
+  // Treats db as the queue: the collector counts whatever component an
+  // event names.
+  const finishedDelivery = (
+    timeMs: number,
+    failed: boolean,
+  ): SimulationEvent => ({
+    kind: "component-async-finished",
+    timeMs,
+    requestId: 0,
+    componentId: "db",
+    latencyMs: timeMs,
+    ...(failed ? { failure: { componentId: "fn", reason: "throttled" } } : {}),
+  });
+  const tick = (timeMs: number): SimulationEvent => ({
+    kind: "metrics-tick",
+    timeMs,
+    components: [],
+  });
+
+  // Fails if a failed delivery isn't counted by its cause, if its cause is
+  // counted again when the redelivery succeeds, or if the totals don't add
+  // the windows' causes.
+  it("counts a delivery that succeeds after failing once in each", () => {
+    const collector = new MetricsCollector(project());
+    for (const event of [
+      finishedDelivery(500, true),
+      tick(1_000),
+      finishedDelivery(1_500, false),
+      tick(2_000),
+    ]) {
+      collector.observe(event);
+    }
+    const deliveries = (snapshot: MetricsSnapshot | undefined) => {
+      if (snapshot === undefined) throw new Error("missing snapshot");
+      const { asyncFailed, asyncFailures, asyncSucceeded } = componentIn(
+        snapshot,
+        "db",
+      );
+      return { asyncFailed, asyncFailures, asyncSucceeded };
+    };
+    const [first, second] = collector.snapshots;
+    expect(deliveries(first)).toEqual({
+      asyncFailed: 1,
+      asyncFailures: { "fn: throttled": 1 },
+      asyncSucceeded: 0,
+    });
+    expect(deliveries(second)).toEqual({
+      asyncFailed: 0,
+      asyncFailures: {},
+      asyncSucceeded: 1,
+    });
+    expect(deliveries(collector.totals())).toEqual({
+      asyncFailed: 1,
+      asyncFailures: { "fn: throttled": 1 },
+      asyncSucceeded: 1,
+    });
   });
 });

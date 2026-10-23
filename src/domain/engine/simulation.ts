@@ -121,7 +121,7 @@ export class Simulation {
       this.sendAttempt(call);
     },
     "visit-nothing-to-deliver": ({ visit }) => {
-      this.dispatchFinished(visit, true);
+      this.dispatchFinished(visit, undefined);
     },
   };
 
@@ -385,24 +385,25 @@ export class Simulation {
       fromId: queue.id,
       request,
       onSettled: (failure) => {
-        this.dispatchFinished(visit, failure === undefined);
+        this.dispatchFinished(visit, failure);
       },
     });
   }
 
-  private dispatchFinished(visit: Visit, succeeded: boolean): void {
+  /** A delivery ended, with the failure that ended it, if any. */
+  private dispatchFinished(visit: Visit, failure: Failure | undefined): void {
     const { target: queue, request } = visit.attempt.call;
     this.observe({
       kind: "component-async-finished",
       ...this.eventBase(visit),
       latencyMs: this.nowMs - request.startMs,
-      succeeded,
+      ...(failure === undefined ? {} : { failure }),
     });
     this.apply(
       queue,
       queue.behavior.dispatchFinished?.({
         request: visit,
-        succeeded,
+        succeeded: failure === undefined,
         nowMs: this.nowMs,
       }) ?? [],
     );

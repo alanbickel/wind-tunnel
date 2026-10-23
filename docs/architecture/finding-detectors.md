@@ -81,6 +81,76 @@ Every phrase has both forms, with no fallback, so the phrasebook never knows who
 
 A phrase gets a `Vocabulary` along with its statement: the words a component's type registers in the catalog for its rejection reasons and limits, and the workflows' names. An ID with no words prints as it is; today every type's words are its raw IDs, such as `too-many-connections` and `queryWorkers`. A phrase never branches on a component's type.
 
+Wording is code, not text loaded from files: every word comes from a phrase or a type's `wording`. Wording one statement goes like this:
+
+```mermaid
+sequenceDiagram
+    participant C as CLI (findings-report.ts)
+    participant P as Phrasebook
+    participant Ph as Phrase for the kind
+    participant V as Vocabulary (long)
+    Note over C: a finding's statement, e.g.<br/>{ kind: "consumers-busy", componentId: "orders-queue",<br/>limitName: "consumerConcurrency", limit: 15, seconds: 169 }
+    C->>P: word(statement, "long")
+    P->>P: look up the phrase by statement.kind<br/>(throws if none is registered)
+    P->>Ph: long(statement, vocabulary)
+    Ph->>V: limit / reason / workflow, for each ID the sentence names
+    V-->>Ph: the type's words for the ID, or the ID itself
+    Ph-->>P: Message (parts: text, numbers, components, times)
+    P-->>C: Message
+    C->>C: formatMessage: components by ID, times in seconds
+    Note over C,P: The run panel asks for "short" and formats<br/>the Message its own way
+```
+
+`createPhrasebook` wires it once per project. It gathers the phrase tables (each detector's `phrases`, which include any shared helper's, and the verdict's), throws if two tables give different phrases for one kind, and builds a vocabulary for each length from the project and the catalog:
+
+```mermaid
+classDiagram
+    direction TB
+    class createPhrasebook {
+        <<factory>>
+        createPhrasebook(input) Phrasebook
+    }
+    class Phrasebook {
+        <<interface>>
+        word(statement, length) Message
+    }
+    class Detector {
+        <<interface>>
+        id
+        phrases
+        detect(run)
+    }
+    class VERDICT_PHRASES {
+        <<PhraseTable>>
+    }
+    class Phrase~S~ {
+        <<interface>>
+        long(statement, vocabulary) Message
+        short(statement, vocabulary) Message
+    }
+    class Vocabulary {
+        <<interface>>
+        reason(input) string
+        limit(input) string
+        workflow(workflowId) string
+    }
+    class FindingsCatalog {
+        get(type) TypeAdvice
+    }
+    class Project
+    createPhrasebook ..> Phrasebook : creates
+    createPhrasebook ..> Detector : reads phrases
+    createPhrasebook ..> VERDICT_PHRASES : reads
+    createPhrasebook ..> Vocabulary : creates, one per length
+    Phrasebook o-- "one per kind" Phrase
+    Phrasebook o-- "2" Vocabulary : long, short
+    Phrase ..> Vocabulary : asks for words
+    Vocabulary ..> FindingsCatalog : a type's wording
+    Vocabulary ..> Project : component types, workflow names
+```
+
+The files in `src/adapters/cli/reports/findings/` are test snapshots of this output, long and short, for every run `describeFindings` reads; nothing at run time reads them.
+
 ## How a cause note is linked
 
 A failure finding can't see the other detectors' findings, so it can't cite its causes, and predicting their keys would mean editing it for every new cause. Instead, each side says one thing, and `findRun` matches them:

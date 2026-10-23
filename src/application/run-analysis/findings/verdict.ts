@@ -9,11 +9,13 @@ import {
 import { runFinished, type RunSoFar } from "../run-so-far";
 import type { Finding, Severity } from "./finding";
 import { headroom, type Headroom, type WarmUp } from "./headroom";
-import { amountOf } from "./limit-ref";
+import { amountOf, type LimitRef } from "./limit-ref";
+import { noHeadroom, type RefusingLimits } from "./no-headroom";
 import {
   at,
   component,
   count,
+  joinMessages,
   listOf,
   plural,
   say,
@@ -36,8 +38,17 @@ export interface Verdict {
   /** The request counts in a sentence. */
   readonly summary: Message;
   /**
-   * The limit closest to refusing work. Undefined for a failing run: a limit
-   * already refused, and the failure findings name it.
+   * The refusing limits that ran out and refused work, though no request
+   * failed: retried by callers or tried again by queues. Empty for a
+   * failing run, whose failure findings name its limits.
+   */
+  readonly noHeadroom: readonly RefusingLimits[];
+  /** `noHeadroom` in a sentence, if it has any. */
+  readonly noHeadroomLine: Message | undefined;
+  /**
+   * The limit closest to refusing work, among those not in `noHeadroom`.
+   * Undefined for a failing run: a limit already refused, and the failure
+   * findings name it.
    */
   readonly headroom: Headroom | undefined;
   /** `headroom` in a sentence. */
@@ -59,13 +70,18 @@ export function verdictOf(
   const level = levelOf(findings);
   const finished = runFinished(run);
   const requests = allWorkflows(workflowTotals(run));
-  const room = level === "failing" ? undefined : headroom(run);
+  const refusing = level === "failing" ? [] : noHeadroom(run);
+  const room =
+    level === "failing" ? undefined : headroom(run, refsOf(refusing));
   return {
     level,
     finished,
     title: `${lookup(TITLES, level)}${finished ? "" : " so far"}`,
     requests,
     summary: summaryOf({ level, finished, requests, findings }),
+    noHeadroom: refusing,
+    noHeadroomLine:
+      refusing.length === 0 ? undefined : noHeadroomLine(refusing),
     headroom: room,
     headroomLine: room === undefined ? undefined : headroomLine(room),
   };
@@ -142,6 +158,29 @@ function inProgressClause({ finished, requests }: SummaryInput): Message {
     return say`; ${count(n)} ${plural(n, ["was", "were"])} still in progress when the run ended`;
   }
   return say`; ${count(n)} ${plural(n, ["is", "are"])} in progress`;
+}
+
+function refsOf(refusing: readonly RefusingLimits[]): LimitRef[] {
+  return refusing.flatMap(({ componentId, limitNames }) =>
+    limitNames.map((name) => ({ componentId, name })),
+  );
+}
+
+/**
+ * "No headroom: orders-db connections ran out in 39 seconds from 14 s to
+ * 54 s, and orders-db refused 90 attempts; no request failed with its
+ * rejections." One clause per component.
+ */
+function noHeadroomLine(refusing: readonly RefusingLimits[]): Message {
+  const clauses = refusing.map(ranOutClause);
+  const whose = plural(refusing.length, ["its", "their"]);
+  return say`No headroom: ${joinMessages(clauses, "; ")}; no request failed with ${whose} rejections.`;
+}
+
+function ranOutClause(limits: RefusingLimits): Message {
+  const { componentId, limitNames, secondsOut, window, rejected } = limits;
+  const names = listOf(limitNames.map((name) => say`${name}`));
+  return say`${component(componentId)} ${names} ran out in ${count(secondsOut)} ${plural(secondsOut, ["second", "seconds"])} from ${at(window.fromMs)} to ${at(window.toMs)}, and ${component(componentId)} refused ${count(rejected)} ${plural(rejected, ["attempt", "attempts"])}`;
 }
 
 function headroomLine({ limit, warmUp }: Headroom): Message {

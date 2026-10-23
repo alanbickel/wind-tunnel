@@ -1,6 +1,7 @@
 import type { LimitUse } from "../../../../domain/metrics/metrics-snapshot";
 import {
   handleKind,
+  lookup,
   type KindHandlers,
 } from "../../../../domain/shared/kind-handlers";
 import type { RunSoFar } from "../../run-so-far";
@@ -14,21 +15,22 @@ import {
   say,
   type Message,
 } from "../message";
-import type { FailureCause } from "./failure-causes";
+import type { EndedByRejections, FailureCause } from "./failure-causes";
 
-// The limit-refused part of failed-requests (findings.md §2.1): which limit
-// refused the failed requests. It writes reasons into failed-requests'
-// finding, so it's a helper that detector calls, not a detector.
+// The limit-refused part of failed-requests and failed-deliveries
+// (findings.md §2.1): which limit refused the failed work. It writes reasons
+// into those detectors' findings, so it's a helper they call, not a
+// detector.
 
 /** A failure cause that a component rejected, and how it was counted. */
 export interface LimitRefusedInput {
   readonly run: RunSoFar;
   readonly cause: FailureCause;
   /**
-   * Requests that failed with any rejection by the cause's component, over
-   * all its reasons.
+   * Requests and deliveries that failed with any rejection by the cause's
+   * component, over all its reasons.
    */
-  readonly failedAtComponent: number;
+  readonly endedAtComponent: EndedByRejections;
 }
 
 /** Which limit refused, and what the run says about it. */
@@ -174,35 +176,65 @@ function exhaustionEvidence(
 type AttemptsPart = Pick<LimitRefusal, "reasons" | "evidence">;
 
 /**
- * Refused attempts against failed requests, when they're equal: nothing
- * retried them. When callers retried, the retries-absorbed note compares
- * them, so the sentence appears once.
+ * Refused attempts against the requests and deliveries they failed, when
+ * they're equal: nothing retried them. When callers retried, the
+ * retries-absorbed note compares them, so the sentence appears once.
  */
 function attemptsAndRequests({
   run,
   cause,
-  failedAtComponent,
+  endedAtComponent: ended,
 }: LimitRefusedInput): AttemptsPart {
   const { componentId } = cause;
   const rejected = rejectedAt(run, componentId);
-  if (rejected !== failedAtComponent) return { reasons: [], evidence: [] };
+  if (rejected !== ended.requests + ended.deliveries) {
+    return { reasons: [], evidence: [] };
+  }
+  const what = lookup(ENDED_WORK, endedWork(ended));
   return {
     reasons: [
-      say`${component(componentId)} refused ${count(rejected)} ${plural(rejected, ["attempt", "attempts"])}, and each one failed a request.`,
+      say`${component(componentId)} refused ${count(rejected)} ${plural(rejected, ["attempt", "attempts"])}, and each one failed ${what}.`,
     ],
-    evidence: [
-      {
-        what: `${componentId}: attempts rejected`,
-        value: rejected,
-        source: "totals",
-      },
-      {
-        what: `${componentId}: requests failed with its rejections`,
-        value: failedAtComponent,
-        source: "totals",
-      },
-    ],
+    evidence: attemptsEvidence({ componentId, rejected, ended }),
   };
+}
+
+/** The counts the attempts sentence compares. */
+interface AttemptsEvidenceInput {
+  readonly componentId: string;
+  readonly rejected: number;
+  readonly ended: EndedByRejections;
+}
+
+function attemptsEvidence({
+  componentId,
+  rejected,
+  ended,
+}: AttemptsEvidenceInput): Evidence[] {
+  const counts: readonly (readonly [string, number])[] = [
+    ["attempts rejected", rejected],
+    ["requests failed with its rejections", ended.requests],
+    ["deliveries failed with its rejections", ended.deliveries],
+  ];
+  return counts.map(([what, value]) => ({
+    what: `${componentId}: ${what}`,
+    value,
+    source: "totals",
+  }));
+}
+
+/** Which kinds of work the rejections ended. */
+type EndedWork = "requests" | "deliveries" | "both";
+
+const ENDED_WORK: Readonly<Record<EndedWork, string>> = {
+  requests: "a request",
+  deliveries: "a delivery",
+  both: "a request or a delivery",
+};
+
+function endedWork({ requests, deliveries }: EndedByRejections): EndedWork {
+  if (deliveries === 0) return "requests";
+  return requests === 0 ? "deliveries" : "both";
 }
 
 /** Attempts the component refused so far, retried ones included. */

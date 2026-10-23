@@ -132,6 +132,7 @@ As designed, not as built: today the verdict's second line reads "Closest to fai
 
 > **Healthy.** All 65,966 answered requests succeeded; 8 were still in progress when the run ended.
 > No headroom: orders-db connections ran out in 39 seconds from 14 s to 54 s, and orders-db refused 90 attempts; no request failed with its rejections.
+> Closest to failing: fn-api concurrency, at most 101 of 1,000 (10.1%) from 27 s to 28 s, while fn-api had 5 cold starts; at most 96 of 1,000 (9.6%) in the seconds without cold starts.
 
 **Note: orders-db refused 90 of orders-queue's deliveries, all too-many-connections, and the queue tried each again.**
 

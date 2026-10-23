@@ -27,6 +27,8 @@ const verdict: Verdict = {
   },
   summary: [],
   headroom: undefined,
+  noHeadroom: [],
+  noHeadroomLine: undefined,
   headroomLine: undefined,
 };
 

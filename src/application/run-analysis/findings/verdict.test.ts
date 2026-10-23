@@ -199,3 +199,96 @@ describe("the verdict's headroom", () => {
     );
   });
 });
+
+describe("the verdict's no-headroom line", () => {
+  /** table's read bucket of 100 tokens, out when `out`. */
+  const bucket = (name: string, out: boolean): LimitUse => ({
+    kind: "rate",
+    name,
+    whenFull: { kind: "refuse", reason: "throttled" },
+    limit: 100,
+    current: 0,
+    peak: out ? 99.5 : 40,
+    ratePerSec: 50,
+    takenPerSec: 70,
+  });
+
+  // fn's concurrency is out in seconds 1 and 2, and fn refuses 3 attempts
+  // in second 2. It refuses 5 more in second 3, when the limit isn't out.
+  // table's read bucket never runs out.
+  const refused = [
+    sampleSnapshot({
+      second: 1,
+      fn: { limits: [concurrency(10)] },
+      table: { limits: [bucket("readUnits", false)] },
+    }),
+    sampleSnapshot({
+      second: 2,
+      fn: { rejected: 3, limits: [concurrency(10)] },
+      table: { limits: [bucket("readUnits", false)] },
+    }),
+    sampleSnapshot({
+      second: 3,
+      fn: { rejected: 5, limits: [concurrency(6)] },
+      table: { limits: [bucket("readUnits", false)] },
+    }),
+  ];
+
+  // Fails if a limit that ran out and refused work is quoted as headroom,
+  // its seconds out or the attempts refused in them are miscounted, or a
+  // refusal in a second it wasn't out is counted. Also fails if the
+  // "closest to failing" line is dropped while a refusing limit that didn't
+  // refuse remains, so both lines can show (findings.md §3.4).
+  it("names a refusing limit that ran out and refused, and the closest of the rest", () => {
+    const verdict = verdictOf(sampleRun(refused), []);
+    expect(messageText(verdict.noHeadroomLine ?? [])).toBe(
+      "No headroom: fn concurrency ran out in 2 seconds from 0ms to 2000ms, and fn refused 3 attempts; no request failed with its rejections.",
+    );
+    expect(messageText(verdict.headroomLine ?? [])).toBe(
+      "Closest to failing: table readUnits, at most 40 of 100 tokens drawn (0.4); its busiest second took 70 tokens, against a refill of 50 a second.",
+    );
+  });
+
+  // Fails if a limit that reached its size without refusing loses its
+  // "closest to failing" line: it still has headroom of 0, not refusals.
+  it("keeps a limit that reached its size but refused nothing as closest to failing", () => {
+    const full = [
+      sampleSnapshot({ second: 1, fn: { limits: [concurrency(10)] } }),
+    ];
+    const verdict = verdictOf(sampleRun(full), []);
+    expect(verdict.noHeadroomLine).toBeUndefined();
+    expect(messageText(verdict.headroomLine ?? [])).toBe(
+      "Closest to failing: fn concurrency, at most 10 of 10 (1).",
+    );
+  });
+
+  // Fails if two limits of one component that ran out together get a count
+  // each (rejected doesn't split refusals by limit), or the headroom line
+  // stays when every refusing limit refused.
+  it("names both of a component's limits that ran out with one count", () => {
+    const both = [
+      sampleSnapshot({
+        second: 1,
+        table: {
+          rejected: 4,
+          limits: [bucket("readUnits", true), bucket("writeUnits", true)],
+        },
+      }),
+    ];
+    const verdict = verdictOf(sampleRun(both), []);
+    expect(messageText(verdict.noHeadroomLine ?? [])).toBe(
+      "No headroom: table readUnits and writeUnits ran out in 1 second from 0ms to 1000ms, and table refused 4 attempts; no request failed with its rejections.",
+    );
+    expect(verdict.headroomLine).toBeUndefined();
+  });
+
+  // Fails if a failing run gets the line: its failure findings name the
+  // limits that refused.
+  it("leaves the line out of a failing run", () => {
+    const verdict = verdictOf(sampleRun(refused), [
+      sampleFinding({ severity: "failure" }),
+    ]);
+    expect(verdict.noHeadroom).toEqual([]);
+    expect(verdict.noHeadroomLine).toBeUndefined();
+  });
+});

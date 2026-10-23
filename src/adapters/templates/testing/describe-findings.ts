@@ -6,6 +6,7 @@ import {
 } from "../../../application/run-analysis/findings/find-run";
 import { BACKLOG } from "../../../application/run-analysis/findings/detectors/backlog";
 import { BUCKET_DRAINED } from "../../../application/run-analysis/findings/detectors/bucket-drained";
+import { FAILED_DELIVERIES } from "../../../application/run-analysis/findings/detectors/failed-deliveries";
 import { FAILED_REQUESTS } from "../../../application/run-analysis/findings/detectors/failed-requests";
 import { LATE_ASYNC_WORK } from "../../../application/run-analysis/findings/detectors/late-async-work";
 import { RETRIES_ABSORBED } from "../../../application/run-analysis/findings/detectors/retries-absorbed";
@@ -43,7 +44,12 @@ export interface FindingsCase {
   readonly project: Project;
   readonly workloadId: string;
   /** The section of findings.md that quotes this run's verdict, e.g. "1.1". */
-  readonly reading: string;
+  readonly reading?: string;
+  /**
+   * For a run no reading quotes: its verdict as the CLI prints it. A case
+   * gives this or `reading`.
+   */
+  readonly verdict?: string;
   /** The top-level findings, in order, each with its causes beneath it. */
   readonly findings: readonly ExpectedFinding[];
 }
@@ -92,6 +98,13 @@ export function retriesAbsorbed(componentId: string): FindingKey {
   return findingKey({ kind: RETRIES_ABSORBED, componentId });
 }
 
+export function failedDeliveries(
+  componentId: string,
+  reason: string,
+): FindingKey {
+  return findingKey({ kind: FAILED_DELIVERIES, componentId, reason });
+}
+
 export function backlog(queueId: string, limitName: string): FindingKey {
   return findingKey({ kind: BACKLOG, componentId: queueId, limitName });
 }
@@ -115,7 +128,7 @@ export function describeFindings(cases: readonly FindingsCase[]): void {
     itReconcilesTheVerdict(read);
     itListsTheFindings(read, c.findings);
     itPrintsThePinnedSentences(read, c.findings);
-    itPrintsTheQuotedVerdict(read, c.reading);
+    itPrintsTheVerdict(read, c);
   });
 }
 
@@ -253,13 +266,19 @@ function flatten(nodes: readonly ExpectedFinding[]): ExpectedFinding[] {
   return nodes.flatMap((n) => [n, ...flatten(n.causes ?? [])]);
 }
 
-function itPrintsTheQuotedVerdict(read: ReadRunGetter, reading: string): void {
-  // Fails if the verdict's level, counts, or headroom line differ from the
+function itPrintsTheVerdict(
+  read: ReadRunGetter,
+  { reading, verdict }: FindingsCase,
+): void {
+  const expected = reading === undefined ? verdict : quotedVerdict(reading);
+  const quote =
+    reading === undefined ? "pinned" : `findings.md §${reading} quotes`;
+  // Fails if the verdict's level, counts, or headroom lines differ from the
   // summary findings.md quotes for the run, so the doc and the code can't
-  // drift apart.
-  it(`prints the verdict findings.md §${reading} quotes`, () => {
+  // drift apart; or, for a run no reading quotes, from the pinned verdict.
+  it(`prints the verdict ${quote}`, () => {
     const { findings } = read();
-    expect(formatVerdict(findings.verdict)).toBe(quotedVerdict(reading));
+    expect(formatVerdict(findings.verdict)).toBe(expected);
   });
 }
 

@@ -2,7 +2,7 @@ import type { MetricsSnapshot } from "../../../domain/metrics/metrics-snapshot";
 import { limitPeaks, type LimitPeak } from "../limit-peaks";
 import type { RunSoFar } from "../run-so-far";
 import type { TimeWindow } from "./finding";
-import { limitUseIn } from "./limit-ref";
+import { limitUseIn, type LimitRef } from "./limit-ref";
 import { spanOf } from "./time-window";
 
 /**
@@ -36,9 +36,22 @@ export interface WarmUp {
  */
 export const COLD_STARTS = "coldStarts";
 
-/** The limit closest to refusing work, or undefined if none has reported. */
-export function headroom(run: RunSoFar): Headroom | undefined {
-  const limit = closestToRefusing(limitPeaks(run));
+/**
+ * The limit closest to refusing work, leaving out `refused`: limits that
+ * already refused have no headroom to quote. Undefined if no other limit
+ * that refuses has reported.
+ */
+export function headroom(
+  run: RunSoFar,
+  refused: readonly LimitRef[] = [],
+): Headroom | undefined {
+  const peaks = limitPeaks(run).filter(
+    (p) =>
+      !refused.some(
+        (r) => r.componentId === p.componentId && r.name === p.name,
+      ),
+  );
+  const limit = closestToRefusing(peaks);
   if (limit === undefined) return undefined;
   return { limit, warmUp: warmUpOf(run, limit) };
 }

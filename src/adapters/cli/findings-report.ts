@@ -24,13 +24,16 @@ import { count, seconds, shareDown } from "./text-format";
 // `application/run-analysis/findings/`; only the formatting is here, so the
 // CLI and the run panel say the same thing (ADR-0015).
 
-/** The verdict: its title and summary, then its headroom line, if any. */
+/**
+ * The verdict: its title and summary, then its no-headroom and headroom
+ * lines, if it has them.
+ */
 export function formatVerdict(verdict: Verdict): string {
-  const lines = [`${verdict.title}. ${formatMessage(verdict.summary)}`];
-  if (verdict.headroomLine !== undefined) {
-    lines.push(formatMessage(verdict.headroomLine));
-  }
-  return lines.join("\n");
+  const lines = [verdict.noHeadroomLine, verdict.headroomLine].flatMap(
+    (line) => (line === undefined ? [] : [formatMessage(line)]),
+  );
+  const title = `${verdict.title}. ${formatMessage(verdict.summary)}`;
+  return [title, ...lines].join("\n");
 }
 
 /** Each top-level finding, numbered, with its causes nested beneath it. */

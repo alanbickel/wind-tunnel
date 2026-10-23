@@ -1,13 +1,8 @@
-import type { WhenFull } from "../../../../domain/components/component-behavior";
 import type {
   ComponentMetrics,
   LimitUse,
 } from "../../../../domain/metrics/metrics-snapshot";
-import {
-  handleKind,
-  lookup,
-  type KindHandlers,
-} from "../../../../domain/shared/kind-handlers";
+import { lookup } from "../../../../domain/shared/kind-handlers";
 import { runFinished, type RunSoFar } from "../../run-so-far";
 import { adviceFor, type FindingsCatalog } from "../catalog/type-advice";
 import type { Detector } from "../detector";
@@ -18,7 +13,12 @@ import type {
   TimeWindow,
 } from "../finding";
 import { findingKey } from "../finding-key";
-import { exhaustedIn, limitUseIn, reportedLimits } from "../limit-ref";
+import {
+  exhaustedIn,
+  holdsNothing,
+  limitUseIn,
+  reportedLimits,
+} from "../limit-ref";
 import {
   at,
   component,
@@ -75,16 +75,8 @@ interface WaitingLimit {
   readonly use: LimitUse;
 }
 
-/** Whether waiting work holds nothing: a backlog, not a held limit. */
-const HOLDS_NOTHING: KindHandlers<WhenFull, boolean> = {
-  refuse: () => false,
-  wait: ({ holds }) => holds === undefined,
-};
-
 function waitingLimits(run: RunSoFar): WaitingLimit[] {
-  return reportedLimits(run).filter(({ use }) =>
-    handleKind(HOLDS_NOTHING, use.whenFull),
-  );
+  return reportedLimits(run).filter(({ use }) => holdsNothing(use));
 }
 
 /** Messages that arrived and were delivered, summed over some seconds. */

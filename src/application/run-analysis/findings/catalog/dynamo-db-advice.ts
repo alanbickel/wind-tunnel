@@ -33,4 +33,5 @@ export const dynamoDbAdvice: TypeAdvice = {
       learnMore: "dynamodb-saves-up-unused-capacity-for-bursts",
     },
   },
+  kinds: {},
 };

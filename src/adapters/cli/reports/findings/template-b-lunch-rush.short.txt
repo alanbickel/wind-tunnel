@@ -1,0 +1,7 @@
+Verdict: all 65,966 answered requests succeeded
+Closest to failing: orders-db connections peaked at 13 of 90 (14.4%)
+
+1. messages waited for orders-queue's consumerConcurrency from 17 s to 54 s
+   - all 15 of orders-queue's consumerConcurrency were busy from 15 s to 54 s
+   - the backlog peaked at 1,937 messages at 43 s
+   - deliveries landed up to 6.2 s after their requests

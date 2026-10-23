@@ -97,7 +97,7 @@ Each guide is a short, visual introduction to one part of the system, with a wor
 | [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, the in-process and Web Worker runners, the repository and runner contracts |
 | [The user interface](user-interface.md) | The composition root, `UseCasesProvider` and `useUseCases`, the screens, `useSimulationRun` and the Worker runner, a run traced from click to chart, UI test helpers |
 | [The headless runner](headless-runner.md) | `npm run simulate`, `runSimulateCommand`, the text report and how to read it, loading TypeScript through Vite |
-| [Findings and detectors](finding-detectors.md) | `Finding`, `Message`, `Detector`, `findRun`, the verdict and headroom, the catalog of fixes, adding a detector |
+| [Findings and detectors](finding-detectors.md) | `Finding`, `Statement` and the phrasebook that words it, `Detector`, `findRun`, the verdict and headroom, the catalog of fixes, adding a detector |
 
 ## Layers and the dependency rule
 
@@ -140,7 +140,7 @@ flowchart TB
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
 | A number or finding derived from a run's snapshots that the UI or the CLI shows (e.g. totals, work in progress) | `src/application/run-analysis/` | Pure functions of a `RunSoFar`; the UI and the CLI only format the results. Add a check to `run-analysis-reconciles.test.ts` when it adds up to something ([ADR-0013](../adr/0013-derive-run-results-in-application-run-analysis.md)). |
-| A new detector, or a fix for a component type's limit | `src/application/run-analysis/findings/detectors/`, or that type's file in `findings/catalog/` | List a detector in `createDetectors`; never branch on a component's type. See [Findings and detectors](finding-detectors.md). |
+| A new detector, or a fix for a component type's limit | `src/application/run-analysis/findings/detectors/`, or that type's file in `findings/catalog/` | List a detector in `createDetectors`, with its phrases beside it; never branch on a component's type. See [Findings and detectors](finding-detectors.md). |
 | Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. Add an in-memory fake to `src/application/testing/` for use case tests. |
 | A new field about a project that the engine doesn't use (like `layout`) | `ProjectRecord` in `src/application/ports/`, plus the document schema and mapper in `src/adapters/persistence/` | Add it to `sampleRecord` so the repository contract checks it round-trips ([ADR-0008](../adr/0008-ports-exchange-project-records.md)). |
 | Something that needs randomness | Use the `RandomSource` passed in from `src/domain/random/` | Never call `Math.random`; runs must stay reproducible from a seed. |

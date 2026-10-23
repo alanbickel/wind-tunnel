@@ -12,6 +12,8 @@ import type {
   NumberUnit,
 } from "../../application/run-analysis/findings/message";
 import type { FindingNode } from "../../application/run-analysis/findings/order-findings";
+import type { Statement } from "../../application/run-analysis/findings/phrase";
+import type { Phrasebook } from "../../application/run-analysis/findings/phrasebook";
 import type { Verdict } from "../../application/run-analysis/findings/verdict";
 import {
   handleKind,
@@ -20,41 +22,65 @@ import {
 } from "../../domain/shared/kind-handlers";
 import { count, seconds, shareDown } from "./text-format";
 
-// The verdict and findings as plain text. The sentences come from
-// `application/run-analysis/findings/`; only the formatting is here, so the
-// CLI and the run panel say the same thing (ADR-0015).
+// The verdict and findings as plain text. The sentences come from the
+// phrasebook in `application/run-analysis/findings/`, in their long form;
+// only the formatting is here, so the CLI and the run panel say the same
+// thing (ADR-0015).
 
 /**
  * The verdict: its title and summary, then its no-headroom and headroom
  * lines, if it has them.
  */
-export function formatVerdict(verdict: Verdict): string {
+export function formatVerdict(
+  verdict: Verdict,
+  phrasebook: Phrasebook,
+): string {
+  const say = sayer(phrasebook);
   const lines = [verdict.noHeadroomLine, verdict.headroomLine].flatMap(
-    (line) => (line === undefined ? [] : [formatMessage(line)]),
+    (line) => (line === undefined ? [] : [say(line)]),
   );
-  const title = `${verdict.title}. ${formatMessage(verdict.summary)}`;
-  return [title, ...lines].join("\n");
+  return [`${verdict.title}. ${say(verdict.summary)}`, ...lines].join("\n");
 }
 
 /** Each top-level finding, numbered, with its causes nested beneath it. */
-export function formatFindings({ findings }: RunFindings): string {
+export function formatFindings(
+  { findings }: RunFindings,
+  phrasebook: Phrasebook,
+): string {
   if (findings.length === 0) return "None.";
+  const say = sayer(phrasebook);
   return findings
-    .map((node, i) => formatNode(node, { number: String(i + 1), indent: "" }))
+    .map((node, i) =>
+      formatNode(node, { number: String(i + 1), indent: "", say }),
+    )
     .join("\n\n");
 }
 
-/** A finding's number in the list, e.g. "1.2", and how far it's indented. */
-interface NodePosition {
-  readonly number: string;
-  readonly indent: string;
+/** Words a statement in its long form, as plain text. */
+type Sayer = (statement: Statement) => string;
+
+function sayer(phrasebook: Phrasebook): Sayer {
+  return (statement) => formatMessage(phrasebook.word(statement, "long"));
 }
 
-function formatNode(node: FindingNode, position: NodePosition): string {
-  const { number, indent } = position;
-  const inner = `${indent}${" ".repeat(number.length + 2)}`;
+/**
+ * A finding's number in the list, e.g. "1.2", how far it's indented, and
+ * how to word it.
+ */
+interface NodeContext {
+  readonly number: string;
+  readonly indent: string;
+  readonly say: Sayer;
+}
+
+function formatNode(node: FindingNode, context: NodeContext): string {
+  const { number, indent } = context;
+  const inner = {
+    ...context,
+    indent: `${indent}${" ".repeat(number.length + 2)}`,
+  };
   const causes = node.causes.map((cause, i) =>
-    formatNode(cause, { number: `${number}.${String(i + 1)}`, indent: inner }),
+    formatNode(cause, { ...inner, number: `${number}.${String(i + 1)}` }),
   );
   return [
     `${indent}${number}. ${findingLines(node.finding, inner)}`,
@@ -69,10 +95,10 @@ const SEVERITY_LABELS: Readonly<Record<Severity, string>> = {
 };
 
 /** The finding's lines; every line after the first starts with `indent`. */
-function findingLines(finding: Finding, indent: string): string {
+function findingLines(finding: Finding, { indent, say }: NodeContext): string {
   const lines = [
-    `${lookup(SEVERITY_LABELS, finding.severity)}: ${formatMessage(finding.summary)}`,
-    ...finding.reasons.map((r) => `${indent}- ${formatMessage(r)}`),
+    `${lookup(SEVERITY_LABELS, finding.severity)}: ${say(finding.summary)}`,
+    ...finding.reasons.map((r) => `${indent}- ${say(r)}`),
     ...causeLine(finding, indent),
     ...fixLines(finding.fixes, indent),
     ...learnMoreLine(finding, indent),

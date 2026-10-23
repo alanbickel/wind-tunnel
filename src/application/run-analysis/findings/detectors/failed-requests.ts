@@ -3,16 +3,6 @@ import type { RunSoFar } from "../../run-so-far";
 import { adviceFor, type FindingsCatalog } from "../catalog/type-advice";
 import type { Detector } from "../detector";
 import type { DetectedFinding, Evidence, TimeWindow } from "../finding";
-import {
-  at,
-  component,
-  count,
-  listOf,
-  plural,
-  say,
-  share,
-  type Message,
-} from "../message";
 import { findingKey } from "../finding-key";
 import {
   causeWindowOf,
@@ -20,6 +10,12 @@ import {
   refusalReasons,
   windowOf,
 } from "./cause-parts";
+import {
+  FAILED_REQUESTS_PHRASES,
+  type FailedByWorkflowStatement,
+  type FailedRequestsStatement,
+  type WorstSecondStatement,
+} from "./failed-requests-phrases";
 import {
   isTimeout,
   runCauses,
@@ -47,6 +43,7 @@ export function failedRequestsDetector(catalog: FindingsCatalog): Detector {
         failureFinding(cause, { run, catalog, causes, answered }),
       );
     },
+    phrases: FAILED_REQUESTS_PHRASES,
   };
 }
 
@@ -95,11 +92,15 @@ interface ReasonsInput {
   readonly refusal: LimitRefusal | undefined;
 }
 
-function reasonsOf({ cause, context, refusal }: ReasonsInput): Message[] {
+function reasonsOf({
+  cause,
+  context,
+  refusal,
+}: ReasonsInput): FailedRequestsStatement[] {
   const { run } = context;
   return [
-    workflowsSentence(cause, context),
-    worstSentence(cause, run),
+    workflowsStatement(cause, context),
+    worstStatement(cause, run),
     ...refusalReasons(cause, refusal),
     ...recovery({ run, cause, limits: refusal?.limits ?? [] }),
   ];
@@ -110,30 +111,39 @@ function answeredRequests(run: RunSoFar): number {
   return all.succeeded + all.failed;
 }
 
-function summaryOf(cause: FailureCause, window: TimeWindow): Message {
-  const requests = say`${count(cause.failed)} ${plural(cause.failed, ["request", "requests"])}`;
-  const when = say`from ${at(window.fromMs)} to ${at(window.toMs)}`;
+function summaryOf(
+  cause: FailureCause,
+  window: TimeWindow,
+): FailedRequestsStatement {
+  const { componentId, reason, failed } = cause;
   if (isTimeout(cause)) {
-    return say`${requests} failed because ${component(cause.componentId)} didn't answer in time, ${when}.`;
+    return { kind: "requests-timed-out", componentId, failed, window };
   }
-  return say`${requests} failed with ${component(cause.componentId)}: ${cause.reason}, ${when}.`;
+  return { kind: "requests-failed", componentId, reason, failed, window };
 }
 
 /** "That's 23,183 Get order and 5,658 Create order requests, …" */
-function workflowsSentence(
+function workflowsStatement(
   cause: FailureCause,
-  { run, answered }: FailureContext,
-): Message {
-  const names = new Map(run.project.workflows.map((w) => [w.id, w.name]));
-  const parts = [...cause.bySource].map(
-    ([id, failed]) => say`${count(failed)} ${names.get(id) ?? id}`,
-  );
-  return say`That's ${listOf(parts)} ${plural(cause.failed, ["request", "requests"])}, ${share(cause.failed / answered)} of the ${count(answered)} answered.`;
+  { answered }: FailureContext,
+): FailedByWorkflowStatement {
+  return {
+    kind: "failed-by-workflow",
+    workflows: [...cause.bySource].map(([workflowId, failed]) => ({
+      workflowId,
+      failed,
+    })),
+    failed: cause.failed,
+    answered,
+  };
 }
 
-function worstSentence({ worst }: FailureCause, run: RunSoFar): Message {
+function worstStatement(
+  { worst }: FailureCause,
+  run: RunSoFar,
+): WorstSecondStatement {
   const endMs = run.snapshots[worst.index]?.endMs ?? 0;
-  return say`The most in one second was ${count(worst.failed)}, in the second ending at ${at(endMs)}.`;
+  return { kind: "worst-second", failed: worst.failed, endMs };
 }
 
 function causeEvidence(

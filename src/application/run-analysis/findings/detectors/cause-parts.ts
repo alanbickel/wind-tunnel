@@ -1,7 +1,7 @@
 import type { RunSoFar } from "../../run-so-far";
 import type { TimeWindow } from "../finding";
-import { component, say, type Message } from "../message";
 import { spanOf } from "../time-window";
+import type { CauseStatement } from "./cause-parts-phrases";
 import {
   endedByRejections,
   isTimeout,
@@ -11,7 +11,8 @@ import {
 import { limitRefused, type LimitRefusal } from "./limit-refused";
 
 // What failed-requests and failed-deliveries both say about a cause: when
-// it failed, which limit refused, and where that began.
+// it failed, which limit refused, and where that began. Its phrases are in
+// `cause-parts-phrases.ts`.
 
 /** A run, and every cause of failed work in it. */
 export interface CauseContext {
@@ -60,10 +61,6 @@ export function causeWindowOf({
 export function refusalReasons(
   { componentId }: FailureCause,
   refusal: LimitRefusal | undefined,
-): readonly Message[] {
-  return (
-    refusal?.reasons ?? [
-      say`The caller stopped waiting for ${component(componentId)}. No limit explains a timeout, so the run can't say why it was slow.`,
-    ]
-  );
+): readonly CauseStatement[] {
+  return refusal?.reasons ?? [{ kind: "caller-stopped-waiting", componentId }];
 }

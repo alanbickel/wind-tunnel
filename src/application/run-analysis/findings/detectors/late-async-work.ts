@@ -8,20 +8,15 @@ import type { RunSoFar } from "../../run-so-far";
 import { adviceFor, type FindingsCatalog } from "../catalog/type-advice";
 import type { Detector } from "../detector";
 import type { DetectedFinding, Evidence } from "../finding";
-import {
-  at,
-  component,
-  count,
-  duration,
-  listOf,
-  plural,
-  say,
-  share,
-  type Message,
-} from "../message";
 import { findingKey } from "../finding-key";
 import { spanOf } from "../time-window";
 import { asyncTargets, type AsyncTarget } from "./async-targets";
+import {
+  LATE_ASYNC_WORK_PHRASES,
+  type WorkFinishedLateStatement,
+  type LateAsyncWorkStatement,
+  type WaitLimit,
+} from "./late-async-work-phrases";
 
 export const LATE_ASYNC_WORK = "late-async-work";
 
@@ -44,6 +39,7 @@ export function lateAsyncWorkDetector(catalog: FindingsCatalog): Detector {
         if (late.first === undefined) return [];
         return [lateFinding({ target, late, run, catalog, first: late.first })];
       }),
+    phrases: LATE_ASYNC_WORK_PHRASES,
   };
 }
 
@@ -152,12 +148,7 @@ function lateFinding(input: LateFindingInput): DetectedFinding {
     window: spanOf({ snapshots: run.snapshots, first, last: late.last }),
     causeWindow: undefined,
     summary: summaryOf(input),
-    reasons: [
-      secondsSentence(input),
-      ...accuracySentences(input),
-      answeredSentence(input),
-      timeoutSentence(target),
-    ],
+    reasons: reasonsOf(input),
     evidence: evidenceOf(input),
     ...advice,
     explains: undefined,
@@ -166,40 +157,74 @@ function lateFinding(input: LateFindingInput): DetectedFinding {
   };
 }
 
-function summaryOf({ target, late }: LateFindingInput): Message {
-  const { from, to, timeoutMs } = target.entryEdge;
-  return say`Work queued in ${component(target.queueId)} finished up to ${duration(late.slowestMs)} after its request, past the ${duration(timeoutMs)} that ${component(from)} waits for ${component(to)}.`;
+function summaryOf({
+  target,
+  late,
+}: LateFindingInput): WorkFinishedLateStatement {
+  return {
+    kind: "late-async-work",
+    queueId: target.queueId,
+    slowestMs: late.slowestMs,
+    wait: waitOf(target),
+  };
 }
 
-function secondsSentence({
+function reasonsOf(input: LateFindingInput): LateAsyncWorkStatement[] {
+  return [
+    secondsStatement(input),
+    ...accuracyStatements(input),
+    answeredStatement(input),
+    { kind: "no-synchronous-wait", wait: waitOf(input.target) },
+  ];
+}
+
+function waitOf({ entryEdge }: AsyncTarget): WaitLimit {
+  const { from, to, timeoutMs } = entryEdge;
+  return { from, to, timeoutMs };
+}
+
+function secondsStatement({
   target,
   late,
   run,
   first,
-}: LateFindingInput): Message {
-  const window = spanOf({ snapshots: run.snapshots, first, last: late.last });
-  return say`In ${count(late.over)} ${plural(late.over, ["second", "seconds"])} from ${at(window.fromMs)} to ${at(window.toMs)}, the p99 of the deliveries that ended in the second was over ${duration(target.entryEdge.timeoutMs)}, and as high as ${duration(late.highestP99Ms)}.`;
+}: LateFindingInput): LateAsyncWorkStatement {
+  return {
+    kind: "late-seconds",
+    over: late.over,
+    window: spanOf({ snapshots: run.snapshots, first, last: late.last }),
+    timeoutMs: target.entryEdge.timeoutMs,
+    highestP99Ms: late.highestP99Ms,
+  };
 }
 
 /** Says so when some of those seconds are within the histogram's error. */
-function accuracySentences({ target, late }: LateFindingInput): Message[] {
+function accuracyStatements({
+  target,
+  late,
+}: LateFindingInput): LateAsyncWorkStatement[] {
   if (late.near === 0) return [];
   return [
-    say`In ${count(late.near)} of those seconds, the p99 was within the histogram's ${share(PERCENTILE_ERROR)} error of ${duration(target.entryEdge.timeoutMs)}, so it may have been under it.`,
+    {
+      kind: "late-near-timeout",
+      near: late.near,
+      timeoutMs: target.entryEdge.timeoutMs,
+      percentileError: PERCENTILE_ERROR,
+    },
   ];
 }
 
-function answeredSentence({ target, late, run }: LateFindingInput): Message {
-  const names = new Map(run.project.workflows.map((w) => [w.id, w.name]));
-  const answered = target.workflowIds.map(
-    (id) =>
-      say`${names.get(id) ?? id} within ${duration(late.answeredP99Ms.get(id) ?? 0)}`,
-  );
-  return say`Meanwhile, users were answered quickly, because a request ends once its work is queued: ${listOf(answered)} (the highest p99 of those seconds).`;
-}
-
-function timeoutSentence({ entryEdge }: AsyncTarget): Message {
-  return say`No synchronous design could have offered that wait: ${component(entryEdge.from)} stops waiting for ${component(entryEdge.to)} after ${duration(entryEdge.timeoutMs)}.`;
+function answeredStatement({
+  target,
+  late,
+}: LateFindingInput): LateAsyncWorkStatement {
+  return {
+    kind: "answered-quickly",
+    answered: target.workflowIds.map((workflowId) => ({
+      workflowId,
+      p99Ms: late.answeredP99Ms.get(workflowId) ?? 0,
+    })),
+  };
 }
 
 function evidenceOf({ target, late }: LateFindingInput): Evidence[] {

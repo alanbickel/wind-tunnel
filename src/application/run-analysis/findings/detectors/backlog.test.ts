@@ -5,10 +5,11 @@ import type {
   LimitUse,
   MetricsSnapshot,
 } from "../../../../domain/metrics/metrics-snapshot";
-import { messageText, sampleRun } from "../../../testing/sample-findings";
+import { sampleRun } from "../../../testing/sample-findings";
 import { sampleSnapshot } from "../../../testing/sample-snapshots";
 import { createFindingsCatalog } from "../catalog/create-findings-catalog";
 import type { DetectedFinding } from "../finding";
+import type { Statement } from "../phrase";
 import { backlogDetector } from "./backlog";
 
 const detector = backlogDetector(createFindingsCatalog());
@@ -63,11 +64,14 @@ function second(s: QueueSecond): MetricsSnapshot {
   return sampleSnapshot({ second: s.second, table });
 }
 
-/** Every sentence of the finding, as plain text. */
-function sentences(finding: DetectedFinding | undefined): string[] {
+/** The finding's summary, then its reasons. */
+function statements(finding: DetectedFinding | undefined): Statement[] {
   if (finding === undefined) return [];
-  return [finding.summary, ...finding.reasons].map(messageText);
+  return [finding.summary, ...finding.reasons];
 }
+
+/** table's consumers, as the statements name them. */
+const consumers = { componentId: "table", limitName: "consumers" };
 
 // The consumers are all busy in second 1 (warming up), and again from
 // second 3. Messages wait within second 3, then at the ends of seconds 4
@@ -170,11 +174,31 @@ describe("backlog", () => {
   // Fails if the peak or its second drift, the flow covers seconds past the
   // peak's, or the latency includes a second without a backlog.
   it("quotes when the limit was out, the peak, the flow up to it, and the slowest delivery", () => {
-    expect(sentences(detector.detect(sampleRun(emptied))[0])).toEqual([
-      "Messages waited for table's consumers from 3000ms, and its backlog was empty by 6000ms.",
-      "All 4 of its consumers were busy in every second from 2000ms to 6000ms, so messages arriving then waited for one. They were also all busy in 1 other second.",
-      "It peaked at 9 messages in the second ending at 5000ms. From 3000ms to then, messages arrived at 11 a second and were delivered at 5, so it grew by about 6 a second.",
-      "Deliveries in those seconds landed up to 3200 after their requests; the highest p99 of a second was 3100.",
+    expect(statements(detector.detect(sampleRun(emptied))[0])).toEqual([
+      {
+        kind: "backlog",
+        ...consumers,
+        state: "emptied",
+        window: { fromMs: 3_000, toMs: 6_000 },
+        waiting: 0,
+      },
+      {
+        kind: "consumers-busy-run",
+        ...consumers,
+        limit: 4,
+        window: { fromMs: 2_000, toMs: 6_000 },
+        otherSeconds: 1,
+      },
+      {
+        kind: "backlog-peak",
+        peak: 9,
+        peakEndMs: 5_000,
+        fromMs: 3_000,
+        arrivalsPerSec: 11,
+        deliveredPerSec: 5,
+        growthPerSec: 6,
+      },
+      { kind: "backlog-latency", slowestMs: 3_200, highestP99Ms: 3_100 },
     ]);
   });
 
@@ -183,13 +207,16 @@ describe("backlog", () => {
   it("warns when messages are still waiting at the end of a finished run", () => {
     const [finding] = detector.detect(sampleRun(stillWaiting));
     expect(finding).toMatchObject({ severity: "warning", affected: 3 });
-    const text = sentences(finding);
-    expect(text[0]).toBe(
-      "Messages waited for table's consumers from 3000ms, and 3 were still waiting when the run ended.",
-    );
-    expect(text.at(-1)).toBe(
-      "When the run ended, 3 messages were still waiting: of the 25 accepted, 18 had been delivered and 4 were being delivered.",
-    );
+    expect(finding?.summary).toMatchObject({ state: "waiting", waiting: 3 });
+    expect(finding?.reasons.at(-1)).toEqual({
+      kind: "backlog-at-end",
+      componentId: "table",
+      finished: true,
+      waiting: 3,
+      accepted: 25,
+      delivered: 18,
+      beingDelivered: 4,
+    });
   });
 
   // Fails if a run stopped early is judged as if it had finished: its
@@ -198,13 +225,19 @@ describe("backlog", () => {
   it("keeps a backlog a note, so far, while the run hasn't finished", () => {
     const [finding] = detector.detect(sampleRun(start.slice(0, 4)));
     expect(finding).toMatchObject({ severity: "note", affected: undefined });
-    const text = sentences(finding);
-    expect(text[0]).toBe(
-      "Messages waited for table's consumers from 3000ms, and 5 are still waiting so far.",
-    );
-    expect(text.at(-1)).toBe(
-      "So far, 5 messages are waiting: of the 14 accepted, 5 have been delivered and 4 are being delivered.",
-    );
+    expect(finding?.summary).toMatchObject({
+      state: "waiting-so-far",
+      waiting: 5,
+    });
+    expect(finding?.reasons.at(-1)).toEqual({
+      kind: "backlog-at-end",
+      componentId: "table",
+      finished: false,
+      waiting: 5,
+      accepted: 14,
+      delivered: 5,
+      beingDelivered: 4,
+    });
   });
 
   // Fails if messages waiting only within a second, never at its end, count

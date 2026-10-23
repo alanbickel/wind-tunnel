@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { LatencySummary } from "../../../../domain/metrics/latency-histogram";
+import {
+  PERCENTILE_ERROR,
+  type LatencySummary,
+} from "../../../../domain/metrics/latency-histogram";
 import type {
   LimitUse,
   MetricsSnapshot,
 } from "../../../../domain/metrics/metrics-snapshot";
 import type { Project, Step } from "../../../../domain/model/project";
-import { messageText } from "../../../testing/sample-findings";
 import { sampleRecord } from "../../../testing/sample-record";
 import { sampleSnapshot } from "../../../testing/sample-snapshots";
 import { createFindingsCatalog } from "../catalog/create-findings-catalog";
@@ -90,15 +92,32 @@ describe("late-async-work", () => {
   // over, or the slowest delivery isn't the exact maximum.
   it("quotes the slowest delivery and says which seconds are within the error", () => {
     const [finding] = detector.detect(run(queued, late));
-    const text = [finding?.summary ?? [], ...(finding?.reasons ?? [])].map(
-      messageText,
-    );
-    expect(text).toEqual([
-      "Work queued in table finished up to 41000 after its request, past the 29000 that api waits for fn.",
-      "In 2 seconds from 0ms to 2000ms, the p99 of the deliveries that ended in the second was over 29000, and as high as 40000.",
-      `In 1 of those seconds, the p99 was within the histogram's ${String(1.05 - 1)} error of 29000, so it may have been under it.`,
-      "Meanwhile, users were answered quickly, because a request ends once its work is queued: Read item within 50 (the highest p99 of those seconds).",
-      "No synchronous design could have offered that wait: api stops waiting for fn after 29000.",
+    const wait = { from: "api", to: "fn", timeoutMs: 29_000 };
+    expect(finding?.summary).toEqual({
+      kind: "late-async-work",
+      queueId: "table",
+      slowestMs: 41_000,
+      wait,
+    });
+    expect(finding?.reasons).toEqual([
+      {
+        kind: "late-seconds",
+        over: 2,
+        window: { fromMs: 0, toMs: 2_000 },
+        timeoutMs: 29_000,
+        highestP99Ms: 40_000,
+      },
+      {
+        kind: "late-near-timeout",
+        near: 1,
+        timeoutMs: 29_000,
+        percentileError: PERCENTILE_ERROR,
+      },
+      {
+        kind: "answered-quickly",
+        answered: [{ workflowId: "read", p99Ms: 50 }],
+      },
+      { kind: "no-synchronous-wait", wait },
     ]);
   });
 
@@ -135,6 +154,7 @@ describe("late-async-work", () => {
         {
           type: "dynamodb",
           kinds: {},
+          wording: { reasons: {}, limits: {} },
           limits: {
             refusing: { fixes: [otherFix], learnMore: "refusing" },
             consumers: { fixes: [fix], learnMore: "consumers" },

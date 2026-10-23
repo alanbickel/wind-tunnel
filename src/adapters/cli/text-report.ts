@@ -20,6 +20,7 @@ import {
   type WorkflowSecond,
 } from "../../application/run-analysis/workflow-seconds";
 import { createDetectors } from "../../application/run-analysis/findings/create-detectors";
+import { createPhrasebook } from "../../application/run-analysis/findings/create-phrasebook";
 import { findRun } from "../../application/run-analysis/findings/find-run";
 import { formatFindings, formatVerdict } from "./findings-report";
 import { count, seconds, shareDown } from "./text-format";
@@ -41,11 +42,13 @@ export function formatReport(input: ReportInput): string {
   const { project, workload, run } = input;
   const { totals, snapshots } = run;
   const soFar = { project, workloadId: workload.id, snapshots };
-  const findings = findRun(soFar, createDetectors());
+  const detectors = createDetectors();
+  const findings = findRun(soFar, detectors);
+  const phrasebook = createPhrasebook({ project, detectors });
   const sections = [
     heading(input),
-    section("Verdict", formatVerdict(findings.verdict)),
-    section("Findings", formatFindings(findings)),
+    section("Verdict", formatVerdict(findings.verdict, phrasebook)),
+    section("Findings", formatFindings(findings, phrasebook)),
     section("Workflows", workflowTable(totals)),
     section("Failures", failureTotals(totals)),
     section("Components", componentTable(project, totals)),

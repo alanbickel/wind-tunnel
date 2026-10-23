@@ -1,0 +1,4 @@
+Healthy. All 12,101 answered requests succeeded; 15 were still in progress when the run ended.
+Closest to failing: orders-db connections, at most 14 of 90 (15.5%) from 0 s to 1 s, while fn-orders had 62 cold starts; at most 13 of 90 (14.4%) in the seconds without cold starts.
+
+None.

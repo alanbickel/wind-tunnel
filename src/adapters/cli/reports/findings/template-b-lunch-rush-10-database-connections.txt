@@ -1,0 +1,30 @@
+Healthy. All 65,966 answered requests succeeded; 8 were still in progress when the run ended.
+No headroom: orders-db connections ran out in 39 seconds from 14 s to 54 s, and orders-db refused 90 attempts; no request failed with its rejections.
+Closest to failing: fn-api concurrency, at most 101 of 1,000 (10.1%) from 27 s to 28 s, while fn-api had 5 cold starts; at most 96 of 1,000 (9.6%) in the seconds without cold starts.
+
+1. Note: orders-db refused 90 deliveries from orders-queue with too-many-connections in 33 seconds from 16 s to 53 s, and each went back to be tried again.
+   - That's 90 of orders-queue's 13,191 delivery attempts (0.6%). Of those, 13,097 were delivered, 90 failed, and 4 were still being delivered.
+   - A failed delivery waits in the backlog again: orders-queue had up to 1,970 messages waiting in a second with one of these failures.
+   - orders-db held all 10 of its connections in every second with these failures.
+   - orders-db refused 90 attempts, and each one failed a delivery.
+   - The last failed in the second ending at 53 s, and none failed in the 7 s after it.
+   - At the end of the last second, orders-queue had no messages waiting.
+   Fixes:
+   - In Wind Tunnel: Let every consumer hold what its delivery needs downstream, such as a database connection: with Template B's orders-db cut to 10 connections for 15 consumers, the lunch rush fails no delivery at maxConnections 15. (Observed: src/adapters/templates/scenarios/failed-deliveries.test.ts, "fails no delivery when every consumer can hold a connection"; fidelity LMB-8)
+   - In Wind Tunnel: Shrinking consumerMaxConcurrency to fit what's downstream is worse: in the same run at 10 consumers, no delivery fails, but messages arrive faster than they're delivered, and some are still waiting when the run ends. (Observed: src/adapters/templates/scenarios/failed-deliveries.test.ts, "leaves messages waiting when the consumers shrink to fit"; fidelity SQS-3, SQS-4)
+   - In AWS: Set a redrive policy with maxReceiveCount of at least 5 and a dead-letter queue, and watch the dead-letter queue: a message that keeps failing then moves there instead of being received again and again. (Documented: Creating and configuring an SQS event source mapping, https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-configure.html; fidelity SQS-1)
+   - In AWS: Move to a larger DB instance class, with more CPU and memory. That more CPU serves proportionally more queries a second is an assumption. (Documented: DB instance classes, https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html; fidelity RDS-2)
+   - In AWS: Move reads to read replicas, which scale out beyond one instance for read-heavy workloads. They replicate asynchronously, so a read may be stale. Not modeled. (Documented: Working with read replicas, https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html; fidelity RDS-6)
+   Learn more: docs/learning/aws-did-you-know.md#a-failed-sqs-message-waits-out-the-visibility-timeout-before-its-retried
+
+2. Note: Messages waited for orders-queue's consumerConcurrency from 17 s, and its backlog was empty by 54 s.
+   - All 15 of its consumerConcurrency were busy in every second from 15 s to 54 s, so messages arriving then waited for one. They were also all busy in 1 other second.
+   - It peaked at 1,970 messages in the second ending at 43 s. From 17 s to then, messages arrived at 385 a second and were delivered at 311, so it grew by about 75 a second.
+   - Deliveries in those seconds landed up to 15.6 s after their requests; the highest p99 of a second was 11.4 s.
+   Cause began at 15 s.
+   Fixes:
+   - In Wind Tunnel: Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: Template B's long rush keeps up at 20. (Observed: src/adapters/templates/scenarios/long-rush-template-b.test.ts, "grows the backlog through the whole peak"; fidelity SQS-3, SQS-4)
+   - In Wind Tunnel: Check what the consumers call before raising it: each delivery holds capacity downstream, such as a database connection, so more consumers can move the wait there. (Assumption)
+   - In AWS: Raise the event source mapping's maximum concurrency (2 to 1,000), and keep the function's reserved concurrency at least as high, or Lambda might throttle the messages. (Documented: SQS scaling, https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html; fidelity SQS-3, SQS-4)
+   - In AWS: Watch the queue's ApproximateAgeOfOldestMessage in CloudWatch: the age of the oldest unprocessed message shows a backlog while it builds. (Documented: SQS CloudWatch metrics, https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)
+   Learn more: docs/learning/aws-did-you-know.md#sqs-messages-expire-if-the-backlog-lasts-too-long

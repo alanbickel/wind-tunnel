@@ -1,5 +1,6 @@
 import type { Project } from "../../../../domain/model/project";
 import type { Finding, Fix } from "../finding";
+import type { Length } from "../phrase";
 
 /**
  * What a component type knows about fixing one of its limits, or one kind
@@ -12,7 +13,10 @@ export interface Advice {
   readonly learnMore: string | undefined;
 }
 
-/** One component type's advice, keyed by limit name and by finding kind. */
+/**
+ * One component type's advice, keyed by limit name and by finding kind, and
+ * how it words its own IDs.
+ */
 export interface TypeAdvice {
   /** The component definition's type, e.g. `"rds"`. */
   readonly type: string;
@@ -23,7 +27,21 @@ export interface TypeAdvice {
    * under failed deliveries (ADR-0015's second addendum).
    */
   readonly kinds: Readonly<Record<string, Advice>>;
+  readonly wording: TypeWording;
 }
+
+/**
+ * How a type words what only it knows, keyed by ID: its rejection reasons
+ * (`too-many-connections`) and its limits (`queryWorkers`). An ID left out
+ * is printed as it is.
+ */
+export interface TypeWording {
+  readonly reasons: Readonly<Record<string, Words>>;
+  readonly limits: Readonly<Record<string, Words>>;
+}
+
+/** One ID's words, at each length. */
+export type Words = Readonly<Record<Length, string>>;
 
 /** Every type's advice, keyed by type. */
 export type FindingsCatalog = ReadonlyMap<string, TypeAdvice>;
@@ -111,7 +129,8 @@ export function mergedAdvice(
   };
 }
 
-function typeOf(project: Project, componentId: string): string {
+/** The component's type, or "" if the project has no such component. */
+export function typeOf(project: Project, componentId: string): string {
   return (
     project.architecture.components.find((c) => c.id === componentId)?.type ??
     ""

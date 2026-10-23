@@ -1,0 +1,16 @@
+Verdict: all 65,966 answered requests succeeded
+No headroom: orders-db connections ran out and refused 90 attempts
+Closest to failing: fn-api concurrency peaked at 101 of 1,000 (10.1%)
+
+1. orders-db refused 90 deliveries from orders-queue with too-many-connections
+   - that's 90 of orders-queue's 13,191 delivery attempts (0.6%)
+   - a failed delivery waits in orders-queue's backlog again
+   - orders-db held all 10 of its connections
+   - every attempt orders-db refused failed a delivery
+   - the last failed at 53 s, with none in the 7 s after it
+   - orders-queue had no messages waiting at the end
+
+2. messages waited for orders-queue's consumerConcurrency from 17 s to 54 s
+   - all 15 of orders-queue's consumerConcurrency were busy from 15 s to 54 s
+   - the backlog peaked at 1,970 messages at 43 s
+   - deliveries landed up to 15.6 s after their requests

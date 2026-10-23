@@ -1,6 +1,6 @@
 # ADR-0015: Findings come from registered detectors; components declare what each limit does when it's full
 
-- **Status:** Accepted; amended 2026-10-22
+- **Status:** Accepted; amended 2026-10-23
 - **Date:** 2026-10-21
 
 ## Context
@@ -33,6 +33,8 @@ These are copied into each snapshot's `LimitUse`, so the read model needs only t
 **A finding has a fixed shape.** It has a severity (`failure`, `warning`, `note`), a component, a time window, a separate cause window that may start earlier, a summary, its reasons, the numbers it quotes (each with its source: totals, snapshots, or config), fixes, a link to an AWS fact, and the IDs of the findings it follows from. Its text is a list of parts (text, numbers with units, component references, times), worded in `application/` and formatted by the CLI and the UI. Display formatting stays outside `application/`, as ADR-0013 decided.
 
 > **Changed by the [addendum of 2026-10-22](#addendum-2026-10-22).**
+
+> **Changed by the [addendum of 2026-10-23](#addendum-2026-10-23).**
 
 **Rules fire on exact states, not tuned thresholds:** a failed request, an exhausted limit, a message still waiting at a second's end, or a latency past a timeout the project sets. A percentile compared with a timeout says when the comparison is within the histogram's error.
 
@@ -84,3 +86,23 @@ These are copied into each snapshot's `LimitUse`, so the read model needs only t
 - The verdict reads each refusing component's `rejected` per snapshot, alongside its limits' peaks.
 - `rejected` doesn't split refusals by limit, so when two refusing limits of one component ran out (DynamoDB's read and write buckets), the line names both with one count.
 - A finding's fixes can come from two catalog entries, the limit's and the kind's. The rule that a note leaves out fixes already shown above it still compares catalog entries.
+
+## Addendum, 2026-10-23
+
+**Context.** The point above has each detector word its own sentences as `Message`s. The run panel needs a finding at two lengths: in full in its list, and short in the verdict's line, as in "All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s api waits for fn-api" ([PR #64 review](https://github.com/alanbickel/wind-tunnel/pull/64)). With sentences built inside the detectors, a second length means a second set of sentences in every detector. A consumer that wants what a finding says rather than its words, such as a test or a filter, also has to read the words. And the detectors printed a type's raw IDs (`too-many-connections`, `queryWorkers`), with nowhere for a type to say how they read. Found while planning the findings panel ([#77](https://github.com/alanbickel/wind-tunnel/issues/77)).
+
+**Decision.**
+
+- **A finding says what it means as values, not words.** Its `summary` and each of its `reasons` are `Statement`s: a `kind` and the numbers, components, times, and IDs the sentence quotes, the same numbers its `evidence` gives. The verdict's `summary`, `noHeadroomLine`, and `headroomLine` are statements too.
+- **A phrasebook words them.** `createPhrasebook` builds one for a project from the detectors and the verdict's phrases. `word(statement, length)` returns a `Message`, still in parts, so formatting stays outside `application/`. Every phrase has a `long` form, the whole sentence, and a `short` one, a clause with no closing period that reads after "but". Both are required, with no fallback between them, so the consumer picks the length and the phrasebook doesn't know which consumer is asking.
+- **A detector registers its phrases.** `Detector` gains `phrases`, a lookup table keyed by statement kind, which sits beside it in its `-phrases` file. A new detector is still one file, now with its phrases beside it, and one line in `createDetectors`. Helpers that two detectors share, such as limit-refused, export their phrases, and both detectors register the same table; two different phrases for one kind are an error.
+- **A type words what only it knows.** Each type's catalog entry registers words, at both lengths, for its rejection reasons and its limits, as it registers fixes. A reason or limit its type doesn't register prints as its raw ID. As first shipped, every type's words are its raw IDs, so the CLI report doesn't change.
+
+Fix messages, already written once per type in the catalog, stay `Message`s, and `Evidence.what` stays a string.
+
+**Consequences.**
+
+- The CLI asks for long forms and prints what it printed before; the run panel can quote a finding's short form after the verdict's.
+- Detector tests assert the values a finding carries; each `-phrases` file has tests that word its statements at both lengths. Rewording a sentence no longer touches a detector.
+- About fifty statement kinds, each with two forms to write and keep in step. Each `-phrases` test checks that every kind its table registers has a case, so neither form changes unseen.
+- The `Phrase` methods are typed per statement, but a table of every kind is typed loosely, so a phrase can sit in it; the phrasebook only hands a phrase the statements of its own kind.

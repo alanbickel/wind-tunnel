@@ -3,7 +3,7 @@ import type {
   ComponentMetrics,
   LimitUse,
 } from "../../../../domain/metrics/metrics-snapshot";
-import { messageText, sampleRun } from "../../../testing/sample-findings";
+import { sampleRun } from "../../../testing/sample-findings";
 import { sampleSnapshot } from "../../../testing/sample-snapshots";
 import { createFindingsCatalog } from "../catalog/create-findings-catalog";
 import type { FindingsCatalog } from "../catalog/type-advice";
@@ -11,6 +11,7 @@ import { createDetectors } from "../create-detectors";
 import type { DetectedFinding, Fix } from "../finding";
 import { findRun } from "../find-run";
 import { say } from "../message";
+import type { Statement } from "../phrase";
 import { waitingHoldsLimitDetector } from "./waiting-holds-limit";
 
 const detector = waitingHoldsLimitDetector(createFindingsCatalog());
@@ -47,11 +48,21 @@ function second(
   });
 }
 
-/** Every sentence of the finding, as plain text. */
-function sentences(finding: DetectedFinding | undefined): string[] {
+/** The finding's summary, then its reasons. */
+function statements(finding: DetectedFinding | undefined): Statement[] {
   if (finding === undefined) return [];
-  return [finding.summary, ...finding.reasons].map(messageText);
+  return [finding.summary, ...finding.reasons];
 }
+
+/** table's workers, holding its slots. */
+const pair = {
+  componentId: "table",
+  waitingLimit: "workers",
+  heldLimit: "slots",
+};
+
+/** table's workers, as the busy statements name them. */
+const busy = { componentId: "table", limitName: "workers", limit: 2 };
 
 // The workers fill alone in second 1, then again from second 3; requests
 // wait, and in seconds 4 and 5 they hold all 4 slots.
@@ -104,12 +115,36 @@ describe("waiting-holds-limit", () => {
   // from the whole span, the flow from the seconds with only the workers
   // out, or the waiting from a second with the workers free.
   it("quotes when waiting began, running plus waiting, and the flow", () => {
-    expect(sentences(detector.detect(sampleRun(slotsRanOut))[0])).toEqual([
-      "Requests waited for table's workers, holding its slots while they waited.",
-      "All 2 of its workers were busy in every second from 2000ms to 5000ms, so requests arriving then waited for one. They were also all busy in 1 other second.",
-      "Each waiting request holds one of its slots: 2 running and up to 2 waiting is 4, and its slots peaked at 4 of 4.",
-      "Its slots ran out while its workers were all busy in 2 seconds from 3000ms to 5000ms, 1000 after the waiting began at 2000ms.",
-      "While its workers were all busy and its slots were out, table finished 2 requests a second on average, against 5 arriving.",
+    expect(statements(detector.detect(sampleRun(slotsRanOut))[0])).toEqual([
+      { kind: "waiting-holds-limit", ...pair },
+      {
+        kind: "waiting-limit-busy-run",
+        ...busy,
+        window: { fromMs: 2_000, toMs: 5_000 },
+        otherSeconds: 1,
+      },
+      {
+        kind: "waiting-holds",
+        componentId: "table",
+        heldLimit: "slots",
+        held: { kind: "concurrency", limit: 4 },
+        running: 2,
+        waitingPeak: 2,
+        heldPeak: 4,
+      },
+      {
+        kind: "held-ran-out",
+        ...pair,
+        seconds: 2,
+        window: { fromMs: 3_000, toMs: 5_000 },
+        waitingFromMs: 2_000,
+      },
+      {
+        kind: "waiting-flow",
+        ...pair,
+        completedPerSec: 2,
+        arrivalsPerSec: 5,
+      },
     ]);
   });
 
@@ -119,11 +154,30 @@ describe("waiting-holds-limit", () => {
     const [finding] = detector.detect(sampleRun(slotsHeld));
     expect(finding?.window).toEqual({ fromMs: 1_000, toMs: 3_000 });
     expect(finding?.causeWindow).toBeUndefined();
-    expect(sentences(finding).slice(1)).toEqual([
-      "All 2 of its workers were busy in 2 seconds from 1000ms to 3000ms, so requests arriving then waited for one.",
-      "Each waiting request holds one of its slots: 2 running and up to 1 waiting is 3, and its slots peaked at 3 of 4.",
-      "Its slots never ran out while its workers were all busy.",
-      "While its workers were all busy, table finished 2 requests a second on average, against 3 arriving.",
+    expect(statements(finding).slice(1)).toEqual([
+      {
+        kind: "waiting-limit-busy",
+        ...busy,
+        seconds: 2,
+        window: { fromMs: 1_000, toMs: 3_000 },
+      },
+      {
+        kind: "waiting-holds",
+        componentId: "table",
+        heldLimit: "slots",
+        held: { kind: "concurrency", limit: 4 },
+        running: 2,
+        waitingPeak: 1,
+        heldPeak: 3,
+      },
+      { kind: "held-never-ran-out", ...pair },
+      {
+        kind: "waiting-flow",
+        ...pair,
+        heldLimit: undefined,
+        completedPerSec: 2,
+        arrivalsPerSec: 3,
+      },
     ]);
   });
 
@@ -181,6 +235,7 @@ describe("waiting-holds-limit", () => {
         {
           type: "dynamodb",
           kinds: {},
+          wording: { reasons: {}, limits: {} },
           limits: {
             workers: { fixes: [own], learnMore: "workers" },
             slots: { fixes: [fix("Add slots.")], learnMore: "slots" },

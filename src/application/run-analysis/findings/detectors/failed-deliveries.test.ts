@@ -4,12 +4,13 @@ import type {
   LimitUse,
   MetricsSnapshot,
 } from "../../../../domain/metrics/metrics-snapshot";
-import { messageText, sampleRun } from "../../../testing/sample-findings";
+import { sampleRun } from "../../../testing/sample-findings";
 import { sampleSnapshot } from "../../../testing/sample-snapshots";
 import { createFindingsCatalog } from "../catalog/create-findings-catalog";
 import type { FindingsCatalog, TypeAdvice } from "../catalog/type-advice";
 import type { DetectedFinding, Fix } from "../finding";
 import { say } from "../message";
+import type { Statement } from "../phrase";
 import {
   FAILED_DELIVERIES,
   failedDeliveriesDetector,
@@ -75,10 +76,10 @@ function second(s: DeliverySecond): MetricsSnapshot {
   return sampleSnapshot({ second: s.second, fn, table });
 }
 
-/** Every sentence of the finding, as plain text. */
-function sentences(finding: DetectedFinding | undefined): string[] {
+/** The finding's summary, then its reasons. */
+function statements(finding: DetectedFinding | undefined): Statement[] {
   if (finding === undefined) return [];
-  return [finding.summary, ...finding.reasons].map(messageText);
+  return [finding.summary, ...finding.reasons];
 }
 
 // table refuses 3 of fn's deliveries in seconds 2 and 3, while its read
@@ -121,14 +122,44 @@ describe("failed-deliveries", () => {
   // the failures is misread, or the summary leaves out when they began.
   it("quotes the queue's attempts, which add up, and when the failures stopped", () => {
     const [finding] = detector.detect(sampleRun(recovered));
-    expect(sentences(finding)).toEqual([
-      "table refused 3 deliveries from fn with throttled in 2 seconds from 1000ms to 3000ms, and each went back to be tried again.",
-      "That's 3 of fn's 52 delivery attempts (0.057692307692307696). Of those, 47 were delivered, 3 failed, and 2 were still being delivered.",
-      "A failed delivery waits in the backlog again: fn had up to 9 messages waiting in a second with one of these failures.",
-      "table's readUnits bucket, which holds 100 tokens, had less than one left in every second with these failures.",
-      "table refused 3 attempts, and each one failed a delivery.",
-      "The last failed in the second ending at 3000ms, and none failed in the 2000 after it.",
-      "At the end of the last second, fn had no messages waiting.",
+    expect(statements(finding)).toEqual([
+      {
+        kind: "deliveries-refused",
+        componentId: "table",
+        reason: "throttled",
+        failed: 3,
+        queueIds: ["fn"],
+        seconds: 2,
+        window: { fromMs: 1_000, toMs: 3_000 },
+      },
+      {
+        kind: "queue-attempts",
+        queueId: "fn",
+        failed: 3,
+        delivered: 47,
+        failedAll: 3,
+        beingDelivered: 2,
+      },
+      { kind: "failed-delivery-waits", queueId: "fn", mostWaiting: 9 },
+      {
+        kind: "bucket-ran-out",
+        componentId: "table",
+        limitName: "readUnits",
+        limit: 100,
+        coverage: { secondsOut: 2, secondsFailing: 2 },
+      },
+      {
+        kind: "refused-attempts-failed",
+        componentId: "table",
+        rejected: 3,
+        ended: "deliveries",
+      },
+      {
+        kind: "deliveries-stopped-failing",
+        lastFailedMs: 3_000,
+        quietMs: 2_000,
+      },
+      { kind: "queue-waiting-at-end", queueId: "fn", waiting: 0 },
     ]);
   });
 
@@ -136,21 +167,11 @@ describe("failed-deliveries", () => {
   // note, or one failing in the last second so far of a run that's still
   // going (or was stopped) is made a warning.
   it.each([
-    {
-      run: "finished",
-      seconds: 5,
-      severity: "warning",
-      end: "Deliveries were still failing with it in the run's last second, so nothing in the run says those messages will land.",
-    },
-    {
-      run: "stopped early",
-      seconds: 4,
-      severity: "note",
-      end: "Deliveries are still failing with it.",
-    },
+    { run: "finished", seconds: 5, severity: "warning", finished: true },
+    { run: "stopped early", seconds: 4, severity: "note", finished: false },
   ] as const)(
     "is a $severity when a delivery failed in the last second of a $run run",
-    ({ seconds, severity, end }) => {
+    ({ seconds, severity, finished }) => {
       const snapshots = recovered.slice(0, seconds - 1);
       const last = second({
         second: seconds,
@@ -160,10 +181,15 @@ describe("failed-deliveries", () => {
       });
       const [finding] = detector.detect(sampleRun([...snapshots, last]));
       expect(finding?.severity).toBe(severity);
-      expect(sentences(finding)).toContain(end);
-      expect(sentences(finding)).toContain(
-        "At the end of the last second, fn had 3 messages waiting.",
-      );
+      expect(statements(finding)).toContainEqual({
+        kind: "deliveries-still-failing",
+        finished,
+      });
+      expect(statements(finding)).toContainEqual({
+        kind: "queue-waiting-at-end",
+        queueId: "fn",
+        waiting: 3,
+      });
     },
   );
 
@@ -176,9 +202,11 @@ describe("failed-deliveries", () => {
     ];
     const [finding] = detector.detect(sampleRun(unexplained));
     expect(finding?.limitNames).toEqual([]);
-    expect(sentences(finding)).toContain(
-      "No limit of table refuses with throttled, so the run can't say what ran out.",
-    );
+    expect(statements(finding)).toContainEqual({
+      kind: "no-limit-refuses",
+      componentId: "table",
+      reason: "throttled",
+    });
   });
 
   // Fails if a timeout is worded as a refusal, or no finding is made for it.
@@ -189,9 +217,14 @@ describe("failed-deliveries", () => {
     });
     const [finding] = detector.detect(sampleRun([timedOut]));
     expect(finding?.key.reason).toBe("timeout");
-    expect(messageText(finding?.summary ?? [])).toBe(
-      "1 delivery from fn failed because table didn't answer in time, in 1 second from 0ms to 1000ms, and it went back to be tried again.",
-    );
+    expect(finding?.summary).toEqual({
+      kind: "deliveries-timed-out",
+      componentId: "table",
+      failed: 1,
+      queueIds: ["fn"],
+      seconds: 1,
+      window: { fromMs: 0, toMs: 1_000 },
+    });
   });
 
   // Fails if the kind's advice for the queue's type is left out, comes
@@ -214,6 +247,7 @@ describe("failed-deliveries", () => {
           kinds: {
             [FAILED_DELIVERIES]: { fixes: [redrive], learnMore: "dlq" },
           },
+          wording: { reasons: {}, limits: {} },
         },
       ],
       [
@@ -222,6 +256,7 @@ describe("failed-deliveries", () => {
           type: "dynamodb",
           limits: { readUnits: { fixes: [provision], learnMore: "reads" } },
           kinds: {},
+          wording: { reasons: {}, limits: {} },
         },
       ],
     ]);

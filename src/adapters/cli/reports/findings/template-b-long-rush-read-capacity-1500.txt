@@ -1,0 +1,40 @@
+Failing. 4,377 of 273,539 answered requests failed (1.6%); 7 were still in progress when the run ended.
+
+1. Failure: 4,377 requests failed with orders-read: throttled, from 95 s to 141 s.
+   - That's 4,377 Get order requests, 1.6% of the 273,539 answered.
+   - The most in one second was 199, in the second ending at 116 s.
+   - orders-read's readUnits bucket, which holds 7,500 tokens, had less than one left in every second with these failures.
+   - The last failure was in the second ending at 141 s, and none followed in the 59 s after it.
+   - After it, orders-read's readUnits peaked at 7,497 of 7,500 tokens drawn.
+   Fixes:
+   - In Wind Tunnel: Provision readUnitsPerSec for the sustained read rate, not the burst: a bucket that refills slower than reads arrive runs out however large it is. Template B's long rush fails nothing at 2,500. (Observed: src/adapters/templates/scenarios/long-rush-template-b.test.ts, "serves every request without a failure"; fidelity DDB-1, DDB-2)
+   - In AWS: Look for throttles in latency, not only in errors: the AWS SDKs retry throttled requests on their own, so a throttle may reach your code only as a slower answer. (Documented: DynamoDB error handling, https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html; fidelity DDB-4)
+   Learn more: docs/learning/aws-did-you-know.md#dynamodb-saves-up-unused-capacity-for-bursts
+   1.1. Note: orders-read's readUnits bucket drained from 18 s and ran out in the second ending at 96 s.
+        - It was last full at 18 s. From then, requests took 1,595 tokens a second on average, against a refill of 1,500.
+        - Its burst of 7,500 tokens lasted between 77 s and 78 s.
+        - At that flow, a full bucket lasts about 78.9 s: (burst − 1) ÷ (flow − refill).
+        Cause began at 18 s.
+
+2. Warning: Work queued in orders-queue finished up to 32.8 s after its request, past the 29 s that api waits for fn-api.
+   - In 23 seconds from 157 s to 180 s, the p99 of the deliveries that ended in the second was over 29 s, and as high as 32.8 s.
+   - In 6 of those seconds, the p99 was within the histogram's 5.0% error of 29 s, so it may have been under it.
+   - Meanwhile, users were answered quickly, because a request ends once its work is queued: Create order within 157 ms (the highest p99 of those seconds).
+   - No synchronous design could have offered that wait: api stops waiting for fn-api after 29 s.
+   Fixes:
+   - In Wind Tunnel: Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: Template B's long rush keeps up at 20. (Observed: src/adapters/templates/scenarios/long-rush-template-b.test.ts, "grows the backlog through the whole peak"; fidelity SQS-3, SQS-4)
+   - In Wind Tunnel: Check what the consumers call before raising it: each delivery holds capacity downstream, such as a database connection, so more consumers can move the wait there. (Assumption)
+   - In AWS: Raise the event source mapping's maximum concurrency (2 to 1,000), and keep the function's reserved concurrency at least as high, or Lambda might throttle the messages. (Documented: SQS scaling, https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html; fidelity SQS-3, SQS-4)
+   - In AWS: Watch the queue's ApproximateAgeOfOldestMessage in CloudWatch: the age of the oldest unprocessed message shows a backlog while it builds. (Documented: SQS CloudWatch metrics, https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)
+   Learn more: docs/learning/aws-did-you-know.md#sqs-messages-expire-if-the-backlog-lasts-too-long
+   2.1. Note: Messages waited for orders-queue's consumerConcurrency from 17 s, and its backlog was empty by 184 s.
+        - All 15 of its consumerConcurrency were busy in every second from 15 s to 184 s, so messages arriving then waited for one. They were also all busy in 1 other second.
+        - It peaked at 10,200 messages in the second ending at 142 s. From 17 s to then, messages arrived at 395 a second and were delivered at 314, so it grew by about 81 a second.
+        - Deliveries in those seconds landed up to 32.8 s after their requests; the highest p99 of a second was 32.8 s.
+        Cause began at 15 s.
+
+3. Note: orders-read refused 64,201 attempts, but only 4,377 requests failed with its rejections: callers retried the rest.
+   - It refused attempts in 46 seconds from 95 s to 141 s.
+   - Attempts aren't requests: a request refused twice and then served counts as two refused attempts, so the difference isn't how many requests the retries saved.
+   - It refuses only with throttled, so the attempts and the requests are both throttled rejections.
+   - While it refused attempts, Get order's p99 was 185 ms in the median second, and up to 445 ms, against 108 ms in the median second before.

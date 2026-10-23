@@ -1,0 +1,14 @@
+Healthy. All 65,966 answered requests succeeded; 8 were still in progress when the run ended.
+Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
+
+1. Note: Messages waited for orders-queue's consumerConcurrency from 17 s, and its backlog was empty by 54 s.
+   - All 15 of its consumerConcurrency were busy in every second from 15 s to 54 s, so messages arriving then waited for one. They were also all busy in 1 other second.
+   - It peaked at 1,937 messages in the second ending at 43 s. From 17 s to then, messages arrived at 385 a second and were delivered at 312, so it grew by about 73 a second.
+   - Deliveries in those seconds landed up to 6.2 s after their requests; the highest p99 of a second was 6.2 s.
+   Cause began at 15 s.
+   Fixes:
+   - In Wind Tunnel: Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: Template B's long rush keeps up at 20. (Observed: src/adapters/templates/scenarios/long-rush-template-b.test.ts, "grows the backlog through the whole peak"; fidelity SQS-3, SQS-4)
+   - In Wind Tunnel: Check what the consumers call before raising it: each delivery holds capacity downstream, such as a database connection, so more consumers can move the wait there. (Assumption)
+   - In AWS: Raise the event source mapping's maximum concurrency (2 to 1,000), and keep the function's reserved concurrency at least as high, or Lambda might throttle the messages. (Documented: SQS scaling, https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html; fidelity SQS-3, SQS-4)
+   - In AWS: Watch the queue's ApproximateAgeOfOldestMessage in CloudWatch: the age of the oldest unprocessed message shows a backlog while it builds. (Documented: SQS CloudWatch metrics, https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)
+   Learn more: docs/learning/aws-did-you-know.md#sqs-messages-expire-if-the-backlog-lasts-too-long

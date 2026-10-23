@@ -1,7 +1,7 @@
 /**
- * A sentence as parts, not a string. The wording lives here, in
- * `application/`, so the CLI and the run panel say the same thing; each
- * formats the parts its own way (ADR-0013, ADR-0015). The panel can turn a
+ * A sentence as parts, not a string. The phrasebook words statements as
+ * messages here, in `application/`, so the CLI and the run panel say the
+ * same thing; each formats the parts its own way (ADR-0013, ADR-0015). The panel can turn a
  * component into a link that highlights the node, and a time into one that
  * marks the chart.
  */

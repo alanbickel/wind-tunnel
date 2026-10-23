@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LimitUse } from "../../../domain/metrics/metrics-snapshot";
-import {
-  messageText,
-  sampleFinding,
-  sampleRun,
-} from "../../testing/sample-findings";
+import { sampleFinding, sampleRun } from "../../testing/sample-findings";
 import { sampleSnapshot } from "../../testing/sample-snapshots";
 import { verdictOf } from "./verdict";
 
@@ -39,8 +35,8 @@ const finished = [
 ];
 
 describe("verdictOf", () => {
-  // Fails if the counts leave out requests in progress, or the wording
-  // drops them.
+  // Fails if the summary statement leaves out the requests in progress, or
+  // counts them as answered.
   it("gives a healthy run's counts, with those still in progress", () => {
     const verdict = verdictOf(sampleRun(finished), []);
     expect(verdict).toMatchObject({
@@ -49,18 +45,23 @@ describe("verdictOf", () => {
       title: "Healthy",
       requests: { started: 10, succeeded: 9, failed: 0, inProgress: 1 },
     });
-    expect(messageText(verdict.summary)).toBe(
-      "All 9 answered requests succeeded; 1 was still in progress when the run ended.",
-    );
+    expect(verdict.summary).toEqual({
+      kind: "verdict-summary",
+      level: "healthy",
+      finished: true,
+      requests: verdict.requests,
+      warnings: 0,
+    });
   });
 
   // Fails if a run that hasn't reached the workload's end reads as finished.
   it("says 'so far' before the run reaches the end of its workload", () => {
     const verdict = verdictOf(sampleRun(finished.slice(0, 2)), []);
     expect(verdict.title).toBe("Healthy so far");
-    expect(messageText(verdict.summary)).toBe(
-      "All 7 answered requests succeeded; 3 are in progress.",
-    );
+    expect(verdict.summary).toMatchObject({
+      finished: false,
+      requests: { succeeded: 7, inProgress: 3 },
+    });
   });
 
   // Fails if the level ignores a severity, or a note raises it.
@@ -78,9 +79,7 @@ describe("verdictOf", () => {
     const verdict = verdictOf(sampleRun(finished), [
       sampleFinding({ severity: "warning" }),
     ]);
-    expect(messageText(verdict.summary)).toBe(
-      "All 9 answered requests succeeded, but 1 finding is a warning; 1 was still in progress when the run ended.",
-    );
+    expect(verdict.summary).toMatchObject({ level: "degraded", warnings: 1 });
   });
 
   // Fails if a failing run gets a headroom line: a limit already refused.
@@ -95,19 +94,21 @@ describe("verdictOf", () => {
     const verdict = verdictOf(sampleRun(snapshots), [
       sampleFinding({ severity: "failure" }),
     ]);
-    expect(messageText(verdict.summary)).toBe(
-      "1 of 4 answered requests failed (0.25).",
-    );
+    expect(verdict.summary).toMatchObject({
+      level: "failing",
+      requests: { succeeded: 3, failed: 1 },
+    });
     expect(verdict.headroom).toBeUndefined();
     expect(verdict.headroomLine).toBeUndefined();
   });
 
-  // Fails if "answered" counts requests still in progress.
+  // Fails if the summary statement counts requests still in progress as
+  // answered.
   it("says when no request has been answered", () => {
     const snapshots = [sampleSnapshot({ second: 1, read: { started: 3 } })];
-    expect(messageText(verdictOf(sampleRun(snapshots), []).summary)).toBe(
-      "No request has been answered yet; 3 are in progress.",
-    );
+    expect(verdictOf(sampleRun(snapshots), []).summary).toMatchObject({
+      requests: { succeeded: 0, failed: 0, inProgress: 3 },
+    });
   });
 });
 
@@ -122,10 +123,13 @@ describe("the verdict's headroom", () => {
         table: { limits: [workers(10)] },
       }),
     ];
-    const line = verdictOf(sampleRun(snapshots), []).headroomLine ?? [];
-    expect(messageText(line)).toBe(
-      "Closest to failing: fn concurrency, at most 4 of 10 (0.4).",
-    );
+    const { headroom, headroomLine } = verdictOf(sampleRun(snapshots), []);
+    expect(headroom?.limit).toMatchObject({
+      componentId: "fn",
+      name: "concurrency",
+      peak: 4,
+    });
+    expect(headroomLine).toEqual({ kind: "closest-to-failing", headroom });
   });
 
   // Fails if a peak that came only while fn cold-started is given without
@@ -138,10 +142,13 @@ describe("the verdict's headroom", () => {
       }),
       sampleSnapshot({ second: 2, fn: { limits: [concurrency(3)] } }),
     ];
-    const line = verdictOf(sampleRun(snapshots), []).headroomLine ?? [];
-    expect(messageText(line)).toBe(
-      "Closest to failing: fn concurrency, at most 6 of 10 (0.6) from 0ms to 1000ms, while fn had 6 cold starts; at most 3 of 10 (0.3) in the seconds without cold starts.",
-    );
+    const { headroom } = verdictOf(sampleRun(snapshots), []);
+    expect(headroom?.limit.peak).toBe(6);
+    expect(headroom?.warmUp).toEqual({
+      window: { fromMs: 0, toMs: 1_000 },
+      coldStarts: new Map([["fn", 6]]),
+      warmPeak: 3,
+    });
   });
 
   // Fails if the warm-up context appears when the peak also came in a
@@ -193,10 +200,13 @@ describe("the verdict's headroom", () => {
     const snapshots = [
       sampleSnapshot({ second: 1, api: { limits: [requestRate] } }),
     ];
-    const line = verdictOf(sampleRun(snapshots), []).headroomLine ?? [];
-    expect(messageText(line)).toBe(
-      "Closest to failing: api requestRate, at most 90 of 100 tokens drawn (0.9); its busiest second took 70 tokens, against a refill of 50 a second.",
-    );
+    const { headroom } = verdictOf(sampleRun(snapshots), []);
+    expect(headroom?.limit).toMatchObject({
+      componentId: "api",
+      name: "requestRate",
+      peak: 90,
+      flow: { ratePerSec: 50, busiestTakenPerSec: 70 },
+    });
   });
 });
 
@@ -241,12 +251,22 @@ describe("the verdict's no-headroom line", () => {
   // refuse remains, so both lines can show (findings.md §3.4).
   it("names a refusing limit that ran out and refused, and the closest of the rest", () => {
     const verdict = verdictOf(sampleRun(refused), []);
-    expect(messageText(verdict.noHeadroomLine ?? [])).toBe(
-      "No headroom: fn concurrency ran out in 2 seconds from 0ms to 2000ms, and fn refused 3 attempts; no request failed with its rejections.",
-    );
-    expect(messageText(verdict.headroomLine ?? [])).toBe(
-      "Closest to failing: table readUnits, at most 40 of 100 tokens drawn (0.4); its busiest second took 70 tokens, against a refill of 50 a second.",
-    );
+    const refusing = [
+      {
+        componentId: "fn",
+        limitNames: ["concurrency"],
+        secondsOut: 2,
+        window: { fromMs: 0, toMs: 2_000 },
+        rejected: 3,
+      },
+    ];
+    expect(verdict.noHeadroom).toEqual(refusing);
+    expect(verdict.noHeadroomLine).toEqual({ kind: "no-headroom", refusing });
+    expect(verdict.headroom?.limit).toMatchObject({
+      componentId: "table",
+      name: "readUnits",
+      peak: 40,
+    });
   });
 
   // Fails if a limit that reached its size without refusing loses its
@@ -257,9 +277,11 @@ describe("the verdict's no-headroom line", () => {
     ];
     const verdict = verdictOf(sampleRun(full), []);
     expect(verdict.noHeadroomLine).toBeUndefined();
-    expect(messageText(verdict.headroomLine ?? [])).toBe(
-      "Closest to failing: fn concurrency, at most 10 of 10 (1).",
-    );
+    expect(verdict.headroom?.limit).toMatchObject({
+      componentId: "fn",
+      name: "concurrency",
+      peak: 10,
+    });
   });
 
   // Fails if two limits of one component that ran out together get a count
@@ -276,9 +298,15 @@ describe("the verdict's no-headroom line", () => {
       }),
     ];
     const verdict = verdictOf(sampleRun(both), []);
-    expect(messageText(verdict.noHeadroomLine ?? [])).toBe(
-      "No headroom: table readUnits and writeUnits ran out in 1 second from 0ms to 1000ms, and table refused 4 attempts; no request failed with its rejections.",
-    );
+    expect(verdict.noHeadroom).toEqual([
+      {
+        componentId: "table",
+        limitNames: ["readUnits", "writeUnits"],
+        secondsOut: 1,
+        window: { fromMs: 0, toMs: 1_000 },
+        rejected: 4,
+      },
+    ]);
     expect(verdict.headroomLine).toBeUndefined();
   });
 

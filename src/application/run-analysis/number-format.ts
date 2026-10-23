@@ -1,4 +1,5 @@
-// Number formats shared by the CLI's report sections.
+// Number formats shared by the CLI's reports and the run panel, so both
+// show a number the same way.
 
 /** A whole number with thousands separators, e.g. "28,841". */
 export function count(n: number): string {

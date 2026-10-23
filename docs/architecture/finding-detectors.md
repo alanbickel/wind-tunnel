@@ -37,7 +37,7 @@ flowchart LR
     D1 & D2 & D3 & D4 & D5 & D6 & D7 -.->|"phrases"| PB["phrasebook<br/>long and short forms"]
     C -.->|"a type's words"| PB
     F -->|"RunFindings"| CLI["findings-report.ts<br/>adapters/cli/"]
-    F -->|"RunFindings"| UI["run panel<br/>(Roadmap M5)"]
+    F -->|"RunFindings"| UI["run panel<br/>(Findings)"]
     PB -.->|"Message"| CLI & UI
 ```
 
@@ -74,12 +74,12 @@ A `Phrasebook`, built by `createPhrasebook({ project, detectors })`, words a sta
 
 | Length | Reads as | Who asks |
 |---|---|---|
-| `long` | The most in one second was 1,216, in the second ending at 32 s. | The CLI, and the run panel's list of findings |
-| `short` | the most in one second was 1,216, ending at 32 s | The run panel's verdict line, after "but" |
+| `long` | The most in one second was 1,216, in the second ending at 32 s. | The CLI and the run panel, for the verdict and every finding |
+| `short` | the most in one second was 1,216, ending at 32 s | A degraded verdict, naming its top warning after "but"; and the `.short.txt` snapshots that pin every short form |
 
-Every phrase has both forms, with no fallback, so the phrasebook never knows who's asking. A long form is a whole sentence; a short form is a clause with no closing period. Both return a `Message`, still in parts, which the CLI and the UI each format their own way: the CLI prints components by ID and times in seconds.
+Every phrase has both forms, with no fallback, so the phrasebook never knows who's asking. A long form is a whole sentence; a short form is a clause with no closing period. Both return a `Message`, still in parts. `partText` in `message-format.ts` turns each part into text by one set of rules (counts with separators, shares rounded down, times in seconds, components by ID), so the CLI and the run panel show the same text; the panel also sets components and times apart in their own elements.
 
-A phrase gets a `Vocabulary` along with its statement: the words a component's type registers in the catalog for its rejection reasons and limits, and the workflows' names. An ID with no words prints as it is; today every type's words are its raw IDs, such as `too-many-connections` and `queryWorkers`. A phrase never branches on a component's type.
+A phrase gets a `Vocabulary` along with its statement: the words a component's type registers in the catalog for its rejection reasons and limits, the workflows' names, and `quote`, which words another statement in its short form. The verdict's summary quotes a degraded run's top warning that way. An ID with no words prints as it is; today every type's words are its raw IDs, such as `too-many-connections` and `queryWorkers`. A phrase never branches on a component's type.
 
 Wording is code, not text loaded from files: every word comes from a phrase or a type's `wording`. Wording one statement goes like this:
 
@@ -98,7 +98,7 @@ sequenceDiagram
     Ph-->>P: Message (parts: text, numbers, components, times)
     P-->>C: Message
     C->>C: formatMessage: components by ID, times in seconds
-    Note over C,P: The run panel asks for "short" and formats<br/>the Message its own way
+    Note over C,P: The run panel asks for "long" too, and formats<br/>each part with the same partText
 ```
 
 `createPhrasebook` wires it once per project. It gathers the phrase tables (each detector's `phrases`, which include any shared helper's, and the verdict's), throws if two tables give different phrases for one kind, and builds a vocabulary for each length from the project and the catalog:

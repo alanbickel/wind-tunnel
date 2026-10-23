@@ -1,0 +1,10 @@
+/* A component's ID, as the diagram labels it: monospace, like code. */
+.component {
+  font-family: var(--font-family-mono);
+}
+
+/* A moment in the run: kept on one line, so "14 s" never splits. */
+.time {
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}

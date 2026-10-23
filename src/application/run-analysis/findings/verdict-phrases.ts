@@ -30,6 +30,11 @@ export interface VerdictSummaryStatement extends Statement {
   readonly requests: WorkflowTotals;
   /** Findings that are warnings. */
   readonly warnings: number;
+  /**
+   * The first warning in the findings' order (findings.md §3.3), which a
+   * degraded verdict names; undefined when no finding is a warning.
+   */
+  readonly topWarning: Statement | undefined;
 }
 
 /** The refusing limits that ran out and refused work, though none failed. */
@@ -49,20 +54,33 @@ export interface ClosestToFailingStatement extends Statement {
 export type VerdictStatement =
   VerdictSummaryStatement | NoHeadroomStatement | ClosestToFailingStatement;
 
-/** The summary's statement, with the requests answered. */
+/**
+ * The summary's statement, with the requests answered and the words for
+ * the top warning.
+ */
 interface Answered {
   readonly statement: VerdictSummaryStatement;
   readonly answered: number;
+  readonly vocabulary: Vocabulary;
 }
 
 /** The request counts by level, without the requests in progress. */
 const COUNTS: Readonly<Record<VerdictLevel, (a: Answered) => Message>> = {
   failing: ({ statement: { requests }, answered }) =>
     say`${count(requests.failed)} of ${count(answered)} answered requests failed (${share(requests.failed / answered)})`,
-  degraded: ({ statement: { warnings }, answered }) =>
-    say`${allSucceeded(answered)}, but ${count(warnings)} ${plural(warnings, ["finding is a warning", "findings are warnings"])}`,
+  degraded: ({ statement, answered, vocabulary }) => {
+    const { topWarning, warnings } = statement;
+    if (topWarning === undefined) return allSucceeded(answered);
+    return say`${allSucceeded(answered)}, but ${vocabulary.quote(topWarning)}${moreWarnings(warnings - 1)}`;
+  },
   healthy: ({ answered }) => allSucceeded(answered),
 };
+
+/** ", and 2 more warnings", after the warning the verdict names. */
+function moreWarnings(n: number): Message {
+  if (n <= 0) return [];
+  return say`, and ${count(n)} more ${plural(n, ["warning", "warnings"])}`;
+}
 
 function allSucceeded(answered: number): Message {
   return say`All ${count(answered)} answered ${plural(answered, ["request", "requests"])} succeeded`;
@@ -104,18 +122,21 @@ function inProgressClause({
 }
 
 const SUMMARY: Phrase<VerdictSummaryStatement> = {
-  long: (s) => {
+  long: (s, vocabulary) => {
     const answered = answeredOf(s);
     const counts =
       answered === 0
         ? noneAnswered(s)
-        : lookup(COUNTS, s.level)({ statement: s, answered });
+        : lookup(COUNTS, s.level)({ statement: s, answered, vocabulary });
     return say`${counts}${inProgressClause(s)}.`;
   },
-  short: (s) => {
+  short: (s, vocabulary) => {
     const answered = answeredOf(s);
     if (answered === 0) return say`no request has been answered`;
-    return lookup(SHORT_COUNTS, s.level)({ statement: s, answered });
+    return lookup(
+      SHORT_COUNTS,
+      s.level,
+    )({ statement: s, answered, vocabulary });
   },
 };
 

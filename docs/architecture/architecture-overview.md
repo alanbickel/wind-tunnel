@@ -149,7 +149,8 @@ flowchart TB
 | A CloudFormation/CDK/Terraform importer or exporter | `src/adapters/iac/` | Converts between file formats and domain objects. |
 | A React component | `src/ui/` | Ordinary React patterns are fine here. Get use cases via context, not by importing adapters. |
 | A diagram or chart feature | `src/ui/diagram/` or `src/ui/charts/` | Only these folders import React Flow and Recharts ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)). Add what you need to their props, in our own types; consumers never see a library type. |
-| Wiring adapters to ports | `src/main.tsx` | The only place that knows about every layer. |
+| Wiring adapters to ports | `src/main.tsx` | The only code that knows about every layer. |
+| A test that needs adapters and the UI together (e.g. the run panel on a real template run) | `src/integration/` | Tests only. Like `main.tsx`, it sits outside the layers, so it may import from any of them. |
 
 ## How the rules are enforced
 

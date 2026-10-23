@@ -4,6 +4,7 @@ import { findingKey } from "../run-analysis/findings/finding-key";
 import type { Message, MessagePart } from "../run-analysis/findings/message";
 import type {
   Length,
+  Phrases,
   PhraseTable,
   Statement,
 } from "../run-analysis/findings/phrase";
@@ -62,6 +63,11 @@ export function said(message: Message): SaidStatement {
 function isSaid(statement: Statement): statement is SaidStatement {
   return statement.kind === "said" && "message" in statement;
 }
+
+/** Words a `said` statement as its message, at both lengths. */
+export const SAID_PHRASES: Phrases<SaidStatement> = {
+  said: { long: ({ message }) => message, short: ({ message }) => message },
+};
 
 /** Words a `said` statement as its message, at either length. */
 export const saidPhrasebook: Phrasebook = {

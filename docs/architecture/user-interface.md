@@ -18,7 +18,7 @@ flowchart TB
         provider["<b>UseCasesProvider, useUseCases</b><br/>[Component: app/]<br/>Hands the use cases to any component"]:::component
         projects["<b>ProjectsScreen</b><br/>[Component: projects/]<br/>The project list, new from template"]:::component
         project["<b>ProjectScreen</b><br/>[Component: project/]<br/>One project: its architecture and runs"]:::component
-        run["<b>RunPanel, useSimulationRun</b><br/>[Component: run/]<br/>Run controls, totals, chart content"]:::component
+        run["<b>RunPanel, useSimulationRun</b><br/>[Component: run/]<br/>Run controls, verdict and findings, totals, chart content"]:::component
         storage["<b>useStoragePersistence</b><br/>[Component: storage/]<br/>Asks to keep the projects"]:::component
         theme["<b>ThemeControl, tokens.css</b><br/>[Component: theme/]<br/>System, dark, or light; every color"]:::component
         diagram["<b>Diagram</b><br/>[Component: diagram/]<br/>Boxes and arrows, over React Flow, loaded lazily"]:::component
@@ -54,7 +54,7 @@ The folders under `src/ui/`:
 | `app/` | `UseCases`, `UseCasesProvider`, `useUseCases`, and the test helpers in `app/testing/` |
 | `projects/` | The first screen: the user's projects, and the template list with its `useCreateFromTemplate` hook |
 | `project/` | One opened project: `ProjectScreen` (open, or say why it can't), `ArchitectureView`, and `diagramOf` |
-| `run/` | `RunPanel`, `useSimulationRun`, the totals tables, and `runCharts`, which turns snapshots into chart content |
+| `run/` | `RunPanel`, `useSimulationRun`, `useRunFindings` and `Findings` (the verdict and findings), the totals tables, and `runCharts`, which turns snapshots into chart content |
 | `diagram/`, `charts/` | Our wrappers around React Flow and Recharts. Only these folders import those libraries ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) |
 | `storage/` | Asks the browser for persistent storage after the first create, and warns if it says no |
 | `theme/` | The design tokens (`tokens.css`), the page's base styles, and the theme control, which saves the choice ([ADR-0012](../adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) |
@@ -125,7 +125,9 @@ sequenceDiagram
     Note over UI,W: If the stop signal fires first, the runner terminates the Worker at once<br/>and resolves stopped; snapshots still queued are dropped.
 ```
 
-From the snapshots so far, `RunPanel` draws a progress bar, the totals and each limit's busiest use (`RunTotals`, each table with its sum under it and an info control beside its heading), and four charts (`runCharts`): requests per second, p99 latency, and each component's work in progress and queue. Charts take far longer to draw than a snapshot takes to arrive, so they draw from `useDeferredValue(snapshots)`: React puts clicks such as Stop first and skips snapshots it falls behind on, while the progress bar stays current.
+From the snapshots so far, `RunPanel` draws a progress bar, then what the run means, then the evidence: the totals and each limit's busiest use (`RunTotals`, each table with its sum under it and an info control beside its heading), and four charts (`runCharts`): requests per second, p99 latency, and each component's work in progress and queue. Findings and charts take far longer than a snapshot takes to arrive, so `useRunFindings` defers the run (its id, workload, and snapshots together, so the copy never mixes two runs) with `useDeferredValue`, and the totals and charts draw the same deferred run: React puts clicks such as Stop first and skips snapshots it falls behind on, while the progress bar stays current.
+
+**What the run means.** `useRunFindings` calls `findRun` with the [default detectors](finding-detectors.md) on the run so far, as the CLI does, and `Findings` shows the result: the verdict (its title, such as "Failing so far", its summary, and its no-headroom and closest-to-failing lines), then each finding with its causes nested beneath it, numbered as the CLI numbers them. Each finding shows its severity in words and its summary; its `Explained` control opens its reasons, fixes (each with its claim: a Documented link, an Observed test, or the Assumption label), and Learn more. The words come from the phrasebook in their long form, and `MessageText` turns a `Message` into text by the same rules as the CLI (`partText`), setting components and times apart in their own elements. The status line ends with the verdict's title, so a screen reader hears it when the level changes or the run ends, not on every snapshot. For a moment after a new run starts, the deferred run is still the one before; the status line leaves the title out until it catches up, so it never announces the old run's verdict as the new one's.
 
 ### Worked example
 
@@ -147,17 +149,18 @@ User clicks "Create a project from Sample project"
   screen   the list now has "Sample project"
 ```
 
-Running it: each snapshot moves the progress bar, the totals, and every chart on by a second. The totals reconcile at every step: started = succeeded + failed + in progress.
+Running it: each snapshot moves the progress bar, the verdict, the totals, and every chart on by a second. The totals reconcile at every step: started = succeeded + failed + in progress.
 
 ```text
 User clicks "Run"
   call     runSimulation.execute({ project: project-1, workloadId: "steady", onSnapshot, stopSignal })
   call     runner.run({ request: { project: project-1, workloadId: "steady" }, onSnapshot, stopSignal })
-  screen   status "Running Steady…"
+  screen   status "Running Steady… Healthy so far."
 
 Worker posts the snapshot for 0–1000 ms
-  screen   status "Running Steady…"
+  screen   status "Running Steady… Healthy so far."
   screen   progress 1 of 2 simulated seconds
+  screen   verdict "Healthy so far": "All 18 answered requests succeeded; 2 are in progress." 0 findings
   screen   requests (run totals): started 20 = succeeded 18 + failed 0 + in progress 2
   screen   chart "Requests per second, all workflows": 1 s of points
   screen   chart "Latency of successful requests, p99": 1 s of points
@@ -165,7 +168,7 @@ Worker posts the snapshot for 0–1000 ms
 
 Worker posts finished
   call     runSimulation.execute → finished
-  screen   status "Finished Steady."
+  screen   status "Finished Steady. Healthy."
 ```
 
 If the flow changes, that test fails and the diff shows the new timeline. If the change is intended, run `npx vitest run src/ui/traces --update`, then update the excerpts on this page.

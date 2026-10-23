@@ -1,3 +1,6 @@
+import type { Message } from "./message";
+import type { Statement } from "./phrase";
+
 /**
  * The words for the project's own IDs, at the length being worded: a
  * component type's rejection reasons and limits, as the type registers
@@ -8,6 +11,11 @@ export interface Vocabulary {
   reason(input: ComponentWordInput): string;
   limit(input: ComponentWordInput): string;
   workflow(workflowId: string): string;
+  /**
+   * Another statement, in its short form, at either length: how the
+   * verdict names its top warning. Throws as `Phrasebook.word` does.
+   */
+  quote(statement: Statement): Message;
 }
 
 /** A reason or a limit of one component, by ID. */

@@ -1,0 +1,15 @@
+/* Reasons and fixes, as short bulleted lines under the finding. */
+.list {
+  margin: 0 0 var(--space-2);
+  padding-inline-start: var(--space-4);
+}
+
+.list > li + li {
+  margin-top: var(--space-1);
+}
+
+/* "Fixes:" introduces its list, so it sits close above it. */
+.listHeading {
+  margin: 0 0 var(--space-1);
+  font-weight: var(--font-weight-bold);
+}

@@ -13,6 +13,11 @@ export interface ExplainedProps {
   readonly title: ReactNode;
   /** Names the control "About <subject>", so each one says what it explains. */
   readonly subject: string;
+  /**
+   * The id of what the control should be described by, such as the text it
+   * explains, when the subject alone doesn't say which one it is.
+   */
+  readonly describedBy?: string;
   /** The explanation, hidden until the control opens it. */
   readonly children: ReactNode;
 }
@@ -24,7 +29,8 @@ export interface ExplainedProps {
  * putting the focus back on the button. Not a hover tooltip, which
  * keyboard and screen-reader users can't reach.
  */
-export function Explained({ title, subject, children }: ExplainedProps) {
+export function Explained(props: ExplainedProps) {
+  const { title, subject, describedBy, children } = props;
   const { open, toggle, closeOnEscape, button } = useDisclosure();
   const explanationId = useId();
 
@@ -37,6 +43,7 @@ export function Explained({ title, subject, children }: ExplainedProps) {
           type="button"
           className={styles.control}
           aria-label={`About ${subject}`}
+          aria-describedby={describedBy}
           aria-expanded={open}
           aria-controls={explanationId}
           onClick={toggle}

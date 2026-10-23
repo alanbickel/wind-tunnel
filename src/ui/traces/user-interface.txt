@@ -18,11 +18,12 @@ User clicks "Sample project"
 User clicks "Run"
   call     runSimulation.execute({ project: project-1, workloadId: "steady", onSnapshot, stopSignal })
   call     runner.run({ request: { project: project-1, workloadId: "steady" }, onSnapshot, stopSignal })
-  screen   status "Running Steady…"
+  screen   status "Running Steady… Healthy so far."
 
 Worker posts the snapshot for 0–1000 ms
-  screen   status "Running Steady…"
+  screen   status "Running Steady… Healthy so far."
   screen   progress 1 of 2 simulated seconds
+  screen   verdict "Healthy so far": "All 18 answered requests succeeded; 2 are in progress." 0 findings
   screen   requests (run totals): started 20 = succeeded 18 + failed 0 + in progress 2
   screen   chart "Requests per second, all workflows": 1 s of points
   screen   chart "Latency of successful requests, p99": 1 s of points
@@ -30,8 +31,9 @@ Worker posts the snapshot for 0–1000 ms
   screen   chart "Work waiting per component, peak each second": 1 s of points
 
 Worker posts the snapshot for 1000–2000 ms
-  screen   status "Running Steady…"
+  screen   status "Running Steady… Healthy."
   screen   progress 2 of 2 simulated seconds
+  screen   verdict "Healthy": "All 39 answered requests succeeded; 1 was still in progress when the run ended." 0 findings
   screen   requests (run totals): started 40 = succeeded 39 + failed 0 + in progress 1
   screen   chart "Requests per second, all workflows": 2 s of points
   screen   chart "Latency of successful requests, p99": 2 s of points
@@ -40,4 +42,4 @@ Worker posts the snapshot for 1000–2000 ms
 
 Worker posts finished
   call     runSimulation.execute → finished
-  screen   status "Finished Steady."
+  screen   status "Finished Steady. Healthy."

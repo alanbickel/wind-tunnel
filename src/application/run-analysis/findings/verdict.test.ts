@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LimitUse } from "../../../domain/metrics/metrics-snapshot";
-import { sampleFinding, sampleRun } from "../../testing/sample-findings";
+import { said, sampleFinding, sampleRun } from "../../testing/sample-findings";
+import { count, say } from "./message";
 import { sampleSnapshot } from "../../testing/sample-snapshots";
 import { verdictOf } from "./verdict";
 
@@ -51,6 +52,7 @@ describe("verdictOf", () => {
       finished: true,
       requests: verdict.requests,
       warnings: 0,
+      topWarning: undefined,
     });
   });
 
@@ -74,12 +76,27 @@ describe("verdictOf", () => {
     expect(verdictOf(sampleRun(finished), findings).level).toBe(level);
   });
 
-  // Fails if a degraded run's summary doesn't say why it isn't healthy.
-  it("counts the warnings of a degraded run", () => {
+  // Fails if a degraded run's summary doesn't say why it isn't healthy, or
+  // names a warning other than the first in the findings' order: here the
+  // one that affected the most, though it was found last and began later.
+  it("names the top warning of a degraded run, and counts the rest", () => {
+    const warning = (affected: number, fromMs: number) =>
+      sampleFinding({
+        severity: "warning",
+        affected,
+        window: { fromMs, toMs: fromMs + 1_000 },
+        summary: said(say`${count(affected)} affected`),
+      });
     const verdict = verdictOf(sampleRun(finished), [
-      sampleFinding({ severity: "warning" }),
+      sampleFinding({ severity: "note", affected: 900 }),
+      warning(10, 0),
+      warning(50, 2_000),
     ]);
-    expect(verdict.summary).toMatchObject({ level: "degraded", warnings: 1 });
+    expect(verdict.summary).toMatchObject({
+      level: "degraded",
+      warnings: 2,
+      topWarning: said(say`${count(50)} affected`),
+    });
   });
 
   // Fails if a failing run gets a headroom line: a limit already refused.

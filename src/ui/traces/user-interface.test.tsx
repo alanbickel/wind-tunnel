@@ -212,6 +212,19 @@ function requestTotals(): string {
   return `requests (run totals): started ${String(started)} = succeeded ${String(succeeded)} + failed ${String(failed)} + in progress ${String(inProgress)}`;
 }
 
+/** The verdict's title and summary, and how many findings are listed. */
+function verdictLine(): string {
+  const region = screen.getByRole("region", {
+    name: /^(Healthy|Degraded|Failing)/,
+  });
+  const title = region.querySelector("h4")?.textContent ?? "";
+  const summary = region.querySelector("p")?.textContent ?? "";
+  const findings = within(region).queryAllByRole("button", {
+    name: /^About finding/,
+  }).length;
+  return `verdict "${title}": "${summary}" ${String(findings)} findings`;
+}
+
 /** The top bar's breadcrumb, crumb by crumb, without the drawn separators. */
 function breadcrumb(): string {
   const nav = screen.getByRole("navigation", { name: "Breadcrumb" });
@@ -236,6 +249,7 @@ function traceRunScreen(trace: Trace): void {
   trace.screen(
     `progress ${String(progress.value)} of ${String(progress.max)} simulated seconds`,
   );
+  trace.screen(verdictLine());
   trace.screen(requestTotals());
   traceCharts(trace);
 }
@@ -303,7 +317,8 @@ const TRACE_TIMEOUT_MS = 30_000;
 
 // Fails if useSimulationRun's onSnapshot stops storing snapshots: progress,
 // totals, and every chart stay at zero. Also fails if App stops naming the
-// open project in the breadcrumb.
+// open project in the breadcrumb, or if the run panel stops showing the
+// verdict, or its title, summary, or number of findings changes.
 it(
   "traces a user from a template to a run's charts",
   async () => {

@@ -2,15 +2,14 @@ import type {
   Claim,
   Finding,
   Fix,
-  FixScope,
-  Severity,
 } from "../../application/run-analysis/findings/finding";
 import type { RunFindings } from "../../application/run-analysis/findings/find-run";
-import type {
-  Message,
-  MessagePart,
-  NumberUnit,
-} from "../../application/run-analysis/findings/message";
+import {
+  CLAIM_LABELS,
+  formatMessage,
+  SCOPE_LABELS,
+  SEVERITY_LABELS,
+} from "../../application/run-analysis/findings/message-format";
 import type { FindingNode } from "../../application/run-analysis/findings/order-findings";
 import type { Statement } from "../../application/run-analysis/findings/phrase";
 import type { Phrasebook } from "../../application/run-analysis/findings/phrasebook";
@@ -20,7 +19,7 @@ import {
   lookup,
   type KindHandlers,
 } from "../../domain/shared/kind-handlers";
-import { count, seconds, shareDown } from "./text-format";
+import { seconds } from "../../application/run-analysis/number-format";
 
 // The verdict and findings as plain text. The sentences come from the
 // phrasebook in `application/run-analysis/findings/`, in their long form;
@@ -88,12 +87,6 @@ function formatNode(node: FindingNode, context: NodeContext): string {
   ].join("\n");
 }
 
-const SEVERITY_LABELS: Readonly<Record<Severity, string>> = {
-  failure: "Failure",
-  warning: "Warning",
-  note: "Note",
-};
-
 /** The finding's lines; every line after the first starts with `indent`. */
 function findingLines(finding: Finding, { indent, say }: NodeContext): string {
   const lines = [
@@ -111,11 +104,6 @@ function causeLine({ causeWindow }: Finding, indent: string): string[] {
   return [`${indent}Cause began at ${seconds(causeWindow.fromMs)} s.`];
 }
 
-const SCOPE_LABELS: Readonly<Record<FixScope, string>> = {
-  "wind-tunnel": "In Wind Tunnel",
-  aws: "In AWS",
-};
-
 function fixLines(fixes: readonly Fix[], indent: string): string[] {
   if (fixes.length === 0) return [];
   return [
@@ -128,9 +116,10 @@ function fixLines(fixes: readonly Fix[], indent: string): string[] {
 }
 
 const CLAIMS: KindHandlers<Claim, string> = {
-  documented: ({ title, url }) => `Documented: ${title}, ${url}`,
-  observed: ({ file, test }) => `Observed: ${file}, "${test}"`,
-  assumption: () => "Assumption",
+  documented: ({ title, url }) =>
+    `${CLAIM_LABELS.documented}: ${title}, ${url}`,
+  observed: ({ file, test }) => `${CLAIM_LABELS.observed}: ${file}, "${test}"`,
+  assumption: () => CLAIM_LABELS.assumption,
 };
 
 function claimText(fix: Fix): string {
@@ -146,28 +135,4 @@ function learnMoreLine({ learnMore }: Finding, indent: string): string[] {
   return [
     `${indent}Learn more: docs/learning/aws-did-you-know.md#${learnMore}`,
   ];
-}
-
-/** The message as plain text: components by ID, times in seconds. */
-export function formatMessage(message: Message): string {
-  return message.map((part) => handleKind(PARTS, part)).join("");
-}
-
-const PARTS: KindHandlers<MessagePart, string> = {
-  text: ({ text }) => text,
-  number: ({ value, unit }) => lookup(NUMBERS, unit)(value),
-  component: ({ componentId }) => componentId,
-  time: ({ atMs }) => `${seconds(atMs)} s`,
-};
-
-const NUMBERS: Readonly<Record<NumberUnit, (value: number) => string>> = {
-  count: (value) => count(Math.round(value)),
-  share: (value) => shareDown(value),
-  ms: durationText,
-};
-
-/** "114 ms" under a second; "6.2 s" or "29 s" from a second up. */
-function durationText(valueMs: number): string {
-  if (valueMs < 1000) return `${count(Math.round(valueMs))} ms`;
-  return `${seconds(valueMs)} s`;
 }

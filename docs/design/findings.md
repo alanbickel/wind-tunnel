@@ -78,7 +78,7 @@ The verdict's headroom line quotes only limits that refuse work (§3.4). The con
 
 ### 1.5 Template B, long rush: degraded
 
-> **Degraded.** All 273,539 answered requests succeeded, but 1 finding is a warning; 7 were still in progress when the run ended.
+> **Degraded.** All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s api waits for fn-api; 7 were still in progress when the run ended.
 > Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
 
 **Warning: writes landed up to 32.6 s after they were accepted, past API Gateway's 29 s timeout.**
@@ -372,6 +372,7 @@ As built (#77), `summary` and `reasons` hold `Statement`s rather than `Message`s
 Always present, before the findings:
 
 - **Level:** *failing* if any finding is a failure, *degraded* if any is a warning, otherwise *healthy*. While a run is still going, the verdict is "so far".
+- **A degraded verdict names its top warning** (#78): the first warning in the findings' order (§3.3), in its short form, after "but", then "and *n* more warnings" if there are others (1.5).
 - **Requests:** answered, succeeded, failed, and in progress, from `requestsInProgress` (ADR-0013), so started = succeeded + failed + in progress.
 - **Closest to failing:** among the limits that refuse work, the one with the highest `peak / limit`, with its peak and limit, and its share rounded down to 0.1% as ADR-0014 requires (the Limits table's rule). This is the headroom before the first refusal. For a rate limit, the bucket's level is the number; its busiest flow against its rate follows as labeled context (ADR-0014). A failing run has no headroom line: a limit already refused work, and the failure findings name it (1.1, 1.2, 1.7). The line names only limits that refuse work; a limit that made work wait has its own note, if it earned one, among the findings (1.4).
 - **No headroom** (#69): on a run that isn't failing, a limit that refuses work may still have run out and refused, with every refusal retried by a caller or redelivered by a queue. The line doesn't quote its share as "closest to failing". It says instead that the limit ran out, in which seconds, how many attempts its component refused in them, and that no request failed with its rejections (1.8). It fires only when the component's `rejected` is above 0 in the seconds the limit was out: a concurrency limit is exhausted once its peak reaches its size, refused or not (1.8.2: out at 15 s, first refusal at 16 s), and a limit that reached its size without refusing keeps the "closest to failing" line, at 100.0%. `rejected` doesn't split refusals by limit, so when two refusing limits of one component ran out (DynamoDB's read and write buckets, both `throttled`), the line names both with one count. If limits at several components ran out, it names each. The "closest to failing" line still names the highest share among the refusing limits that didn't refuse, so a run can show both lines; it's left out only when every refusing limit refused. As built (#74), the no-headroom line comes first, with one clause per component, and only the "closest to failing" line has warm-up context. [ADR-0015](../adr/0015-findings-come-from-registered-detectors.md#addendum-2026-10-22-failed-deliveries)'s second addendum records the change.

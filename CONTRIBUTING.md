@@ -268,7 +268,7 @@ A new AWS service (or any other component type) touches these places, all in the
 
 ## Tests
 
-- Unit tests sit next to the code (`foo.ts` → `foo.test.ts`) and run in Node. Architecture tests live in `tests/architecture/`.
+- Unit tests sit next to the code (`foo.ts` → `foo.test.ts`) and run in Node. Architecture tests live in `tests/architecture/`. A test that needs adapters and the UI together, which may not import each other, lives in `src/integration/`: the run panel's findings for real template runs, for example.
 - **UI tests** start with `// @vitest-environment jsdom`, render with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and call `cleanup` in `afterEach`. Give components use cases through `UseCasesProvider`: `fakeUseCases()` rejects every call you don't override, and `inMemoryUseCases()` runs the real project use cases over in-memory adapters (both in `src/ui/app/testing/`).
 - **Use jsdom only for a test that needs the browser:** one that renders, or reads `document`, `window`, or `localStorage`. jsdom adds 3 to 5 s of startup to each file in a full run. Everything else runs in Node, where the setup file skips loading Testing Library.
 - **Run whole templates in `beforeAll`,** with `RUN_TIMEOUT_MS` from `src/adapters/templates/testing/run-template.ts`, not in a `describe` body. Vitest starts the files that took longest last time first, but it counts only test and hook time, so a file that does its work while collecting looks fast and starts last. A file's runs are serial, so the slowest file sets how long a full run takes. Split a file that runs many templates, as `scenarios/` does by workload.

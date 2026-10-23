@@ -100,6 +100,26 @@ function status(): string | null {
   return screen.getByRole("status").textContent;
 }
 
+/**
+ * Every text the status region commits while `action` runs, in order: what
+ * a screen reader could announce, including texts replaced in the same act.
+ */
+function statusesDuring(action: () => void): (string | null)[] {
+  const region = screen.getByRole("status");
+  const observer = new MutationObserver(() => undefined);
+  observer.observe(region, {
+    subtree: true,
+    characterData: true,
+    characterDataOldValue: true,
+  });
+  action();
+  // Each record holds the text it replaced; the first replaced the text
+  // from before the action.
+  const replaced = observer.takeRecords().map((record) => record.oldValue);
+  observer.disconnect();
+  return [...replaced.slice(1), region.textContent];
+}
+
 function requestsSoFar(): (string | null)[] {
   const table = screen.getByRole("table", { name: "Requests (run totals)" });
   const footer = table.querySelector("tfoot tr");
@@ -127,21 +147,30 @@ describe("RunPanel", () => {
     expect(screen.getByRole("region", { name: "Run" }).tabIndex).toBe(0);
   });
 
+  // Fails if the status line stops ending with the verdict's title, or a
+  // failed request with a cause doesn't turn the verdict to Failing.
   it("fills in totals and charts as snapshots arrive, then finishes", async () => {
     const { runner } = renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    expect(status()).toBe("Running Steady…");
+    expect(status()).toBe("Running Steady… Healthy so far.");
     runner.send(
       sampleSnapshot({ second: 1, read: { started: 5, succeeded: 2 } }),
     );
-    runner.send(sampleSnapshot({ second: 2, read: { started: 3, failed: 1 } }));
+    // A failure has a cause, as in a real run, so the verdict can find it.
+    runner.send(
+      sampleSnapshot({
+        second: 2,
+        read: { started: 3, failed: 1, failures: { "table: throttled": 1 } },
+        table: { arrivals: 1, rejected: 1 },
+      }),
+    );
 
     expect(requestsSoFar()).toEqual(["All workflows", "8", "2", "1", "5"]);
     expect(screen.getByText("2 of 5 simulated seconds")).toBeTruthy();
     expect(screen.getAllByRole("figure")).toHaveLength(4);
     await runner.finish();
-    expect(status()).toBe("Finished Steady.");
+    expect(status()).toBe("Finished Steady. Failing so far.");
     expect(screen.getByRole("button", { name: "Run" })).toBeTruthy();
   });
 
@@ -164,6 +193,8 @@ describe("RunPanel", () => {
     expect(progress.value).toBe(progress.max);
   });
 
+  // Fails if Stop doesn't stop the runner, the totals drop what arrived, or
+  // the stopped status line loses the verdict's title.
   it("stops partway and keeps what it got", async () => {
     const { runner } = renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
@@ -175,7 +206,9 @@ describe("RunPanel", () => {
     });
 
     expect(runner.stopped).toBe(true);
-    expect(status()).toBe("Stopped Steady after 1 of 5 simulated seconds.");
+    expect(status()).toBe(
+      "Stopped Steady after 1 of 5 simulated seconds. Healthy so far.",
+    );
     expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
   });
 
@@ -190,6 +223,8 @@ describe("RunPanel", () => {
     );
   });
 
+  // Fails if Run runs another workload than the one picked, the picker
+  // stays usable while running, or the status line loses the verdict's title.
   it("runs the workload picked, and locks the picker while it runs", () => {
     const { runner } = renderPanel(twoWorkloads);
     const picker = screen.getByRole("combobox", { name: "Workload" });
@@ -197,7 +232,7 @@ describe("RunPanel", () => {
     fireEvent.change(picker, { target: { value: "spike" } });
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
 
-    expect(status()).toBe("Running Spike…");
+    expect(status()).toBe("Running Spike… Healthy so far.");
     expect((picker as HTMLSelectElement).disabled).toBe(true);
     expect(runner.runs).toBe(1);
   });
@@ -218,6 +253,8 @@ describe("RunPanel", () => {
     expect(stop.getAttribute("aria-disabled")).toBe("true");
   });
 
+  // Fails if a late Stop click starts a new run, or the finished status
+  // line loses the verdict's title.
   it("ignores a click on Stop that lands after the run ended", async () => {
     // In the browser a busy page delayed Stop clicks until the run had
     // ended; with one Run/Stop button, each late click started a new run.
@@ -228,7 +265,35 @@ describe("RunPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Stop" }));
 
     expect(runner.runs).toBe(1);
-    expect(status()).toBe("Finished Steady.");
+    expect(status()).toBe("Finished Steady. Healthy so far.");
+  });
+
+  // Fails if the status line pairs a new run with the previous run's
+  // verdict while the deferred snapshots catch up: it reads "Running
+  // Steady… Failing so far." for a commit, and a screen reader can say so.
+  it("never announces the previous run's verdict as a new run starts", async () => {
+    const { runner } = renderPanel();
+    const run = screen.getByRole("button", { name: "Run" });
+    fireEvent.click(run);
+    runner.send(
+      sampleSnapshot({
+        second: 1,
+        read: { started: 1, failed: 1, failures: { "table: throttled": 1 } },
+        table: { arrivals: 1, rejected: 1 },
+      }),
+    );
+    await runner.finish();
+    expect(status()).toBe("Finished Steady. Failing so far.");
+
+    const statuses = statusesDuring(() => {
+      fireEvent.click(run);
+    });
+
+    // No title until the deferred render reaches the new run.
+    expect(statuses).toEqual([
+      "Running Steady…",
+      "Running Steady… Healthy so far.",
+    ]);
   });
 
   it("ignores a second Run that lands before React re-renders", () => {

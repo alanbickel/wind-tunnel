@@ -27,7 +27,11 @@ import type {
 import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
 import findingsDoc from "../../../../docs/design/findings.md?raw";
-import { formatMessage, formatVerdict } from "../../cli/findings-report";
+import {
+  formatFindings,
+  formatMessage,
+  formatVerdict,
+} from "../../cli/findings-report";
 import { RUN_TIMEOUT_MS } from "./run-template";
 import { runScenario } from "./scenario-runs";
 
@@ -142,6 +146,7 @@ export function describeFindings(cases: readonly FindingsCase[]): void {
     itListsTheFindings(read, c.findings);
     itPrintsThePinnedSentences(read, c.findings);
     itPrintsTheVerdict(read, c);
+    itPrintsTheReport(read, c);
   });
 }
 
@@ -291,6 +296,26 @@ function itPrintsTheVerdict(read: ReadRunGetter, c: FindingsCase): void {
     const { findings } = read();
     expect(formatVerdict(findings.verdict)).toBe(expected);
   });
+}
+
+function itPrintsTheReport(read: ReadRunGetter, c: FindingsCase): void {
+  // Fails if any word, number, or line of the verdict or a finding changes:
+  // the CLI's whole Verdict and Findings sections, in every run read here.
+  it("prints the verdict and findings as the report file pins them", async () => {
+    const { findings } = read();
+    const text = [formatVerdict(findings.verdict), formatFindings(findings)];
+    await expect(`${text.join("\n\n")}\n`).toMatchFileSnapshot(
+      `../../cli/reports/findings/${slugOf(c.name)}.txt`,
+    );
+  });
+}
+
+/** A case's file name: "Template A, lunch rush" → "template-a-lunch-rush". */
+function slugOf(name: string): string {
+  return name
+    .toLowerCase()
+    .replaceAll(",", "")
+    .replaceAll(/[^a-z0-9]+/g, "-");
 }
 
 /** The node's finding, then every finding beneath it. */

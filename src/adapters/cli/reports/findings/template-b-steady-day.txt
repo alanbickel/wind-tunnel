@@ -1,0 +1,4 @@
+Healthy. All 12,106 answered requests succeeded; 10 were still in progress when the run ended.
+Closest to failing: orders-db connections, at most 6 of 90 (6.6%).
+
+None.

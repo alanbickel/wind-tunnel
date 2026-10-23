@@ -1,0 +1,19 @@
+Degraded. All 273,539 answered requests succeeded, but 1 finding is a warning; 7 were still in progress when the run ended.
+Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
+
+1. Warning: Work queued in orders-queue finished up to 32.8 s after its request, past the 29 s that api waits for fn-api.
+   - In 23 seconds from 157 s to 180 s, the p99 of the deliveries that ended in the second was over 29 s, and as high as 32.8 s.
+   - In 7 of those seconds, the p99 was within the histogram's 5.0% error of 29 s, so it may have been under it.
+   - Meanwhile, users were answered quickly, because a request ends once its work is queued: Create order within 177 ms (the highest p99 of those seconds).
+   - No synchronous design could have offered that wait: api stops waiting for fn-api after 29 s.
+   Fixes:
+   - In Wind Tunnel: Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: Template B's long rush keeps up at 20. (Observed: src/adapters/templates/scenarios/long-rush-template-b.test.ts, "grows the backlog through the whole peak"; fidelity SQS-3, SQS-4)
+   - In Wind Tunnel: Check what the consumers call before raising it: each delivery holds capacity downstream, such as a database connection, so more consumers can move the wait there. (Assumption)
+   - In AWS: Raise the event source mapping's maximum concurrency (2 to 1,000), and keep the function's reserved concurrency at least as high, or Lambda might throttle the messages. (Documented: SQS scaling, https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html; fidelity SQS-3, SQS-4)
+   - In AWS: Watch the queue's ApproximateAgeOfOldestMessage in CloudWatch: the age of the oldest unprocessed message shows a backlog while it builds. (Documented: SQS CloudWatch metrics, https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)
+   Learn more: docs/learning/aws-did-you-know.md#sqs-messages-expire-if-the-backlog-lasts-too-long
+   1.1. Note: Messages waited for orders-queue's consumerConcurrency from 17 s, and its backlog was empty by 184 s.
+        - All 15 of its consumerConcurrency were busy in every second from 15 s to 184 s, so messages arriving then waited for one. They were also all busy in 1 other second.
+        - It peaked at 10,197 messages in the second ending at 142 s. From 17 s to then, messages arrived at 395 a second and were delivered at 314, so it grew by about 81 a second.
+        - Deliveries in those seconds landed up to 32.8 s after their requests; the highest p99 of a second was 32.8 s.
+        Cause began at 15 s.

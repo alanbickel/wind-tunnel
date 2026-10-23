@@ -1,0 +1,23 @@
+Failing. 28,841 of 65,963 answered requests failed (43.7%); 11 were still in progress when the run ended.
+
+1. Failure: 28,841 requests failed with orders-db: too-many-connections, from 14 s to 47 s.
+   - That's 23,183 Get order and 5,658 Create order requests, 43.7% of the 65,963 answered.
+   - The most in one second was 1,216, in the second ending at 32 s.
+   - orders-db held all 90 of its connections in every second with these failures.
+   - orders-db refused 28,841 attempts, and each one failed a request.
+   - The last failure was in the second ending at 47 s, and none followed in the 13 s after it.
+   - After it, orders-db's connections peaked at 29 of 90.
+   Fixes:
+   - In AWS: Move to a larger DB instance class, with more CPU and memory. That more CPU serves proportionally more queries a second is an assumption. (Documented: DB instance classes, https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html; fidelity RDS-2)
+   - In AWS: Move reads to read replicas, which scale out beyond one instance for read-heavy workloads. They replicate asynchronously, so a read may be stale. Not modeled. (Documented: Working with read replicas, https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html; fidelity RDS-6)
+   Learn more: docs/learning/aws-did-you-know.md#rds-connection-limits-depend-on-instance-size
+   1.1. Note: Requests waited for orders-db's queryWorkers, holding its connections while they waited.
+        - All 16 of its queryWorkers were busy in every second from 11 s to 49 s, so requests arriving then waited for one. They were also all busy in 1 other second.
+        - Each waiting request holds one of its connections: 16 running and up to 74 waiting is 90, and its connections peaked at 90 of 90.
+        - Its connections ran out while its queryWorkers were all busy in 33 seconds from 14 s to 47 s, 3 s after the waiting began at 11 s.
+        - While its queryWorkers were all busy and its connections were out, orders-db finished 896 requests a second on average, against 1,770 arriving.
+        Cause began at 11 s.
+        Fixes:
+        - In Wind Tunnel: Raise queryWorkers, so queries stop waiting for a worker. A waiting query holds its connection, so the connections run out only while the workers are full: Template A's lunch rush fails nothing at 64. (Observed: src/adapters/templates/scenarios/lunch-rush.test.ts, "fails requests in every second of the peak"; fidelity RDS-2, RDS-3)
+        - In Wind Tunnel: Raising maxConnections alone moves the failure upstream: in Template A's lunch rush at 5,000, waiting queries hold all of fn-orders' concurrency, and Lambda throttles instead. (Observed: src/adapters/templates/scenarios/lunch-rush.test.ts, "fails requests in every second of the peak"; fidelity RDS-2)
+        - In AWS: RDS Proxy alone isn't a fix: it makes a request wait for a pooled connection, up to ConnectionBorrowTimeout (120 s by default), instead of refusing it, but adds no query capacity. Not modeled. (Documented: RDS Proxy connection settings, https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy-connections.html; fidelity RDS-6)

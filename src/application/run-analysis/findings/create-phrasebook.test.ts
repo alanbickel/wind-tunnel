@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { createAwsComponentRegistry } from "../../../domain/components/aws";
 import { messageText } from "../../testing/sample-findings";
 import { sampleRecord } from "../../testing/sample-record";
 import { createFindingsCatalog } from "./catalog/create-findings-catalog";
-import type { FindingsCatalog, TypeAdvice } from "./catalog/type-advice";
+import type {
+  FindingsCatalog,
+  TypeAdvice,
+  TypeWording,
+} from "./catalog/type-advice";
 import { createDetectors } from "./create-detectors";
 import { createPhrasebook } from "./create-phrasebook";
 import type { Detector } from "./detector";
@@ -137,20 +142,33 @@ describe("the default catalog's wording", () => {
     expect(e.words).toEqual({ long: e.id, short: e.id });
   });
 
-  // Fails if a type's reasons or limits are left out of the catalog.
-  it("covers every type's reasons and limits", () => {
-    expect(entries.map((e) => e.label)).toEqual([
-      "api-gateway throttled",
+  // Fails if a type declares a rejection reason the catalog has no words
+  // for.
+  it("words every reason a type declares", () => {
+    const declared = createAwsComponentRegistry()
+      .list()
+      .flatMap((t) => t.rejectionReasons.map((id) => `${t.type} ${id}`));
+    expect(new Set(wordedIn("reasons"))).toEqual(new Set(declared));
+  });
+
+  // Fails if a type's limits are removed from the catalog. Types name their
+  // limits only when they build a component, so this lists them.
+  it("words every type's limits", () => {
+    expect(wordedIn("limits")).toEqual([
       "api-gateway requestRate",
-      "lambda throttled",
       "lambda concurrency",
-      "rds too-many-connections",
       "rds connections",
       "rds queryWorkers",
       "sqs consumerConcurrency",
-      "dynamodb throttled",
       "dynamodb readUnits",
       "dynamodb writeUnits",
     ]);
   });
 });
+
+/** "rds connections": each type's worded IDs in one group, with the type. */
+function wordedIn(group: keyof TypeWording): string[] {
+  return [...createFindingsCatalog().values()].flatMap((advice) =>
+    Object.keys(advice.wording[group]).map((id) => `${advice.type} ${id}`),
+  );
+}

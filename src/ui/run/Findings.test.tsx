@@ -44,10 +44,11 @@ function fix(overrides: Partial<Fix>): Fix {
   };
 }
 
-/** A failure at fn, with its reasons, fixes, and Learn more. */
+/** A failure at fn, with its cause's start, reasons, fixes, and Learn more. */
 const failure = sampleFinding({
   key: sampleKey("failed"),
   severity: "failure",
+  causeWindow: { fromMs: 14_000, toMs: 15_000 },
   summary: said(say`${count(1_234)} requests failed at ${component("fn")}.`),
   reasons: [said(say`fn ran out.`)],
   fixes: [
@@ -114,14 +115,17 @@ describe("Findings", () => {
     expect(causeItem !== null && item?.contains(causeItem)).toBe(true);
   });
 
-  // Fails if a component stops being set apart from the words around it.
-  it("sets components apart from the text", () => {
+  // Fails if a component or a time stops being set apart from the words
+  // around it.
+  it("sets components and times apart from the text", () => {
     renderFindings([failure]);
 
     const fn = screen.getByText("fn", { selector: "span" });
+    const time = screen.getByText("14 s", { selector: "span" });
     expect(fn.closest("p")?.textContent).toBe(
       "1. Failure: 1,234 requests failed at fn.",
     );
+    expect(time.closest("p")?.textContent).toBe("Cause began at 14 s.");
   });
 
   // Fails if the control stops being a native button (which is what makes

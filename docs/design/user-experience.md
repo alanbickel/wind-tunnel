@@ -185,44 +185,82 @@ The project bar wraps and doesn't stick, so it doesn't take a small screen's hei
 
 ### 4.1 Selection
 
-*To write:* one selected thing (a component, edge, finding, or step), held above the panels. What each panel does when the selection changes. The keyboard path, and the diagram's text version.
+The project screen has one selection, or none: a component, an edge, a workflow, a step, a workload, or a finding. It's held by the project screen, above both columns, so the diagram, the drawer, the lists, and the run's results all read the same one. It isn't saved with the project, and it isn't an undo step.
+
+What each part of the screen does with it:
+
+| Selected | Diagram | Details tab | Elsewhere |
+|---|---|---|---|
+| Component | Rings the component | Its settings (§2.2) | |
+| Edge | Thickens the edge | Its latency, timeout, retry, and the steps that call along it | |
+| Workflow | Highlights the components and edges it uses | Its outline (§2.5) | Its row in the list is marked |
+| Step | Rings the step's component, and the edge the call arrives on | The workflow's outline, with the step marked | |
+| Workload | Nothing | The workload editor | |
+| Finding | Rings the components it names | Stays closed: the finding is read in the Run tab | Charts shade its time window and its cause's ([§3.3](#33-the-items-punted-from-m5)) |
+
+- **The keyboard path.** Everything selectable can be selected outside the canvas, by a button: components and connections in the diagram's text version (today plain list items), workflows and workloads in their lists, steps in the outline, and findings in the Run tab. The canvas's nodes and edges can be focused and selected with Enter as well, but nothing depends on it.
+- **Focus.** Selecting a component, edge, workflow, step, or workload opens Details and moves the focus to its heading. Escape there clears the selection, shows Run again in the wide layout, and returns the focus to whatever made the selection. Selecting a finding leaves the focus on the finding.
+- **The mouse.** Clicking a node, an edge, or a list row selects it; clicking the canvas's empty space clears the selection.
+- **When the selected thing goes.** Removing it clears the selection, and undoing the remove selects it again. A finding names components from the run's own copy of the project (§4.2), so it can name one that's since been removed: selecting it then rings nothing, and the finding says **New** "orders-db isn't in the project any more."
 
 ### 4.2 Run freshness
 
-*To write:* what the screen says when the run on screen no longer matches the project, as in a finding that names a component since removed. Comparing a run with the one before is out of M6 ([§7](#7-not-yet)). ADR: run identity.
+Today a run isn't tied to anything. `useSimulationRun` keeps the latest run's workload and snapshots in memory, and `useRunFindings` words its findings from the project as it is now: the phrasebook looks up each component's type in the current project. Once the project can change, an old run would be worded against the new project, and a component removed since would have no type to word it.
+
+[ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md) decides:
+
+- **A run keeps the model it ran.** Starting a run copies the project, and everything shown about that run reads the copy: the findings and their wording, the totals, and the status dots. The run is shown as it was, whatever has changed since.
+- **A run is current while what it ran is unchanged.** The comparison is by content: the run's architecture, its workflows, and the workload it ran, against the project's now. The project's name and description, the diagram's layout, and the other workloads don't change a run's results, so they don't count. Undoing back to what ran makes the run current again.
+- **Runs aren't stored.** As today, the screen keeps its latest run until the user leaves; nothing is added to the project document.
+
+What the screen says when the run is out of date:
+
+- The project bar adds "Out of date" after the verdict ([§3.1](#31-wide)).
+- The Run tab opens with **New** "This run is of an earlier version of the project. Run again to see your changes." above the findings, which stay as they were.
+- The status dots are drawn hollow, and the diagram's text version says they're from an earlier version ([§3.3](#33-the-items-punted-from-m5)).
+- A run that's still going is shown out of date as soon as the project changes; it carries on with the copy it started with.
+
+Saying *what* changed since the run ("you changed orders-db's query workers") needs a comparison of two models, which is the start of comparing runs, and waits with it ([§7](#7-not-yet)).
 
 ### 4.3 Editing and saving
 
-Agreed with the maintainer (2026-10-24), to be worked out here and recorded in the edit model's ADR:
+Agreed with the maintainer (2026-10-24), and recorded in [ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md):
 
 - **Validate, then save at once.** Each change is validated and saved as it's made; there's no Save button. A value that fails validation stays in its field, with its message, and never reaches the stored project (§2.2).
 - **The architecture and the workflows are validated apart.** The architecture (components, their settings, edges) must always be valid, or the change doesn't save. Workflows and workloads may have issues, such as a step that calls a removed component or a workload with an empty mix. Those issues show where they are, stop a run of the workloads they affect, and don't stop a save (§2.4, §2.5).
 - **A remove takes only what it owns.** Removing a component removes it and its own edges, never workflow steps; the confirmation names the steps that call it (§2.4). Removing a step removes the calls under it, and its async work (§2.5).
 - **Edges belong to the architecture.** They're drawn, edited, and removed on their own, and shown whether or not a step uses them. A call along a missing edge adds the edge, as a shortcut (§2.1, §2.5).
 
-*To write:* undo (one step per saved change, a remove and what it took as one step); what a field's draft is; where the issues show; the ADR.
+How it works:
+
+- **A change is a command.** Each thing a user does is one command: set a setting, rename, add or remove a component, connect, add, change, move, or remove a step, and so on. A command is a plain function in `application/` that takes the project record and returns the next one; it does the whole change, so removing a component also removes its edges. The UI never assembles a record by hand.
+- **A field holds a draft.** What's typed into a field stays in the field until it passes the field's own checks: the field descriptor's range, a distribution's rule that its p99 is at least its median, and a component name that's unique. Only then, on Enter or on leaving the field, does it become a command. So a user can't make an invalid architecture from the screen: pickers offer only what exists, and fields check before they commit. Escape puts back the saved value (§2.2).
+- **Saving validates.** A new use case saves an edited record. It checks the architecture first, as a backstop, and refuses a record that fails, so nothing invalid is ever stored; then it stamps `updatedAt` from the `Clock` and saves. Workflow and workload issues don't stop it.
+- **Saves go in order.** The screen shows the record it holds, and sends saves one at a time, so a fast typist's changes land in the order they were made. If a save fails (the browser's storage refused it), the project bar says **New** "Couldn't save your last change." and offers "Try again"; the change stays on screen.
+- **Undo.** Each saved command is one undo step, a remove with what it took included. Undo and Redo save the record before or after it, as a new save. The history lasts while the project is open, and isn't stored. A field's draft is never a step, and nor is the selection or a run. Moving a node is a step when the drag ends.
+- **Where issues show.** A workflow or workload issue shows where it is: on the step or the mix entry, in the drawer, with its message (§2.4); as a count on its row in the lists, **New** "1 problem"; and in the project bar, where a workload that can't run is marked in the picker and Run says why ([§3.1](#31-wide)). `validateProject`'s issue paths already locate each one. An architecture issue can't come from an edit; a stored project that has one, from an older version, still gets today's "can't open" screen.
 
 ## 5. Data needs
 
-Each row is something a journey step needs. Rows marked *open* are filled in as the journeys are written.
+Each row is something a journey step needs: whether it exists today, the change if not, and whether that change breaks a stored project or a public shape.
 
 | Need | Today | Change | Breaking? |
 |---|---|---|---|
-| Labels, units, and help for each setting in a form, including how a real AWS setting maps to the model's | The config schemas validate. Their field docs are JSDoc comments, which code can't read at runtime ([`lambda.ts`](../../src/domain/components/aws/lambda.ts)) | *Open:* field descriptors registered with each component type; distributions as a field kind | No |
-| Messages a user can act on for a bad value (2.2) | Config issues are Zod's messages ("Too small: expected number to be >=1"), or a schema's own, keyed by field ("p99Ms must be at least medianMs") | *Open:* messages from the field descriptors | No |
-| A line on what each type is for, in "Add component" (2.1) | `displayName` only | Add a description to each definition | No |
-| A new component's settings and id | `defaultConfig` on each definition; the `IdGenerator` port, which makes UUIDs | None expected for settings. See the next row for ids | No |
-| Component names on screen (2.1, 2.4) | The diagram shows `name`; findings and the CLI show `id`. The templates make them equal, but a new component's id is a UUID, so a finding would read "3f2a…: throttled" | *Open:* findings show names, and names are unique in a project; or ids are made from the name when a component is added, and renaming changes only the name | *Open:* a uniqueness rule could refuse a stored project, but stored projects come only from templates, whose names are unique |
-| Saving an edited project (2.2) | No use case saves an edited project. `ProjectRepository.save` stores a record as given; validation runs only when a project is opened, so an invalid save would make the project unopenable | A use case that validates the architecture, then saves (§4.3) | No |
-| Workflow and workload issues that stop a run, not a save (2.4, 2.5) | `findProjectIssues` checks everything as one, and opening a project refuses it if anything fails, a step's missing edge included | Split the checks: architecture issues refuse a save; workflow and workload issues are kept with the project, shown where they are, and stop a run of the workloads they affect. Opening a project accepts the second kind | No: it accepts more |
+| Labels, units, and help for each setting, including how a real AWS setting maps to the model's (2.1, 2.2) | The config schemas validate. Their field docs are JSDoc comments, which code can't read at runtime ([`lambda.ts`](../../src/domain/components/aws/lambda.ts)) | Field descriptors, registered per component type in `application/` beside the type's finding wording (ADR-0015): a label, a unit, help that cites its fidelity entry, and a range. Field kinds: number, whole number, and distribution | No |
+| Messages a user can act on for a bad value (2.2) | Config issues are Zod's messages ("Too small: expected number to be >=1"), or a schema's own, keyed by field ("p99Ms must be at least medianMs") | The field descriptors' ranges word the messages ("Query workers must be at least 1."); the schemas stay the authority | No |
+| A line on what each type is for, in "Add component" (2.1) | `displayName` only | A description beside each type's field descriptors | No |
+| A new component's settings and id | `defaultConfig` on each definition; the `IdGenerator` port, which makes UUIDs | None: settings from `defaultConfig`, the id from `IdGenerator`, and a name from the type and a number ("lambda-1") | No |
+| Component names on screen (2.1, 2.4) | The diagram shows `name`; findings and the CLI show `id`. The templates make them equal, but a new component's id is a UUID, so a finding would read "3f2a…: throttled" | The id is internal and never shown: findings and the CLI show names. Names are unique in a project, an architecture rule. A rename changes only the name, so nothing that refers to the component changes | No: stored projects come only from templates, whose names are unique |
+| Saving an edited project (2.2) | No use case saves an edited project. `ProjectRepository.save` stores a record as given; validation runs only when a project is opened, so an invalid save would make the project unopenable | A use case that validates the architecture, then saves; edit commands in `application/` (ADR-0019) | No |
+| Workflow and workload issues that stop a run, not a save (2.4, 2.5) | `findProjectIssues` checks everything as one, and opening a project refuses it if anything fails, a step's missing edge included | Split the checks: architecture issues refuse a save; workflow and workload issues are kept with the project, shown where they are, and stop a run of the workloads they affect. Opening a project accepts the second kind (ADR-0019) | No: it accepts more |
 | Drawing and editing edges (2.1) | Edges come only from templates, and nothing edits them | Connect on the diagram, and a keyboard way ("Connect to…"); an edge's settings in the drawer; remove an edge | No |
-| Defaults for a new edge (2.1) | Edges have no defaults | *Open:* defaults, perhaps from the caller's type (API Gateway's 29 s integration timeout) | No |
+| Defaults for a new edge (2.1) | Edges have no defaults | 1 ms latency and one attempt. The timeout comes from the caller's type: 29 s from API Gateway (**Documented**, §2.1 step 5), 5 s from anything else (an assumption, added to fidelity's defaults table) | No |
 | What calls a component (2.1, 2.4) | Nothing works it out | "Called by", from the workflows' steps | No |
 | A workflow's path on the diagram (2.1, 2.5) | `diagramOf` knows nothing of workflows | The components and edges a workflow uses, to highlight, and a line for the text version | No |
-| A project with nothing in it | Projects come only from templates | *Open:* what a blank project holds, and whether it's valid | No |
-| Placing a new component | `diagramOf` places a component the layout doesn't list; nodes can't be dragged | *Open:* drag, and save positions in the layout | No |
-| Which project revision a run ran against | `useSimulationRun` keeps one run in memory, not tied to a revision | *Open:* run identity (§4.2) | *Open* |
-| A template project after editing | `source` names the template and version | *Open:* what `source` means once the project has changed | No |
+| A project with nothing in it (2.1) | Projects come only from templates | A blank project: a name, and no components, edges, workflows, or workloads. Today's schema and checks already accept it; it has nothing to run | No |
+| Placing a new component (2.4) | `diagramOf` places a component the layout doesn't list; nodes can't be dragged | Drag a node; the drag's end is a command that saves its position in the layout | No: the layout is already stored |
+| Which version of the project a run ran (2.2) | `useSimulationRun` keeps one run in memory, and its findings are worded from the current project | The run keeps a copy of the project, and is current while its content matches (ADR-0018) | No: runs aren't stored |
+| A template project after editing (2.3) | `source` names the template and version | None: `source` says what the project was created from, not that it still matches | No |
 
 ## 6. Slices
 

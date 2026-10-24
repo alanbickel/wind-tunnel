@@ -18,10 +18,10 @@ The design's journeys ([§2](../design/user-experience.md#2-journeys)) showed th
 ## Decision
 
 1. **Each change is a command, validated and saved at once.** A command is a plain function in `application/` that takes the project record and returns the next one, doing the whole change. There's no Save button. A new use case saves an edited record: it checks the architecture, refuses a record that fails, stamps `updatedAt`, and saves.
-2. **The architecture is always valid; workflows and workloads may have issues.** The architecture is the components, their settings, and the edges. A change that would make it invalid doesn't save, and the screen stops it earlier: a field holds what's typed as a draft until it passes the field's checks. Workflow and workload issues, such as a step that calls a removed component or a missing edge, or a workload with an empty mix, are saved with the project. They show where they are and stop a run of the workloads they affect. Opening a project accepts them.
+2. **The architecture is always valid; workflows and workloads may have issues.** The architecture is the components, their settings, their names (unique among the components of each type), and the edges. A change that would make it invalid doesn't save, and the screen stops it earlier: a field holds what's typed as a draft until it passes the field's checks. Workflow and workload issues, such as a step that calls a removed component or a missing edge, or a workload with an empty mix, are saved with the project. They show where they are and stop a run of the workloads they affect. Opening a project accepts them.
 3. **A remove takes only what it owns.** Removing a component removes it and its edges, never workflow steps; the confirmation names the steps that call it. Removing a step removes the calls under it and its async work. Removing a workflow removes its entries in the workloads' mixes.
 4. **Edges belong to the architecture.** They're drawn, edited, and removed on their own, and kept whether or not a step uses them. Adding a call along a missing edge adds the edge, as a shortcut.
-5. **Undo is in memory.** Each saved command is one undo step. Undo and Redo save the record before or after it. The history lasts while the project is open.
+5. **Undo is in memory.** Each saved command is one undo step, including everything a remove took: undoing a workflow's removal brings back its entries in the mixes too. Undo and Redo save the record before or after it. The history lasts while the project is open.
 
 ## Consequences
 

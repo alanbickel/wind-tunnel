@@ -26,7 +26,7 @@ The design's journeys ([§2](../design/user-experience.md#2-journeys)) showed th
 ## Consequences
 
 - Nothing invalid in the architecture is ever stored, so an edit can't lock the user out of a project.
-- `findProjectIssues` splits into architecture checks and run checks. The run checks move from refusing a project to describing it, and `RunSimulation` checks the workload it's asked to run. Opening accepts more than today, so no stored project stops opening.
+- `findProjectIssues` splits into architecture checks and run checks. The run checks move from refusing a project to describing it, and `RunSimulation` checks the workload it's asked to run. Opening accepts more than today, and the one new rule, unique names per type, already holds for every stored project, since all come from templates. So no stored project stops opening.
 - A project can be saved but not runnable. The screen has to show why, wherever the issue is, and the run controls have to say which workloads can't run.
 - Commands are pure functions over the record, so each is tested without a UI or a database, and undo needs only the records before and after.
 - Editing a component no longer touches the workflows. To swap a database, the user points the steps at the new one before or after removing the old ([§2.4](../design/user-experience.md#24-add-a-component-and-remove-one)); in between, the workflows can't run. A "replace" command could do both at once later.

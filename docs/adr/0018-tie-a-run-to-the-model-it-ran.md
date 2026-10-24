@@ -13,7 +13,7 @@ The screen also has to say when the run no longer matches the project, and the u
 
 ## Decision
 
-1. **A run keeps the model it ran.** Starting a run copies the project. Everything shown about the run reads that copy: the findings and their wording, the totals, and the diagram's status dots.
+1. **A run keeps the model it ran.** Starting a run copies the project. Everything shown about the run reads that copy: the findings and their wording, the totals, and anything else drawn from the run (such as the diagram's status dots, when they're built).
 2. **A run is current while what it ran is unchanged, compared by content.** What counts is what changes a run's results: the architecture, the workflows, and the workload that ran. The project's name and description, the diagram's layout, and the other workloads don't count. There's no revision number: undoing back to what ran makes the run current again.
 3. **Runs aren't stored.** As today, the screen keeps its latest run until the user leaves it. The project document doesn't change.
 

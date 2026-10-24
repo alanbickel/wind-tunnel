@@ -19,42 +19,34 @@ Modeling is a loop, and the user goes round it many times in one sitting. **Desc
 
 ## 2. Journeys
 
-Each journey goes step by step: what the user does, and what the screen shows in reply. Where a journey runs the project, the run is seed 42, from `npm run simulate`, and its numbers are quoted from the CLI's report, which shows the same verdict and findings as the run panel. §2.1's project isn't a template: [Appendix A](#appendix-a-the-link-shortener) has it, and says how to run it.
+Each journey goes step by step: what the user does, and what the screen shows in reply. Where a journey runs the project, the run is seed 42, from `npm run simulate`, and its numbers are quoted from the CLI's report, which shows the same verdict and findings as the run panel. Every journey's project is Template A, built or copied, so its runs are the template's, which the scenario tests keep current.
 
 ### 2.1 Model your own system
 
-You run a link shortener on AWS: API Gateway in front of one Lambda function, `fn-links`, which reads and writes one DynamoDB table, `links`. It serves about 300 requests a second, 95% of them people following a link. Next week a launch will send ten times that for 30 s, and you want to know if it holds.
+Your orders service runs on AWS: API Gateway in front of one Lambda function, `fn-orders`, which reads and writes a PostgreSQL database on RDS, `orders-db`. Most requests read an order; one in five creates one. A lunchtime promotion is coming, and you want to know if the service holds. Template A has this shape, so you could copy it ("Create from template"); this journey starts blank, to show building from nothing. Every value you enter is Template A's, so the run is Template A's lunch rush.
 
-1. **Start.** On the projects screen, under the templates, you choose **New** "Start a blank project". A name field asks for the project's name; you type "Link shortener" and press Enter. The project screen opens on an empty diagram: **New** "No components yet. Add one to start describing your system." beside an "Add component" button. The run panel says what it says today for a project without workloads: "This project has no workloads to run." **Proposed:** what a blank project holds ([§5](#5-data-needs)).
-   *Shortcut:* copy Template A instead, which has the same shape with RDS where you have DynamoDB, and swap the database ([§2.4](#24-add-a-component-and-remove-one)).
+1. **Start.** On the projects screen, "New project" offers two choices: **New** "Create from template" (the templates, as today) and **New** "Create blank". You choose blank. A name field asks for the project's name; you type "Orders service" and press Enter. The project screen opens on an empty diagram: **New** "No components yet. Add one to start describing your system." beside an "Add component" button. The run panel says what it says today for a project without workloads: "This project has no workloads to run." **Proposed:** what a blank project holds ([§5](#5-data-needs)).
 2. **Add the API.** "Add component" lists the five types, each with a line on what it's for: **New** "API Gateway: the front door; throttles requests over its rate." You choose it. A box appears on the diagram, selected, and the details drawer opens beside the diagram with the name field focused: **New** "api-gateway-1". You name it "api". Its settings show their defaults, each with its unit and help: "Rate, requests/s: 10,000. The default is the account's limit per Region, shared by every API in it ([APIGW-1](fidelity.md#apigw-1-the-throttle-limit-belongs-to-one-component-not-the-account))." You keep them. **Proposed:** the drawer ([§3](#3-layout)), the field descriptors and component names ([§5](#5-data-needs)).
-3. **Add the function, translating a real setting.** You add a Lambda and name it "fn-links". Your real function has reserved concurrency 100. The concurrency field's help says how that maps: **New** "Invocations running at once before Lambda throttles. In AWS, the function's reserved concurrency, if it has one; otherwise the account's unreserved pool, shared by every function ([LMB-1](fidelity.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account))." You enter 100. The drawer says which workflow steps call the component, and there are none yet: **New** "Called by: nothing yet. A component does nothing until a workflow step calls it."
-4. **Add the table, translating a setting that doesn't map one to one.** You add a DynamoDB table, "links". Yours is provisioned at 400 read and 100 write capacity units, and your code reads with the default, eventually consistent reads. The read units' help: **New** "Reads a second before DynamoDB throttles; each read here uses one unit. In AWS, an eventually consistent read of up to 4 KB uses half a unit, so for those, enter twice your read capacity units." That's **Documented** ([DDB-1](fidelity.md#ddb-1-every-request-costs-one-capacity-unit)). You enter 800 reads and 100 writes. Burst's help says AWS keeps up to 300 s of unused capacity but doesn't promise it ([DDB-2](fidelity.md#ddb-2-the-burst-bucket-starts-full-and-is-reliable)); you keep the default, 300. The diagram has three boxes and no arrows: nothing connects yet, and the text version under it says so.
-5. **Connect them.** Edges are part of the architecture, like components: you draw them. You drag from api's edge handle to fn-links, and an arrow appears. From the keyboard, the drawer's **New** "Connect to…" picker does the same. You select the new arrow to check it; the drawer shows its latency, timeout, and retry. Its timeout is 29,000 ms, a default from its caller's type, with the help "API Gateway waits up to 29 s for an integration by default" (**Documented:** [API Gateway quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html)). You connect fn-links to links the same way. **Proposed:** edge defaults ([§5](#5-data-needs)).
-6. **Describe a request's path.** In the workflow editor you add "Follow link": a call to api, under it a call to fn-links, under that a `read` of links. You add "Shorten" the same way, ending in a `write`. Both follow the edges you drew. [§2.5](#25-describe-a-requests-path) goes through the editor step by step. fn-links' drawer now says **New** "Called by: Follow link, Shorten."
-7. **Set the traffic.** In the workload editor you add "Launch spike": 60 s, seed 42, a mix of Follow link 95 and Shorten 5, and a profile of 300 requests a second for 10 s, 3,000 from 11 s to 40 s, then 300 again. The run panel now offers it.
-8. **Check the picture.** The diagram shows `api → fn-links → links`. You select Follow link, and the diagram highlights the components and edges it uses. Validation finds nothing. **Proposed:** where validation shows when it does find something ([§5](#5-data-needs)).
+3. **Add the function, translating a real setting.** You add a Lambda and name it "fn-orders". The concurrency field's help says how your function's settings map: **New** "Invocations running at once before Lambda throttles. In AWS, the function's reserved concurrency, if it has one; otherwise the account's unreserved pool, shared by every function ([LMB-1](fidelity.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account))." Your function has no reserved concurrency, so you keep the account's default, 1,000. The drawer says which workflow steps call the component, and there are none yet: **New** "Called by: nothing yet. A component does nothing until a workflow step calls it."
+4. **Add the database: one setting from AWS, one that isn't AWS's.** You add an RDS database, "orders-db". Max connections' help: **New** "Connections the database accepts before refusing more: its `max_connections` parameter. The default depends on the engine and the instance's memory." That's **Documented** ([RDS-1](fidelity.md#rds-1-the-default-connection-limit-isnt-tied-to-an-instance-size)). Your database allows 90, and you enter it. Query workers has no AWS counterpart, and its help says so: **New** "How many queries the database runs at once, standing in for its CPU. RDS has no such setting: a larger instance class has more CPU." That's the model's assumption ([RDS-2](fidelity.md#rds-2-database-capacity-is-a-fixed-pool-of-query-workers)). You have nothing to translate, so you keep the default, 16.
+5. **Connect them.** Edges are part of the architecture, like components: you draw them. You drag from api's edge handle to fn-orders, and an arrow appears. From the keyboard, the drawer's **New** "Connect to…" picker does the same. You select the new arrow to check it; the drawer shows its latency, timeout, and retry. Its timeout is 29,000 ms, a default from its caller's type, with the help "API Gateway waits up to 29 s for an integration by default" (**Documented:** [API Gateway quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html)). You connect fn-orders to orders-db, and set that edge's timeout to your code's 5 s. **Proposed:** edge defaults ([§5](#5-data-needs)).
+6. **Describe a request's path.** In the workflow editor you add "Get order": a call to api, under it a call to fn-orders, under that a `read` of orders-db. You add "Create order" the same way, ending in a `write`. Both follow the edges you drew. [§2.5](#25-describe-a-requests-path) goes through the editor step by step. fn-orders' drawer now says **New** "Called by: Get order, Create order."
+7. **Set the traffic.** In the workload editor you add "Lunch rush": 60 s, seed 42, a mix of Get order 80 and Create order 20, and a profile of 200 requests a second, rising from 10 s to 2,000 at 20 s, held to 40 s, and back to 200 at 50 s. The run panel now offers it.
+8. **Check the picture.** The diagram shows `api → fn-orders → orders-db`. You select Get order, and the diagram highlights the components and edges it uses. Validation finds nothing. **Proposed:** where validation shows when it does find something ([§5](#5-data-needs)).
 9. **Run it.** You click Run. When it finishes:
-   > **Failing.** 4,572 of 98,898 answered requests failed (4.6%); 11 were still in progress when the run ended.
+   > **Failing.** 28,841 of 65,963 answered requests failed (43.7%); 11 were still in progress when the run ended.
 
-   The one finding: "Failure: 4,572 requests failed with fn-links: throttled, from 10 s to 41 s." fn-links held all 100 of its concurrency in every second with these failures, and the failures stopped when the spike did. [totals: Failures; Limits `concurrency` 100 of 100] The finding names fn-links; you select it, and fn-links is highlighted on the diagram. **Proposed:** selection ([§4.1](#41-selection)).
-10. **Read what the verdict doesn't say.** The Limits table shows that reads drew up to 2,762 tokens a second from `links`, against 800 provisioned, and the table still refused nothing: its 240,000-token burst (800 × 300 s) was at most 23.5% drawn. [totals: Limits `readUnits`] Your table survived the spike on saved-up capacity, which AWS doesn't promise. You select `links`, set burst to 5 s, and run again:
-    > **Failing.** 58,000 of 98,898 answered requests failed (58.6%); 11 were still in progress when the run ended.
+   The one finding: "Failure: 28,841 requests failed with orders-db: too-many-connections, from 14 s to 47 s." You select it, and orders-db is highlighted on the diagram. **Proposed:** selection ([§4.1](#41-selection)).
+10. **Read why.** The finding's note says requests waited for orders-db's query workers, holding their connections while they waited: "16 running and up to 74 waiting is 90". The setting you had nothing to translate in step 4 is the one that matters. The note's fix in Wind Tunnel is "Raise queryWorkers"; in AWS, the finding's fix is "Move to a larger DB instance class". [the finding's sentences; findings.md [§1.1](findings.md#11-template-a-lunch-rush-failing) reads this run in full] [§2.2](#22-edit-a-components-settings) goes round the loop again from here.
 
-    Now the first finding is `links: throttled`, 56,888 failures, with a note that the 4,000-token bucket "lasted between 2 s and 3 s" at 2,108 tokens a second against a refill of 800. Its fix: provision read units for the sustained rate. [totals: Failures; the finding's sentences] Before the second run, while you changed burst, the run panel marked the first run as out of date: **New** "This run is of an earlier version of the project. Run again to see your changes." **Proposed:** run freshness ([§4.2](#42-run-freshness)).
-11. **Undo, and fix the function.** You undo the burst change (Ctrl+Z, or the Undo button), and burst is 300 again. The run on screen is the 5 s one, so it's still marked out of date. You set fn-links' concurrency to 200 (in AWS, raising its reserved concurrency; up to 900 can be reserved, [LMB-1](fidelity.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account)) and run:
-    > **Failing.** 13 of 98,900 answered requests failed (0.0%); 9 were still in progress when the run ended.
-
-    All 13 failed in the second ending at 12 s, the spike's first full second, when fn-links held all 200; for the rest of the spike its concurrency peaked at 131. [the finding's sentences] fn-links cold-started 200 environments over the run [totals: Components `coldStarts`], but nothing on screen says the onset's cold starts are why it hit 200: the finding has no fix for Lambda throttling yet ([§7](#7-not-yet)).
-
-This journey needs every M6 slice. Steps 1 to 5 and 9 to 11 are the first slices; 6 and 7 are the workflow and workload editors.
+This journey needs every M6 slice. Steps 1 to 5 and 9 to 10 are the first slices; 6 and 7 are the workflow and workload editors.
 
 ### 2.2 Edit a component's settings
 
-You copied Template A and ran its lunch rush: "Failing. 28,841 of 65,963 answered requests failed (43.7%)". The finding's note says requests waited for orders-db's query workers, and its first fix is "Raise queryWorkers, so queries stop waiting for a worker".
+Going round the loop again, from the end of §2.1 (or from a copy of Template A, run on its lunch rush): "Failing. 28,841 of 65,963 answered requests failed (43.7%)", and the finding's note suggests "Raise queryWorkers, so queries stop waiting for a worker".
 
-1. **Open.** You select orders-db, on the diagram or in its text version. The drawer opens with its settings: max connections 90, query workers 16, query time "lognormal, median 15 ms, p99 60 ms". Query workers isn't an AWS setting, and its help says so: **New** "How many queries the database runs at once, standing in for its CPU. RDS has no such setting: a larger instance class has more CPU." That's the model's assumption, [RDS-2](fidelity.md#rds-2-database-capacity-is-a-fixed-pool-of-query-workers).
-2. **A plain number.** You set query workers to 64. The change saves as you leave the field (or press Enter), and the run is marked out of date. You run again:
+1. **Open.** You select orders-db, on the diagram or in its text version. The drawer opens with its settings: max connections 90, query workers 16, query time "lognormal, median 15 ms, p99 60 ms".
+2. **A plain number.** You set query workers to 64. The change saves as you leave the field (or press Enter), and the run panel marks the run on screen as out of date: **New** "This run is of an earlier version of the project. Run again to see your changes." **Proposed:** run freshness ([§4.2](#42-run-freshness)). You run again:
    > **Healthy.** All 65,961 answered requests succeeded; 13 were still in progress when the run ended.
    > Closest to failing: orders-db connections, at most 60 of 90 (66.6%).
 
@@ -84,25 +76,25 @@ You copied Template A, and want DynamoDB where it has RDS.
 
 ### 2.5 Describe a request's path
 
-The workflow editor, in the link shortener of §2.1, after step 5: three components, two edges, no workflows. A workflow is a tree of calls: each step calls one component with one action, and makes its own calls in order while it holds that component's resources (a Lambda invocation keeps its concurrency slot while its database call runs).
+The workflow editor, in the orders service of §2.1, after step 5: three components, two edges, no workflows. A workflow is a tree of calls: each step calls one component with one action, and makes its own calls in order while it holds that component's resources (a Lambda invocation keeps its concurrency slot while its database call runs).
 
 1. **Find the editor.** Beside the diagram's "Add component" is a list of the project's workflows, empty: **New** "No workflows yet. A workflow is the path one kind of request takes through your architecture." beside "Add workflow". **Proposed:** where the list lives ([§3](#3-layout)).
-2. **Add one.** You choose "Add workflow" and name it "Follow link". The workflow opens in the drawer as an outline with one empty first step. Its component picker lists every component; you choose api. Its action picker lists only what API Gateway accepts, `invoke`, and picks it, since there's only one.
-3. **Add calls.** Under the api step is **New** "Add a call from api". Its picker lists api's neighbours, the components an edge from api reaches (here fn-links), first, and the rest after them. You choose fn-links, `invoke`; then, under it, links. DynamoDB accepts `read` and `write`, so the action picker asks; you choose `read`. The outline reads:
+2. **Add one.** You choose "Add workflow" and name it "Get order". The workflow opens in the drawer as an outline with one empty first step. Its component picker lists every component; you choose api. Its action picker lists only what API Gateway accepts, `invoke`, and picks it, since there's only one.
+3. **Add calls.** Under the api step is **New** "Add a call from api". Its picker lists api's neighbours, the components an edge from api reaches (here fn-orders), first, and the rest after them. You choose fn-orders, `invoke`; then, under it, orders-db. RDS accepts `read` and `write`, so the action picker asks; you choose `read`. The outline reads:
 
    ```
-   Follow link                          Used by: no workload yet
+   Get order                            Used by: no workload yet
    1  api · invoke
-      1.1  fn-links · invoke
-           1.1.1  links · read
-           + Add a call from fn-links
+      1.1  fn-orders · invoke
+           1.1.1  orders-db · read
+           + Add a call from fn-orders
       + Add a call from api
    ```
 
-   On the diagram, the three components and two edges the workflow uses are highlighted, and the text version below it lists **New** "Follow link: api → fn-links → links (read)."
+   On the diagram, the three components and two edges the workflow uses are highlighted, and the text version below it lists **New** "Get order: api → fn-orders → orders-db (read)."
 4. **A call with no edge.** Had you chosen a component that api has no edge to, the picker would say so beside it: **New** "No edge from api yet; choosing it adds one." Choosing it draws the edge, with its defaults. **Proposed:** a call adds its edge ([§4.3](#43-editing-and-saving)).
-5. **Order matters.** You add "Shorten" the same way, then decide your code first reads links to check that the short code is free, then writes it. Under fn-links you add a `read`, then a `write`; Move up and Move down buttons on each step reorder siblings, from the keyboard too. fn-links holds its slot through both calls, in that order.
-6. **Remove a step.** You remove Shorten's `read` again; it has no calls, so it goes without asking. Removing fn-links' step instead would take its two calls with it, and asks first: **New** "Remove fn-links · invoke and the 2 calls under it?" Undo brings back what a remove took, as one step.
+5. **Order matters.** You add "Create order" the same way, then remember that your code first reads the customer's record, then writes the order. Under fn-orders you add a `read`, then a `write`; Move up and Move down buttons on each step reorder siblings, from the keyboard too. fn-orders holds its slot through both calls, in that order.
+6. **Remove a step.** To match Template A, you remove Create order's `read` again; it has no calls, so it goes without asking. Removing fn-orders' step instead would take its two calls with it, and asks first: **New** "Remove fn-orders · invoke and the 2 calls under it?" Undo brings back what a remove took, as one step.
 7. **A step that can't run.** A step whose component isn't in the architecture, or whose call has no edge, shows its issue on the step (§2.4, step 5). Its workflow can't run, and nor can the workloads that use it; the rest of the project can.
 8. **Async work.** Only an `enqueue` step gets **New** "Async work, done when a consumer takes the message" under it, a second tree that starts when the message is delivered. [§2.6](#26-sketch-put-a-queue-in-front-of-a-slow-component) uses it.
 
@@ -173,129 +165,4 @@ Each row is something a journey step needs. Rows marked *open* are filled in as 
 
 ## 7. Not yet
 
-*To write:* what this design leaves for later, and why. Known so far: comparing a run with the one before, and a "take this fix" control, which needs a fix to name its component, setting, and value. Both moved to the Roadmap's Not scheduled when M6 was refocused on modeling your own architecture. Also known: a Lambda throttling finding has no fix, and doesn't say when cold starts filled the concurrency (§2.1, step 11). That's the findings' work, not M6's.
-
-## Appendix A: the link shortener
-
-§2.1's project, as a version 1 document. To run it, save it over `src/adapters/templates/template-a.json` (its `id` stays `template-a` so the CLI finds it), run `npm run simulate -- --template template-a`, and restore the file. Step 10's second run sets `burstSec` to 5; step 11's sets `concurrency` to 200.
-
-<details>
-<summary>The project document</summary>
-
-```json
-{
-  "schemaVersion": 1,
-  "id": "template-a",
-  "name": "Link shortener",
-  "createdAt": "2026-10-23T00:00:00Z",
-  "updatedAt": "2026-10-23T00:00:00Z",
-  "architecture": {
-    "components": [
-      {
-        "id": "api",
-        "type": "api-gateway",
-        "name": "api",
-        "config": {
-          "ratePerSec": 10000,
-          "burst": 5000,
-          "overhead": { "kind": "lognormal", "medianMs": 10, "p99Ms": 25 }
-        }
-      },
-      {
-        "id": "fn-links",
-        "type": "lambda",
-        "name": "fn-links",
-        "config": {
-          "concurrency": 100,
-          "coldStart": { "kind": "lognormal", "medianMs": 300, "p99Ms": 1000 },
-          "idleTimeoutSec": 600,
-          "computeTime": { "kind": "lognormal", "medianMs": 20, "p99Ms": 80 }
-        }
-      },
-      {
-        "id": "links",
-        "type": "dynamodb",
-        "name": "links",
-        "config": {
-          "readUnitsPerSec": 800,
-          "writeUnitsPerSec": 100,
-          "burstSec": 300,
-          "latency": { "kind": "lognormal", "medianMs": 5, "p99Ms": 20 }
-        }
-      }
-    ],
-    "edges": [
-      {
-        "id": "api->fn-links",
-        "from": "api",
-        "to": "fn-links",
-        "latencyMs": 2,
-        "timeoutMs": 29000,
-        "retry": { "maxAttempts": 1, "backoff": "none", "baseDelayMs": 0 }
-      },
-      {
-        "id": "fn-links->links",
-        "from": "fn-links",
-        "to": "links",
-        "latencyMs": 1,
-        "timeoutMs": 5000,
-        "retry": { "maxAttempts": 1, "backoff": "none", "baseDelayMs": 0 }
-      }
-    ]
-  },
-  "workflows": [
-    {
-      "id": "follow-link",
-      "name": "Follow link",
-      "root": {
-        "componentId": "api",
-        "action": "invoke",
-        "calls": [
-          {
-            "componentId": "fn-links",
-            "action": "invoke",
-            "calls": [{ "componentId": "links", "action": "read" }]
-          }
-        ]
-      }
-    },
-    {
-      "id": "shorten",
-      "name": "Shorten",
-      "root": {
-        "componentId": "api",
-        "action": "invoke",
-        "calls": [
-          {
-            "componentId": "fn-links",
-            "action": "invoke",
-            "calls": [{ "componentId": "links", "action": "write" }]
-          }
-        ]
-      }
-    }
-  ],
-  "workloads": [
-    {
-      "id": "launch",
-      "name": "Launch spike",
-      "durationSec": 60,
-      "seed": 42,
-      "mix": [
-        { "workflowId": "follow-link", "weight": 95 },
-        { "workflowId": "shorten", "weight": 5 }
-      ],
-      "profile": [
-        { "atSec": 0, "requestsPerSec": 300 },
-        { "atSec": 10, "requestsPerSec": 300 },
-        { "atSec": 11, "requestsPerSec": 3000 },
-        { "atSec": 40, "requestsPerSec": 3000 },
-        { "atSec": 41, "requestsPerSec": 300 }
-      ]
-    }
-  ],
-  "layout": { "nodes": {} }
-}
-```
-
-</details>
+*To write:* what this design leaves for later, and why. Known so far: comparing a run with the one before, and a "take this fix" control, which needs a fix to name its component, setting, and value. Both moved to the Roadmap's Not scheduled when M6 was refocused on modeling your own architecture.

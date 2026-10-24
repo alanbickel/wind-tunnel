@@ -23,7 +23,9 @@ export interface TabsProps<Id extends string> {
  * list for its panel. Every panel stays mounted, the hidden ones `hidden`,
  * so what a panel holds (a run's charts, a details pane's fields) is still
  * there when its tab is selected again. Each panel scrolls on its own and
- * takes a tab stop, so the keyboard can scroll it.
+ * takes a tab stop, so the keyboard can scroll it. Each starts with its
+ * tab's label as a visually hidden h3, a Panel's level, so the headings in
+ * it sit under that label in a screen reader's outline.
  */
 export function Tabs<Id extends string>(props: TabsProps<Id>) {
   const baseId = useId();
@@ -34,7 +36,7 @@ export function Tabs<Id extends string>(props: TabsProps<Id>) {
   return (
     <div className={styles.tabs}>
       <TabList {...props} ids={ids} />
-      {props.tabs.map(({ id, content }) => (
+      {props.tabs.map(({ id, label, content }) => (
         <div
           key={id}
           id={ids.panel(id)}
@@ -44,6 +46,7 @@ export function Tabs<Id extends string>(props: TabsProps<Id>) {
           tabIndex={0}
           hidden={id !== props.selected}
         >
+          <h3 className={styles.heading}>{label}</h3>
           {content}
         </div>
       ))}
@@ -115,12 +118,12 @@ function TabButton<Id extends string>(props: TabButtonProps<Id>) {
 }
 
 /** Where a key moves to, from the tab at `index` of `count`. */
-interface TabMove {
+interface TabMoveInput {
   readonly index: number;
   readonly count: number;
 }
 
-const KEY_MOVES: Readonly<Record<string, (move: TabMove) => number>> = {
+const KEY_MOVES: Readonly<Record<string, (move: TabMoveInput) => number>> = {
   ArrowRight: ({ index, count }) => (index + 1) % count,
   ArrowLeft: ({ index, count }) => (index - 1 + count) % count,
   Home: () => 0,

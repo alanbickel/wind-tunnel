@@ -17,16 +17,22 @@
   color: var(--color-text-muted);
 }
 
+/* Spaced with margins, not gap, so an empty status takes no room. */
 .run {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
-/* The status stays laid out while it's empty: hidden with display: none,
-   it would leave the accessibility tree, and some screen readers wouldn't
-   announce its first text. */
-.none,
-.status {
+.run > * {
   margin: 0;
+}
+
+.run > :not(:first-child) {
+  margin-top: var(--space-2);
+}
+
+/* The status region stays rendered while it's empty, so screen readers
+   know it before its first text and announce that; it just takes no room. */
+.run > .status:empty {
+  margin-top: 0;
 }

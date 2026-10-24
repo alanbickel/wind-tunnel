@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { Project } from "../../domain/model/project";
 import { RunControls } from "../run/RunControls";
 import { RunProgress } from "../run/RunProgress";
@@ -13,13 +14,15 @@ export interface ProjectBarProps {
 /**
  * The top of a project screen, above both columns: the project's name and
  * description, then what runs it, how far the run has got, and its status.
+ * A region named by the project, so a screen reader can jump to it.
  */
 export function ProjectBar({ project, projectRun }: ProjectBarProps) {
   const { run, ran, status } = projectRun;
+  const headingId = useId();
   return (
-    <div className={styles.bar}>
+    <section aria-labelledby={headingId} className={styles.bar}>
       <div className={styles.intro}>
-        <ScreenHeading>{project.name}</ScreenHeading>
+        <ScreenHeading id={headingId}>{project.name}</ScreenHeading>
         {project.description && (
           <p className={styles.description}>{project.description}</p>
         )}
@@ -34,7 +37,7 @@ export function ProjectBar({ project, projectRun }: ProjectBarProps) {
           {status}
         </p>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -42,7 +45,7 @@ export function ProjectBar({ project, projectRun }: ProjectBarProps) {
 function WorkloadControls({ project, projectRun }: ProjectBarProps) {
   const { run, picked, pick } = projectRun;
   if (picked === undefined) {
-    return <p className={styles.none}>This project has no workloads to run.</p>;
+    return <p>This project has no workloads to run.</p>;
   }
   return (
     <RunControls

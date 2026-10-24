@@ -84,6 +84,11 @@ function requestsSoFar(): (string | null)[] {
   );
 }
 
+/** The project bar, named by the project. */
+function bar(): HTMLElement {
+  return screen.getByRole("region", { name: "Sample project" });
+}
+
 function clickRun(): void {
   fireEvent.click(screen.getByRole("button", { name: "Run" }));
 }
@@ -99,11 +104,13 @@ describe("OpenedProject's project bar", () => {
   // or Run, or a run started from the bar doesn't fill the Run tab.
   it("shows the project and runs it, filling the Run tab", () => {
     const { runner } = renderProject();
+    const inBar = within(bar());
     expect(
-      screen.getByRole("heading", { level: 2, name: "Sample project" }),
+      inBar.getByRole("heading", { level: 2, name: "Sample project" }),
     ).toBeTruthy();
-    expect(screen.getByText("A small project for tests.")).toBeTruthy();
-    expect(screen.getByRole("combobox", { name: "Workload" })).toBeTruthy();
+    expect(inBar.getByText("A small project for tests.")).toBeTruthy();
+    expect(inBar.getByRole("combobox", { name: "Workload" })).toBeTruthy();
+    expect(inBar.getByRole("button", { name: "Run" })).toBeTruthy();
     expect(screen.getByText("Nothing has run yet.")).toBeTruthy();
 
     clickRun();
@@ -152,6 +159,8 @@ describe("OpenedProject's project bar", () => {
     expect(status()).toBe("Finished Steady. Failing so far.");
   });
 
+  // Fails if the progress bar counts snapshots instead of simulated time
+  // (simulatedSec returning snapshots.length): it would read 2 of 2.5.
   it("measures progress in simulated time, so a run that ends partway through a second fills the bar", async () => {
     const [steady] = sampleRecord.project.workloads;
     if (steady === undefined) throw new Error("sample has no workload");
@@ -193,6 +202,8 @@ describe("OpenedProject's project bar", () => {
     expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
   });
 
+  // Fails if a run that throws doesn't say so in the status line, or the
+  // line drops the error's message.
   it("says why a run failed", async () => {
     const { runner } = renderProject();
     clickRun();
@@ -218,6 +229,9 @@ describe("OpenedProject's project bar", () => {
     expect(runner.runs).toBe(1);
   });
 
+  // Fails if Stop is usable when no run is going, Run stays usable while
+  // one is, or starting a run moves the focus off Run (as swapping Run for
+  // a Stop button would).
   it("offers Stop only while running, without moving the focus", async () => {
     const { runner } = renderProject();
     const run = screen.getByRole("button", { name: "Run" });
@@ -274,6 +288,8 @@ describe("OpenedProject's project bar", () => {
     ]);
   });
 
+  // Fails if useSimulationRun's guard reads the phase instead of its ref:
+  // two clicks before a re-render would start two runs.
   it("ignores a second Run that lands before React re-renders", () => {
     // Both clicks in one act(), so the second still sees Run as usable;
     // only the hook's own guard can stop it.
@@ -288,6 +304,8 @@ describe("OpenedProject's project bar", () => {
     expect(runner.runs).toBe(1);
   });
 
+  // Fails if the run outlives the screen now that OpenedProject holds it:
+  // drop useSimulationRun's abort on unmount and the runner never stops.
   it("stops the run when the user leaves the screen", () => {
     const { runner, unmount } = renderProject();
     clickRun();
@@ -303,7 +321,7 @@ describe("OpenedProject's project bar", () => {
     renderProject({ project: { ...sampleRecord.project, workloads: [] } });
 
     expect(
-      screen.getByText("This project has no workloads to run."),
+      within(bar()).getByText("This project has no workloads to run."),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Run" })).toBeNull();
   });
@@ -329,9 +347,26 @@ describe("OpenedProject in a wide window", () => {
     fireEvent.keyDown(screen.getByRole("tab", { name: "Run" }), {
       key: "ArrowLeft",
     });
-    expect(screen.getByRole("tabpanel", { name: "Details" }).textContent).toBe(
-      "Nothing selected.",
-    );
+    expect(
+      within(screen.getByRole("tabpanel", { name: "Details" })).getByText(
+        "Nothing selected.",
+      ),
+    ).toBeTruthy();
+  });
+
+  // Fails if the Run tab has no h3 of its own: a screen reader's outline
+  // would put the run's findings and totals under Architecture.
+  it("heads the Run tab, so the run's headings sit under it", () => {
+    const { runner } = renderProject();
+    clickRun();
+    runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
+
+    const runTab = screen.getByRole("tabpanel", { name: "Run" });
+    const [first, ...rest] = within(runTab).getAllByRole("heading");
+
+    expect(first?.tagName).toBe("H3");
+    expect(first?.textContent).toBe("Run");
+    expect(rest.map((heading) => heading.tagName)).toContain("H4");
   });
 
   // Fails if showing Details stops the run, or selecting Run again starts
@@ -374,6 +409,11 @@ describe("OpenedProject in a narrow window", () => {
     expect(screen.queryByText("Nothing selected.")).toBeNull();
     const panel = screen.getByRole("region", { name: "Run" });
     expect(panel.tabIndex).toBe(0);
+    const architecture = screen.getByRole("region", { name: "Architecture" });
+    expect(
+      architecture.compareDocumentPosition(panel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
   });
 });

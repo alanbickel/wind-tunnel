@@ -90,6 +90,10 @@
   --line-width: 1px;
   --line-width-thick: 2px;
 
+  /* Text for screen readers only: one pixel, not none, since some screen
+     readers skip an element with no size. */
+  --visually-hidden-size: 1px;
+
   /* Layout. The project list's column stops widening at the content width.
      Prose stops at a readable line length, however wide its container. */
   --content-max-width: 72rem;

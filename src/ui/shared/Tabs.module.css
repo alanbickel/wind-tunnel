@@ -41,6 +41,8 @@
 /* Sideways too, so a table wider than the panel never widens the page.
    No display here: one would override the hidden panels' display: none. */
 .panel {
+  /* Holds the hidden heading, so it can't overflow the page. */
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -49,4 +51,14 @@
 
 .panel > :last-child {
   margin-bottom: 0;
+}
+
+/* Read by screen readers, not shown: the tab above already says it. */
+.heading {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

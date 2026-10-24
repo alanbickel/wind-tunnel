@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Tabs } from "./Tabs";
@@ -26,11 +32,16 @@ function tab(name: string): HTMLElement {
   return screen.getByRole("tab", { name });
 }
 
+/** The text of a panel's content, without its hidden heading. */
+function contentOf(panel: HTMLElement | undefined): string | null | undefined {
+  return panel?.querySelector("p")?.textContent;
+}
+
 /** The tab with the focus, and the one panel showing, by their text. */
-function showing(): [string | null | undefined, string | null] {
+function showing(): [string | null | undefined, string | null | undefined] {
   return [
     document.activeElement?.textContent,
-    screen.getByRole("tabpanel").textContent,
+    contentOf(screen.getByRole("tabpanel")),
   ];
 }
 
@@ -50,7 +61,7 @@ describe("Tabs", () => {
       -1, 0, -1,
     ]);
     const panel = screen.getByRole("tabpanel", { name: "Banana" });
-    expect(panel.textContent).toBe("Banana panel");
+    expect(contentOf(panel)).toBe("Banana panel");
     expect(panel.tabIndex).toBe(0);
   });
 
@@ -72,12 +83,25 @@ describe("Tabs", () => {
     expect(showing()).toEqual(["Cherry", "Cherry panel"]);
   });
 
+  // Fails if clicking a tab doesn't select it (TabButton without onClick).
   it("selects a tab when it's clicked", () => {
     render(<Fruits />);
 
     fireEvent.click(tab("Apple"));
 
-    expect(screen.getByRole("tabpanel").textContent).toBe("Apple panel");
+    expect(contentOf(screen.getByRole("tabpanel"))).toBe("Apple panel");
+  });
+
+  // Fails if a panel doesn't start with an h3 of its tab's label: the
+  // headings in it would sit under whatever heading came before the tabs.
+  it("heads each panel with its tab's label", () => {
+    render(<Fruits />);
+
+    const panel = screen.getByRole("tabpanel");
+    const [first] = within(panel).getAllByRole("heading");
+
+    expect(first?.tagName).toBe("H3");
+    expect(first?.textContent).toBe("Banana");
   });
 
   // Fails if Tabs unmounts the panels it hides: their state would be lost.
@@ -87,7 +111,7 @@ describe("Tabs", () => {
     const panels = screen.getAllByRole("tabpanel", { hidden: true });
 
     expect(panels.map((panel) => panel.hidden)).toEqual([true, false, true]);
-    expect(panels[0]?.textContent).toBe("Apple panel");
+    expect(contentOf(panels[0])).toBe("Apple panel");
   });
 
   // Fails if Tabs swallows keys it doesn't use, such as Tab or Enter.

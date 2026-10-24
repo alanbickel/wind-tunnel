@@ -114,7 +114,72 @@ What this tests:
 
 ## 3. Layout
 
-*To write:* where the details drawer, the editors, the run controls, and the findings live, and what stays visible while editing. ASCII wireframes of the wide and narrow layouts. This settles whether the run controls move to the top bar. It also places the items punted from M5: selecting a finding highlights its component, and node status dots.
+The loop needs three things in reach at once: the picture (the diagram), the thing being changed (the drawer), and whether the project still holds up (Run, and the verdict). Today's screen has two columns from the `--breakpoint-wide` width up, the architecture and the run panel, and stacks them below it ([UI guide, Layout](../architecture/user-interface.md#patterns-youll-see)). This design keeps the two columns and adds a project bar above them.
+
+### 3.1 Wide
+
+```
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ Wind Tunnel    Projects › Orders service                              Theme ▾ │ top bar, as today
+├───────────────────────────────────────────────────────────────────────────────┤
+│ Orders service  [Rename]  [Undo] [Redo]       Workload [Lunch rush ▾] [Edit]  │ project bar
+│                                               [Run]  Failing: 28,841 of 65,963│
+│                                               failed (43.7%). Out of date.    │
+├─────────────────────────────────────────┬─────────────────────────────────────┤
+│ Architecture           [Add component]  │  Details │ Run                      │
+│ ┌─────────────────────────────────────┐ │ ────────                            │
+│ │                                     │ │ orders-db · RDS            [Remove] │
+│ │ [api] ─▶ [fn-orders] ─▶ [orders-db]●│ │ Name             [orders-db     ]   │
+│ │                                     │ │ Max connections  [90            ]   │
+│ │                                     │ │   The database's max_connections…   │
+│ └─────────────────────────────────────┘ │ Query workers    [64            ]   │
+│ ▸ Components and connections as text    │ Query time  [lognormal ▾]           │
+│ Workflows                [Add workflow] │   median [15] ms   p99 [60] ms      │
+│   Get order   Create order              │ Called by: Get order, Create order  │
+│ Workloads                [Add workload] │ [Connect to… ▾]                     │
+│   Lunch rush   Steady day   Long rush   │                                     │
+└─────────────────────────────────────────┴─────────────────────────────────────┘
+```
+
+- **The project bar** spans the screen under the top bar, and stays while the columns scroll. It holds the project's name and Rename (§2.3), Undo and Redo, the workload picker with Edit (which opens the workload in the drawer), Run and Stop, and the run's status: progress while it runs, then the verdict's first sentence, and "Out of date" once the project changes (§4.2). This settles TODO look-and-feel item 5: the run controls leave the run panel, but for the project bar, not the app's top bar, which is the same on every screen and has nothing to run on the projects list. The project's description stays under its name.
+- **The left column is the model.** The diagram fills it, with "Add component" above it and the text version below it, as today. Under those, the workflows and workloads, one line each with an Add button: selecting one opens it in the drawer (§2.5). The diagram shows the selection, a workflow's path (§2.5, step 3), and after a run each component's status dot.
+- **The right column holds the drawer and the run's results, as two tabs: Details and Run.** Selecting anything opens Details; Run, or Escape in the drawer, shows the run again. Run holds what the run panel shows under its controls today: the findings, then the totals, then the charts.
+- **What stays visible while editing:** the project bar (the verdict, whether it's out of date, Run, Undo), the diagram, and the lists. The findings, totals, and charts are one tab away. A finding's "fix" names a setting the user then opens in Details, so the two are seen in turn, not side by side; [§7](#7-not-yet) has a third column for windows wide enough.
+
+### 3.2 Narrow
+
+Below `--breakpoint-wide`, one column, and the page scrolls, as today:
+
+```
+┌──────────────────────────────────┐
+│ Wind Tunnel  Projects › Orders…▾ │ top bar
+├──────────────────────────────────┤
+│ Orders service  [Rename]         │ project bar,
+│ [Undo] [Redo]                    │ wrapped
+│ Workload [Lunch rush ▾] [Edit]   │
+│ [Run]  Failing: 28,841 of 65,963 │
+│ failed (43.7%). Out of date.     │
+├──────────────────────────────────┤
+│ Architecture     [Add component] │
+│ ┌──────────────────────────────┐ │
+│ │ [api] → [fn-orders] → [db]●  │ │
+│ └──────────────────────────────┘ │
+│ ▸ Components and connections…    │
+│ Workflows / Workloads            │
+├──────────────────────────────────┤
+│ Details: orders-db       [Close] │ only while something
+│ …                                │ is selected
+├──────────────────────────────────┤
+│ Run: findings, totals, charts    │
+└──────────────────────────────────┘
+```
+
+The project bar wraps and doesn't stick, so it doesn't take a small screen's height. Details appears under the model only while something is selected, and selecting moves the focus to its heading, so the keyboard and a screen reader land on it (§4.1). There are no tabs: the run's results follow, as the run panel does today.
+
+### 3.3 The items punted from M5
+
+- **Selecting a finding highlights its component.** In the wide layout the diagram stays in view while the Run tab shows the findings, so the highlight is seen as it's made; the charts are in the same tab, so shading a finding's windows on them needs no more room. How selection works is §4.1.
+- **Node status dots** go on the diagram's node cards, from the run on screen: one dot per component, telling apart a component that refused work, one whose limits made work wait, and one with neither. Each status has its own shape as well as its color, and the text version lists it. Once the run is out of date the dots are drawn hollow, and the text version says they're from an earlier version (§4.2). The card's look is TODO look-and-feel item 6, out of this design; the dot needs only a place on the card.
 
 ## 4. Interaction model
 
@@ -165,4 +230,4 @@ Each row is something a journey step needs. Rows marked *open* are filled in as 
 
 ## 7. Not yet
 
-*To write:* what this design leaves for later, and why. Known so far: comparing a run with the one before, and a "take this fix" control, which needs a fix to name its component, setting, and value. Both moved to the Roadmap's Not scheduled when M6 was refocused on modeling your own architecture.
+*To write:* what this design leaves for later, and why. Known so far: comparing a run with the one before, and a "take this fix" control, which needs a fix to name its component, setting, and value. Both moved to the Roadmap's Not scheduled when M6 was refocused on modeling your own architecture. Also not yet: a third column on very wide windows, so Details and Run sit side by side (§3.1). It's a stylesheet change once the two tabs exist, worth it if moving between a finding and the setting it names proves slow.

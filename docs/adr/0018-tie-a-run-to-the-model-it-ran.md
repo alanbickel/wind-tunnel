@@ -1,6 +1,6 @@
 # ADR-0018: Tie a run to the model it ran
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-24
 
 ## Context

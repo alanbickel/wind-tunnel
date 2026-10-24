@@ -1,6 +1,6 @@
 # ADR-0019: Edit projects with commands, and save each change
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-24
 
 ## Context

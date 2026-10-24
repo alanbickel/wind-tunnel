@@ -264,8 +264,31 @@ Each row is something a journey step needs: whether it exists today, the change 
 
 ## 6. Slices
 
-*To write:* the M6 Roadmap items re-cut from this design, each naming the sections it builds.
+The M6 Roadmap items, in build order. Each can be used when it merges, and each names the parts of this page it builds. The slices before "Add and remove components" work on a copied template, so the screen and the edit model are in place before a project can change shape.
+
+1. **The project bar.** The project's name, the workload picker, Run and Stop, and the run's status move into a bar above the columns; the right column becomes the Details and Run tabs, Details empty until something can be selected. Settles TODO look-and-feel item 5. [§3.1](#31-wide), [§3.2](#32-narrow)
+2. **Select a component and read its settings.** Selection held by the project screen; components and edges selectable on the diagram and in its text version; the Details tab shows a component's settings or an edge's, read-only, with field descriptors' labels, units, and help, each default with its evidence, and "Called by". [§4.1](#41-selection), [§5](#5-data-needs) (field descriptors, what calls a component)
+3. **Select a finding.** Selecting a finding rings its components on the diagram and shades its time and cause windows on the charts. One of the items punted from M5. [§3.3](#33-the-items-punted-from-m5), [§4.1](#41-selection)
+4. **Show component names, not ids.** Findings and the CLI show names, with the type added where two types share one; a name is unique among its type's components. Needed before a new component's UUID could reach the screen. [§5](#5-data-needs) (component names)
+5. **A run keeps the model it ran.** The run copies the project, its findings are worded from the copy, and the screen says when it's out of date. [§4.2](#42-run-freshness), ADR-0018
+6. **Edit a component's settings.** Edit commands and the use case that validates the architecture and saves; fields that hold a draft and word their own messages; number and distribution fields; "Reset to default"; a failed save's "Try again". [§2.2](#22-edit-a-components-settings), [§4.3](#43-editing-and-saving), ADR-0019
+7. **Validate workflows apart from the architecture.** Workflow and workload issues are saved and open, and stop only a run of the workloads they affect; the project bar and the picker say why. Replaces the earlier "show validation issues inline" item, whose other parts are in the editors below. [§4.3](#43-editing-and-saving) (where issues show), [§5](#5-data-needs)
+8. **Add and remove components.** "Add component" with each type's line on what it's for, a default name, and the default settings; Remove, with a confirmation that names the steps calling it, and those steps marked. [§2.4](#24-add-a-component-and-remove-one)
+9. **Connect components.** Draw an edge on the diagram or with "Connect to…", edit its settings in the drawer, and remove it; each type declares the defaults of the edges it calls along, with their evidence in fidelity's defaults table. [§2.1](#21-model-your-own-system) step 5, [§5](#5-data-needs) (edges)
+10. **Move nodes.** Drag a node, and its position saves in the layout. [§2.4](#24-add-a-component-and-remove-one) step 1
+11. **Undo and redo.** One step per saved command, a remove with what it took; in the project bar. [§4.3](#43-editing-and-saving)
+12. **Start a blank project.** "Create blank" beside "Create from template", and the empty diagram's prompt. [§2.1](#21-model-your-own-system) step 1
+13. **Rename a project.** In the project bar. [§2.3](#23-rename-a-project)
+14. **Workflow editor.** The workflows list; a workflow's outline in the drawer; add, change, move, and remove steps, with a call along a missing edge adding it; a selected workflow's path on the diagram and in the text version; issues on their steps. [§2.5](#25-describe-a-requests-path), [§4.1](#41-selection)
+15. **Async work.** The async work slot under an `enqueue` step, and changing a step's action in place. [§2.5](#25-describe-a-requests-path) step 8, [§2.6](#26-sketch-put-a-queue-in-front-of-a-slow-component)
+16. **Workload editor.** The workloads list; a workload's duration, seed, mix, and profile in the drawer; issues on its mix entries. [§2.1](#21-model-your-own-system) step 7
+17. **Export and import a project as JSON** ([#21](https://github.com/alanbickel/wind-tunnel/issues/21)), unchanged by this design.
 
 ## 7. Not yet
 
-*To write:* what this design leaves for later, and why. Known so far: comparing a run with the one before, and a "take this fix" control, which needs a fix to name its component, setting, and value. Both moved to the Roadmap's Not scheduled when M6 was refocused on modeling your own architecture. Also not yet: a third column on very wide windows, so Details and Run sit side by side (§3.1). It's a stylesheet change once the two tabs exist, worth it if moving between a finding and the setting it names proves slow.
+What this design places but leaves for later:
+
+- **Comparing a run with the one before, and saying what changed since the run.** Both need a comparison of two models ([§4.2](#42-run-freshness)). Moved to the Roadmap's Not scheduled when M6 was refocused on modeling your own architecture.
+- **A "take this fix" control** on a Wind Tunnel fix. It needs a fix to name its component, setting, and value. Also in Not scheduled.
+- **Node status dots.** [§3.3](#33-the-items-punted-from-m5) gives them their place and their out-of-date look, but they show a run's results, not the user's system, so they wait. Also in Not scheduled.
+- **A third column on very wide windows**, so Details and Run sit side by side ([§3.1](#31-wide)). It's a stylesheet change once the two tabs exist, worth it if moving between a finding and the setting it names proves slow.

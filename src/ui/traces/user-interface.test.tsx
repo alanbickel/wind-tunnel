@@ -27,6 +27,7 @@ import { inMemoryUseCases } from "../app/testing/in-memory-use-cases";
 import type { UseCases } from "../app/use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
+import { stubWindowWidth } from "../shared/testing/stub-window-width";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 
 // Worked example for docs/architecture/user-interface.md. It renders the
@@ -306,7 +307,10 @@ async function runAndChart(
   trace.screen(`status "${status()}"`);
 }
 
-beforeEach(stubDiagramBrowserApis);
+beforeEach(() => {
+  stubDiagramBrowserApis();
+  stubWindowWidth("wide");
+});
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

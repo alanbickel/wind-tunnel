@@ -7,6 +7,7 @@ import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import { ProjectScreen } from "./ProjectScreen";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
+import { stubWindowWidth } from "../shared/testing/stub-window-width";
 
 function renderLookup(lookup: ProjectLookup) {
   const useCases = fakeUseCases({
@@ -20,7 +21,10 @@ function renderLookup(lookup: ProjectLookup) {
 }
 
 describe("ProjectScreen", () => {
-  beforeEach(stubDiagramBrowserApis);
+  beforeEach(() => {
+    stubDiagramBrowserApis();
+    stubWindowWidth("wide");
+  });
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();

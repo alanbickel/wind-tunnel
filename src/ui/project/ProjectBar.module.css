@@ -1,0 +1,32 @@
+/* The project on one side, its run on the other, wrapping onto two lines
+   when the window is too narrow for both. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+}
+
+.intro > :last-child {
+  margin-bottom: 0;
+}
+
+.description {
+  max-width: var(--prose-max-width);
+  color: var(--color-text-muted);
+}
+
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The status stays laid out while it's empty: hidden with display: none,
+   it would leave the accessibility tree, and some screen readers wouldn't
+   announce its first text. */
+.none,
+.status {
+  margin: 0;
+}

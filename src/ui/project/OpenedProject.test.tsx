@@ -5,75 +5,22 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import type {
-  SimulationOutcome,
-  SimulationRunInput,
-  SimulationRunner,
-} from "../../application/ports/simulation-runner";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleRecord } from "../../application/testing/sample-record";
+import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import { RunSimulation } from "../../application/use-cases/run-simulation";
-import type { MetricsSnapshot } from "../../domain/metrics/metrics-snapshot";
 import type { Project } from "../../domain/model/project";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
-import { RunPanel } from "./RunPanel";
-import { sampleSnapshot } from "../../application/testing/sample-snapshots";
-
-/**
- * A runner the test drives: each run waits until the test sends snapshots
- * and ends it, or the stop signal fires.
- */
-class ManualSimulationRunner implements SimulationRunner {
-  private input: SimulationRunInput | undefined;
-  private settle: ((outcome: SimulationOutcome) => void) | undefined;
-  private fail: ((error: Error) => void) | undefined;
-  runs = 0;
-
-  run(input: SimulationRunInput): Promise<SimulationOutcome> {
-    this.runs += 1;
-    this.input = input;
-    return new Promise((resolve, reject) => {
-      this.settle = resolve;
-      this.fail = reject;
-      input.stopSignal?.addEventListener("abort", () => {
-        resolve({ status: "stopped" });
-      });
-    });
-  }
-
-  get stopped(): boolean {
-    return this.input?.stopSignal?.aborted ?? false;
-  }
-
-  send(snapshot: MetricsSnapshot): void {
-    act(() => {
-      this.input?.onSnapshot?.(snapshot);
-    });
-  }
-
-  async finish(): Promise<void> {
-    await act(async () => {
-      this.settle?.({
-        status: "finished",
-        run: {
-          eventsProcessed: 0,
-          snapshots: [],
-          totals: sampleSnapshot({ second: 1 }),
-        },
-      });
-      await Promise.resolve();
-    });
-  }
-
-  async crash(message: string): Promise<void> {
-    await act(async () => {
-      this.fail?.(new Error(message));
-      await Promise.resolve();
-    });
-  }
-}
+import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
+import { ManualSimulationRunner } from "../run/testing/manual-simulation-runner";
+import {
+  stubWindowWidth,
+  type WindowWidth,
+} from "../shared/testing/stub-window-width";
+import { OpenedProject } from "./OpenedProject";
 
 const twoWorkloads: Project = {
   ...sampleRecord.project,
@@ -83,14 +30,23 @@ const twoWorkloads: Project = {
   ]),
 };
 
-function renderPanel(project: Project = sampleRecord.project) {
+interface RenderProjectInput {
+  readonly project?: Project;
+  readonly width?: WindowWidth;
+}
+
+function renderProject({
+  project = sampleRecord.project,
+  width = "wide",
+}: RenderProjectInput = {}) {
+  stubWindowWidth(width);
   const runner = new ManualSimulationRunner();
   const useCases = fakeUseCases({
     runSimulation: new RunSimulation({ runner }),
   });
   const view = render(
     <UseCasesProvider useCases={useCases}>
-      <RunPanel project={project} />
+      <OpenedProject record={{ ...sampleRecord, project }} />
     </UseCasesProvider>,
   );
   return { runner, ...view };
@@ -128,31 +84,53 @@ function requestsSoFar(): (string | null)[] {
   );
 }
 
-describe("RunPanel", () => {
-  afterEach(cleanup);
+function clickRun(): void {
+  fireEvent.click(screen.getByRole("button", { name: "Run" }));
+}
 
-  it("has its status region in place, empty, before the first run", () => {
-    renderPanel();
-
-    // Screen readers announce changes only to a region they already know.
-    expect(status()).toBe("");
-    expect(screen.queryByRole("table")).toBeNull();
+describe("OpenedProject's project bar", () => {
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
   });
 
-  // Fails if RunPanel stops passing `scrolls` to its Panel: in a wide
-  // window the panel scrolls on its own, and the keyboard couldn't scroll it.
-  it("is a region the keyboard can focus, to scroll it", () => {
-    renderPanel();
+  // Fails if the bar loses the project's name or description, the picker,
+  // or Run, or a run started from the bar doesn't fill the Run tab.
+  it("shows the project and runs it, filling the Run tab", () => {
+    const { runner } = renderProject();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Sample project" }),
+    ).toBeTruthy();
+    expect(screen.getByText("A small project for tests.")).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "Workload" })).toBeTruthy();
+    expect(screen.getByText("Nothing has run yet.")).toBeTruthy();
 
-    expect(screen.getByRole("region", { name: "Run" }).tabIndex).toBe(0);
+    clickRun();
+    runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
+
+    const runTab = screen.getByRole("tabpanel", { name: "Run" });
+    expect(
+      within(runTab).getByRole("table", { name: "Requests (run totals)" }),
+    ).toBeTruthy();
+    expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
+  });
+
+  // Fails if the status region mounts with its first text rather than
+  // before it: screen readers announce changes only to a region they know.
+  it("has its status region in place, empty, before the first run", () => {
+    renderProject();
+
+    expect(status()).toBe("");
+    expect(screen.queryByRole("progressbar")).toBeNull();
   });
 
   // Fails if the status line stops ending with the verdict's title, or a
   // failed request with a cause doesn't turn the verdict to Failing.
   it("fills in totals and charts as snapshots arrive, then finishes", async () => {
-    const { runner } = renderPanel();
+    const { runner } = renderProject();
 
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    clickRun();
     expect(status()).toBe("Running Steady… Healthy so far.");
     runner.send(
       sampleSnapshot({ second: 1, read: { started: 5, succeeded: 2 } }),
@@ -168,20 +146,22 @@ describe("RunPanel", () => {
 
     expect(requestsSoFar()).toEqual(["All workflows", "8", "2", "1", "5"]);
     expect(screen.getByText("2 of 5 simulated seconds")).toBeTruthy();
-    expect(screen.getAllByRole("figure")).toHaveLength(4);
+    const runTab = screen.getByRole("tabpanel", { name: "Run" });
+    expect(within(runTab).getAllByRole("figure")).toHaveLength(4);
     await runner.finish();
     expect(status()).toBe("Finished Steady. Failing so far.");
-    expect(screen.getByRole("button", { name: "Run" })).toBeTruthy();
   });
 
   it("measures progress in simulated time, so a run that ends partway through a second fills the bar", async () => {
     const [steady] = sampleRecord.project.workloads;
     if (steady === undefined) throw new Error("sample has no workload");
-    const { runner } = renderPanel({
-      ...sampleRecord.project,
-      workloads: [{ ...steady, durationMs: 2_500 }],
+    const { runner } = renderProject({
+      project: {
+        ...sampleRecord.project,
+        workloads: [{ ...steady, durationMs: 2_500 }],
+      },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    clickRun();
 
     // The sampler ticks each second, then once more at the duration.
     runner.send(sampleSnapshot({ second: 1 }));
@@ -193,11 +173,12 @@ describe("RunPanel", () => {
     expect(progress.value).toBe(progress.max);
   });
 
-  // Fails if Stop doesn't stop the runner, the totals drop what arrived, or
-  // the stopped status line loses the verdict's title.
-  it("stops partway and keeps what it got", async () => {
-    const { runner } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+  // Fails if Stop in the bar doesn't stop the runner, the totals drop what
+  // arrived, or the stopped status line loses how far it got or the
+  // verdict's title.
+  it("stops partway and says how far it got", async () => {
+    const { runner } = renderProject();
+    clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
 
     await act(async () => {
@@ -213,8 +194,8 @@ describe("RunPanel", () => {
   });
 
   it("says why a run failed", async () => {
-    const { runner } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    const { runner } = renderProject();
+    clickRun();
 
     await runner.crash("The simulation Worker failed to start.");
 
@@ -226,11 +207,11 @@ describe("RunPanel", () => {
   // Fails if Run runs another workload than the one picked, the picker
   // stays usable while running, or the status line loses the verdict's title.
   it("runs the workload picked, and locks the picker while it runs", () => {
-    const { runner } = renderPanel(twoWorkloads);
+    const { runner } = renderProject({ project: twoWorkloads });
     const picker = screen.getByRole("combobox", { name: "Workload" });
 
     fireEvent.change(picker, { target: { value: "spike" } });
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    clickRun();
 
     expect(status()).toBe("Running Spike… Healthy so far.");
     expect((picker as HTMLSelectElement).disabled).toBe(true);
@@ -238,7 +219,7 @@ describe("RunPanel", () => {
   });
 
   it("offers Stop only while running, without moving the focus", async () => {
-    const { runner } = renderPanel();
+    const { runner } = renderProject();
     const run = screen.getByRole("button", { name: "Run" });
     const stop = screen.getByRole("button", { name: "Stop" });
     expect(stop.getAttribute("aria-disabled")).toBe("true");
@@ -258,8 +239,8 @@ describe("RunPanel", () => {
   it("ignores a click on Stop that lands after the run ended", async () => {
     // In the browser a busy page delayed Stop clicks until the run had
     // ended; with one Run/Stop button, each late click started a new run.
-    const { runner } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    const { runner } = renderProject();
+    clickRun();
     await runner.finish();
 
     fireEvent.click(screen.getByRole("button", { name: "Stop" }));
@@ -272,9 +253,8 @@ describe("RunPanel", () => {
   // verdict while the deferred snapshots catch up: it reads "Running
   // Steady… Failing so far." for a commit, and a screen reader can say so.
   it("never announces the previous run's verdict as a new run starts", async () => {
-    const { runner } = renderPanel();
-    const run = screen.getByRole("button", { name: "Run" });
-    fireEvent.click(run);
+    const { runner } = renderProject();
+    clickRun();
     runner.send(
       sampleSnapshot({
         second: 1,
@@ -285,9 +265,7 @@ describe("RunPanel", () => {
     await runner.finish();
     expect(status()).toBe("Finished Steady. Failing so far.");
 
-    const statuses = statusesDuring(() => {
-      fireEvent.click(run);
-    });
+    const statuses = statusesDuring(clickRun);
 
     // No title until the deferred render reaches the new run.
     expect(statuses).toEqual([
@@ -299,7 +277,7 @@ describe("RunPanel", () => {
   it("ignores a second Run that lands before React re-renders", () => {
     // Both clicks in one act(), so the second still sees Run as usable;
     // only the hook's own guard can stop it.
-    const { runner } = renderPanel();
+    const { runner } = renderProject();
     const run = screen.getByRole("button", { name: "Run" });
 
     act(() => {
@@ -311,20 +289,91 @@ describe("RunPanel", () => {
   });
 
   it("stops the run when the user leaves the screen", () => {
-    const { runner, unmount } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    const { runner, unmount } = renderProject();
+    clickRun();
 
     unmount();
 
     expect(runner.stopped).toBe(true);
   });
 
-  it("says so when the project has no workloads", () => {
-    renderPanel({ ...sampleRecord.project, workloads: [] });
+  // Fails if a project without workloads gets a Run button, or the bar
+  // stops saying why there's none.
+  it("says so in the bar when the project has no workloads", () => {
+    renderProject({ project: { ...sampleRecord.project, workloads: [] } });
 
     expect(
       screen.getByText("This project has no workloads to run."),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Run" })).toBeNull();
+  });
+});
+
+describe("OpenedProject in a wide window", () => {
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  // Fails if the right column isn't Details and Run tabs with Run first,
+  // or Details stops saying nothing is selected.
+  it("puts Details and Run in tabs, with Run selected", () => {
+    renderProject();
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Details", "Run"]);
+    expect(
+      screen.getByRole("tab", { name: "Run" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Run" }), {
+      key: "ArrowLeft",
+    });
+    expect(screen.getByRole("tabpanel", { name: "Details" }).textContent).toBe(
+      "Nothing selected.",
+    );
+  });
+
+  // Fails if showing Details stops the run, or selecting Run again starts
+  // it afresh and loses the results it had.
+  it("keeps a run going while Details shows, with its results there on return", async () => {
+    const { runner } = renderProject();
+    clickRun();
+    runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
+
+    fireEvent.click(screen.getByRole("tab", { name: "Details" }));
+    expect(screen.queryByRole("table")).toBeNull();
+    runner.send(sampleSnapshot({ second: 2, read: { started: 3 } }));
+    expect(runner.stopped).toBe(false);
+    await runner.finish();
+    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+
+    expect(runner.runs).toBe(1);
+    expect(status()).toBe("Finished Steady. Healthy so far.");
+    expect(requestsSoFar()).toEqual(["All workflows", "8", "0", "0", "8"]);
+  });
+});
+
+describe("OpenedProject in a narrow window", () => {
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  // Fails if the tab roles show in a narrow window, where there are no
+  // tabs for a screen reader to move between, or the run's results stop
+  // following the model in a Run panel the keyboard can scroll.
+  it("has no tabs, and shows the run in a panel of its own", () => {
+    const { runner } = renderProject({ width: "narrow" });
+    clickRun();
+    runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
+
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByText("Nothing selected.")).toBeNull();
+    const panel = screen.getByRole("region", { name: "Run" });
+    expect(panel.tabIndex).toBe(0);
+    expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
   });
 });

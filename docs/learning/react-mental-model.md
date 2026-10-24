@@ -21,7 +21,7 @@ When a component's state changes, React re-renders it and, recursively, every co
 
 **Why it bites:** state high in the tree that changes often (a hover, a keystroke, a pointer position) makes everything below it re-render on each change.
 **Fix:** see the next two entries before reaching for `memo`.
-**In Wind Tunnel:** each run snapshot, several a second, re-renders `RunPanel`, its tables, and four charts. Fine at today's sizes; the first place to watch as the run screen grows.
+**In Wind Tunnel:** each run snapshot, several a second, re-renders the project screen, which holds the run: the project bar, the Run tab's tables, and four charts. `OpenedProject` memoizes the architecture's element, so the diagram doesn't redraw. Fine at today's sizes; the first place to watch as the run screen grows.
 **Source:** [Render and commit](https://react.dev/learn/render-and-commit)
 
 ### `memo` is an optimization, not state management: move state down first

@@ -1,0 +1,9 @@
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.empty {
+  color: var(--color-text-muted);
+}

@@ -1,13 +1,17 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { ProjectRecord } from "../../application/ports/project-record";
+import type { Project } from "../../domain/model/project";
 import { RunPanel } from "../run/RunPanel";
 import { RunResults } from "../run/RunResults";
 import { useProjectRun, type ProjectRun } from "../run/useProjectRun";
+import { Panel } from "../shared/Panel";
 import { Tabs } from "../shared/Tabs";
 import { useWideWindow } from "../shared/useWideWindow";
 import { ArchitectureView } from "./ArchitectureView";
 import styles from "./OpenedProject.module.css";
 import { ProjectBar } from "./ProjectBar";
+import { NothingSelected, SelectionDetails } from "./SelectionDetails";
+import { useSelection, type ProjectSelection } from "./useSelection";
 
 export interface OpenedProjectProps {
   readonly record: ProjectRecord;
@@ -15,57 +19,80 @@ export interface OpenedProjectProps {
 
 /**
  * A project that opened: the project bar, then its architecture beside
- * the Details and Run tabs in a wide window, or above the run's results in
- * a narrow one. The run is held here, so the bar and the results read the
- * same one, and a tab or layout change doesn't stop it.
+ * the Details and Run tabs in a wide window, or above Details (while
+ * something is selected) and the run's results in a narrow one. The run
+ * and the selection are held here, so every part of the screen reads the
+ * same ones, and a tab or layout change doesn't stop the run.
  */
 export function OpenedProject({ record }: OpenedProjectProps) {
   const { project } = record;
   const projectRun = useProjectRun(project);
-  const wide = useWideWindow();
-  // The same element while the record is, so React skips it: the run's
-  // snapshots re-render this screen several times a second.
-  const architecture = useMemo(
-    () => <ArchitectureView record={record} />,
-    [record],
-  );
+  const selecting = useSelection();
+  const architecture = useArchitecture(record, selecting);
+  const Column = useWideWindow() ? SideTabs : Stacked;
 
   return (
     <div className={styles.project}>
       <ProjectBar project={project} projectRun={projectRun} />
       <div className={styles.columns}>
         {architecture}
-        {wide ? (
-          <SideTabs projectRun={projectRun} />
-        ) : (
-          <RunPanel meaning={projectRun.meaning} />
-        )}
+        <Column
+          project={project}
+          projectRun={projectRun}
+          selecting={selecting}
+        />
       </div>
     </div>
   );
 }
 
-/** The right column's tabs. */
-type SideTab = "details" | "run";
+/**
+ * The architecture, as the same element while the record and the selection
+ * are, so React skips it: the run's snapshots re-render the screen several
+ * times a second.
+ */
+function useArchitecture(record: ProjectRecord, selecting: ProjectSelection) {
+  const { selection, select, clear } = selecting;
+  return useMemo(
+    () => (
+      <ArchitectureView
+        record={record}
+        selection={selection}
+        onSelect={select}
+        onClear={clear}
+      />
+    ),
+    [record, selection, select, clear],
+  );
+}
 
-interface SideTabsProps {
+/** The column beside or under the architecture, by the window's width. */
+interface ColumnProps {
+  readonly project: Project;
   readonly projectRun: ProjectRun;
+  readonly selecting: ProjectSelection;
 }
 
 /** Details and Run, beside the architecture; Run first. */
-function SideTabs({ projectRun }: SideTabsProps) {
-  const [selected, setSelected] = useState<SideTab>("run");
+function SideTabs({ project, projectRun, selecting }: ColumnProps) {
+  const { selection, tab, showTab, close } = selecting;
+  const details =
+    selection === undefined ? (
+      <NothingSelected />
+    ) : (
+      <SelectionDetails
+        project={project}
+        selection={selection}
+        onClose={close}
+      />
+    );
   return (
     <Tabs
       label="Project"
-      selected={selected}
-      onSelect={setSelected}
+      selected={tab}
+      onSelect={showTab}
       tabs={[
-        {
-          id: "details",
-          label: "Details",
-          content: <p className={styles.empty}>Nothing selected.</p>,
-        },
+        { id: "details", label: "Details", content: details },
         {
           id: "run",
           label: "Run",
@@ -73,5 +100,25 @@ function SideTabs({ projectRun }: SideTabsProps) {
         },
       ]}
     />
+  );
+}
+
+/** Under the architecture: Details while something is selected, then Run. */
+function Stacked({ project, projectRun, selecting }: ColumnProps) {
+  const { selection, close } = selecting;
+  return (
+    <>
+      {selection !== undefined && (
+        <Panel heading="Details">
+          <SelectionDetails
+            project={project}
+            selection={selection}
+            onClose={close}
+            closable
+          />
+        </Panel>
+      )}
+      <RunPanel meaning={projectRun.meaning} />
+    </>
   );
 }

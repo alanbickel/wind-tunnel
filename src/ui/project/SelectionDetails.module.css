@@ -1,0 +1,62 @@
+/* The heading, with Close at the far end when there is one. */
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.heading {
+  margin: 0;
+}
+
+/* "· RDS": what kind of thing is selected, quieter than its name. */
+.kind {
+  color: var(--color-text-muted);
+  font-weight: normal;
+}
+
+.settings {
+  margin: 0 0 var(--space-4);
+}
+
+.setting + .setting {
+  margin-top: var(--space-3);
+}
+
+/* The label and the value on one line, the help under them. */
+.label {
+  display: inline;
+  font-weight: var(--font-weight-bold);
+}
+
+.label::after {
+  content: ": ";
+}
+
+.value {
+  display: inline;
+  margin: 0;
+}
+
+.help {
+  max-width: var(--prose-max-width);
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.callers {
+  max-width: var(--prose-max-width);
+  margin: 0;
+}
+
+.empty {
+  color: var(--color-text-muted);
+}
+
+.details > :last-child,
+.empty {
+  margin-bottom: 0;
+}

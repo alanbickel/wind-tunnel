@@ -50,3 +50,18 @@
 .diagram :global(.react-flow__attribution a) {
   color: var(--color-text-muted);
 }
+
+/* The selection, marked by shape and width as well as color: a ring
+   around the selected box, outside its border, and the selected arrow
+   drawn at twice the thick line's width. React Flow puts its `selected`
+   class on each. */
+.diagram :global(.react-flow__node.selected) {
+  box-shadow:
+    0 0 0 var(--line-width-thick) var(--color-surface),
+    0 0 0 calc(2 * var(--line-width-thick)) var(--color-accent);
+}
+
+.diagram :global(.react-flow__edge.selected .react-flow__edge-path) {
+  stroke: var(--color-accent);
+  stroke-width: calc(2 * var(--line-width-thick));
+}

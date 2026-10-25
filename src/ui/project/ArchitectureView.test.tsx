@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Selection } from "../../application/details/selection";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { ArchitectureView } from "./ArchitectureView";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
@@ -18,6 +20,31 @@ async function drawnNodes(diagram: HTMLElement): Promise<Element[]> {
     expect(diagram.querySelector(".react-flow__node")).not.toBeNull();
   });
   return [...diagram.querySelectorAll(".react-flow__node")];
+}
+
+interface RenderViewInput {
+  readonly selection?: Selection;
+}
+
+/** The view, with spies for what it reports. */
+function renderView({ selection }: RenderViewInput = {}) {
+  const onSelect = vi.fn<(selection: Selection) => void>();
+  const onClear = vi.fn<() => void>();
+  render(
+    <ArchitectureView
+      record={sampleRecord}
+      selection={selection}
+      onSelect={onSelect}
+      onClear={onClear}
+    />,
+  );
+  return { onSelect, onClear };
+}
+
+function diagram(): HTMLElement {
+  return screen.getByRole("group", {
+    name: "Architecture diagram of Sample project",
+  });
 }
 
 function itemsOf(listName: string): (string | null)[] {
@@ -37,38 +64,61 @@ describe("ArchitectureView", () => {
 
   // Fails if diagramOf drops a component: two boxes are drawn, not three.
   it("draws a labelled diagram with a box per component", async () => {
-    render(<ArchitectureView record={sampleRecord} />);
+    renderView();
 
-    const diagram = screen.getByRole("group", {
-      name: "Architecture diagram of Sample project",
-    });
-    expect(await drawnNodes(diagram)).toHaveLength(3);
+    expect(await drawnNodes(diagram())).toHaveLength(3);
   });
 
-  // Fails if DiagramCanvas drops `nodesFocusable={false}`: each box takes
-  // a tab stop.
-  it("offers nothing to move, select, connect, or tab to", async () => {
-    render(<ArchitectureView record={sampleRecord} />);
-    const diagram = screen.getByRole("group", {
-      name: "Architecture diagram of Sample project",
-    });
+  // Fails if DiagramCanvas lets boxes be dragged or connected, turns on
+  // React Flow's own selection, or stops giving each box a tab stop and a
+  // description that says what Enter does.
+  it("offers nothing to move or connect, and a tab stop to select each box", async () => {
+    renderView();
 
-    for (const node of await drawnNodes(diagram)) {
+    for (const node of await drawnNodes(diagram())) {
       expect(node.classList.contains("draggable")).toBe(false);
       expect(node.classList.contains("selectable")).toBe(false);
-      expect(node.hasAttribute("tabindex")).toBe(false);
+      expect(node.getAttribute("tabindex")).toBe("0");
       const description = node.getAttribute("aria-describedby") ?? "";
       expect(document.getElementById(description)?.textContent).toBe(
-        "Read-only. The text version after the diagram lists the same items.",
+        "Press Enter to show its details. The text version after the diagram lists the same items.",
       );
     }
     expect(
-      diagram.querySelectorAll(".react-flow__handle.connectable"),
+      diagram().querySelectorAll(".react-flow__handle.connectable"),
     ).toHaveLength(0);
   });
 
+  // Fails if Enter on a focused box doesn't select its component, or
+  // selects by another key.
+  it("selects a box's component when Enter is pressed on it", async () => {
+    const { onSelect } = renderView();
+    const [, fn] = await drawnNodes(diagram());
+
+    fireEvent.keyDown(fn as Element, { key: " " });
+    fireEvent.keyDown(fn as Element, { key: "Enter" });
+
+    expect(onSelect.mock.calls).toEqual([
+      [{ kind: "component", componentId: "fn" }],
+    ]);
+  });
+
+  // Fails if the diagram rings a box other than the selected component, or
+  // none. jsdom lays nothing out, so React Flow draws no arrows here; the
+  // selected arrow's mark is tested in to-react-flow.test.tsx.
+  it("marks the selected box", async () => {
+    renderView({ selection: { kind: "component", componentId: "table" } });
+    const nodes = await drawnNodes(diagram());
+
+    expect(nodes.map((node) => node.classList.contains("selected"))).toEqual([
+      false,
+      false,
+      true,
+    ]);
+  });
+
   it("lists the components and connections as text", () => {
-    render(<ArchitectureView record={sampleRecord} />);
+    renderView();
 
     expect(itemsOf("Components")).toEqual([
       "API (api-gateway)",
@@ -81,11 +131,31 @@ describe("ArchitectureView", () => {
     ]);
   });
 
+  // Fails if a text-version button selects the wrong kind of item or the
+  // wrong one, or the list doesn't mark the selection as pressed.
+  it("selects from the text version, and marks the selection there", () => {
+    const { onSelect } = renderView({
+      selection: { kind: "edge", edgeId: "api-fn" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Table (dynamodb)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Function → Table" }));
+
+    expect(onSelect.mock.calls).toEqual([
+      [{ kind: "component", componentId: "table" }],
+      [{ kind: "edge", edgeId: "fn-table" }],
+    ]);
+    const pressed = screen.getAllByRole("button", { pressed: true });
+    expect(pressed.map((button) => button.textContent)).toEqual([
+      "API → Function",
+    ]);
+  });
+
   // Fails if ArchitectureView stops passing `scrolls` to its Panel: in a
   // short wide window the panel scrolls on its own, and the keyboard
   // couldn't scroll it.
   it("is a region the keyboard can focus, to scroll it", () => {
-    render(<ArchitectureView record={sampleRecord} />);
+    renderView();
 
     expect(screen.getByRole("region", { name: "Architecture" }).tabIndex).toBe(
       0,

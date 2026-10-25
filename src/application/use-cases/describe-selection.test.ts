@@ -61,6 +61,8 @@ const queued: Project = {
       ...sample.architecture.edges,
       { ...plainEdge, id: "api-queue", from: "api", to: "queue" },
       { ...plainEdge, id: "queue-fn", from: "queue", to: "fn" },
+      // To the queue, but from a component whose steps don't call it.
+      { ...plainEdge, id: "fn-queue", from: "fn", to: "queue" },
     ],
   },
   workflows: [
@@ -175,7 +177,7 @@ describe("DescribeSelection", () => {
     expect(edgeIn(queued, "queue-fn").calledAlongBy).toEqual([
       { workflowName: "Write later", action: "invoke" },
     ]);
-    expect(edgeIn(queued, "fn-table").calledAlongBy).toEqual([]);
+    expect(edgeIn(queued, "fn-queue").calledAlongBy).toEqual([]);
   });
 
   // Fails if stepsAlong stops dropping repeats: a workflow that reads the

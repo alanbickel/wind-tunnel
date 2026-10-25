@@ -1,3 +1,31 @@
 .text {
   margin-top: var(--space-3);
 }
+
+.items {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+/* Each item reads as a line of the list, and is a button to select it. The
+   selected one is bold and underlined, so it shows without color. */
+.item {
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  color: var(--color-accent);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.item:hover {
+  color: var(--color-accent-hover);
+}
+
+.item[aria-pressed="true"] {
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+  text-decoration: underline;
+  text-decoration-thickness: var(--line-width-thick);
+}

@@ -5,9 +5,11 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { awsDescribeSelection } from "../../application/testing/aws-describe-selection";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import { RunSimulation } from "../../application/use-cases/run-simulation";
@@ -15,6 +17,7 @@ import type { Project } from "../../domain/model/project";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
+import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 import { ManualSimulationRunner } from "../run/testing/manual-simulation-runner";
 import {
   stubWindowWidth,
@@ -43,6 +46,7 @@ function renderProject({
   const runner = new ManualSimulationRunner();
   const useCases = fakeUseCases({
     runSimulation: new RunSimulation({ runner }),
+    describeSelection: awsDescribeSelection(),
   });
   const view = render(
     <UseCasesProvider useCases={useCases}>
@@ -87,6 +91,37 @@ function requestsSoFar(): (string | null)[] {
 /** The project bar, named by the project. */
 function bar(): HTMLElement {
   return screen.getByRole("region", { name: "Sample project" });
+}
+
+/** Clicks a component's or connection's button in the diagram's text version. */
+function selectFromText(name: string): HTMLElement {
+  const button = screen.getByRole("button", { name });
+  button.focus();
+  fireEvent.click(button);
+  return button;
+}
+
+/** The Details heading: the selected item's name and what kind it is. */
+function detailsHeading(): HTMLElement {
+  return screen.getByRole("heading", { level: 4 });
+}
+
+/** The diagram's box for a component, once React Flow has drawn it. */
+async function drawnNode(componentId: string): Promise<Element> {
+  await waitFor(() => {
+    expect(
+      document.querySelector(`.react-flow__node[data-id="${componentId}"]`),
+    ).not.toBeNull();
+  });
+  return document.querySelector(
+    `.react-flow__node[data-id="${componentId}"]`,
+  ) as Element;
+}
+
+function selectedTab(): string | null | undefined {
+  return screen
+    .getAllByRole("tab")
+    .find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
 }
 
 function clickRun(): void {
@@ -349,7 +384,7 @@ describe("OpenedProject in a wide window", () => {
     });
     expect(
       within(screen.getByRole("tabpanel", { name: "Details" })).getByText(
-        "Nothing selected.",
+        /^Nothing selected./,
       ),
     ).toBeTruthy();
   });
@@ -389,6 +424,51 @@ describe("OpenedProject in a wide window", () => {
   });
 });
 
+describe("OpenedProject's selection in a wide window", () => {
+  preloadBeforeAll(() => import("../diagram/DiagramCanvas"));
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  // Fails if selecting leaves the Run tab showing, or the focus where it
+  // was, or Escape leaves Details showing or drops the focus on the page.
+  it("opens Details on a selection, and Escape goes back to Run and the button", () => {
+    renderProject();
+
+    const button = selectFromText("Function (lambda)");
+
+    expect(selectedTab()).toBe("Details");
+    expect(document.activeElement).toBe(detailsHeading());
+    expect(detailsHeading().textContent).toBe("Function · Lambda");
+    fireEvent.keyDown(detailsHeading(), { key: "Escape" });
+    expect(selectedTab()).toBe("Run");
+    expect(document.activeElement).toBe(button);
+    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+  });
+
+  // Fails if a click on a box doesn't select its component, or a click on
+  // the empty canvas leaves the selection in place.
+  it("selects a node when it's clicked, and clears on a click on empty canvas", async () => {
+    renderProject();
+
+    fireEvent.click(await drawnNode("table"));
+    expect(detailsHeading().textContent).toBe("Table · DynamoDB");
+    expect((await drawnNode("table")).classList.contains("selected")).toBe(
+      true,
+    );
+    const pane = document.querySelector(".react-flow__pane");
+    fireEvent.click(pane as Element);
+
+    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+    expect(selectedTab()).toBe("Run");
+    expect((await drawnNode("table")).classList.contains("selected")).toBe(
+      false,
+    );
+  });
+});
+
 describe("OpenedProject in a narrow window", () => {
   beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
@@ -406,7 +486,7 @@ describe("OpenedProject in a narrow window", () => {
 
     expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.queryByRole("tab")).toBeNull();
-    expect(screen.queryByText("Nothing selected.")).toBeNull();
+    expect(screen.queryByText(/^Nothing selected./)).toBeNull();
     const panel = screen.getByRole("region", { name: "Run" });
     expect(panel.tabIndex).toBe(0);
     const architecture = screen.getByRole("region", { name: "Architecture" });
@@ -415,5 +495,27 @@ describe("OpenedProject in a narrow window", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
+  });
+
+  // Fails if Details shows before anything is selected, stops following
+  // the model, loses its Close button, or Close leaves it showing or drops
+  // the focus.
+  it("shows Details under the model while something is selected, until Close", () => {
+    renderProject({ width: "narrow" });
+    expect(screen.queryByRole("region", { name: "Details" })).toBeNull();
+
+    const button = selectFromText("API → Function");
+    const details = screen.getByRole("region", { name: "Details" });
+
+    expect(document.activeElement).toBe(detailsHeading());
+    expect(detailsHeading().textContent).toBe("API → Function · Connection");
+    const architecture = screen.getByRole("region", { name: "Architecture" });
+    expect(
+      architecture.compareDocumentPosition(details) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(within(details).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("region", { name: "Details" })).toBeNull();
+    expect(document.activeElement).toBe(button);
   });
 });

@@ -18,9 +18,13 @@ import { inMemoryUseCases } from "./app/testing/in-memory-use-cases";
 import { UseCasesProvider } from "./app/UseCasesProvider";
 import { StartupFailure } from "./StartupFailure";
 import { stubDiagramBrowserApis } from "./diagram/testing/stub-diagram-browser-apis";
+import { stubWindowWidth } from "./shared/testing/stub-window-width";
 
 describe("App", () => {
-  beforeEach(stubDiagramBrowserApis);
+  beforeEach(() => {
+    stubDiagramBrowserApis();
+    stubWindowWidth("wide");
+  });
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -89,7 +93,10 @@ describe("App", () => {
 });
 
 describe("App storage persistence", () => {
-  beforeEach(stubDiagramBrowserApis);
+  beforeEach(() => {
+    stubDiagramBrowserApis();
+    stubWindowWidth("wide");
+  });
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();

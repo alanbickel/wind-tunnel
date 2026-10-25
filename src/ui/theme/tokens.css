@@ -90,6 +90,10 @@
   --line-width: 1px;
   --line-width-thick: 2px;
 
+  /* Text for screen readers only: one pixel, not none, since some screen
+     readers skip an element with no size. */
+  --visually-hidden-size: 1px;
+
   /* Layout. The project list's column stops widening at the content width.
      Prose stops at a readable line length, however wide its container. */
   --content-max-width: 72rem;
@@ -99,7 +103,8 @@
      least height on a short window. */
   --diagram-height: 25rem;
   --diagram-min-height: 12rem;
-  /* The run panel's least width beside the canvas, so its tables fit. */
+  /* The least width of the column beside the canvas (the Details and Run
+     tabs), so the run's tables fit. */
   --run-panel-min-width: 36rem;
   /* The window's height, less any browser toolbars showing. */
   --window-height: 100dvh;
@@ -109,7 +114,7 @@
   /* Breakpoints. @media can't read a custom property, so a media query
      writes the value out; tests/architecture/stylesheets.test.ts fails
      unless it equals one of these. From the wide width up, the project
-     screen fills the window, with the canvas and run panel side by side. */
+     screen fills the window, with the canvas and the tabs side by side. */
   --breakpoint-wide: 64rem;
 
   /* Motion. base.css cuts it to nothing under prefers-reduced-motion. */

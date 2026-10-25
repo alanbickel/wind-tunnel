@@ -1,0 +1,64 @@
+/* A surface like Panel's, with the tab list where a panel has its heading.
+   Takes the height its container gives it; the panel under the list takes
+   what the list leaves and scrolls. */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-surface);
+  border: var(--line-width) solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+
+.list {
+  display: flex;
+  gap: var(--space-2);
+  padding: 0 var(--space-5);
+  border-bottom: var(--line-width) solid var(--color-divider);
+}
+
+.tab {
+  background: none;
+  border: none;
+  /* Holds the selected tab's underline's room, so selecting moves nothing. */
+  border-bottom: var(--line-width-thick) solid transparent;
+  padding: var(--space-3) var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+}
+
+/* Sideways too, so a table wider than the panel never widens the page.
+   No display here: one would override the hidden panels' display: none. */
+.panel {
+  /* Holds the hidden heading, so it can't overflow the page. */
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4) var(--space-5);
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}
+
+/* Read by screen readers, not shown: the tab above already says it. */
+.heading {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

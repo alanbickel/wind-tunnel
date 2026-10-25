@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// The run panel's verdict and findings for real template runs. It sits
-// outside the layers, as the composition root does, because it needs the
-// templates and the in-process runner (adapters) and the panel (ui), which
-// may not import each other.
+// The run's verdict and findings on a project screen, for real template
+// runs. It sits outside the layers, as the composition root does, because
+// it needs the templates and the in-process runner (adapters) and the
+// screen (ui), which may not import each other.
 import {
   act,
   cleanup,
@@ -11,7 +11,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { InProcessSimulationRunner } from "../adapters/simulation/in-process-simulation-runner";
 import { formatFindings, formatVerdict } from "../adapters/cli/findings-report";
 import { RUN_TIMEOUT_MS } from "../adapters/templates/testing/run-template";
@@ -33,7 +33,10 @@ import type { MetricsSnapshot } from "../domain/metrics/metrics-snapshot";
 import type { Project } from "../domain/model/project";
 import { fakeUseCases } from "../ui/app/testing/fake-use-cases";
 import { UseCasesProvider } from "../ui/app/UseCasesProvider";
-import { RunPanel } from "../ui/run/RunPanel";
+import { sampleRecord } from "../application/testing/sample-record";
+import { stubDiagramBrowserApis } from "../ui/diagram/testing/stub-diagram-browser-apis";
+import { OpenedProject } from "../ui/project/OpenedProject";
+import { stubWindowWidth } from "../ui/shared/testing/stub-window-width";
 
 const registry = createAwsComponentRegistry();
 
@@ -83,8 +86,9 @@ interface PanelRun {
 }
 
 /**
- * Renders the run panel, picks the workload, runs it to the end (or the
- * stop), and words the same snapshots as the CLI does.
+ * Renders the project in a wide window, picks the workload in the project
+ * bar, runs it to the end (or the stop), and words the same snapshots as
+ * the CLI does.
  */
 async function runInPanel(input: PanelRunInput): Promise<PanelRun> {
   const { project, workloadName, stopAfter } = input;
@@ -92,9 +96,13 @@ async function runInPanel(input: PanelRunInput): Promise<PanelRun> {
   const useCases = fakeUseCases({
     runSimulation: new RunSimulation({ runner }),
   });
+  stubDiagramBrowserApis();
+  stubWindowWidth("wide");
   render(
     <UseCasesProvider useCases={useCases}>
-      <RunPanel project={project} />
+      <OpenedProject
+        record={{ ...sampleRecord, project, layout: { nodes: {} } }}
+      />
     </UseCasesProvider>,
   );
   const workload = project.workloads.find((w) =>
@@ -170,7 +178,10 @@ describe("the run panel's findings, Template A, lunch rush", () => {
   beforeAll(async () => {
     cli = await runInPanel({ project: projectA, workloadName: "Lunch rush" });
   }, RUN_TIMEOUT_MS);
-  afterAll(cleanup);
+  afterAll(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   // Fails if the panel words the verdict or a finding other than the CLI
   // does, or lists the findings in another order.
@@ -207,7 +218,10 @@ describe("the run panel's findings, Template B, long rush", () => {
   beforeAll(async () => {
     cli = await runInPanel({ project: projectB, workloadName: "Long rush" });
   }, RUN_TIMEOUT_MS);
-  afterAll(cleanup);
+  afterAll(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   // Fails if the panel words the verdict or a finding other than the CLI.
   it("says what the CLI says", () => {
@@ -233,7 +247,10 @@ describe("the run panel's findings, Template A, steady day", () => {
   beforeAll(async () => {
     cli = await runInPanel({ project: projectA, workloadName: "Steady day" });
   }, RUN_TIMEOUT_MS);
-  afterAll(cleanup);
+  afterAll(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   // Fails if a healthy run loses its closest-to-failing line, or shows a
   // finding where the CLI has none.
@@ -256,7 +273,10 @@ describe("the run panel's findings, a run stopped early", () => {
       stopAfter: 30,
     });
   }, RUN_TIMEOUT_MS);
-  afterAll(cleanup);
+  afterAll(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   // Fails if a run that didn't reach its workload's end reads as finished.
   it("reads 'so far'", () => {

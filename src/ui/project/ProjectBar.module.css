@@ -1,0 +1,38 @@
+/* The project on one side, its run on the other, wrapping onto two lines
+   when the window is too narrow for both. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+}
+
+.intro > :last-child {
+  margin-bottom: 0;
+}
+
+.description {
+  max-width: var(--prose-max-width);
+  color: var(--color-text-muted);
+}
+
+/* Spaced with margins, not gap, so an empty status takes no room. */
+.run {
+  display: flex;
+  flex-direction: column;
+}
+
+.run > * {
+  margin: 0;
+}
+
+.run > :not(:first-child) {
+  margin-top: var(--space-2);
+}
+
+/* The status region stays rendered while it's empty, so screen readers
+   know it before its first text and announce that; it just takes no room. */
+.run > .status:empty {
+  margin-top: 0;
+}

@@ -333,10 +333,12 @@ See [LMB-8](#lmb-8-rds-connections-are-held-per-invocation-not-per-environment).
 
 ## Default values and their evidence
 
+The Details tab quotes this table: each setting's help ends with its default and how sure it is ("Default 16: an assumption (RDS-2)."). The field descriptors in [`src/application/details/fields/`](../../src/application/details/fields/) carry the level and the entry, and `field-evidence.test.ts` checks them against this table, so keep each Evidence cell starting with its level and naming its entry, if it has one, by ID.
+
 | Component | Setting | Default | Evidence |
 |---|---|---|---|
 | API Gateway | `ratePerSec`, `burst` | 10,000/s, 5,000 | Documented account defaults ([quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html)); see APIGW-1 for scope |
-| API Gateway | `overhead` | median 10 ms, p99 25 ms | Assumption |
+| API Gateway | `overhead` | median 10 ms, p99 25 ms | Assumption (APIGW-4) |
 | Lambda | `concurrency` | 1,000 | Documented account default ([concurrency](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)); see LMB-1 for scope |
 | Lambda | `coldStart` | median 300 ms, p99 1 s | Assumption within the documented range (LMB-6) |
 | Lambda | `idleTimeoutSec` | 600 | Observed (LMB-5) |
@@ -347,7 +349,7 @@ See [LMB-8](#lmb-8-rds-connections-are-held-per-invocation-not-per-environment).
 | RDS | `maxConnections` | 90 | Assumption; documented formula in RDS-1 |
 | RDS | `queryWorkers` | 16 | Assumption (RDS-2) |
 | RDS | `queryTime` | median 15 ms, p99 60 ms | Assumption (workload-specific) |
-| SQS | `consumerMaxConcurrency` | 10 (allowed 2 to 1,000) | Documented range ([SQS scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)); 10 is our choice |
+| SQS | `consumerMaxConcurrency` | 10 (allowed 2 to 1,000) | Assumption: our choice, within the documented range ([SQS scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)) |
 | SQS | `sendLatency` | median 10 ms, p99 30 ms | Assumption |
 | Edges | backoff cap | 20 s | Documented ([AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html)) |
 

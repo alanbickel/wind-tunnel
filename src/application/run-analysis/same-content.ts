@@ -15,15 +15,15 @@ function isObject(value: unknown): value is object {
   return typeof value === "object" && value !== null;
 }
 
-/** The same keys, each with the same content. */
+/**
+ * The same number of keys, each with the same content in both. A key `b`
+ * lacks reads as undefined there, which no entry of `a` holds.
+ */
 function sameEntries(a: object, b: object): boolean {
   const entries = definedEntries(a);
   if (entries.length !== definedEntries(b).length) return false;
   const other = b as Readonly<Record<string, unknown>>;
-  return entries.every(
-    ([key, value]) =>
-      Object.hasOwn(other, key) && sameContent(value, other[key]),
-  );
+  return entries.every(([key, value]) => sameContent(value, other[key]));
 }
 
 /** An array's every entry, or an object's entries that aren't undefined. */

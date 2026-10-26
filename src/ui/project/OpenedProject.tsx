@@ -75,7 +75,7 @@ interface ColumnProps {
 
 /** Details and Run, beside the architecture; Run first. */
 function SideTabs({ project, projectRun, selecting }: ColumnProps) {
-  const { selection, tab, showTab, close } = selecting;
+  const { selection, tab, showTab, close, takeFocus } = selecting;
   const details =
     selection === undefined ? (
       <NothingSelected />
@@ -84,6 +84,7 @@ function SideTabs({ project, projectRun, selecting }: ColumnProps) {
         project={project}
         selection={selection}
         onClose={close}
+        takeFocus={takeFocus}
       />
     );
   return (
@@ -105,7 +106,7 @@ function SideTabs({ project, projectRun, selecting }: ColumnProps) {
 
 /** Under the architecture: Details while something is selected, then Run. */
 function Stacked({ project, projectRun, selecting }: ColumnProps) {
-  const { selection, close } = selecting;
+  const { selection, close, takeFocus } = selecting;
   return (
     <>
       {selection !== undefined && (
@@ -114,6 +115,7 @@ function Stacked({ project, projectRun, selecting }: ColumnProps) {
             project={project}
             selection={selection}
             onClose={close}
+            takeFocus={takeFocus}
             closable
           />
         </Panel>

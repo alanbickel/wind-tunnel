@@ -42,7 +42,7 @@ function renderProject({
   project = sampleRecord.project,
   width = "wide",
 }: RenderProjectInput = {}) {
-  stubWindowWidth(width);
+  const resize = stubWindowWidth(width);
   const runner = new ManualSimulationRunner();
   const useCases = fakeUseCases({
     runSimulation: new RunSimulation({ runner }),
@@ -53,7 +53,7 @@ function renderProject({
       <OpenedProject record={{ ...sampleRecord, project }} />
     </UseCasesProvider>,
   );
-  return { runner, ...view };
+  return { runner, resize, ...view };
 }
 
 function status(): string | null {
@@ -446,6 +446,22 @@ describe("OpenedProject's selection in a wide window", () => {
     expect(selectedTab()).toBe("Run");
     expect(document.activeElement).toBe(button);
     expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+  });
+
+  // Fails if Details takes the focus when it mounts again without a new
+  // selection, as it does when the window crosses the breakpoint (such as
+  // on zooming in): the focus would jump away from where the user is.
+  it("leaves the focus where it is when the window crosses the breakpoint", () => {
+    const { resize } = renderProject();
+    const button = selectFromText("Function (lambda)");
+    button.focus();
+
+    act(() => {
+      resize("narrow");
+    });
+
+    expect(detailsHeading().textContent).toBe("Function · Lambda");
+    expect(document.activeElement).toBe(button);
   });
 
   // Fails if a click on a box doesn't select its component, or a click on

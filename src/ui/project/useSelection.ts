@@ -21,6 +21,12 @@ export interface ProjectSelection {
   /** Clears the selection and shows Run, leaving the focus where it is. */
   readonly clear: () => void;
   /**
+   * Whether Details should take the focus now: true once after each
+   * `select`, then false. So Details mounting again, as it does when the
+   * window crosses the breakpoint, leaves the focus where it is.
+   */
+  readonly takeFocus: () => boolean;
+  /**
    * Clears the selection, shows Run, and returns the focus to the element
    * that had it when the selection was made, if it's still on the page.
    */
@@ -36,15 +42,23 @@ export function useSelection(): ProjectSelection {
   const [selection, setSelection] = useState<Selection>();
   const [tab, showTab] = useState<SideTab>("run");
   const opener = useRef<HTMLElement | null>(null);
+  const focusRequested = useRef(false);
 
   const select = useCallback((next: Selection) => {
     opener.current = focusedElement();
+    focusRequested.current = true;
     setSelection(next);
     showTab("details");
   }, []);
   const clear = useCallback(() => {
+    focusRequested.current = false;
     setSelection(undefined);
     showTab("run");
+  }, []);
+  const takeFocus = useCallback(() => {
+    const requested = focusRequested.current;
+    focusRequested.current = false;
+    return requested;
   }, []);
   const close = useCallback(() => {
     const element = opener.current;
@@ -53,7 +67,7 @@ export function useSelection(): ProjectSelection {
     if (element?.isConnected) element.focus();
   }, [clear]);
 
-  return { selection, tab, showTab, select, clear, close };
+  return { selection, tab, showTab, select, clear, close, takeFocus };
 }
 
 function focusedElement(): HTMLElement | null {

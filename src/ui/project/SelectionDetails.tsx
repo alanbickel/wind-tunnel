@@ -24,6 +24,8 @@ export interface SelectionDetailsProps {
   readonly selection: Selection;
   /** Clears the selection and returns the focus: on Escape, and on Close. */
   readonly onClose: () => void;
+  /** Whether to take the focus to the heading: true just after a selection. */
+  readonly takeFocus: () => boolean;
   /** Shows a Close button beside the heading, as the narrow layout does. */
   readonly closable?: boolean;
 }
@@ -31,11 +33,11 @@ export interface SelectionDetailsProps {
 /**
  * The selected component's or edge's settings, read-only, each with its
  * help and default, and what calls it (UX design §4.1). Takes the focus to
- * its heading whenever the selection changes, so the keyboard and a screen
- * reader land on it. Escape anywhere in it closes it.
+ * its heading when `takeFocus` says a selection was just made, so the
+ * keyboard and a screen reader land on it. Escape anywhere in it closes it.
  */
 export function SelectionDetails(props: SelectionDetailsProps) {
-  const { project, selection, onClose, closable = false } = props;
+  const { project, selection, onClose, takeFocus, closable = false } = props;
   const { describeSelection } = useUseCases();
   const details = useMemo(
     () => describeSelection.execute({ project, selection }),
@@ -44,8 +46,8 @@ export function SelectionDetails(props: SelectionDetailsProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   // A layout effect, so the focus moves in the commit that shows Details.
   useLayoutEffect(() => {
-    headingRef.current?.focus();
-  }, [selection]);
+    if (takeFocus()) headingRef.current?.focus();
+  }, [selection, takeFocus]);
 
   if (details === undefined) return <NothingSelected />;
   return (

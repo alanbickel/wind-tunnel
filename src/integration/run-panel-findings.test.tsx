@@ -142,6 +142,11 @@ function cliReading(run: Parameters<typeof findRun>[0]): PanelRun {
   };
 }
 
+/** The run's status line: the first status region; whether it's out of date is the second. */
+function runStatus(): string | null | undefined {
+  return screen.getAllByRole("status")[0]?.textContent;
+}
+
 /** The section the verdict's title names. */
 function verdictRegion(): HTMLElement {
   return screen.getByRole("region", { name: /^(Healthy|Degraded|Failing)/ });
@@ -211,7 +216,7 @@ describe("the run panel's findings, Template A, lunch rush", () => {
 
   // Fails if the status line stops announcing the verdict's title.
   it("announces the verdict in the status line", () => {
-    expect(screen.getByRole("status").textContent).toBe(
+    expect(runStatus()).toBe(
       "Finished Lunch rush, 20 s at 2,000 requests/s. Failing.",
     );
   });
@@ -287,7 +292,7 @@ describe("the run panel's findings, a run stopped early", () => {
     expect(verdictRegion().querySelector("h4")?.textContent).toBe(
       "Failing so far",
     );
-    expect(screen.getByRole("status").textContent).toMatch(
+    expect(runStatus()).toMatch(
       /^Stopped Lunch rush.* after 30 of 60 simulated seconds\. Failing so far\.$/,
     );
   });

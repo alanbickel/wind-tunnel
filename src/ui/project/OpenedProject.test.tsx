@@ -3,27 +3,23 @@ import {
   act,
   cleanup,
   fireEvent,
-  render,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { awsDescribeSelection } from "../../application/testing/aws-describe-selection";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
-import { RunSimulation } from "../../application/use-cases/run-simulation";
 import type { Project } from "../../domain/model/project";
-import { fakeUseCases } from "../app/testing/fake-use-cases";
-import { UseCasesProvider } from "../app/UseCasesProvider";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
-import { ManualSimulationRunner } from "../run/testing/manual-simulation-runner";
 import {
-  stubWindowWidth,
-  type WindowWidth,
-} from "../shared/testing/stub-window-width";
-import { OpenedProject } from "./OpenedProject";
+  bar,
+  clickRun,
+  renderOpenedProject as renderProject,
+  status,
+  statusRegions,
+} from "./testing/render-opened-project";
 
 const twoWorkloads: Project = {
   ...sampleRecord.project,
@@ -33,39 +29,12 @@ const twoWorkloads: Project = {
   ]),
 };
 
-interface RenderProjectInput {
-  readonly project?: Project;
-  readonly width?: WindowWidth;
-}
-
-function renderProject({
-  project = sampleRecord.project,
-  width = "wide",
-}: RenderProjectInput = {}) {
-  const resize = stubWindowWidth(width);
-  const runner = new ManualSimulationRunner();
-  const useCases = fakeUseCases({
-    runSimulation: new RunSimulation({ runner }),
-    describeSelection: awsDescribeSelection(),
-  });
-  const view = render(
-    <UseCasesProvider useCases={useCases}>
-      <OpenedProject record={{ ...sampleRecord, project }} />
-    </UseCasesProvider>,
-  );
-  return { runner, resize, ...view };
-}
-
-function status(): string | null {
-  return screen.getByRole("status").textContent;
-}
-
 /**
  * Every text the status region commits while `action` runs, in order: what
  * a screen reader could announce, including texts replaced in the same act.
  */
 function statusesDuring(action: () => void): (string | null)[] {
-  const region = screen.getByRole("status");
+  const [region] = statusRegions();
   const observer = new MutationObserver(() => undefined);
   observer.observe(region, {
     subtree: true,
@@ -86,11 +55,6 @@ function requestsSoFar(): (string | null)[] {
   return [...(footer?.querySelectorAll("th, td") ?? [])].map(
     (cell) => cell.textContent,
   );
-}
-
-/** The project bar, named by the project. */
-function bar(): HTMLElement {
-  return screen.getByRole("region", { name: "Sample project" });
 }
 
 /** Clicks a component's or connection's button in the diagram's text version. */
@@ -122,10 +86,6 @@ function selectedTab(): string | null | undefined {
   return screen
     .getAllByRole("tab")
     .find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
-}
-
-function clickRun(): void {
-  fireEvent.click(screen.getByRole("button", { name: "Run" }));
 }
 
 describe("OpenedProject's project bar", () => {

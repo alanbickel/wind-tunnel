@@ -97,7 +97,7 @@ function SideTabs({ project, projectRun, selecting }: ColumnProps) {
         {
           id: "run",
           label: "Run",
-          content: <RunResults meaning={projectRun.meaning} />,
+          content: <RunResults {...projectRun} />,
         },
       ]}
     />
@@ -120,7 +120,7 @@ function Stacked({ project, projectRun, selecting }: ColumnProps) {
           />
         </Panel>
       )}
-      <RunPanel meaning={projectRun.meaning} />
+      <RunPanel {...projectRun} />
     </>
   );
 }

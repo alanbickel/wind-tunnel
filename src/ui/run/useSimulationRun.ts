@@ -22,25 +22,32 @@ export interface RunIdle {
   readonly status: "idle";
 }
 
-export interface RunRunning {
-  readonly status: "running";
+/**
+ * What a run that has started ran: the project as it was when it started,
+ * and the workload. Everything shown about the run reads this copy, not
+ * the project as it is now (ADR-0018). A project is never changed in
+ * place, so keeping the one the run started with keeps a copy.
+ */
+export interface RanModel {
+  readonly project: Project;
   readonly workload: Workload;
 }
 
-export interface RunFinished {
+export interface RunRunning extends RanModel {
+  readonly status: "running";
+}
+
+export interface RunFinished extends RanModel {
   readonly status: "finished";
-  readonly workload: Workload;
 }
 
 /** The user stopped the run; its snapshots so far stay. */
-export interface RunStopped {
+export interface RunStopped extends RanModel {
   readonly status: "stopped";
-  readonly workload: Workload;
 }
 
-export interface RunFailed {
+export interface RunFailed extends RanModel {
   readonly status: "failed";
-  readonly workload: Workload;
   /** Why, for the user. */
   readonly problem: string;
 }
@@ -117,16 +124,21 @@ interface RunWorkloadContext {
   readonly setReceived: Dispatch<SetStateAction<RunReceived>>;
 }
 
-/** Starts a run afresh, collects its snapshots, and records how it ended. */
+/**
+ * Starts a run afresh, collects its snapshots, and records how it ended.
+ * The run keeps the project it started with, whatever happens to the
+ * project while it runs.
+ */
 function runWorkload(
   { workload, controller }: RunWorkloadInput,
   { runSimulation, project, setPhase, setReceived }: RunWorkloadContext,
 ): Promise<void> {
-  setPhase({ status: "running", workload });
+  const ran = ranModelFor(project, workload);
+  setPhase({ status: "running", ...ran });
   setReceived(({ runId }) => ({ runId: runId + 1, snapshots: [] }));
   const attempt = runSimulation.execute({
     project,
-    workloadId: workload.id,
+    workloadId: ran.workload.id,
     stopSignal: controller.signal,
     onSnapshot: (snapshot) => {
       setReceived(({ runId, snapshots }) => ({
@@ -135,43 +147,50 @@ function runWorkload(
       }));
     },
   });
-  return settleRun({ attempt, workload, setPhase });
+  return settleRun({ attempt, ran, setPhase });
+}
+
+/**
+ * The run's model: `project`, with its own copy of `workload`, which is
+ * what runs. The picker may hold the workload as it was before the
+ * project changed. If the project no longer has it, the run fails as
+ * "workload-missing", and `workload` names what was asked for.
+ */
+function ranModelFor(project: Project, workload: Workload): RanModel {
+  const own = project.workloads.find(({ id }) => id === workload.id);
+  return { project, workload: own ?? workload };
 }
 
 interface SettleRunInput {
   readonly attempt: Promise<RunSimulationResult>;
-  readonly workload: Workload;
+  readonly ran: RanModel;
   readonly setPhase: (phase: RunPhase) => void;
 }
 
 /** Waits for a run to end and records how it ended. */
-function settleRun({
-  attempt,
-  workload,
-  setPhase,
-}: SettleRunInput): Promise<void> {
+function settleRun({ attempt, ran, setPhase }: SettleRunInput): Promise<void> {
   return attempt.then(
     (result) => {
-      setPhase(handleStatus(resultPhases(workload), result));
+      setPhase(handleStatus(resultPhases(ran), result));
     },
     (error: unknown) => {
-      setPhase({ status: "failed", workload, problem: String(error) });
+      setPhase({ status: "failed", ...ran, problem: String(error) });
     },
   );
 }
 
-/** The phase each result ends a run of `workload` in. */
+/** The phase each result ends a run of `ran` in. */
 function resultPhases(
-  workload: Workload,
+  ran: RanModel,
 ): StatusHandlers<RunSimulationResult, RunPhase> {
   return {
-    finished: () => ({ status: "finished", workload }),
-    stopped: () => ({ status: "stopped", workload }),
+    finished: () => ({ status: "finished", ...ran }),
+    stopped: () => ({ status: "stopped", ...ran }),
     // The picker offers only the project's workloads, so this means the
     // project changed under it.
     "workload-missing": () => ({
       status: "failed",
-      workload,
+      ...ran,
       problem: "That workload is no longer in the project.",
     }),
   };

@@ -199,8 +199,9 @@ function tracedUseCases(trace: Trace, runner: SimulationRunner): UseCases {
 }
 
 function status(): string {
-  // The storage hint is a status region too; the run's is the last one.
-  return screen.getAllByRole("status").at(-1)?.textContent ?? "";
+  // The storage hint is a status region too; the run's is second to last,
+  // before the one that says whether it's out of date.
+  return screen.getAllByRole("status").at(-2)?.textContent ?? "";
 }
 
 /** The footer of "Requests (run totals)": the totals across workflows. */

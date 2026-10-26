@@ -21,7 +21,6 @@ import {
   sameKey,
 } from "../../../application/run-analysis/findings/finding-key";
 import type { FindingNode } from "../../../application/run-analysis/findings/order-findings";
-import type { Phrasebook } from "../../../application/run-analysis/findings/phrasebook";
 import type {
   MetricsRun,
   MetricsSnapshot,
@@ -30,9 +29,11 @@ import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
 import findingsDoc from "../../../../docs/design/findings.md?raw";
 import { formatMessage } from "../../../application/run-analysis/findings/message-format";
+import { componentNames } from "../../../application/run-analysis/component-names";
+import type { FindingsWording } from "../../../application/run-analysis/findings/findings-wording";
 import { formatFindings, formatVerdict } from "../../cli/findings-report";
 import { formatShortForms } from "./format-short-forms";
-import { RUN_TIMEOUT_MS } from "./run-template";
+import { registry, RUN_TIMEOUT_MS } from "./run-template";
 import { runScenario } from "./scenario-runs";
 
 // The findings must reconcile with the totals the collector counts on its
@@ -126,11 +127,11 @@ export function backlog(queueId: string, limitName: string): FindingKey {
   return findingKey({ kind: BACKLOG, componentId: queueId, limitName });
 }
 
-/** A run, what `findRun` made of it, and the phrasebook that words it. */
+/** A run, what `findRun` made of it, and how the CLI words it. */
 interface ReadRun {
   readonly run: MetricsRun;
   readonly findings: RunFindings;
-  readonly phrasebook: Phrasebook;
+  readonly wording: FindingsWording;
 }
 
 /** Gets the run once `beforeAll` has made it. */
@@ -161,7 +162,10 @@ function readRunOf({ project, workloadId }: FindingsCase): ReadRunGetter {
     read = {
       run,
       findings: findRun(soFar, detectors),
-      phrasebook: createPhrasebook({ project, detectors }),
+      wording: {
+        phrasebook: createPhrasebook({ project, detectors }),
+        nameOf: componentNames(project, registry),
+      },
     };
   }, RUN_TIMEOUT_MS);
   return () => {
@@ -277,13 +281,15 @@ function itPrintsThePinnedSentences(
   // Fails if a pinned finding's summary or reasons quote other numbers or
   // seconds than the reading's.
   it("says what the reading says in the pinned findings", () => {
-    const { findings, phrasebook } = read();
+    const { findings, wording } = read();
     const all = findings.findings.flatMap(walk);
     for (const { key, sentences } of pinned) {
       const finding = all.find((f) => sameKey(f.key, key));
       const said =
         finding === undefined ? [] : [finding.summary, ...finding.reasons];
-      const text = said.map((s) => formatMessage(phrasebook.word(s, "long")));
+      const text = said.map((s) =>
+        formatMessage(wording.phrasebook.word(s, "long"), wording.nameOf),
+      );
       expect(text, key.kind).toEqual(sentences);
     }
   });
@@ -302,8 +308,8 @@ function itPrintsTheVerdict(read: ReadRunGetter, c: FindingsCase): void {
   // summary findings.md quotes for the run, so the doc and the code can't
   // drift apart; or, for a run no reading quotes, from the pinned verdict.
   it(`prints the verdict ${quote}`, () => {
-    const { findings, phrasebook } = read();
-    expect(formatVerdict(findings.verdict, phrasebook)).toBe(expected);
+    const { findings, wording } = read();
+    expect(formatVerdict(findings.verdict, wording)).toBe(expected);
   });
 }
 
@@ -311,10 +317,10 @@ function itPrintsTheReport(read: ReadRunGetter, c: FindingsCase): void {
   // Fails if any word, number, or line of the verdict or a finding changes:
   // the CLI's whole Verdict and Findings sections, in every run read here.
   it("prints the verdict and findings as the report file pins them", async () => {
-    const { findings, phrasebook } = read();
+    const { findings, wording } = read();
     const text = [
-      formatVerdict(findings.verdict, phrasebook),
-      formatFindings(findings, phrasebook),
+      formatVerdict(findings.verdict, wording),
+      formatFindings(findings, wording),
     ];
     await expect(`${text.join("\n\n")}\n`).toMatchFileSnapshot(
       `../../cli/reports/findings/${slugOf(c.name)}.txt`,
@@ -326,8 +332,8 @@ function itPrintsTheShortForms(read: ReadRunGetter, c: FindingsCase): void {
   // Fails if a short form of the verdict, a summary, or a reason changes,
   // or a statement in the run has no phrase: wording it throws.
   it("words every statement in its short form as the file pins it", async () => {
-    const { findings, phrasebook } = read();
-    await expect(formatShortForms(findings, phrasebook)).toMatchFileSnapshot(
+    const { findings, wording } = read();
+    await expect(formatShortForms(findings, wording)).toMatchFileSnapshot(
       `../../cli/reports/findings/${slugOf(c.name)}.short.txt`,
     );
   });

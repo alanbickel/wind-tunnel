@@ -20,14 +20,19 @@ import {
   sampleKey,
   sampleRun,
 } from "../../application/testing/sample-findings";
+import { awsNameComponents } from "../../application/testing/aws-name-components";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import { Findings } from "./Findings";
 
-const phrasebook = createPhrasebook({
-  project: sampleRecord.project,
-  detectors: [{ id: "said", detect: () => [], phrases: SAID_PHRASES }],
-});
+// `sampleRecord`'s names differ from its IDs: `fn` is "Function".
+const wording = {
+  phrasebook: createPhrasebook({
+    project: sampleRecord.project,
+    detectors: [{ id: "said", detect: () => [], phrases: SAID_PHRASES }],
+  }),
+  nameOf: awsNameComponents().execute({ project: sampleRecord.project }),
+};
 
 /** One second of `sampleRecord`'s 5 s workload, so the run reads "so far". */
 const oneSecond = [
@@ -64,7 +69,7 @@ const failure = sampleFinding({
       scope: "wind-tunnel",
       claim: { kind: "observed", file: "src/x.test.ts", test: "shows it" },
     }),
-    fix({}),
+    fix({ message: say`Raise ${component("fn")}'s limit.` }),
   ],
   learnMore: "lambda-scales",
   causedBy: [sampleKey("cause")],
@@ -84,7 +89,7 @@ function renderFindings(findings: readonly Finding[]) {
         verdict: verdictOf(run, findings),
         findings: orderFindings(findings),
       }}
-      phrasebook={phrasebook}
+      wording={wording}
     />,
   );
 }
@@ -100,17 +105,20 @@ describe("Findings", () => {
   afterEach(cleanup);
 
   // Fails if the severity shows only by color, the numbering stops
-  // matching the CLI's, a cause isn't nested in the finding it explains, or
-  // a finding's control isn't described by its summary.
+  // matching the CLI's, a cause isn't nested in the finding it explains, a
+  // finding's control isn't described by its summary, or a component shows
+  // by its ID ("fn") rather than its name ("Function").
   it("labels each finding's severity in words, with its causes beneath it", () => {
     renderFindings([failure, cause]);
-    const description = "1. Failure: 1,234 requests failed at fn.";
+    const description = "1. Failure: 1,234 requests failed at Function.";
 
     expect(
       screen.getByRole("button", { name: "About finding 1", description }),
     ).toBeTruthy();
 
-    expect(summaryOf("1")).toBe("1. Failure: 1,234 requests failed at fn.");
+    expect(summaryOf("1")).toBe(
+      "1. Failure: 1,234 requests failed at Function.",
+    );
     expect(summaryOf("1.1")).toBe("1.1. Note: Requests waited.");
     const item = screen
       .getByRole("button", { name: "About finding 1" })
@@ -126,10 +134,10 @@ describe("Findings", () => {
   it("sets components and times apart from the text", () => {
     renderFindings([failure]);
 
-    const fn = screen.getByText("fn", { selector: "span" });
+    const [fn] = screen.getAllByText("Function", { selector: "span" });
     const time = screen.getByText("14 s", { selector: "span" });
-    expect(fn.closest("p")?.textContent).toBe(
-      "1. Failure: 1,234 requests failed at fn.",
+    expect(fn?.closest("p")?.textContent).toBe(
+      "1. Failure: 1,234 requests failed at Function.",
     );
     expect(time.closest("p")?.textContent).toBe("Cause began at 14 s.");
   });
@@ -154,8 +162,9 @@ describe("Findings", () => {
     expect(document.activeElement).toBe(control);
   });
 
-  // Fails if a fix loses its scope or its claim: a Documented link, an
-  // Observed test, or the Assumption label.
+  // Fails if a fix loses its scope or its claim (a Documented link, an
+  // Observed test, or the Assumption label), or names a component by its ID
+  // ("fn") rather than its name ("Function").
   it("shows each fix with its claim, and links Learn more", () => {
     renderFindings([failure]);
     fireEvent.click(screen.getByRole("button", { name: "About finding 1" }));
@@ -166,7 +175,7 @@ describe("Findings", () => {
     expect([...fixes].map((li) => li.textContent)).toEqual([
       "In AWS: Do it. (Documented: Lambda scaling; fidelity LAMBDA-1)",
       "In Wind Tunnel: Do it. (Observed: src/x.test.ts, “shows it”)",
-      "In AWS: Do it. (Assumption)",
+      "In AWS: Raise Function's limit. (Assumption)",
     ]);
     expect(docs.getAttribute("href")).toBe("https://example.com/scaling");
     expect(test.getAttribute("href")).toMatch(

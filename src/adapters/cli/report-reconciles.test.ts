@@ -297,9 +297,36 @@ describe("template-b's failed deliveries, with 10 database connections", () => {
   it("prints orders-queue's failed deliveries by cause in the report", () => {
     const workload = project.workloads.find((w) => w.id === "lunch-rush");
     if (workload === undefined) throw new Error("template-b has no lunch-rush");
-    expect(formatReport({ project, workload, run })).toContain(
+    expect(formatReport({ project, workload, run, registry })).toContain(
       "async failed=90 (orders-db: too-many-connections 90)",
     );
+  });
+
+  // Fails if any part of the report reads a component's ID where it should
+  // read its name: a finding or fix, a table cell, a failure cause, or a
+  // per-second column header. The template's names equal its IDs, so the
+  // names here are made to differ. A fix's evidence may still cite the
+  // template's own component ("Template B's orders-db"): that's prose about
+  // the run that proved the fix, not a component of this project.
+  it("shows every component by its name, never by its ID", () => {
+    const workload = project.workloads.find((w) => w.id === "lunch-rush");
+    if (workload === undefined) throw new Error("template-b has no lunch-rush");
+    const { components } = project.architecture;
+    const renamed: Project = {
+      ...project,
+      architecture: {
+        ...project.architecture,
+        components: components.map((c) => ({ ...c, name: c.id.toUpperCase() })),
+      },
+    };
+    const report = formatReport({ project: renamed, workload, run, registry });
+    const shownAt = (id: string) =>
+      new RegExp(`(^|[^\\w-])(?<!Template B's )${id}($|[^\\w-])`);
+    const shown = components
+      .map((c) => c.id)
+      .filter((id) => shownAt(id).test(report));
+    expect(shown).toEqual([]);
+    expect(report).toContain("ORDERS-DB: too-many-connections");
   });
 });
 

@@ -184,14 +184,14 @@ function finishTally(tally: CauseTally): FailureCause {
 }
 
 /** A cause's component and reason. */
-type CauseParts = Pick<FailureCause, "componentId" | "reason">;
+export type CauseParts = Pick<FailureCause, "componentId" | "reason">;
 
 /**
  * Splits `"<component ID>: <reason>"` (the metrics' `workflow-tally`
  * format). Matching the project's component IDs, longest first, keeps an ID
  * that itself holds ": " whole.
  */
-function splitCause(
+export function splitCause(
   cause: string,
   componentIds: readonly string[],
 ): CauseParts {

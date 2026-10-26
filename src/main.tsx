@@ -16,6 +16,7 @@ import { SystemClock } from "./adapters/system/system-clock";
 import { createBundledTemplateCatalog } from "./adapters/templates/bundled-template-catalog";
 import { createFieldCatalog } from "./application/details/create-field-catalog";
 import { CreateProjectFromTemplate } from "./application/use-cases/create-project-from-template";
+import { NameComponents } from "./application/use-cases/name-components";
 import { DescribeSelection } from "./application/use-cases/describe-selection";
 import { DeleteProject } from "./application/use-cases/delete-project";
 import { ListProjects } from "./application/use-cases/list-projects";
@@ -84,6 +85,7 @@ function createUseCases(database: ProjectDatabase): UseCases {
       registry,
       fields: createFieldCatalog(),
     }),
+    nameComponents: new NameComponents({ registry }),
     storagePersistence: new BrowserStoragePersistence({
       storage: navigator.storage,
     }),

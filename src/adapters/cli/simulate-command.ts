@@ -9,6 +9,7 @@ import {
 } from "../../application/use-cases/run-simulation";
 import { InProcessSimulationRunner } from "../simulation/in-process-simulation-runner";
 import { createBundledTemplateCatalog } from "../templates/bundled-template-catalog";
+import type { ComponentRegistry } from "../../domain/components/component-registry";
 import { formatReport } from "./text-report";
 
 /** The usage text, listing the templates the catalog has. */
@@ -41,7 +42,7 @@ export async function runSimulateCommand(
   const usage = formatUsage(await catalog.list());
   const runner = new InProcessSimulationRunner({ registry });
   const runSimulation = new RunSimulation({ runner });
-  const report = await reportFor({ args, catalog, runSimulation });
+  const report = await reportFor({ args, catalog, runSimulation, registry });
   if (typeof report === "string") return fail({ message: report, usage });
   return { exitCode: 0, output: report.text };
 }
@@ -50,6 +51,8 @@ interface ReportInput {
   readonly args: readonly string[];
   readonly catalog: TemplateCatalog;
   readonly runSimulation: RunSimulation;
+  /** The component types, whose names the report shows. */
+  readonly registry: ComponentRegistry;
 }
 
 /** The finished report. */
@@ -62,6 +65,7 @@ async function reportFor({
   args,
   catalog,
   runSimulation,
+  registry,
 }: ReportInput): Promise<Report | string> {
   const flags = parseArgs(args);
   if (typeof flags === "string") return flags;
@@ -77,7 +81,7 @@ async function reportFor({
   if (result.status === "workload-missing") return unknownWorkload(result);
   // The CLI passes no stop signal, so this can't happen; the type allows it.
   if (result.status === "stopped") return "The run was stopped.";
-  return { text: formatReport(result) };
+  return { text: formatReport({ ...result, registry }) };
 }
 
 function unknownWorkload({ workloadId }: WorkloadMissing): string {

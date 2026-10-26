@@ -78,7 +78,7 @@ The verdict's headroom line quotes only limits that refuse work (§3.4). The con
 
 ### 1.5 Template B, long rush: degraded
 
-> **Degraded.** All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s api waits for fn-api; 7 were still in progress when the run ended.
+> **Degraded.** All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s API Gateway waits for fn-api; 7 were still in progress when the run ended.
 > Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
 
 **Warning: writes landed up to 32.6 s after they were accepted, past API Gateway's 29 s timeout.**
@@ -351,7 +351,7 @@ As built (#67), a finding is identified by a `key` (`kind`, `componentId`, and a
 
 As built (#62), `Fix` also has a `scope` (`wind-tunnel` or `aws`), a Documented claim carries its link's title, and an Observed claim names a test file and the test in it. `Evidence` is a number, what it is, and its source. [`finding.ts`](../../src/application/run-analysis/findings/finding.ts) is the reference; the [findings guide](../architecture/finding-detectors.md) shows a finding printed.
 
-As built (#77), `summary` and `reasons` hold `Statement`s rather than `Message`s: a `kind` and the values the sentence quotes, such as `{ kind: "worst-second", failed: 1_216, endMs: 32_000 }`. The verdict's summary and its two lines are statements too. A `Phrasebook` built from the detectors' registered phrases words each one as a `Message`, in a long form (the sentence quoted above, which the CLI prints) or a short one (a clause that reads after "but", for the run panel's verdict line). A component type registers its words for its rejection reasons and limits in the catalog; every type's are its raw IDs for now. The "message is parts, not a string" point above still holds for what the phrasebook returns. [ADR-0015](../adr/0015-findings-come-from-registered-detectors.md#addendum-2026-10-23)'s third addendum records the decision, and the [findings guide](../architecture/finding-detectors.md#how-a-finding-is-worded) shows both forms.
+As built (#77), `summary` and `reasons` hold `Statement`s rather than `Message`s: a `kind` and the values the sentence quotes, such as `{ kind: "worst-second", failed: 1_216, endMs: 32_000 }`. The verdict's summary and its two lines are statements too. A `Phrasebook` built from the detectors' registered phrases words each one as a `Message`, in a long form (the sentence quoted above, which the CLI prints) or a short one (a clause that reads after "but", for the run panel's verdict line). A component type registers its words for its rejection reasons and limits in the catalog; every type's are its raw IDs for now. The "message is parts, not a string" point above still holds for what the phrasebook returns. As built (#88), a component part is shown by the component's name, never its ID, with the type's display name added where components of two types share the name ("orders (DynamoDB)"); the part still holds the ID. [ADR-0015](../adr/0015-findings-come-from-registered-detectors.md#addendum-2026-10-23)'s third addendum records the decision, and the [findings guide](../architecture/finding-detectors.md#how-a-finding-is-worded) shows both forms.
 
 ### 3.2 Severity
 

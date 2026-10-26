@@ -3,7 +3,8 @@ import { simulateWithMetrics } from "../../../domain/metrics/metrics-collector";
 import type { Project } from "../../../domain/model/project";
 import { loadProject } from "../../persistence/load-project";
 
-const registry = createAwsComponentRegistry();
+/** The AWS types, for the template helpers and the tests that use them. */
+export const registry = createAwsComponentRegistry();
 
 /**
  * The time a `beforeAll` gives its whole-template runs. A run that takes 4 s

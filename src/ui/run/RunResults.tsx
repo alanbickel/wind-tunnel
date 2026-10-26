@@ -36,13 +36,13 @@ interface RunMetricsProps {
  * snapshot that the project screen sees.
  */
 const RunMetrics = memo(function RunMetrics({
-  meaning: { run, findings, phrasebook },
+  meaning: { run, findings, wording },
 }: RunMetricsProps) {
   const charts = useMemo(() => runCharts(run), [run]);
 
   return (
     <>
-      <Findings findings={findings} phrasebook={phrasebook} />
+      <Findings findings={findings} wording={wording} />
       <RunTotals run={run} />
       {charts.map((content) => (
         <TimeSeriesChart key={content.title} content={content} />

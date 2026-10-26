@@ -10,19 +10,18 @@ import {
   SCOPE_LABELS,
 } from "../../application/run-analysis/findings/message-format";
 import type { Statement } from "../../application/run-analysis/findings/phrase";
+import type { FindingText } from "./finding-text";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { repositoryFileUrl } from "../shared/repository-links";
 import styles from "./FindingDetails.module.css";
-import { MessageText } from "./MessageText";
 
 /** Where a finding's Learn more anchors point. */
 const LEARN_MORE_DOC = "docs/learning/aws-did-you-know.md";
 
 export interface FindingDetailsProps {
   readonly finding: Finding;
-  /** Words a statement in its long form. */
-  readonly word: (statement: Statement) => ReactNode;
+  readonly text: FindingText;
 }
 
 /**
@@ -30,12 +29,12 @@ export interface FindingDetailsProps {
  * its cause began; what would fix it, with the evidence for each fix; and
  * where to learn more. The CLI lists the same, in the same order.
  */
-export function FindingDetails({ finding, word }: FindingDetailsProps) {
+export function FindingDetails({ finding, text }: FindingDetailsProps) {
   return (
     <>
-      <Reasons reasons={finding.reasons} word={word} />
-      <CauseBegan finding={finding} />
-      <Fixes fixes={finding.fixes} />
+      <Reasons reasons={finding.reasons} text={text} />
+      <CauseBegan finding={finding} text={text} />
+      <Fixes fixes={finding.fixes} text={text} />
       <LearnMore anchor={finding.learnMore} />
     </>
   );
@@ -43,38 +42,36 @@ export function FindingDetails({ finding, word }: FindingDetailsProps) {
 
 interface ReasonsProps {
   readonly reasons: readonly Statement[];
-  readonly word: FindingDetailsProps["word"];
+  readonly text: FindingText;
 }
 
-function Reasons({ reasons, word }: ReasonsProps) {
+function Reasons({ reasons, text }: ReasonsProps) {
   if (reasons.length === 0) return null;
   return (
     <ul className={styles.list}>
       {reasons.map((reason, i) => (
-        <li key={i}>{word(reason)}</li>
+        <li key={i}>{text.statement(reason)}</li>
       ))}
     </ul>
   );
 }
 
-interface FindingProps {
+interface CauseBeganProps {
   readonly finding: Finding;
+  readonly text: FindingText;
 }
 
-function CauseBegan({ finding: { causeWindow } }: FindingProps) {
+function CauseBegan({ finding: { causeWindow }, text }: CauseBeganProps) {
   if (causeWindow === undefined) return null;
-  return (
-    <p>
-      <MessageText message={say`Cause began at ${at(causeWindow.fromMs)}.`} />
-    </p>
-  );
+  return <p>{text.message(say`Cause began at ${at(causeWindow.fromMs)}.`)}</p>;
 }
 
 interface FixesProps {
   readonly fixes: readonly Fix[];
+  readonly text: FindingText;
 }
 
-function Fixes({ fixes }: FixesProps) {
+function Fixes({ fixes, text }: FixesProps) {
   if (fixes.length === 0) return null;
   return (
     <>
@@ -83,7 +80,7 @@ function Fixes({ fixes }: FixesProps) {
         {fixes.map((fix, i) => (
           <li key={i}>
             <strong>{SCOPE_LABELS[fix.scope]}:</strong>{" "}
-            <MessageText message={fix.message} /> (
+            {text.message(fix.message)} (
             <ClaimText claim={fix.claim} />
             {fidelityText(fix)})
           </li>

@@ -94,6 +94,46 @@ describe("validateComponents", () => {
     ]);
   });
 
+  // Fails if checkUniqueNames is skipped, or the message leaves out the
+  // type's displayName.
+  it("reports a name another component of its type already uses", () => {
+    const p = project(validRoot);
+    const [front, q, consumer] = p.architecture.components;
+    if (front === undefined || q === undefined || consumer === undefined) {
+      throw new Error("The project has three components");
+    }
+    const renamed: Project = {
+      ...p,
+      architecture: {
+        ...p.architecture,
+        components: [front, q, { ...consumer, name: "front" }],
+      },
+    };
+    expect(validateComponents(renamed, registry)).toEqual([
+      {
+        path: ["architecture", "components", 2, "name"],
+        message:
+          "Another Test worker pool component already uses this name. Please choose another name.",
+      },
+    ]);
+  });
+
+  // Fails if names are checked across the project rather than per type.
+  it("accepts components of two types with one name", () => {
+    const p = project(validRoot);
+    const named: Project = {
+      ...p,
+      architecture: {
+        ...p.architecture,
+        components: p.architecture.components.map((c) => ({
+          ...c,
+          name: c.id === "consumer" ? "consumer" : "orders",
+        })),
+      },
+    };
+    expect(validateComponents(named, registry)).toEqual([]);
+  });
+
   it("reports actions the target doesn't accept, including in async steps", () => {
     const root: Step = {
       componentId: "front",

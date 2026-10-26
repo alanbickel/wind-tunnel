@@ -25,6 +25,7 @@ import type {
   SimulationRunner,
 } from "../application/ports/simulation-runner";
 import { createDetectors } from "../application/run-analysis/findings/create-detectors";
+import { componentNames } from "../application/run-analysis/component-names";
 import { createPhrasebook } from "../application/run-analysis/findings/create-phrasebook";
 import { findRun } from "../application/run-analysis/findings/find-run";
 import { RunSimulation } from "../application/use-cases/run-simulation";
@@ -127,13 +128,16 @@ async function runInPanel(input: PanelRunInput): Promise<PanelRun> {
 function cliReading(run: Parameters<typeof findRun>[0]): PanelRun {
   const detectors = createDetectors();
   const findings = findRun(run, detectors);
-  const phrasebook = createPhrasebook({ project: run.project, detectors });
-  const summaries = formatFindings(findings, phrasebook)
+  const wording = {
+    phrasebook: createPhrasebook({ project: run.project, detectors }),
+    nameOf: componentNames(run.project, createAwsComponentRegistry()),
+  };
+  const summaries = formatFindings(findings, wording)
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => /^[\d.]+\. (Failure|Warning|Note): /.test(line));
   return {
-    cliVerdict: formatVerdict(findings.verdict, phrasebook),
+    cliVerdict: formatVerdict(findings.verdict, wording),
     cliSummaries: summaries,
   };
 }
@@ -234,7 +238,7 @@ describe("the run panel's findings, Template B, long rush", () => {
   it("is degraded, and the verdict names the late-async-work warning", () => {
     expect(verdictRegion().querySelector("h4")?.textContent).toBe("Degraded");
     expect(panelVerdict()).toContain(
-      "All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s api waits for fn-api;",
+      "All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s API Gateway waits for fn-api;",
     );
     expect(findingItem("1").querySelector("p")?.textContent).toMatch(
       /^1\. Warning: Work queued in orders-queue finished/,

@@ -44,7 +44,8 @@ flowchart LR
 | Piece | File | Job |
 |---|---|---|
 | Shapes | [`finding.ts`](../../src/application/run-analysis/findings/finding.ts), [`finding-key.ts`](../../src/application/run-analysis/findings/finding-key.ts), [`message.ts`](../../src/application/run-analysis/findings/message.ts) | `Finding`, `FindingKey`, `Explains`, `Fix`, `Claim`, `Evidence`; comparing keys; `Message` and the `say` template tag that builds one |
-| Wording | [`phrase.ts`](../../src/application/run-analysis/findings/phrase.ts), [`vocabulary.ts`](../../src/application/run-analysis/findings/vocabulary.ts), [`phrasebook.ts`](../../src/application/run-analysis/findings/phrasebook.ts), [`create-phrasebook.ts`](../../src/application/run-analysis/findings/create-phrasebook.ts), [`verdict-phrases.ts`](../../src/application/run-analysis/findings/verdict-phrases.ts) | `Statement`, `Phrase` (a long and a short form); the `Vocabulary` role (a type's words for its IDs, and the workflows' names); the `Phrasebook` role and the factory that builds one from the detectors' phrases and the verdict's |
+| Wording | [`phrase.ts`](../../src/application/run-analysis/findings/phrase.ts), [`vocabulary.ts`](../../src/application/run-analysis/findings/vocabulary.ts), [`phrasebook.ts`](../../src/application/run-analysis/findings/phrasebook.ts), [`create-phrasebook.ts`](../../src/application/run-analysis/findings/create-phrasebook.ts), [`verdict-phrases.ts`](../../src/application/run-analysis/findings/verdict-phrases.ts), [`findings-wording.ts`](../../src/application/run-analysis/findings/findings-wording.ts) | `Statement`, `Phrase` (a long and a short form); the `Vocabulary` role (a type's words for its IDs, and the workflows' names); the `Phrasebook` role and the factory that builds one from the detectors' phrases and the verdict's; `FindingsWording`, a phrasebook with the project's component names, which the CLI and the run panel format with |
+| Names | [`component-names.ts`](../../src/application/run-analysis/component-names.ts) | `componentNames`: how each component is shown, by name, with its type where two types share the name ("orders (DynamoDB)") |
 | Role | [`detector.ts`](../../src/application/run-analysis/findings/detector.ts) | `Detector`: `{ id, detect(run), phrases }` |
 | Defaults | [`create-detectors.ts`](../../src/application/run-analysis/findings/create-detectors.ts) | Lists the detectors, as `createAwsComponentRegistry` lists the types |
 | Detectors | [`detectors/`](../../src/application/run-analysis/findings/detectors/) | One file each, with its statements and phrases beside it in a `-phrases` file, plus the helpers a detector calls (`limit-refused`, `recovery`, and `cause-parts`, which failed-requests and failed-deliveries share), each with its own phrases |
@@ -77,7 +78,9 @@ A `Phrasebook`, built by `createPhrasebook({ project, detectors })`, words a sta
 | `long` | The most in one second was 1,216, in the second ending at 32 s. | The CLI and the run panel, for the verdict and every finding |
 | `short` | the most in one second was 1,216, ending at 32 s | A degraded verdict, naming its top warning after "but"; and the `.short.txt` snapshots that pin every short form |
 
-Every phrase has both forms, with no fallback, so the phrasebook never knows who's asking. A long form is a whole sentence; a short form is a clause with no closing period. Both return a `Message`, still in parts. `partText` in `message-format.ts` turns each part into text by one set of rules (counts with separators, shares rounded down, times in seconds, components by ID), so the CLI and the run panel show the same text; the panel also sets components and times apart in their own elements.
+Every phrase has both forms, with no fallback, so the phrasebook never knows who's asking. A long form is a whole sentence; a short form is a clause with no closing period. Both return a `Message`, still in parts. `partText` in `message-format.ts` turns each part into text by one set of rules (counts with separators, shares rounded down, times in seconds, components by name), so the CLI and the run panel show the same text; the panel also sets components and times apart in their own elements.
+
+A component part holds the component's ID, never its name, so a finding still points at the component after a rename, and the panel can select it. The phrasebook doesn't name components: whoever formats the message does, with the lookup `componentNames` builds once per project. It shows the component's name, and adds the type's display name only where components of two types share the name: "orders (Lambda)" and "orders (DynamoDB)". A name is unique among its type's components (`validateComponents`), so that tells apart any two components except in a contrived case: a component whose own name is another's shown name, such as an API named "orders (DynamoDB)". The CLI builds the lookup from its registry; the run panel gets it from the `nameComponents` use case.
 
 A phrase gets a `Vocabulary` along with its statement: the words a component's type registers in the catalog for its rejection reasons and limits, the workflows' names, and `quote`, which words another statement in its short form. The verdict's summary quotes a degraded run's top warning that way. An ID with no words prints as it is; today every type's words are its raw IDs, such as `too-many-connections` and `queryWorkers`. A phrase never branches on a component's type.
 
@@ -97,7 +100,7 @@ sequenceDiagram
     V-->>Ph: the type's words for the ID, or the ID itself
     Ph-->>P: Message (parts: text, numbers, components, times)
     P-->>C: Message
-    C->>C: formatMessage: components by ID, times in seconds
+    C->>C: formatMessage: components by name (componentNames), times in seconds
     Note over C,P: The run panel asks for "long" too, and formats<br/>each part with the same partText
 ```
 

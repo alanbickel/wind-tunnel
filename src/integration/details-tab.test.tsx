@@ -128,8 +128,8 @@ describe("the Details tab, for the templates", () => {
     expect(
       screen
         .getByRole("button", { name: "orders-db (rds)" })
-        .getAttribute("aria-pressed"),
-    ).toBe("false");
+        .getAttribute("aria-current"),
+    ).toBeNull();
   });
 
   // Fails if an edge's latency, timeout, or retry policy is missing or

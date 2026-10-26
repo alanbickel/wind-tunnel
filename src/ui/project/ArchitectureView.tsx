@@ -3,10 +3,11 @@ import type { ProjectRecord } from "../../application/ports/project-record";
 import type { Selection } from "../../application/details/selection";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { Diagram } from "../diagram/Diagram";
-import type {
-  DiagramContent,
-  DiagramItem,
-  DiagramItemKind,
+import {
+  isSelected,
+  type DiagramContent,
+  type DiagramItem,
+  type DiagramItemKind,
 } from "../diagram/diagram-model";
 import { Panel } from "../shared/Panel";
 import { dispatchKind } from "../shared/kind-dispatch";
@@ -132,13 +133,17 @@ interface ItemButtonProps {
   readonly children: ReactNode;
 }
 
-/** One item of the text version, marked pressed while it's the selection. */
+/**
+ * One item of the text version, marked current while it's the selection.
+ * Not `aria-pressed`: pressing it again selects it again, it doesn't
+ * switch it off, so it isn't a toggle.
+ */
 function ItemButton({ item, selected, onSelect, children }: ItemButtonProps) {
   return (
     <button
       type="button"
       className={styles.item}
-      aria-pressed={selected?.kind === item.kind && selected.id === item.id}
+      aria-current={isSelected(selected, item) || undefined}
       onClick={() => {
         onSelect(item);
       }}

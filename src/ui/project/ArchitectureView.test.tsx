@@ -132,7 +132,7 @@ describe("ArchitectureView", () => {
   });
 
   // Fails if a text-version button selects the wrong kind of item or the
-  // wrong one, or the list doesn't mark the selection as pressed.
+  // wrong one, or the list doesn't mark the selection as current.
   it("selects from the text version, and marks the selection there", () => {
     const { onSelect } = renderView({
       selection: { kind: "edge", edgeId: "api-fn" },
@@ -145,8 +145,8 @@ describe("ArchitectureView", () => {
       [{ kind: "component", componentId: "table" }],
       [{ kind: "edge", edgeId: "fn-table" }],
     ]);
-    const pressed = screen.getAllByRole("button", { pressed: true });
-    expect(pressed.map((button) => button.textContent)).toEqual([
+    const current = screen.getAllByRole("button", { current: true });
+    expect(current.map((button) => button.textContent)).toEqual([
       "API → Function",
     ]);
   });

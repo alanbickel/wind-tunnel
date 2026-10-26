@@ -23,7 +23,7 @@
   color: var(--color-accent-hover);
 }
 
-.item[aria-pressed="true"] {
+.item[aria-current="true"] {
   color: var(--color-text);
   font-weight: var(--font-weight-bold);
   text-decoration: underline;

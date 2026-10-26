@@ -14,7 +14,7 @@ import {
 } from "../../../application/details/distribution-parts";
 import { setComponentSetting } from "../../../application/edits/component-edits";
 import { sameContent } from "../../../application/run-analysis/same-content";
-import type { FieldProps } from "./field-parts";
+import { fieldKeys, type FieldKeysInput, type FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
 import { TextField } from "./TextField";
 import { useDraft, type Draft } from "./useDraft";
@@ -30,10 +30,12 @@ export interface DistributionFieldProps extends FieldProps {
 /**
  * A duration distribution (UX design §2.2 step 4): a kind picker, and a
  * field for each of the kind's numbers, in ms. The draft is the whole
- * distribution: it saves when a part's field is left, or the kind
- * changes, if every part passes and a lognormal's p99 is at least its
+ * distribution: it saves when a part's field or the kind picker is left,
+ * or on Enter, if every part passes and a lognormal's p99 is at least its
  * median. Changing the kind fills the new parts from the old ones, so a
- * switch never leaves a field empty.
+ * switch never leaves a field empty, and switching back puts the old
+ * values back. The kind isn't saved on each change, because arrow keys on
+ * a closed picker change it once for each kind they pass.
  */
 export function DistributionField(props: DistributionFieldProps) {
   const { field, helpId } = props;
@@ -41,7 +43,15 @@ export function DistributionField(props: DistributionFieldProps) {
   return (
     <fieldset className={styles.group} aria-describedby={helpId}>
       <legend className={styles.label}>{field.label}</legend>
-      <KindPicker kind={draft.value.kind} onPick={pick} />
+      <KindPicker
+        kind={draft.value.kind}
+        onPick={pick}
+        keys={{
+          commit,
+          changed: draft.changed,
+          reset: draft.reset,
+        }}
+      />
       {DISTRIBUTION_PARTS[draft.value.kind].map((part) => (
         <TextField
           key={part.key}
@@ -50,9 +60,7 @@ export function DistributionField(props: DistributionFieldProps) {
           inputMode="decimal"
           draft={partDraft(draft, part)}
           message={messages[part.key]}
-          onCommit={() => {
-            commit(draft.value);
-          }}
+          onCommit={commit}
         />
       ))}
     </fieldset>
@@ -62,10 +70,12 @@ export function DistributionField(props: DistributionFieldProps) {
 interface KindPickerProps {
   readonly kind: DistributionKind;
   readonly onPick: (kind: DistributionKind) => void;
+  /** Commits on Enter and on leaving the picker; Escape puts back the saved kind. */
+  readonly keys: FieldKeysInput;
 }
 
 /** The distribution's kind: constant, exponential, or lognormal. */
-function KindPicker({ kind, onPick }: KindPickerProps) {
+function KindPicker({ kind, onPick, keys }: KindPickerProps) {
   const id = useId();
   return (
     <div className={styles.field}>
@@ -81,6 +91,8 @@ function KindPicker({ kind, onPick }: KindPickerProps) {
           );
           if (picked) onPick(picked);
         }}
+        onBlur={keys.commit}
+        onKeyDown={fieldKeys(keys)}
       >
         {DISTRIBUTION_KINDS.map((option) => (
           <option key={option}>{option}</option>
@@ -95,9 +107,9 @@ interface DistributionDraftState {
   readonly draft: Draft<DistributionDraft>;
   /** Each failing part's message, by the part's key. */
   readonly messages: Readonly<Record<string, string>>;
-  /** Saves `next` if it passes; announces what's wrong if not. */
-  readonly commit: (next: DistributionDraft) => void;
-  /** Switches the kind, and saves the switch. */
+  /** Saves the draft if it passes; announces what's wrong if not. */
+  readonly commit: () => void;
+  /** Switches the draft's kind; leaving the picker saves it. */
   readonly pick: (kind: DistributionKind) => void;
 }
 
@@ -107,22 +119,19 @@ function useDistributionDraft(
   const { field, value, componentId, onEdit, announce } = props;
   const draft = useDraft(distributionDraft(value));
   const check = checkDistributionDraft(draft.value);
-  const commit = (next: DistributionDraft) => {
-    const checked = checkDistributionDraft(next);
-    if (checked.status === "fails") {
-      announce(Object.values(checked.messages).join(" "));
+  const commit = () => {
+    if (check.status === "fails") {
+      announce(Object.values(check.messages).join(" "));
       return;
     }
-    if (sameContent(checked.value, value)) return;
+    if (sameContent(check.value, value)) return;
     const { key } = field;
     onEdit((record) =>
-      setComponentSetting(record, { componentId, key, value: checked.value }),
+      setComponentSetting(record, { componentId, key, value: check.value }),
     );
   };
   const pick = (kind: DistributionKind) => {
-    const next = switchKind(draft.value, kind);
-    draft.set(next);
-    commit(next);
+    draft.set(switchKind(draft.value, kind));
   };
   const messages = check.status === "fails" ? check.messages : {};
   return { draft, messages, commit, pick };

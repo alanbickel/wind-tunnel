@@ -171,7 +171,8 @@ describe("editing a component's settings", () => {
   });
 
   // Fails if the p99 rule is unchecked or worded on the wrong field, or a
-  // switch to constant leaves the value empty instead of the median.
+  // switch to constant leaves the value empty instead of the median, or
+  // leaving the kind picker doesn't save the switch.
   it("checks a p99 below the median, and fills a constant from the median", async () => {
     const { projects } = openAndSelect(projectA, "orders-db");
     const queryTime = group("Query time");
@@ -185,10 +186,9 @@ describe("editing a component's settings", () => {
     fireEvent.keyDown(p99, { key: "Escape" });
     expect(p99.value).toBe("60");
 
-    fireEvent.change(
-      within(queryTime).getByRole("combobox", { name: "Kind" }),
-      { target: { value: "constant" } },
-    );
+    const kind = within(queryTime).getByRole("combobox", { name: "Kind" });
+    fireEvent.change(kind, { target: { value: "constant" } });
+    fireEvent.blur(kind);
 
     expect(field("Value", queryTime).value).toBe("15");
     const saved = await savedRecord(projects, projectA);
@@ -196,6 +196,25 @@ describe("editing a component's settings", () => {
       kind: "constant",
       valueMs: 15,
     });
+  });
+
+  // Fails if each change of kind saves (arrow keys on a closed picker
+  // change it once for each kind they pass), or switching back loses the
+  // p99. Broken by committing in `pick`: the first switch saves.
+  it("saves the kind only when the picker is left, and switching back keeps the p99", async () => {
+    const { projects } = openAndSelect(projectA, "orders-db");
+    const queryTime = group("Query time");
+    const kind = within(queryTime).getByRole("combobox", { name: "Kind" });
+
+    fireEvent.change(kind, { target: { value: "exponential" } });
+    fireEvent.change(kind, { target: { value: "constant" } });
+    expect(await projects.list()).toEqual([]);
+    fireEvent.change(kind, { target: { value: "exponential" } });
+    fireEvent.change(kind, { target: { value: "lognormal" } });
+    fireEvent.blur(kind);
+
+    expect(field("p99", queryTime).value).toBe("60");
+    expect(await projects.list()).toEqual([]);
   });
 
   // Fails if a name another component of the type uses can be saved, or

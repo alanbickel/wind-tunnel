@@ -48,17 +48,20 @@ export function distributionDraft(value: unknown): DistributionDraft {
 }
 
 /**
- * The draft with another kind, its parts filled from the old kind's
- * typical value: a constant takes a lognormal's median, and a lognormal
- * starts with its median and p99 both at a constant's value. So a switch
- * never leaves a part empty.
+ * The draft with another kind. A part the draft already has a text for,
+ * from a kind it switched away from, keeps it, so switching back puts the
+ * old values back. The rest are filled from the old kind's typical value:
+ * a constant takes a lognormal's median, and a lognormal starts with its
+ * median and p99 both at a constant's value. So a switch never leaves a
+ * part empty.
  */
 export function switchKind(
   draft: DistributionDraft,
   kind: DistributionKind,
 ): DistributionDraft {
   const typical = draft.texts[typicalPart(draft.kind).key] ?? "";
-  return { kind, texts: textsOf(kind, () => typical) };
+  const filled = textsOf(kind, (part) => draft.texts[part.key] ?? typical);
+  return { kind, texts: { ...draft.texts, ...filled } };
 }
 
 /**

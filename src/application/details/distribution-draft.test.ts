@@ -59,17 +59,30 @@ describe("a distribution's draft", () => {
   // take the lognormal's median.
   it("fills a new kind's parts from the old one's typical value", () => {
     const constant = switchKind(QUERY_TIME, "constant");
-    expect(constant).toEqual({ kind: "constant", texts: { valueMs: "15" } });
+    expect(constant.texts["valueMs"]).toBe("15");
     expect(checkDistributionDraft(constant)).toEqual({
       status: "passes",
       value: { kind: "constant", valueMs: 15 },
     });
-    expect(switchKind(constant, "lognormal")).toEqual({
+    const stored = distributionDraft({ kind: "constant", valueMs: 15 });
+    expect(switchKind(stored, "lognormal")).toEqual({
       kind: "lognormal",
-      texts: { medianMs: "15", p99Ms: "15" },
+      texts: { valueMs: "15", medianMs: "15", p99Ms: "15" },
     });
-    expect(switchKind(constant, "exponential").texts).toEqual({
-      meanMs: "15",
+    expect(switchKind(stored, "exponential").texts["meanMs"]).toBe("15");
+  });
+
+  // Fails if a switch drops the parts of the kind it leaves, so trying
+  // another kind and switching back loses the p99 (it comes back as the
+  // median, 15). Broken by returning only the new kind's texts.
+  it("puts a kind's values back when switched back to it", () => {
+    const back = switchKind(
+      switchKind(switchKind(QUERY_TIME, "exponential"), "constant"),
+      "lognormal",
+    );
+    expect(checkDistributionDraft(back)).toEqual({
+      status: "passes",
+      value: { kind: "lognormal", medianMs: 15, p99Ms: 60 },
     });
   });
 });

@@ -44,7 +44,7 @@ export function NumberField(props: NumberFieldProps) {
     <TextField
       label={field.label}
       unit={field.unit}
-      inputMode={field.kind === "whole-number" ? "numeric" : "decimal"}
+      inputMode={INPUT_MODES[field.kind]}
       draft={draft}
       message={check.status === "fails" ? check.message : undefined}
       onCommit={commit}
@@ -52,3 +52,12 @@ export function NumberField(props: NumberFieldProps) {
     />
   );
 }
+
+/** The keyboard a phone shows for each kind of number. */
+const INPUT_MODES: Record<
+  NumberFieldDescriptor["kind"],
+  "numeric" | "decimal"
+> = {
+  number: "decimal",
+  "whole-number": "numeric",
+};

@@ -1,12 +1,19 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import type {
   ComponentDetails,
   SettingDetails,
 } from "../../../application/details/details";
+import type {
+  ConfigFieldDescriptor,
+  DistributionFieldDescriptor,
+  NumberFieldDescriptor,
+} from "../../../application/details/field-descriptor";
 import { resetComponentSetting } from "../../../application/edits/component-edits";
 import { sameContent } from "../../../application/run-analysis/same-content";
 import type { Project } from "../../../domain/model/project";
+import type { KindHandlers } from "../../../domain/shared/kind-handlers";
 import { Button } from "../../shared/Button";
+import { dispatchKind } from "../../shared/kind-dispatch";
 import { DistributionField } from "./DistributionField";
 import type { FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
@@ -88,12 +95,33 @@ function SettingField({ setting, ...props }: SettingFieldProps) {
   const { editor } = setting;
   if (editor === undefined) return <ReadOnlySetting setting={setting} />;
   const { field, value } = editor;
-  return field.kind === "distribution" ? (
-    <DistributionField field={field} value={value} {...props} />
-  ) : (
-    <NumberField field={field} value={value} {...props} />
-  );
+  return dispatchKind(FIELDS, field)({ value, ...props });
 }
+
+/** What a setting's field is given besides its descriptor. */
+interface FieldContext extends FieldProps {
+  /** As stored. */
+  readonly value: unknown;
+  readonly helpId: string;
+}
+
+/** A number setting's field, for either kind of number. */
+const numberField =
+  (field: NumberFieldDescriptor) => (context: FieldContext) => (
+    <NumberField field={field} {...context} />
+  );
+
+/** The field for each kind of descriptor; a new kind registers its own. */
+const FIELDS: KindHandlers<
+  ConfigFieldDescriptor,
+  (context: FieldContext) => ReactNode
+> = {
+  number: numberField,
+  "whole-number": numberField,
+  distribution: (field: DistributionFieldDescriptor) => (context) => (
+    <DistributionField field={field} {...context} />
+  ),
+};
 
 interface ReadOnlySettingProps {
   readonly setting: SettingDetails;

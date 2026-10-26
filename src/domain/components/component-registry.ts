@@ -1,5 +1,5 @@
 import type { StepAction } from "../model/project";
-import type { ValidationIssue } from "../model/validate-project";
+import type { ValidationIssue } from "../model/validation-issue";
 import type { ComponentBehavior } from "./component-behavior";
 import type { BuildContext } from "./component-definition";
 

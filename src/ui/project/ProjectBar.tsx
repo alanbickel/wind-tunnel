@@ -40,6 +40,12 @@ export function ProjectBar(props: ProjectBarProps) {
           <RunProgress workload={ran} snapshots={run.snapshots} />
         )}
         <RunStatus status={status} outOfDate={outOfDate} />
+        {/* Mounted from the start, like the run's status, so screen
+            readers announce why the picked workload can't run when a
+            change to the project stops it. */}
+        <p role="status" className={styles.cantRun}>
+          {cantRunReason(projectRun)}
+        </p>
         <SaveStatus saveFailed={saveFailed} onRetry={onRetry} />
       </div>
     </section>
@@ -97,6 +103,7 @@ function WorkloadControls({ project, projectRun }: WorkloadControlsProps) {
       workloads={project.workloads}
       workload={picked}
       onPick={pick}
+      checks={projectRun.checks}
       running={run.phase.status === "running"}
       onStart={() => {
         run.start(picked);
@@ -104,4 +111,10 @@ function WorkloadControls({ project, projectRun }: WorkloadControlsProps) {
       onStop={run.stop}
     />
   );
+}
+
+/** Why the picked workload can't run; empty if it can, or there's none. */
+function cantRunReason({ picked, checks }: ProjectRun): string {
+  if (picked === undefined) return "";
+  return checks.get(picked.id)?.summary ?? "";
 }

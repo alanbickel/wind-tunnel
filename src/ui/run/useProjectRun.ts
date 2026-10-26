@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { runIsCurrent } from "../../application/run-analysis/run-freshness";
+import type { WorkloadRunChecks } from "../../application/run-checks/workload-run-checks";
 import type { Project, Workload } from "../../domain/model/project";
+import { useUseCases } from "../app/useUseCases";
 import {
   currentVerdict,
   ranModelOf,
@@ -23,6 +25,8 @@ export interface ProjectRun {
   /** The workload the picker shows; undefined if the project has none. */
   readonly picked: Workload | undefined;
   readonly pick: (workload: Workload) => void;
+  /** Which of the project's workloads can run, and why not, by ID. */
+  readonly checks: WorkloadRunChecks;
   /** The workload the latest run ran, if there has been one. */
   readonly ran: Workload | undefined;
   /** What the latest run means so far; undefined before the first. */
@@ -44,6 +48,11 @@ export interface ProjectRun {
  */
 export function useProjectRun(project: Project): ProjectRun {
   const run = useSimulationRun(project);
+  const { checkWorkloads } = useUseCases();
+  const checks = useMemo(
+    () => checkWorkloads.execute({ project }),
+    [checkWorkloads, project],
+  );
   const [picked, pick] = useState(project.workloads[0]);
   const ranModel = ranModelOf(run.phase);
   const meaning = useRunFindings({ ran: ranModel, received: run });
@@ -59,7 +68,7 @@ export function useProjectRun(project: Project): ProjectRun {
     [ranModel, project],
   );
   const ran = ranModel?.workload;
-  return { run, picked, pick, ran, meaning, status, outOfDate };
+  return { run, picked, pick, checks, ran, meaning, status, outOfDate };
 }
 
 /** Whether there has been a run, and its copy no longer matches `project`. */

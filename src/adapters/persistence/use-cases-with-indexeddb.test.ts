@@ -59,6 +59,7 @@ function useCases() {
     deleteProject: new DeleteProject({ projects }),
     runSimulation: new RunSimulation({
       runner: new InProcessSimulationRunner({ registry }),
+      registry,
     }),
   };
 }

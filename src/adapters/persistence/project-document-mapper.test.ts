@@ -5,7 +5,7 @@ import { createAwsComponentRegistry } from "../../domain/components/aws";
 import templateA from "../templates/template-a.json";
 import templateB from "../templates/template-b.json";
 import { loadProject } from "./load-project";
-import { toProjectDocument } from "./project-document-mapper";
+import { toDocumentIssue, toProjectDocument } from "./project-document-mapper";
 
 const registry = createAwsComponentRegistry();
 
@@ -49,5 +49,18 @@ describe("the project document mapper", () => {
     expect(Object.keys(document)).not.toContain("description");
     expect(Object.keys(document)).not.toContain("source");
     expect(load(document)).toStrictEqual(record);
+  });
+
+  // Fails if an issue's path keeps the domain's field name, which the
+  // document doesn't have.
+  it("puts an issue in a renamed field at the document's field name", () => {
+    const issue = {
+      path: ["workloads", 0, "profile", 1, "atMs"],
+      message: "m",
+    };
+    expect(toDocumentIssue(issue)).toEqual({
+      path: ["workloads", 0, "profile", 1, "atSec"],
+      message: "m",
+    });
   });
 });

@@ -2,9 +2,11 @@ import { z } from "zod";
 
 // The stored and exported project format, version 1 (MVP design §6,
 // ADR-0004). This schema checks shapes and number ranges only. Rules that
-// span the project (unique IDs, references, steps following edges) belong to
-// `validateProject`, and each component's `config` to its definition
-// (`validateComponents`); `loadProject` runs all three.
+// span the architecture (unique IDs, edges' ends) belong to
+// `validateArchitecture`, and each component's `config` to its definition
+// (`validateComponents`); `loadProject` runs all three. Rules for workflows
+// and workloads (steps following edges, mixes naming workflows) are run
+// checks (`findRunIssues`), which stop a run, not loading.
 //
 // Objects are strict: an unknown key is an error, so a typo in a template
 // (`latencyMS`) fails loudly instead of being dropped.

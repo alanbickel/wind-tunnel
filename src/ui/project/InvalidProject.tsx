@@ -1,5 +1,5 @@
 import type { ProjectInvalid } from "../../application/ports/project-repository";
-import type { ValidationIssue } from "../../domain/model/validate-project";
+import type { ValidationIssue } from "../../domain/model/validation-issue";
 import { ScreenHeading } from "../shared/ScreenHeading";
 
 export interface InvalidProjectProps {

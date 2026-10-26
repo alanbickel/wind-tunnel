@@ -1,6 +1,6 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
 import type { Project } from "../../domain/model/project";
-import type { ValidationIssue } from "../../domain/model/validate-project";
+import type { ValidationIssue } from "../../domain/model/validation-issue";
 import type { ProjectRecord } from "../../application/ports/project-record";
 import type {
   TemplateCatalog,

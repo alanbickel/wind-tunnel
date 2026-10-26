@@ -9,7 +9,7 @@ import { awsDescribeSelection } from "../../../application/testing/aws-describe-
 import { awsSaveProject } from "../../../application/testing/aws-save-project";
 import { InMemoryProjectRepository } from "../../../application/testing/in-memory-project-repository";
 import { sampleRecord } from "../../../application/testing/sample-record";
-import { RunSimulation } from "../../../application/use-cases/run-simulation";
+import { awsRunSimulation } from "../../../application/testing/aws-run-simulation";
 import type { Project } from "../../../domain/model/project";
 import { fakeUseCases } from "../../app/testing/fake-use-cases";
 import type { UseCases } from "../../app/use-cases";
@@ -56,7 +56,7 @@ export function renderOpenedProject({
   const runner = new ManualSimulationRunner();
   const projects = new InMemoryProjectRepository();
   const useCases = fakeUseCases({
-    runSimulation: new RunSimulation({ runner }),
+    runSimulation: awsRunSimulation(runner),
     describeSelection: awsDescribeSelection(),
     saveProject: saveProject ?? awsSaveProject(projects),
   });
@@ -84,6 +84,16 @@ export function statusRegions(): [HTMLElement, HTMLElement] {
     throw new Error("the bar should have two status regions");
   }
   return [runStatus, outOfDate];
+}
+
+/**
+ * The bar's region that says why the picked workload can't run, after the
+ * run's status and whether it's out of date.
+ */
+export function cantRunRegion(): HTMLElement {
+  const region = within(bar()).getAllByRole("status")[2];
+  if (region === undefined) throw new Error("the bar should say why");
+  return region;
 }
 
 /** The run's status line. */

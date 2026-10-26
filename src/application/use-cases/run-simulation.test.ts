@@ -6,8 +6,9 @@ import {
   FAKE_RUN,
   RecordingSimulationRunner,
 } from "../testing/recording-simulation-runner";
+import { projectWithRunIssue } from "../testing/project-with-run-issue";
 import { sampleRecord } from "../testing/sample-record";
-import { RunSimulation } from "./run-simulation";
+import { awsRunSimulation } from "../testing/aws-run-simulation";
 
 const steady = sampleRecord.project.workloads[0];
 if (steady === undefined) throw new Error("sampleRecord has no workload");
@@ -20,7 +21,7 @@ const project: Project = {
 
 function setUp() {
   const runner = new RecordingSimulationRunner();
-  return { runner, runSimulation: new RunSimulation({ runner }) };
+  return { runner, runSimulation: awsRunSimulation(runner) };
 }
 
 describe("RunSimulation", () => {
@@ -118,5 +119,39 @@ describe("RunSimulation", () => {
 
     expect(result).toEqual({ status: "stopped", project, workload: steady });
     expect(seen).toHaveLength(1);
+  });
+
+  // Fails if RunSimulation hands the runner a workload without checking it.
+  it("refuses a workload with run issues, saying why, without running it", async () => {
+    const { runner, runSimulation } = setUp();
+
+    const result = await runSimulation.execute({
+      project: projectWithRunIssue,
+      workloadId: "write-rush",
+    });
+
+    expect(result).toMatchObject({
+      status: "cant-run",
+      workload: { id: "write-rush" },
+      check: {
+        canRun: false,
+        summary:
+          "Write rush can't run yet: Write item calls orders-db, which isn't in the architecture.",
+      },
+    });
+    expect(runner.requests).toEqual([]);
+  });
+
+  // Fails if one workload's run issues stop every workload in the project.
+  it("runs another workload in a project with run issues", async () => {
+    const { runner, runSimulation } = setUp();
+
+    const result = await runSimulation.execute({
+      project: projectWithRunIssue,
+      workloadId: "steady",
+    });
+
+    expect(result).toMatchObject({ status: "finished" });
+    expect(runner.requests.map((r) => r.workloadId)).toEqual(["steady"]);
   });
 });

@@ -95,7 +95,7 @@ async function runInPanel(input: PanelRunInput): Promise<PanelRun> {
   const { project, workloadName, stopAfter } = input;
   const runner = new RecordingRunner(stopAfter);
   const useCases = fakeUseCases({
-    runSimulation: new RunSimulation({ runner }),
+    runSimulation: new RunSimulation({ runner, registry }),
   });
   stubDiagramBrowserApis();
   stubWindowWidth("wide");

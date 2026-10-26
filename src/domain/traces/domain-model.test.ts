@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Edge, Project } from "../model/project";
-import { validateProject } from "../model/validate-project";
+import { createAwsComponentRegistry } from "../components/aws";
+import { findRunIssues } from "../components/find-run-issues";
+import { validateArchitecture } from "../model/validate-architecture";
 import { table } from "./format";
 
 // Worked examples for docs/architecture/domain-model.md;
@@ -9,7 +11,7 @@ import { table } from "./format";
 // then check the guide still matches.
 
 describe("traces", () => {
-  it("validateProject: every problem, with a path to it", async () => {
+  it("validateArchitecture and findRunIssues: every problem, with a path to it", async () => {
     const edge = (from: string, to: string): Edge => ({
       id: `${from}->${to}`,
       from,
@@ -54,10 +56,19 @@ describe("traces", () => {
         },
       ],
     };
-    const rows = validateProject(project).map((issue) => [
+    const architectureRows = validateArchitecture(project).map((issue) => [
+      "architecture",
       issue.path.join("."),
       issue.message,
     ]);
+    const { workflows, workloads } = findRunIssues(
+      project,
+      createAwsComponentRegistry(),
+    );
+    const runRows = [...workflows.values(), ...workloads.values()]
+      .flat()
+      .map((issue) => ["run", issue.path.join("."), issue.kind]);
+    const rows = [...architectureRows, ...runRows];
     await expect(
       table(
         [
@@ -65,7 +76,7 @@ describe("traces", () => {
           "Workflow 'get' calls db straight from api. The workload has a typo",
           "in its mix and two profile points at 0 s.",
         ].join("\n"),
-        ["path", "message"],
+        ["check", "path", "message or kind"],
         rows,
       ),
     ).toMatchFileSnapshot("validate-project.txt");

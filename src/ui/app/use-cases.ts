@@ -1,4 +1,5 @@
 import type { StoragePersistence } from "../../application/ports/storage-persistence";
+import type { CheckWorkloads } from "../../application/use-cases/check-workloads";
 import type { CreateProjectFromTemplate } from "../../application/use-cases/create-project-from-template";
 import type { DescribeSelection } from "../../application/use-cases/describe-selection";
 import type { DeleteProject } from "../../application/use-cases/delete-project";
@@ -34,6 +35,7 @@ export interface UseCases {
   readonly runSimulation: UseCase<RunSimulation>;
   readonly describeSelection: UseCase<DescribeSelection>;
   readonly nameComponents: UseCase<NameComponents>;
+  readonly checkWorkloads: UseCase<CheckWorkloads>;
   /**
    * The one port the UI calls directly: when to ask for persistent storage
    * is a UI decision (after the first project is created), not a use case.

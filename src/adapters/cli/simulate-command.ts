@@ -41,7 +41,7 @@ export async function runSimulateCommand(
   const catalog = createBundledTemplateCatalog(registry);
   const usage = formatUsage(await catalog.list());
   const runner = new InProcessSimulationRunner({ registry });
-  const runSimulation = new RunSimulation({ runner });
+  const runSimulation = new RunSimulation({ runner, registry });
   const report = await reportFor({ args, catalog, runSimulation, registry });
   if (typeof report === "string") return fail({ message: report, usage });
   return { exitCode: 0, output: report.text };
@@ -81,6 +81,7 @@ async function reportFor({
   if (result.status === "workload-missing") return unknownWorkload(result);
   // The CLI passes no stop signal, so this can't happen; the type allows it.
   if (result.status === "stopped") return "The run was stopped.";
+  if (result.status === "cant-run") return result.check.summary;
   return { text: formatReport({ ...result, registry }) };
 }
 

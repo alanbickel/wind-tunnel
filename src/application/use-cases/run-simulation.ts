@@ -2,7 +2,12 @@ import type {
   MetricsRun,
   MetricsSnapshot,
 } from "../../domain/metrics/metrics-collector";
+import type { ComponentRegistry } from "../../domain/components/component-registry";
 import type { Project, Workload } from "../../domain/model/project";
+import {
+  workloadRunCheck,
+  type WorkloadRunCheck,
+} from "../run-checks/workload-run-checks";
 import type {
   SimulationOutcome,
   SimulationRunner,
@@ -11,10 +16,12 @@ import type { StopSignal } from "../ports/stop-signal";
 
 export interface RunSimulationDependencies {
   readonly runner: SimulationRunner;
+  /** Checks the workload before it's handed to the runner. */
+  readonly registry: ComponentRegistry;
 }
 
 export interface RunSimulationInput {
-  /** A project that passed validation, e.g. from `OpenProject`. */
+  /** A project whose architecture is valid, e.g. from `OpenProject`. */
   readonly project: Project;
   /** Defaults to the project's first workload. */
   readonly workloadId?: string;
@@ -29,7 +36,8 @@ export interface RunSimulationInput {
   readonly stopSignal?: StopSignal;
 }
 
-export type RunSimulationResult = RunFinished | RunStopped | WorkloadMissing;
+export type RunSimulationResult =
+  RunFinished | RunStopped | WorkloadMissing | WorkloadCantRun;
 
 /** The workload to run, and the project it runs in. */
 export interface RunTarget {
@@ -54,20 +62,33 @@ export interface WorkloadMissing {
 }
 
 /**
+ * The workload has run issues, its own or its workflows' (ADR-0019,
+ * decision 2), so it wasn't run.
+ */
+export interface WorkloadCantRun extends RunTarget {
+  readonly status: "cant-run";
+  readonly check: WorkloadRunCheck;
+}
+
+/**
  * Runs one of a project's workloads, optionally with another seed. The
  * result's `project` and `workload` are as they ran, with the seed applied.
+ * It refuses a workload with run issues, so the runner, and the engine, are
+ * only ever handed one whose run checks pass.
  */
 export class RunSimulation {
-  private readonly runner: SimulationRunner;
+  private readonly deps: RunSimulationDependencies;
 
-  constructor({ runner }: RunSimulationDependencies) {
-    this.runner = runner;
+  constructor(deps: RunSimulationDependencies) {
+    this.deps = deps;
   }
 
   async execute(input: RunSimulationInput): Promise<RunSimulationResult> {
     const target = selectWorkload(input);
     if (target === undefined) return workloadMissing(input);
-    const outcome = await this.runner.run({
+    const check = workloadRunCheck({ ...target, registry: this.deps.registry });
+    if (!check.canRun) return { status: "cant-run", ...target, check };
+    const outcome = await this.deps.runner.run({
       request: { project: target.project, workloadId: target.workload.id },
       onSnapshot: input.onSnapshot,
       stopSignal: input.stopSignal,

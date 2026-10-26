@@ -11,6 +11,7 @@ import { ArchitectureView } from "./ArchitectureView";
 import styles from "./OpenedProject.module.css";
 import { ProjectBar } from "./ProjectBar";
 import { NothingSelected, SelectionDetails } from "./SelectionDetails";
+import { useProjectEdits, type ProjectEdits } from "./useProjectEdits";
 import { useSelection, type ProjectSelection } from "./useSelection";
 
 export interface OpenedProjectProps {
@@ -20,11 +21,14 @@ export interface OpenedProjectProps {
 /**
  * A project that opened: the project bar, then its architecture beside
  * the Details and Run tabs in a wide window, or above Details (while
- * something is selected) and the run's results in a narrow one. The run
- * and the selection are held here, so every part of the screen reads the
- * same ones, and a tab or layout change doesn't stop the run.
+ * something is selected) and the run's results in a narrow one. The
+ * record with its edits, the run, and the selection are held here, so
+ * every part of the screen reads the same ones, and a tab or layout change
+ * doesn't stop the run.
  */
-export function OpenedProject({ record }: OpenedProjectProps) {
+export function OpenedProject({ record: loaded }: OpenedProjectProps) {
+  const edits = useProjectEdits(loaded);
+  const { record } = edits;
   const { project } = record;
   const projectRun = useProjectRun(project);
   const selecting = useSelection();
@@ -33,13 +37,19 @@ export function OpenedProject({ record }: OpenedProjectProps) {
 
   return (
     <div className={styles.project}>
-      <ProjectBar project={project} projectRun={projectRun} />
+      <ProjectBar
+        project={project}
+        projectRun={projectRun}
+        saveFailed={edits.saveFailed}
+        onRetry={edits.retry}
+      />
       <div className={styles.columns}>
         {architecture}
         <Column
           project={project}
           projectRun={projectRun}
           selecting={selecting}
+          onEdit={edits.edit}
         />
       </div>
     </div>
@@ -71,29 +81,20 @@ interface ColumnProps {
   readonly project: Project;
   readonly projectRun: ProjectRun;
   readonly selecting: ProjectSelection;
+  readonly onEdit: ProjectEdits["edit"];
 }
 
 /** Details and Run, beside the architecture; Run first. */
-function SideTabs({ project, projectRun, selecting }: ColumnProps) {
-  const { selection, tab, showTab, close, takeFocus } = selecting;
-  const details =
-    selection === undefined ? (
-      <NothingSelected />
-    ) : (
-      <SelectionDetails
-        project={project}
-        selection={selection}
-        onClose={close}
-        takeFocus={takeFocus}
-      />
-    );
+function SideTabs(props: ColumnProps) {
+  const { projectRun, selecting } = props;
+  const { tab, showTab } = selecting;
   return (
     <Tabs
       label="Project"
       selected={tab}
       onSelect={showTab}
       tabs={[
-        { id: "details", label: "Details", content: details },
+        { id: "details", label: "Details", content: <DetailsTab {...props} /> },
         {
           id: "run",
           label: "Run",
@@ -104,8 +105,24 @@ function SideTabs({ project, projectRun, selecting }: ColumnProps) {
   );
 }
 
+/** The Details tab's content: the selection's details, or that there's none. */
+function DetailsTab({ project, selecting, onEdit }: ColumnProps) {
+  const { selection, close, takeFocus } = selecting;
+  if (selection === undefined) return <NothingSelected />;
+  return (
+    <SelectionDetails
+      project={project}
+      selection={selection}
+      onEdit={onEdit}
+      onClose={close}
+      takeFocus={takeFocus}
+    />
+  );
+}
+
 /** Under the architecture: Details while something is selected, then Run. */
-function Stacked({ project, projectRun, selecting }: ColumnProps) {
+function Stacked(props: ColumnProps) {
+  const { project, projectRun, selecting, onEdit } = props;
   const { selection, close, takeFocus } = selecting;
   return (
     <>
@@ -114,6 +131,7 @@ function Stacked({ project, projectRun, selecting }: ColumnProps) {
           <SelectionDetails
             project={project}
             selection={selection}
+            onEdit={onEdit}
             onClose={close}
             takeFocus={takeFocus}
             closable

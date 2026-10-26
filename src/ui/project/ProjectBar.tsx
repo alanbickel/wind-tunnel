@@ -2,6 +2,7 @@ import { useId } from "react";
 import type { Project } from "../../domain/model/project";
 import { RunControls } from "../run/RunControls";
 import { RunProgress } from "../run/RunProgress";
+import { Button } from "../shared/Button";
 import type { ProjectRun } from "../run/useProjectRun";
 import { ScreenHeading } from "../shared/ScreenHeading";
 import styles from "./ProjectBar.module.css";
@@ -9,15 +10,20 @@ import styles from "./ProjectBar.module.css";
 export interface ProjectBarProps {
   readonly project: Project;
   readonly projectRun: ProjectRun;
+  /** True once the last change failed to save, until a save works. */
+  readonly saveFailed: boolean;
+  /** Saves the change that failed again. */
+  readonly onRetry: () => void;
 }
 
 /**
  * The top of a project screen, above both columns: the project's name and
  * description, then what runs it, how far the run has got, its status, and
- * whether it's out of date.
+ * whether it's out of date, and whether the last change saved.
  * A region named by the project, so a screen reader can jump to it.
  */
-export function ProjectBar({ project, projectRun }: ProjectBarProps) {
+export function ProjectBar(props: ProjectBarProps) {
+  const { project, projectRun, saveFailed, onRetry } = props;
   const { run, ran, status, outOfDate } = projectRun;
   const headingId = useId();
   return (
@@ -42,13 +48,35 @@ export function ProjectBar({ project, projectRun }: ProjectBarProps) {
             {outOfDate ? "Out of date" : ""}
           </span>
         </p>
+        <SaveStatus saveFailed={saveFailed} onRetry={onRetry} />
       </div>
     </section>
   );
 }
 
+type SaveStatusProps = Pick<ProjectBarProps, "saveFailed" | "onRetry">;
+
+/**
+ * Says when the last change didn't save, and offers to save it again
+ * (UX design §4.3). The message's region is mounted from the start, empty,
+ * so screen readers announce it; Try again sits outside it, so it isn't
+ * read as part of the message.
+ */
+function SaveStatus({ saveFailed, onRetry }: SaveStatusProps) {
+  return (
+    <p className={styles.saveStatus}>
+      <span role="status" className={styles.saveFailed}>
+        {saveFailed ? "Couldn't save your last change." : ""}
+      </span>
+      {saveFailed && <Button onClick={onRetry}>Try again</Button>}
+    </p>
+  );
+}
+
+type WorkloadControlsProps = Pick<ProjectBarProps, "project" | "projectRun">;
+
 /** The run controls, on the picked workload; a line instead if there are none. */
-function WorkloadControls({ project, projectRun }: ProjectBarProps) {
+function WorkloadControls({ project, projectRun }: WorkloadControlsProps) {
   const { run, picked, pick } = projectRun;
   if (picked === undefined) {
     return <p>This project has no workloads to run.</p>;

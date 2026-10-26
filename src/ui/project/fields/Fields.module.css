@@ -1,0 +1,88 @@
+/* A component's name and settings, one under another. */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+/* One setting: its field, then its help and default under it. */
+.setting > * + * {
+  margin-top: var(--space-1);
+}
+
+/* The label beside its input, wrapping under it when there's no room. */
+.field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+}
+
+.label {
+  font-weight: var(--font-weight-bold);
+}
+
+/* The input and its unit, kept together. */
+.entry {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.number {
+  width: var(--number-field-width);
+}
+
+.text {
+  width: var(--text-field-width);
+  max-width: 100%;
+}
+
+/* What's wrong with a draft: in words, and by aria-invalid's border, not
+   by color alone. */
+.message {
+  flex-basis: 100%;
+  margin: var(--space-1) 0 0;
+  color: var(--color-status-error);
+}
+
+.field:has([aria-invalid="true"]) input {
+  border-color: var(--color-status-error);
+  border-width: var(--line-width-thick);
+}
+
+/* A distribution: its kind and parts as one group, under the setting's label. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.group > legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+}
+
+.help,
+.default {
+  max-width: var(--prose-max-width);
+  margin-bottom: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* "Default 16: an assumption (RDS-2)." with Reset beside it. */
+.default {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.readOnly {
+  margin: 0;
+}

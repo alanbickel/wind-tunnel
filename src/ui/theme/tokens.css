@@ -106,6 +106,10 @@
   /* The least width of the column beside the canvas (the Details and Run
      tabs), so the run's tables fit. */
   --run-panel-min-width: 36rem;
+  /* Fields in Details: a number fits a value like "10,000.5"; a name
+     takes a typical component name, and wraps its row on a narrow panel. */
+  --number-field-width: 9ch;
+  --text-field-width: 24ch;
   /* The window's height, less any browser toolbars showing. */
   --window-height: 100dvh;
   /* A round icon button, such as an info control, sized to its text. */

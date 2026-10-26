@@ -32,12 +32,18 @@ export interface DistributionFails {
   readonly messages: Readonly<Record<string, string>>;
 }
 
-/** A distribution as its field shows it to edit. */
-export function distributionDraft(value: Distribution): DistributionDraft {
-  const values: Readonly<Record<string, unknown>> = value;
+/**
+ * A stored distribution as its field shows it to edit. A value that isn't
+ * a distribution, which a saved project can't hold, shows as an empty
+ * constant.
+ */
+export function distributionDraft(value: unknown): DistributionDraft {
+  const parsed = distributionSchema.safeParse(value);
+  if (!parsed.success) return { kind: "constant", texts: { valueMs: "" } };
+  const values: Readonly<Record<string, unknown>> = parsed.data;
   return {
-    kind: value.kind,
-    texts: textsOf(value.kind, (part) => numberDraft(values[part.key])),
+    kind: parsed.data.kind,
+    texts: textsOf(parsed.data.kind, (part) => numberDraft(values[part.key])),
   };
 }
 

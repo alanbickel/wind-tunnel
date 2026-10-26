@@ -20,6 +20,7 @@ export function edgeDetails(project: Project, edge: Edge): EdgeDetails {
       value: settingValueText(field, edge[field.key]),
       help: field.help,
       defaultNote: undefined,
+      editor: undefined,
     })),
     calledAlongBy: stepsAlong(project, edge),
   };

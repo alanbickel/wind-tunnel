@@ -8,6 +8,7 @@ export const sqsFields: TypeFields = {
       label: "Consumer concurrency",
       unit: "messages",
       kind: "whole-number",
+      range: { min: 2, minExclusive: false, max: 1_000 },
       help: "How many messages the Lambda consumer works on at once. In AWS, the event source mapping's maximum concurrency. The model reaches it at once, where Lambda adds consumers over minutes (SQS-3).",
       evidence: { level: "assumption", fidelityId: undefined },
     },

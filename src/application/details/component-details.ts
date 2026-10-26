@@ -1,6 +1,7 @@
 import type { ComponentType } from "../../domain/components/component-registry";
 import type { Component, Project } from "../../domain/model/project";
 import { workflowsCalling } from "./called-by";
+import { valueAt } from "./config-value";
 import type { ComponentDetails, SettingDetails } from "./details";
 import type { ConfigFieldDescriptor, TypeFields } from "./field-descriptor";
 import { defaultNote, settingValueText } from "./setting-text";
@@ -26,8 +27,10 @@ export function componentDetails(
   const { project, component, type } = input;
   return {
     kind: "component",
+    componentId: component.id,
     name: component.name,
     typeName: type?.displayName ?? component.type,
+    defaultConfig: type?.defaultConfig,
     settings: [...describedSettings(input), ...undescribedSettings(input)],
     calledBy: workflowsCalling(project, component.id),
   };
@@ -64,6 +67,7 @@ function describedSetting({
       defaultValue === undefined
         ? undefined
         : defaultNote({ field, value: defaultValue, evidence: field.evidence }),
+    editor: { field, value, defaultValue },
   };
 }
 
@@ -81,13 +85,6 @@ function undescribedSettings({
       value: JSON.stringify(value),
       help: "",
       defaultNote: undefined,
+      editor: undefined,
     }));
-}
-
-/** The config's value at `key`, or undefined if there's none. */
-function valueAt(config: unknown, key: string): unknown {
-  if (typeof config !== "object" || config === null) return undefined;
-  return Object.hasOwn(config, key)
-    ? (config as Record<string, unknown>)[key]
-    : undefined;
 }

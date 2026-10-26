@@ -1,5 +1,10 @@
 import { MarkerType, Position, type Edge, type Node } from "@xyflow/react";
-import type { DiagramEdge, DiagramItem, DiagramNode } from "./diagram-model";
+import {
+  isSelected,
+  type DiagramEdge,
+  type DiagramItem,
+  type DiagramNode,
+} from "./diagram-model";
 
 /**
  * A node as React Flow takes it: the label is rendered inside the box. Arrows
@@ -44,11 +49,4 @@ export function toFlowEdge(
     markerEnd: { type: MarkerType.ArrowClosed },
     selected: isSelected(selected, { kind: "edge", id: edge.id }),
   };
-}
-
-function isSelected(
-  selected: DiagramItem | undefined,
-  item: DiagramItem,
-): boolean {
-  return selected?.kind === item.kind && selected.id === item.id;
 }

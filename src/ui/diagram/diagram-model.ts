@@ -38,3 +38,11 @@ export interface DiagramItem {
   readonly kind: DiagramItemKind;
   readonly id: string;
 }
+
+/** Whether `item` is the selected one: the same kind, and the same id. */
+export function isSelected(
+  selected: DiagramItem | undefined,
+  item: DiagramItem,
+): boolean {
+  return selected?.kind === item.kind && selected.id === item.id;
+}

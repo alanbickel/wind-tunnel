@@ -9,6 +9,7 @@ import {
   cantRunRegion,
   clickRun,
   renderOpenedProject as renderProject,
+  status,
 } from "./testing/render-opened-project";
 
 const WRITE_RUSH_REASON =
@@ -58,10 +59,11 @@ describe("OpenedProject's workloads that can't run", () => {
     expect(cantRunRegion().textContent).toBe("");
 
     fireEvent.change(picker(), { target: { value: "write-rush" } });
-    clickRun();
 
     expect(runButton().getAttribute("aria-disabled")).toBe("true");
     expect(cantRunRegion().textContent).toBe(WRITE_RUSH_REASON);
+    clickRun();
+    expect(status()).toBe("");
     expect(runner.runs).toBe(0);
   });
 

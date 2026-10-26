@@ -2,6 +2,7 @@ import type { ProjectRecord } from "../../../application/ports/project-record";
 import { FixedClock } from "../../../application/testing/fixed-clock";
 import { InMemoryProjectRepository } from "../../../application/testing/in-memory-project-repository";
 import { InMemoryTemplateCatalog } from "../../../application/testing/in-memory-template-catalog";
+import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import { SequentialIds } from "../../../application/testing/sequential-ids";
 import { CreateProjectFromTemplate } from "../../../application/use-cases/create-project-from-template";
 import { DeleteProject } from "../../../application/use-cases/delete-project";
@@ -39,6 +40,7 @@ export function inMemoryUseCases(
     }),
     openProject: new OpenProject({ projects }),
     deleteProject: new DeleteProject({ projects }),
+    describeSelection: awsDescribeSelection(),
   });
   return { useCases, projects };
 }

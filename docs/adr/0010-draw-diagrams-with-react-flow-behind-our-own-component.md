@@ -27,3 +27,9 @@ ESLint enforces the boundary: importing `@xyflow/react` in `src/ui/` or `src/ada
 - The wrapper costs some code: our own node and edge types, and a mapping in each direction once editing exists. Features we want from React Flow must be added to `Diagram`'s props first, which slows down their first use.
 - `Diagram`'s props must not leak React Flow types (for example, by re-exporting its `Node`). ESLint can't see that; reviewers check it.
 - React Flow adds to the bundle, and its stylesheet must be imported.
+
+## Addendum, 2026-10-25
+
+**Context.** M6 makes the diagram's components and edges selectable ([#85](https://github.com/alanbickel/wind-tunnel/issues/85), [UX design §4.1](../design/user-experience.md#41-selection)): a click on a box or an arrow shows its settings in the Details tab. The decision above calls the MVP view read-only and says what editing will add to `Diagram`, but not selecting, which changes nothing in the project.
+
+**What changed.** Selecting fits the decision as written: `Diagram` gained a `selected` prop and an `onSelect` callback in our own types (`DiagramItem`: a node or an edge, by id), and the React Flow events stay inside `src/ui/diagram/`. The diagram is still read-only in the sense this ADR meant: nothing can be moved, connected, or deleted. React Flow's own selection stays off (`elementsSelectable={false}`); the diagram marks the selection it's given, so the project screen holds the one selection that the diagram, its text version, and Details share. Without `onSelect`, `Diagram` is as it was: nothing takes a tab stop or answers a click.

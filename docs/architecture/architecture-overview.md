@@ -95,7 +95,7 @@ Each guide is a short, visual introduction to one part of the system, with a wor
 | [Component definitions](component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents`, the five AWS types |
 | [How metrics work](metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, limits, gauges and counters, `LatencyHistogram` |
 | [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, the in-process and Web Worker runners, the repository and runner contracts |
-| [The user interface](user-interface.md) | The composition root, `UseCasesProvider` and `useUseCases`, the screens, `useSimulationRun` and the Worker runner, a run traced from click to chart, UI test helpers |
+| [The user interface](user-interface.md) | The composition root, `UseCasesProvider` and `useUseCases`, the screens, selection and the Details tab, `useSimulationRun` and the Worker runner, a run traced from click to chart, UI test helpers |
 | [The headless runner](headless-runner.md) | `npm run simulate`, `runSimulateCommand`, the text report and how to read it, loading TypeScript through Vite |
 | [Findings and detectors](finding-detectors.md) | `Finding`, `Statement` and the phrasebook that words it, `Detector`, `findRun`, the verdict and headroom, the catalog of fixes, adding a detector |
 
@@ -113,6 +113,7 @@ flowchart TB
         UC["Use cases<br/>RunSimulation, CompareRuns, ..."]
         P["Ports (interfaces)<br/>Clock, IdGenerator, ProjectRepository,<br/>TemplateCatalog, SimulationRunner,<br/>StoragePersistence"]
         RA["Run analysis<br/>totals, per-second counts,<br/>findings and the verdict"]
+        FD["Field descriptors<br/>each setting's label, unit,<br/>help, and default's evidence"]
     end
     subgraph dom["domain/ (most stable)"]
         D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives,<br/>component definitions, RandomSource,<br/>metrics collector"]
@@ -124,6 +125,7 @@ flowchart TB
     RA --> D
     AD -.->|implements| P
     UC --> P
+    UC --> FD
     UC --> D
     AD --> D
     MAIN["main.tsx<br/>composition root"] --> UI
@@ -140,6 +142,7 @@ flowchart TB
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
 | A number or finding derived from a run's snapshots that the UI or the CLI shows (e.g. totals, work in progress) | `src/application/run-analysis/` | Pure functions of a `RunSoFar`; the UI and the CLI only format the results. Add a check to `run-analysis-reconciles.test.ts` when it adds up to something ([ADR-0013](../adr/0013-derive-run-results-in-application-run-analysis.md)). |
+| What a component type's setting means to a user: its label, unit, help, and its default's evidence | That type's file in `src/application/details/fields/` | One descriptor per key of the type's `defaultConfig`, listed in `createFieldCatalog`. Cite fidelity entries by ID in the help; the evidence must match fidelity's [defaults table](../design/fidelity.md#default-values-and-their-evidence), and `field-evidence.test.ts` checks both. |
 | A new detector, or a fix for a component type's limit | `src/application/run-analysis/findings/detectors/`, or that type's file in `findings/catalog/` | List a detector in `createDetectors`, with its phrases beside it; never branch on a component's type. See [Findings and detectors](finding-detectors.md). |
 | Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. Add an in-memory fake to `src/application/testing/` for use case tests. |
 | A new field about a project that the engine doesn't use (like `layout`) | `ProjectRecord` in `src/application/ports/`, plus the document schema and mapper in `src/adapters/persistence/` | Add it to `sampleRecord` so the repository contract checks it round-trips ([ADR-0008](../adr/0008-ports-exchange-project-records.md)). |

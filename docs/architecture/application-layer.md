@@ -78,11 +78,13 @@ Each use case is a class: ports go into the constructor as one object, and the w
 | `SaveProject` | projects, clock, registry | `saved` with the new `updatedAt`, or `invalid` with the issues |
 | `DeleteProject` | projects | nothing; deleting a missing project does nothing |
 | `RunSimulation` | runner | `finished` with the run, `stopped`, or `workload-missing` |
+| `DescribeSelection` | registry, field descriptors | What the Details tab shows for a selected component or edge, or undefined if the project has no such item. Synchronous: it reads no port |
 
 Most are a single call on a port. The ones with logic:
 
 - **`CreateProjectFromTemplate`** copies the template's record with a new ID from `IdGenerator` and both timestamps from `Clock`. It keeps `source` (template ID and version), so the project remembers where it came from.
 - **`SaveProject`** refuses a project that fails validation (`findProjectIssues`). The repository would store it, but couldn't open it again.
+- **`DescribeSelection`** words a component's settings from its type's field descriptors ([`application/details/`](../../src/application/details/)): each value with its unit, the help, and the type's default with its evidence, such as "Default 16: an assumption (RDS-2)." It also works out what calls the component, or along the edge, from the workflows' steps.
 - **`RunSimulation`** picks the workload (the first one by default) and applies a seed override to a copy. Nothing is saved.
 
 ## Run analysis: what a run's numbers add up to
@@ -191,7 +193,7 @@ For an IndexedDB test, `import "fake-indexeddb/auto"`, give each test a fresh da
 
 Something has to build the adapters and hand them to the use cases. There are two composition roots:
 
-- **The browser:** [`src/main.tsx`](../../src/main.tsx) opens the database, builds every adapter and the seven use cases, and renders `App` inside the provider tree. Every React context provider is set up there, so `App` takes no props. The use cases go to `UseCasesProvider` as one `UseCases` object ([`src/ui/app/use-cases.ts`](../../src/ui/app/use-cases.ts)), and a component reads them with `useUseCases()`. `UseCases` types each use case as `Pick<Class, "execute">`, so UI tests pass plain fakes (`fakeUseCases` in `src/ui/app/testing/`). If the database won't open, `main.tsx` shows `StartupFailure` instead. Runs go to `WebWorkerSimulationRunner`, which starts a fresh Worker from [`simulation-worker-entry.ts`](../../src/adapters/simulation/simulation-worker-entry.ts) for each run; the messages between them are in [`simulation-worker-protocol.ts`](../../src/adapters/simulation/simulation-worker-protocol.ts).
+- **The browser:** [`src/main.tsx`](../../src/main.tsx) opens the database, builds every adapter and the eight use cases, and renders `App` inside the provider tree. Every React context provider is set up there, so `App` takes no props. The use cases go to `UseCasesProvider` as one `UseCases` object ([`src/ui/app/use-cases.ts`](../../src/ui/app/use-cases.ts)), and a component reads them with `useUseCases()`. `UseCases` types each use case as `Pick<Class, "execute">`, so UI tests pass plain fakes (`fakeUseCases` in `src/ui/app/testing/`). If the database won't open, `main.tsx` shows `StartupFailure` instead. Runs go to `WebWorkerSimulationRunner`, which starts a fresh Worker from [`simulation-worker-entry.ts`](../../src/adapters/simulation/simulation-worker-entry.ts) for each run; the messages between them are in [`simulation-worker-protocol.ts`](../../src/adapters/simulation/simulation-worker-protocol.ts).
 - **The CLI:** `runSimulateCommand` in [`simulate-command.ts`](../../src/adapters/cli/simulate-command.ts) wires the catalog and the in-process runner to `RunSimulation`.
 
 ## Adding to it

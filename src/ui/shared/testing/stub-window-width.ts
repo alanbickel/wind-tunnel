@@ -3,22 +3,40 @@ import { vi } from "vitest";
 /** Which side of `--breakpoint-wide` the window is on. */
 export type WindowWidth = "wide" | "narrow";
 
+/** Moves the stubbed window to a width, as resizing or zooming would. */
+export type ResizeWindow = (width: WindowWidth) => void;
+
 /**
  * Stubs `matchMedia`, which jsdom lacks, so `useWideWindow` sees a window
  * of this width. Every query matches in a wide window and none in a narrow
- * one; the width never changes. Call it in `beforeEach` of any jsdom test
- * that renders a project screen; `vi.unstubAllGlobals()` undoes it.
+ * one, until the returned function moves it, which tells the listeners;
+ * call that inside `act`. Call this in `beforeEach` of any jsdom test that
+ * renders a project screen; `vi.unstubAllGlobals()` undoes it.
  */
-export function stubWindowWidth(width: WindowWidth): void {
+export function stubWindowWidth(initial: WindowWidth): ResizeWindow {
+  let width = initial;
+  const listeners = new Set<() => void>();
   vi.stubGlobal(
     "matchMedia",
-    vi.fn(function fixedWidth(query: string) {
+    vi.fn(function stubbedWidth(query: string) {
       return {
-        matches: width === "wide",
+        get matches() {
+          return width === "wide";
+        },
         media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
+        addEventListener: (_type: string, listener: () => void) => {
+          listeners.add(listener);
+        },
+        removeEventListener: (_type: string, listener: () => void) => {
+          listeners.delete(listener);
+        },
       };
     }),
   );
+  return (next) => {
+    width = next;
+    listeners.forEach((listener) => {
+      listener();
+    });
+  };
 }

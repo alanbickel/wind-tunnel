@@ -14,7 +14,9 @@ import { WebWorkerSimulationRunner } from "./adapters/simulation/web-worker-simu
 import { RandomUuidIds } from "./adapters/system/random-uuid-ids";
 import { SystemClock } from "./adapters/system/system-clock";
 import { createBundledTemplateCatalog } from "./adapters/templates/bundled-template-catalog";
+import { createFieldCatalog } from "./application/details/create-field-catalog";
 import { CreateProjectFromTemplate } from "./application/use-cases/create-project-from-template";
+import { DescribeSelection } from "./application/use-cases/describe-selection";
 import { DeleteProject } from "./application/use-cases/delete-project";
 import { ListProjects } from "./application/use-cases/list-projects";
 import { ListTemplates } from "./application/use-cases/list-templates";
@@ -78,6 +80,10 @@ function createUseCases(database: ProjectDatabase): UseCases {
     saveProject: new SaveProject({ projects, clock, registry }),
     deleteProject: new DeleteProject({ projects }),
     runSimulation: new RunSimulation({ runner }),
+    describeSelection: new DescribeSelection({
+      registry,
+      fields: createFieldCatalog(),
+    }),
     storagePersistence: new BrowserStoragePersistence({
       storage: navigator.storage,
     }),

@@ -29,3 +29,20 @@ export interface DiagramContent {
   readonly nodes: readonly DiagramNode[];
   readonly edges: readonly DiagramEdge[];
 }
+
+/** What can be selected on a diagram: a box or an arrow. */
+export type DiagramItemKind = "node" | "edge";
+
+/** A node or an edge, by its id. */
+export interface DiagramItem {
+  readonly kind: DiagramItemKind;
+  readonly id: string;
+}
+
+/** Whether `item` is the selected one: the same kind, and the same id. */
+export function isSelected(
+  selected: DiagramItem | undefined,
+  item: DiagramItem,
+): boolean {
+  return selected?.kind === item.kind && selected.id === item.id;
+}

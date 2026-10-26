@@ -65,6 +65,16 @@ export function switchKind(
 }
 
 /**
+ * The draft as its field shows it: its kind, and only that kind's parts.
+ * The texts kept from kinds it switched away from are hidden, so they
+ * don't count when telling whether the draft differs from the saved value.
+ */
+export function shownDraft(draft: DistributionDraft): DistributionDraft {
+  const { kind, texts } = draft;
+  return { kind, texts: textsOf(kind, (part) => texts[part.key] ?? "") };
+}
+
+/**
  * Checks each part against its range, then the rules between parts (a
  * lognormal's p99 is at least its median), then the schema, which stays
  * the authority.

@@ -3,6 +3,7 @@ import type { DistributionFieldDescriptor } from "../../../application/details/f
 import {
   checkDistributionDraft,
   distributionDraft,
+  shownDraft,
   switchKind,
   type DistributionDraft,
 } from "../../../application/details/distribution-draft";
@@ -117,7 +118,12 @@ function useDistributionDraft(
   props: DistributionFieldProps,
 ): DistributionDraftState {
   const { field, value, componentId, onEdit, announce } = props;
-  const draft = useDraft(distributionDraft(value));
+  const saved = distributionDraft(value);
+  const typed = useDraft(saved);
+  // Changed only if what's on screen differs, so Escape after switching
+  // kinds and back goes on to close Details.
+  const changed = !sameContent(shownDraft(typed.value), saved);
+  const draft = { ...typed, changed };
   const check = checkDistributionDraft(draft.value);
   const commit = () => {
     if (check.status === "fails") {

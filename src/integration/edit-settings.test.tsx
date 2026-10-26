@@ -199,8 +199,9 @@ describe("editing a component's settings", () => {
   });
 
   // Fails if each change of kind saves (arrow keys on a closed picker
-  // change it once for each kind they pass), or switching back loses the
-  // p99. Broken by committing in `pick`: the first switch saves.
+  // change it once for each kind they pass), switching back loses the
+  // p99, or the round trip leaves a hidden draft that keeps Escape from
+  // closing Details. Broken by committing in `pick`: the first switch saves.
   it("saves the kind only when the picker is left, and switching back keeps the p99", async () => {
     const { projects } = openAndSelect(projectA, "orders-db");
     const queryTime = group("Query time");
@@ -215,6 +216,30 @@ describe("editing a component's settings", () => {
 
     expect(field("p99", queryTime).value).toBe("60");
     expect(await projects.list()).toEqual([]);
+    fireEvent.keyDown(kind, { key: "Escape" });
+    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+  });
+
+  // Fails if Escape on the kind picker doesn't put back the saved kind and
+  // its values, or Enter doesn't save the kind picked.
+  it("puts the saved kind back on Escape, and saves the kind on Enter", async () => {
+    const { projects } = openAndSelect(projectA, "orders-db");
+    const queryTime = group("Query time");
+    const kind = within(queryTime).getByRole("combobox", { name: "Kind" });
+
+    fireEvent.change(kind, { target: { value: "constant" } });
+    fireEvent.keyDown(kind, { key: "Escape" });
+    expect(kind).toHaveProperty("value", "lognormal");
+    expect(field("p99", queryTime).value).toBe("60");
+    expect(await projects.list()).toEqual([]);
+
+    fireEvent.change(kind, { target: { value: "constant" } });
+    fireEvent.keyDown(kind, { key: "Enter" });
+    const saved = await savedRecord(projects, projectA);
+    expect(configIn(saved, "orders-db")?.["queryTime"]).toEqual({
+      kind: "constant",
+      valueMs: 15,
+    });
   });
 
   // Fails if a name another component of the type uses can be saved, or

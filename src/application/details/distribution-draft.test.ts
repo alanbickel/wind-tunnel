@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkDistributionDraft,
   distributionDraft,
+  shownDraft,
   switchKind,
   type DistributionDraft,
 } from "./distribution-draft";
@@ -84,5 +85,16 @@ describe("a distribution's draft", () => {
       status: "passes",
       value: { kind: "lognormal", medianMs: 15, p99Ms: 60 },
     });
+  });
+
+  // Fails if the texts kept from kinds switched away from are shown, so a
+  // round trip of kinds looks changed though nothing on screen is.
+  // Broken by returning the draft as it is.
+  it("shows only the kind's parts after a round trip of kinds", () => {
+    const back = switchKind(
+      switchKind(switchKind(QUERY_TIME, "exponential"), "constant"),
+      "lognormal",
+    );
+    expect(shownDraft(back)).toEqual(QUERY_TIME);
   });
 });

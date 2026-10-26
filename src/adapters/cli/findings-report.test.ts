@@ -17,6 +17,14 @@ import {
 } from "../../application/testing/sample-findings";
 import { formatFindings } from "./findings-report";
 
+/** Names that differ from the IDs, so a part read by ID shows. */
+const NAMES: Readonly<Record<string, string>> = { "orders-db": "orders (RDS)" };
+
+const wording = {
+  phrasebook: saidPhrasebook,
+  nameOf: (id: string) => NAMES[id] ?? id,
+};
+
 const requests = {
   id: "all",
   label: "All workflows",
@@ -47,7 +55,7 @@ const verdict: Verdict = {
 
 const documented: Fix = {
   scope: "aws",
-  message: say`Add RDS Proxy.`,
+  message: say`Add RDS Proxy in front of ${component("orders-db")}.`,
   claim: { kind: "documented", title: "RDS Proxy", url: "https://x.test" },
   fidelityIds: ["RDS-2"],
 };
@@ -105,16 +113,16 @@ const findings: FindingNode[] = [
 describe("formatFindings", () => {
   // Fails if a cause isn't numbered under its finding ("1.1") or indented
   // past its number, the cause line or a claim's text is dropped, a
-  // severity gets the wrong label, or a duration under a second isn't in
-  // milliseconds.
+  // severity gets the wrong label, a duration under a second isn't in
+  // milliseconds, or a component in a summary or a fix reads as its ID.
   it("numbers the findings, nests causes beneath them, and prints each part", () => {
-    expect(formatFindings({ verdict, findings }, saidPhrasebook)).toBe(
+    expect(formatFindings({ verdict, findings }, wording)).toBe(
       [
-        "1. Failure: 1,234 requests failed with orders-db.",
+        "1. Failure: 1,234 requests failed with orders (RDS).",
         "   - It held all 90 connections.",
         "   Cause began at 11 s.",
         "   Fixes:",
-        "   - In AWS: Add RDS Proxy. (Documented: RDS Proxy, https://x.test; fidelity RDS-2)",
+        "   - In AWS: Add RDS Proxy in front of orders (RDS). (Documented: RDS Proxy, https://x.test; fidelity RDS-2)",
         "   - In Wind Tunnel: Raise the pool to 2,000. (Assumption)",
         "   Learn more: docs/learning/aws-did-you-know.md#rds-connections",
         "   1.1. Note: Queries waited up to 450 ms at 14 s.",
@@ -128,8 +136,6 @@ describe("formatFindings", () => {
 
   // Fails if a run without findings prints an empty section.
   it("says None. when there are no findings", () => {
-    expect(formatFindings({ verdict, findings: [] }, saidPhrasebook)).toBe(
-      "None.",
-    );
+    expect(formatFindings({ verdict, findings: [] }, wording)).toBe("None.");
   });
 });

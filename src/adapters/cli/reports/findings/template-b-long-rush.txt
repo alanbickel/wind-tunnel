@@ -1,11 +1,11 @@
-Degraded. All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s api waits for fn-api; 7 were still in progress when the run ended.
+Degraded. All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s API Gateway waits for fn-api; 7 were still in progress when the run ended.
 Closest to failing: orders-db connections, at most 13 of 90 (14.4%).
 
-1. Warning: Work queued in orders-queue finished up to 32.8 s after its request, past the 29 s that api waits for fn-api.
+1. Warning: Work queued in orders-queue finished up to 32.8 s after its request, past the 29 s that API Gateway waits for fn-api.
    - In 23 seconds from 157 s to 180 s, the p99 of the deliveries that ended in the second was over 29 s, and as high as 32.8 s.
    - In 7 of those seconds, the p99 was within the histogram's 5.0% error of 29 s, so it may have been under it.
    - Meanwhile, users were answered quickly, because a request ends once its work is queued: Create order within 177 ms (the highest p99 of those seconds).
-   - No synchronous design could have offered that wait: api stops waiting for fn-api after 29 s.
+   - No synchronous design could have offered that wait: API Gateway stops waiting for fn-api after 29 s.
    Fixes:
    - In Wind Tunnel: Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: Template B's long rush keeps up at 20. (Observed: src/adapters/templates/scenarios/long-rush-template-b.test.ts, "grows the backlog through the whole peak"; fidelity SQS-3, SQS-4)
    - In Wind Tunnel: Check what the consumers call before raising it: each delivery holds capacity downstream, such as a database connection, so more consumers can move the wait there. (Assumption)

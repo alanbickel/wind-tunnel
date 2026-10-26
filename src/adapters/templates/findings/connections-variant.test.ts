@@ -51,7 +51,7 @@ describeFindings([
     // findings.md §1.8, "The long rush": Degraded by the late writes, with
     // the failed deliveries a note beside them.
     verdict: [
-      "Degraded. All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s api waits for fn-api; 7 were still in progress when the run ended.",
+      "Degraded. All 273,539 answered requests succeeded, but work queued in orders-queue finished past the 29 s API Gateway waits for fn-api; 7 were still in progress when the run ended.",
       "No headroom: orders-db connections ran out in 170 seconds from 14 s to 185 s, and orders-db refused 445 attempts; no request failed with its rejections.",
       "Closest to failing: fn-api concurrency, at most 104 of 1,000 (10.4%) from 70 s to 71 s, while fn-api had 3 cold starts; at most 99 of 1,000 (9.9%) in the seconds without cold starts.",
     ].join("\n"),

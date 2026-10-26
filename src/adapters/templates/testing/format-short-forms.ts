@@ -1,8 +1,8 @@
 import type { RunFindings } from "../../../application/run-analysis/findings/find-run";
 import type { FindingNode } from "../../../application/run-analysis/findings/order-findings";
 import type { Statement } from "../../../application/run-analysis/findings/phrase";
-import type { Phrasebook } from "../../../application/run-analysis/findings/phrasebook";
 import { formatMessage } from "../../../application/run-analysis/findings/message-format";
+import type { FindingsWording } from "../../../application/run-analysis/findings/findings-wording";
 
 // Every statement of a run in its short form, laid out as the CLI lays out
 // the long forms, so a reviewer reads each short form once (#77). The run
@@ -12,10 +12,10 @@ import { formatMessage } from "../../../application/run-analysis/findings/messag
 /** The verdict's lines, then each finding with its causes beneath it. */
 export function formatShortForms(
   { verdict, findings }: RunFindings,
-  phrasebook: Phrasebook,
+  { phrasebook, nameOf }: FindingsWording,
 ): string {
   const short = (s: Statement): string =>
-    formatMessage(phrasebook.word(s, "short"));
+    formatMessage(phrasebook.word(s, "short"), nameOf);
   const labeled: readonly (readonly [string, Statement | undefined])[] = [
     ["Verdict", verdict.summary],
     ["No headroom", verdict.noHeadroomLine],

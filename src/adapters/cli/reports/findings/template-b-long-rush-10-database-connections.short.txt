@@ -2,11 +2,11 @@ Verdict: all 273,539 answered requests succeeded
 No headroom: orders-db connections ran out and refused 445 attempts
 Closest to failing: fn-api concurrency peaked at 104 of 1,000 (10.4%)
 
-1. work queued in orders-queue finished past the 29 s api waits for fn-api
+1. work queued in orders-queue finished past the 29 s API Gateway waits for fn-api
    - the p99 of deliveries was over 29 s in 44 seconds
    - in 7 of those seconds, the p99 may have been under 29 s
    - users were answered quickly, because a request ends once its work is queued
-   - api stops waiting for fn-api after 29 s
+   - API Gateway stops waiting for fn-api after 29 s
    1.1. messages waited for orders-queue's consumerConcurrency from 17 s to 185 s
         - all 15 of orders-queue's consumerConcurrency were busy from 15 s to 185 s
         - the backlog peaked at 10,412 messages at 143 s

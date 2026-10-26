@@ -5,19 +5,20 @@ import {
   findRun,
   type RunFindings,
 } from "../../application/run-analysis/findings/find-run";
-import type { Phrasebook } from "../../application/run-analysis/findings/phrasebook";
+import type { FindingsWording } from "../../application/run-analysis/findings/findings-wording";
 import type { RunSoFar } from "../../application/run-analysis/run-so-far";
 import type { Project, Workload } from "../../domain/model/project";
+import { useUseCases } from "../app/useUseCases";
 import type { RunReceived } from "./useSimulationRun";
 
 /** Pure and stateless, so every run panel shares them. */
 const detectors = createDetectors();
 
-/** A run so far, what it means, and the phrasebook that words it. */
+/** A run so far, what it means, and how its findings are worded. */
 export interface RunMeaning {
   readonly run: RunSoFar;
   readonly findings: RunFindings;
-  readonly phrasebook: Phrasebook;
+  readonly wording: FindingsWording;
   /**
    * Whether it's the latest run. For a moment after a new run starts, the
    * deferred copy is still the run before it.
@@ -61,16 +62,20 @@ export function useRunFindings({
   // all, stays current. The run's id and workload are deferred with its
   // snapshots, so the copy never mixes one run's snapshots with another.
   const shown = useDeferredValue(received);
-  const phrasebook = useMemo(
-    () => createPhrasebook({ project, detectors }),
-    [project],
+  const { nameComponents } = useUseCases();
+  const wording = useMemo(
+    () => ({
+      phrasebook: createPhrasebook({ project, detectors }),
+      nameOf: nameComponents.execute({ project }),
+    }),
+    [project, nameComponents],
   );
   const analysis = useMemo(() => analyze(project, shown), [project, shown]);
   const current = shown.runId === runId;
   // Memoized too, so the run's results draw again only when it changes.
   return useMemo(
-    () => analysis && { ...analysis, phrasebook, current },
-    [analysis, phrasebook, current],
+    () => analysis && { ...analysis, wording, current },
+    [analysis, wording, current],
   );
 }
 

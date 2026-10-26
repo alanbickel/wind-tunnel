@@ -4,6 +4,8 @@ import type {
   Fix,
 } from "../../application/run-analysis/findings/finding";
 import type { RunFindings } from "../../application/run-analysis/findings/find-run";
+import type { ComponentNames } from "../../application/run-analysis/component-names";
+import type { FindingsWording } from "../../application/run-analysis/findings/findings-wording";
 import {
   CLAIM_LABELS,
   formatMessage,
@@ -12,7 +14,6 @@ import {
 } from "../../application/run-analysis/findings/message-format";
 import type { FindingNode } from "../../application/run-analysis/findings/order-findings";
 import type { Statement } from "../../application/run-analysis/findings/phrase";
-import type { Phrasebook } from "../../application/run-analysis/findings/phrasebook";
 import type { Verdict } from "../../application/run-analysis/findings/verdict";
 import {
   handleKind,
@@ -32,9 +33,9 @@ import { seconds } from "../../application/run-analysis/number-format";
  */
 export function formatVerdict(
   verdict: Verdict,
-  phrasebook: Phrasebook,
+  wording: FindingsWording,
 ): string {
-  const say = sayer(phrasebook);
+  const say = sayer(wording);
   const lines = [verdict.noHeadroomLine, verdict.headroomLine].flatMap(
     (line) => (line === undefined ? [] : [say(line)]),
   );
@@ -44,13 +45,14 @@ export function formatVerdict(
 /** Each top-level finding, numbered, with its causes nested beneath it. */
 export function formatFindings(
   { findings }: RunFindings,
-  phrasebook: Phrasebook,
+  wording: FindingsWording,
 ): string {
   if (findings.length === 0) return "None.";
-  const say = sayer(phrasebook);
+  const say = sayer(wording);
+  const { nameOf } = wording;
   return findings
     .map((node, i) =>
-      formatNode(node, { number: String(i + 1), indent: "", say }),
+      formatNode(node, { number: String(i + 1), indent: "", say, nameOf }),
     )
     .join("\n\n");
 }
@@ -58,18 +60,20 @@ export function formatFindings(
 /** Words a statement in its long form, as plain text. */
 type Sayer = (statement: Statement) => string;
 
-function sayer(phrasebook: Phrasebook): Sayer {
-  return (statement) => formatMessage(phrasebook.word(statement, "long"));
+function sayer({ phrasebook, nameOf }: FindingsWording): Sayer {
+  return (statement) =>
+    formatMessage(phrasebook.word(statement, "long"), nameOf);
 }
 
 /**
  * A finding's number in the list, e.g. "1.2", how far it's indented, and
- * how to word it.
+ * how to word it and the components in its fixes.
  */
 interface NodeContext {
   readonly number: string;
   readonly indent: string;
   readonly say: Sayer;
+  readonly nameOf: ComponentNames;
 }
 
 function formatNode(node: FindingNode, context: NodeContext): string {
@@ -88,12 +92,13 @@ function formatNode(node: FindingNode, context: NodeContext): string {
 }
 
 /** The finding's lines; every line after the first starts with `indent`. */
-function findingLines(finding: Finding, { indent, say }: NodeContext): string {
+function findingLines(finding: Finding, context: NodeContext): string {
+  const { indent, say } = context;
   const lines = [
     `${lookup(SEVERITY_LABELS, finding.severity)}: ${say(finding.summary)}`,
     ...finding.reasons.map((r) => `${indent}- ${say(r)}`),
     ...causeLine(finding, indent),
-    ...fixLines(finding.fixes, indent),
+    ...fixLines(finding.fixes, context),
     ...learnMoreLine(finding, indent),
   ];
   return lines.join("\n");
@@ -104,13 +109,16 @@ function causeLine({ causeWindow }: Finding, indent: string): string[] {
   return [`${indent}Cause began at ${seconds(causeWindow.fromMs)} s.`];
 }
 
-function fixLines(fixes: readonly Fix[], indent: string): string[] {
+function fixLines(
+  fixes: readonly Fix[],
+  { indent, nameOf }: NodeContext,
+): string[] {
   if (fixes.length === 0) return [];
   return [
     `${indent}Fixes:`,
     ...fixes.map(
       (fix) =>
-        `${indent}- ${lookup(SCOPE_LABELS, fix.scope)}: ${formatMessage(fix.message)} (${claimText(fix)})`,
+        `${indent}- ${lookup(SCOPE_LABELS, fix.scope)}: ${formatMessage(fix.message, nameOf)} (${claimText(fix)})`,
     ),
   ];
 }

@@ -11,11 +11,11 @@ Verdict: 4,377 of 273,539 answered requests failed
         - its burst of 7,500 tokens lasted at most 78 s
         - at that flow, a full bucket lasts about 78.9 s
 
-2. work queued in orders-queue finished past the 29 s api waits for fn-api
+2. work queued in orders-queue finished past the 29 s API Gateway waits for fn-api
    - the p99 of deliveries was over 29 s in 23 seconds
    - in 6 of those seconds, the p99 may have been under 29 s
    - users were answered quickly, because a request ends once its work is queued
-   - api stops waiting for fn-api after 29 s
+   - API Gateway stops waiting for fn-api after 29 s
    2.1. messages waited for orders-queue's consumerConcurrency from 17 s to 184 s
         - all 15 of orders-queue's consumerConcurrency were busy from 15 s to 184 s
         - the backlog peaked at 10,200 messages at 142 s

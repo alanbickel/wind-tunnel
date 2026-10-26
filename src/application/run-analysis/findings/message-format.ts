@@ -3,6 +3,7 @@ import {
   lookup,
   type KindHandlers,
 } from "../../../domain/shared/kind-handlers";
+import type { ComponentNames } from "../component-names";
 import { count as countText, seconds, shareDown } from "../number-format";
 import type { Claim, FixScope, Severity } from "./finding";
 import type { Message, MessagePart, NumberUnit } from "./message";
@@ -11,24 +12,41 @@ import type { Message, MessagePart, NumberUnit } from "./message";
 // with, for every consumer: the CLI prints them, and the run panel sets
 // components and times apart but shows the same text (ADR-0015).
 
-/** The message as plain text: components by ID, times in seconds. */
-export function formatMessage(message: Message): string {
-  return message.map(partText).join("");
+/** The message as plain text: components by name, times in seconds. */
+export function formatMessage(
+  message: Message,
+  nameOf: ComponentNames,
+): string {
+  return message.map((part) => partText(part, nameOf)).join("");
 }
 
 /**
  * One part as text: a count with thousands separators, a share rounded down
- * (ADR-0014), a duration in ms or s, a component by ID, a time as "14 s".
+ * (ADR-0014), a duration in ms or s, a component by name (`nameOf`), a
+ * time as "14 s".
  */
-export function partText(part: MessagePart): string {
-  return handleKind(PARTS, part);
+export function partText(part: MessagePart, nameOf: ComponentNames): string {
+  return handleKind(PARTS, part)(nameOf);
 }
 
-const PARTS: KindHandlers<MessagePart, string> = {
-  text: ({ text }) => text,
-  number: ({ value, unit }) => lookup(NUMBERS, unit)(value),
-  component: ({ componentId }) => componentId,
-  time: ({ atMs }) => `${seconds(atMs)} s`,
+/** Each kind of part as text, given how components are named. */
+const PARTS: KindHandlers<MessagePart, (nameOf: ComponentNames) => string> = {
+  text:
+    ({ text }) =>
+    () =>
+      text,
+  number:
+    ({ value, unit }) =>
+    () =>
+      lookup(NUMBERS, unit)(value),
+  component:
+    ({ componentId }) =>
+    (nameOf) =>
+      nameOf(componentId),
+  time:
+    ({ atMs }) =>
+    () =>
+      `${seconds(atMs)} s`,
 };
 
 const NUMBERS: Readonly<Record<NumberUnit, (value: number) => string>> = {

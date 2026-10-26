@@ -5,7 +5,8 @@ import type {
   MetricsSnapshot,
   WorkflowMetrics,
 } from "../../domain/metrics/metrics-collector";
-import type { Project, Workload } from "../../domain/model/project";
+import type { ComponentRegistry } from "../../domain/components/component-registry";
+import type { Component, Project, Workload } from "../../domain/model/project";
 import {
   requestsInProgress,
   unfinishedWork,
@@ -22,6 +23,11 @@ import {
 import { createDetectors } from "../../application/run-analysis/findings/create-detectors";
 import { createPhrasebook } from "../../application/run-analysis/findings/create-phrasebook";
 import { findRun } from "../../application/run-analysis/findings/find-run";
+import { splitCause } from "../../application/run-analysis/findings/detectors/failure-causes";
+import {
+  componentNames,
+  type ComponentNames,
+} from "../../application/run-analysis/component-names";
 import { formatFindings, formatVerdict } from "./findings-report";
 import {
   count,
@@ -29,36 +35,49 @@ import {
   shareDown,
 } from "../../application/run-analysis/number-format";
 
-/** The run to report on, and the project and workload it ran. */
+/**
+ * The run to report on, the project and workload it ran, and the component
+ * types, whose display names tell apart components that share a name.
+ */
 export interface ReportInput {
   readonly project: Project;
   readonly workload: Workload;
   readonly run: MetricsRun;
+  readonly registry: ComponentRegistry;
+}
+
+/** The project reported on, and how its components are shown. */
+interface ReportContext {
+  readonly project: Project;
+  readonly nameOf: ComponentNames;
 }
 
 /**
  * Renders a run as plain text for a terminal: the verdict and findings, then
  * totals per workflow and component, failure causes, limits, and one row
- * per snapshot. Deterministic,
- * so tests can compare it to a file snapshot.
+ * per snapshot. Components show by name; only the heading shows the
+ * project's ID. Deterministic, so tests can compare it to a file snapshot.
  */
 export function formatReport(input: ReportInput): string {
-  const { project, workload, run } = input;
+  const { project, workload, run, registry } = input;
   const { totals, snapshots } = run;
   const soFar = { project, workloadId: workload.id, snapshots };
   const detectors = createDetectors();
   const findings = findRun(soFar, detectors);
   const phrasebook = createPhrasebook({ project, detectors });
+  const nameOf = componentNames(project, registry);
+  const context = { project, nameOf };
+  const wording = { phrasebook, nameOf };
   const sections = [
     heading(input),
-    section("Verdict", formatVerdict(findings.verdict, phrasebook)),
-    section("Findings", formatFindings(findings, phrasebook)),
+    section("Verdict", formatVerdict(findings.verdict, wording)),
+    section("Findings", formatFindings(findings, wording)),
     section("Workflows", workflowTable(totals)),
-    section("Failures", failureTotals(totals)),
-    section("Components", componentTable(project, totals)),
-    section("Limits", limitTable(limitPeaks(soFar))),
+    section("Failures", failureTotals(totals, context)),
+    section("Components", componentTable(context, totals)),
+    section("Limits", limitTable(limitPeaks(soFar), context)),
     section("Workflows per second", workflowTimeline(snapshots)),
-    section("Components per second", componentTimeline(project, snapshots)),
+    section("Components per second", componentTimeline(context, snapshots)),
   ];
   return sections.join("\n\n") + "\n";
 }
@@ -152,13 +171,16 @@ const FAILURE_NOTES = [
   `Each workflow's rows add up to its "failed" count above. The cause is the component and reason where the failure started; the callers it passed through count it as "failed" in Components.`,
 ];
 
-function failureTotals(totals: MetricsSnapshot): string {
+function failureTotals(
+  totals: MetricsSnapshot,
+  context: ReportContext,
+): string {
   const rows = Object.entries(totals.workflows).flatMap(([workflowId, w]) =>
     Object.entries(w.failures)
       .sort(([, a], [, b]) => b - a)
       .map(([cause, failedRequests]) => ({
         workflowId,
-        cause,
+        cause: causeText(cause, context),
         failedRequests,
       })),
   );
@@ -166,14 +188,29 @@ function failureTotals(totals: MetricsSnapshot): string {
   return notedTable({ columns: FAILURE_COLUMNS, rows, notes: FAILURE_NOTES });
 }
 
-/** One component's metrics, for the Components table. */
+/**
+ * A failure cause as the snapshots key it, `"<component ID>: <reason>"`,
+ * with the component by name: "orders (RDS): too-many-connections".
+ */
+function causeText(cause: string, { project, nameOf }: ReportContext): string {
+  const ids = project.architecture.components.map((c) => c.id);
+  const { componentId, reason } = splitCause(cause, ids);
+  return `${nameOf(componentId)}: ${reason}`;
+}
+
+/**
+ * One component's metrics, for the Components table, with its name and its
+ * failed deliveries' causes as text.
+ */
 interface ComponentRow {
-  readonly id: string;
+  readonly name: string;
   readonly metrics: ComponentMetrics;
+  /** E.g. ` (orders (RDS): too-many-connections 3)`, or "" if none. */
+  readonly asyncCauses: string;
 }
 
 const COMPONENT_COLUMNS: readonly Column<ComponentRow>[] = [
-  { header: "component", cell: (r) => r.id },
+  { header: "component", cell: (r) => r.name },
   { header: "arrivals", cell: (r) => count(r.metrics.arrivals) },
   { header: "ok", cell: (r) => count(r.metrics.completed) },
   { header: "failed", cell: (r) => count(r.metrics.failed) },
@@ -184,7 +221,7 @@ const COMPONENT_COLUMNS: readonly Column<ComponentRow>[] = [
   { header: "p99", cell: (r) => ms(r.metrics.latency?.p99Ms) },
   { header: "peak busy", cell: (r) => count(r.metrics.peakInProgress) },
   { header: "peak queue", cell: (r) => count(r.metrics.peakQueueDepth) },
-  { header: "other", cell: (r) => extras(r.metrics) },
+  { header: "other", cell: extras },
 ];
 
 const COMPONENT_NOTES = [
@@ -195,11 +232,15 @@ const COMPONENT_NOTES = [
   '"async failed" counts failed deliveries, with their causes in parentheses; those messages go back to the backlog and are tried again.',
 ];
 
-function componentTable(project: Project, totals: MetricsSnapshot): string {
-  const rows = project.architecture.components.map(({ id }) => ({
-    id,
-    metrics: metricsFor(totals, id),
-  }));
+function componentTable(
+  context: ReportContext,
+  totals: MetricsSnapshot,
+): string {
+  const rows = context.project.architecture.components.map(({ id }) => {
+    const metrics = metricsFor(totals, id);
+    const asyncCauses = byCause(metrics, context);
+    return { name: context.nameOf(id), metrics, asyncCauses };
+  });
   return notedTable({
     columns: COMPONENT_COLUMNS,
     rows,
@@ -208,11 +249,11 @@ function componentTable(project: Project, totals: MetricsSnapshot): string {
 }
 
 /** Async deliveries and type-specific counters, e.g. `coldStarts=12`. */
-function extras(m: ComponentMetrics): string {
+function extras({ metrics: m, asyncCauses }: ComponentRow): string {
   const parts: string[] = [];
   if (m.asyncSucceeded + m.asyncFailed > 0) {
     parts.push(`async ok=${count(m.asyncSucceeded)}`);
-    parts.push(`async failed=${count(m.asyncFailed)}${byCause(m)}`);
+    parts.push(`async failed=${count(m.asyncFailed)}${asyncCauses}`);
     parts.push(`backlog=${count(m.queueDepth)}`);
     // Accepted messages neither delivered nor waiting.
     const delivering = m.completed - m.asyncSucceeded - m.queueDepth;
@@ -227,11 +268,14 @@ function extras(m: ComponentMetrics): string {
   return parts.join(", ");
 }
 
-/** Failed deliveries by cause, most first, e.g. ` (orders-db: too-many-connections 3)`. */
-function byCause({ asyncFailures }: ComponentMetrics): string {
+/** Failed deliveries by cause, most first, e.g. ` (orders (RDS): too-many-connections 3)`. */
+function byCause(
+  { asyncFailures }: ComponentMetrics,
+  context: ReportContext,
+): string {
   const causes = Object.entries(asyncFailures)
     .sort(([, a], [, b]) => b - a)
-    .map(([cause, failed]) => `${cause} ${count(failed)}`);
+    .map(([cause, failed]) => `${causeText(cause, context)} ${count(failed)}`);
   return causes.length === 0 ? "" : ` (${causes.join("; ")})`;
 }
 
@@ -241,8 +285,13 @@ const LIMIT_UNITS: Readonly<Record<LimitUse["kind"], string>> = {
   rate: "tokens drawn",
 };
 
-const LIMIT_COLUMNS: readonly Column<LimitPeak>[] = [
-  { header: "component", cell: (r) => r.componentId },
+/** A limit at its peak, with its component's name. */
+interface LimitRow extends LimitPeak {
+  readonly componentName: string;
+}
+
+const LIMIT_COLUMNS: readonly Column<LimitRow>[] = [
+  { header: "component", cell: (r) => r.componentName },
   { header: "limit", cell: (r) => r.name },
   { header: "peak", cell: (r) => count(Math.round(r.peak)) },
   { header: "of", cell: (r) => count(r.limit) },
@@ -258,8 +307,15 @@ const LIMIT_NOTES = [
   `A rate limit's bucket refills at a steady rate. "busiest flow" is the busiest second's tokens taken, against that rate: above it, the bucket drains.`,
 ];
 
-function limitTable(rows: readonly LimitPeak[]): string {
-  if (rows.length === 0) return "None.";
+function limitTable(
+  peaks: readonly LimitPeak[],
+  { nameOf }: ReportContext,
+): string {
+  if (peaks.length === 0) return "None.";
+  const rows = peaks.map((peak) => ({
+    ...peak,
+    componentName: nameOf(peak.componentId),
+  }));
   return notedTable({ columns: LIMIT_COLUMNS, rows, notes: LIMIT_NOTES });
 }
 
@@ -300,11 +356,11 @@ const TIME_COLUMN: Column<MetricsSnapshot> = {
  * have them.
  */
 function componentTimeline(
-  project: Project,
+  { project, nameOf }: ReportContext,
   snapshots: readonly MetricsSnapshot[],
 ): string {
   const columns = project.architecture.components.flatMap(({ id }) =>
-    componentColumns(id, snapshots),
+    componentColumns({ id, name: nameOf(id) }, snapshots),
   );
   return notedTable({
     columns: [TIME_COLUMN, ...columns],
@@ -315,42 +371,46 @@ function componentTimeline(
   });
 }
 
+/** A component's ID, to read its metrics, and the name its columns show. */
+type NamedComponent = Pick<Component, "id" | "name">;
+
 /**
  * One component's columns: its limits (or busy, if it has none), queue if it
  * ever had one, then gauges.
  */
 function componentColumns(
-  id: string,
+  component: NamedComponent,
   snapshots: readonly MetricsSnapshot[],
 ): Column<MetricsSnapshot>[] {
+  const { id, name } = component;
   const busy: Column<MetricsSnapshot> = {
-    header: `${id} busy`,
+    header: `${name} busy`,
     cell: (s) => count(metricsFor(s, id).peakInProgress),
   };
   const queue: Column<MetricsSnapshot> = {
-    header: `${id} queue`,
+    header: `${name} queue`,
     cell: (s) => count(metricsFor(s, id).peakQueueDepth),
   };
   const hasQueue = snapshots.some((s) => metricsFor(s, id).peakQueueDepth > 0);
   const gauges = Object.keys(snapshots[0]?.components[id]?.gauges ?? {}).map(
     (gauge): Column<MetricsSnapshot> => ({
-      header: `${id} ${gauge}`,
+      header: `${name} ${gauge}`,
       cell: (s) => count(metricsFor(s, id).gauges[gauge] ?? 0),
     }),
   );
-  const limits = limitColumns(id, snapshots);
+  const limits = limitColumns(component, snapshots);
   const work = limits.length > 0 ? limits : [busy];
   return [...work, ...(hasQueue ? [queue] : []), ...gauges];
 }
 
 /** A column per limit of the component: its peak use in each second. */
 function limitColumns(
-  id: string,
+  { id, name: componentName }: NamedComponent,
   snapshots: readonly MetricsSnapshot[],
 ): Column<MetricsSnapshot>[] {
   const names = (snapshots[0]?.components[id]?.limits ?? []).map((l) => l.name);
   return names.map((name) => ({
-    header: `${id} ${name}`,
+    header: `${componentName} ${name}`,
     cell: (s) => count(Math.round(limitFor(metricsFor(s, id), name).peak)),
   }));
 }

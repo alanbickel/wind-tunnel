@@ -38,11 +38,15 @@ describe("checkNumberDraft", () => {
   });
 
   // Fails if a message reads as Zod's ("Too small: expected number to be
-  // >=1") rather than the user's, or a rule goes unchecked.
+  // >=1") rather than the user's, or a rule goes unchecked, or a comma
+  // that isn't a thousands separator is dropped: "1,5" would pass as 15.
   it.each([
     ["0", QUERY_WORKERS, "Query workers must be at least 1."],
     ["", QUERY_WORKERS, "Query workers must be a whole number."],
     ["lots", RATE, "Rate must be a number."],
+    ["1,5", RATE, "Rate must be a number."],
+    ["10,00", RATE, "Rate must be a number."],
+    ["1,0000", CONSUMERS, "Consumer concurrency must be a whole number."],
     ["16.5", QUERY_WORKERS, "Query workers must be a whole number."],
     ["0", RATE, "Rate must be more than 0."],
     ["1001", CONSUMERS, "Consumer concurrency must be at most 1,000."],

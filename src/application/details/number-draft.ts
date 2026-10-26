@@ -53,7 +53,9 @@ const RANGE_CHECKS: readonly RangeCheck[] = [
 
 /**
  * A number field's draft, checked against its rule. It may have thousands
- * separators ("10,000") and spaces around it.
+ * separators ("10,000") and spaces around it. A comma anywhere else, such
+ * as a decimal comma ("1,5"), makes it not a number, rather than a number
+ * ten times too big.
  */
 export function checkNumberDraft(
   text: string,
@@ -71,9 +73,14 @@ export function checkNumberDraft(
   return { status: "passes", value };
 }
 
+/** Digits with commas between groups of three, e.g. "-10,000.5". */
+const GROUPED_NUMBER = /^-?\d{1,3}(,\d{3})+(\.\d*)?$/;
+
 /** The number typed, or undefined if it isn't one. */
 function parseNumber(text: string): number | undefined {
-  const plain = text.trim().replaceAll(",", "");
+  const trimmed = text.trim();
+  if (trimmed.includes(",") && !GROUPED_NUMBER.test(trimmed)) return undefined;
+  const plain = trimmed.replaceAll(",", "");
   if (plain === "") return undefined;
   const value = Number(plain);
   return Number.isFinite(value) ? value : undefined;

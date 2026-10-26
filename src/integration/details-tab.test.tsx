@@ -29,6 +29,12 @@ import { stubWindowWidth } from "../ui/shared/testing/stub-window-width";
 
 const fields = createFieldCatalog();
 
+/**
+ * For a test that goes through every component of a template: 1 to 2.5 s
+ * alone, but past the 5 s default while a full run loads every worker.
+ */
+const EVERY_COMPONENT_TIMEOUT_MS = 20_000;
+
 /** The project on its screen, in a wide window, with the real descriptors. */
 function renderProject(project: Project): void {
   stubWindowWidth("wide");
@@ -58,7 +64,7 @@ function detailsHeading(): HTMLElement {
   return within(detailsTab()).getByRole("heading", { level: 4 });
 }
 
-/** Each setting in Details: its label, its value, and its help. */
+/** Each read-only setting in Details (an edge's): its label, its value, and its help. */
 function settings(): string[][] {
   const terms = within(detailsTab()).queryAllByRole("term");
   return terms.map((term) => [
@@ -67,6 +73,39 @@ function settings(): string[][] {
       (dd) => dd.textContent,
     ),
   ]);
+}
+
+/** A text field in Details, by its label. */
+function field(name: string): HTMLInputElement {
+  return within(detailsTab()).getByRole("textbox", { name });
+}
+
+/** A distribution's group of fields in Details, by its label. */
+function group(name: string): HTMLElement {
+  return within(detailsTab()).getByRole("group", { name });
+}
+
+/** The text of everything an element's aria-describedby points at, in order. */
+function description(element: Element): string {
+  const ids = element.getAttribute("aria-describedby")?.split(" ") ?? [];
+  return ids
+    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .join(" ");
+}
+
+/** The labels of a component's settings in Details, in order: a distribution's once. */
+function settingLabels(): (string | null | undefined)[] {
+  const fields = [...detailsTab().querySelectorAll("input, fieldset")];
+  return fields
+    .filter(
+      (el) => el.tagName === "FIELDSET" || el.closest("fieldset") === null,
+    )
+    .map((el) =>
+      el instanceof HTMLInputElement
+        ? el.labels?.[0]?.textContent
+        : el.querySelector("legend")?.textContent,
+    )
+    .filter((label) => label !== "Name");
 }
 
 function selectedTab(): string | null | undefined {
@@ -83,35 +122,42 @@ describe("the Details tab, for the templates", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if a setting loses its label, its unit, its help, or its default
-  // and the default's evidence, or the focus doesn't move to Details.
-  it("shows orders-db's three settings, each with its unit and default", () => {
+  // Fails if a setting loses its label, its value, its unit, its help, or
+  // its default and the default's evidence, or the focus doesn't move to
+  // Details.
+  it("shows orders-db's name and three settings, each with its unit and default", () => {
     renderProject(projectA);
 
     selectFromText("orders-db (rds)");
 
     expect(document.activeElement).toBe(detailsHeading());
     expect(detailsHeading().textContent).toBe("orders-db · RDS");
-    const [connections, workers, queryTime] = settings();
-    expect(connections?.slice(0, 2)).toEqual([
-      "Max connections",
-      "90 connections",
-    ]);
-    expect(connections?.[2]).toMatch(
-      /max_connections .* Default 90: an assumption \(RDS-1\)\.$/,
+    expect(field("Name").value).toBe("orders-db");
+    expect(field("Max connections").value).toBe("90");
+    expect(description(field("Max connections"))).toMatch(
+      /^connections .*max_connections .* Default 90: an assumption \(RDS-1\)\.$/,
     );
-    expect(workers?.slice(0, 2)).toEqual(["Query workers", "16 queries"]);
-    expect(workers?.[2]).toMatch(
-      /RDS has no such setting.* Default 16: an assumption \(RDS-2\)\.$/,
+    expect(field("Query workers").value).toBe("16");
+    expect(description(field("Query workers"))).toMatch(
+      /^queries .*RDS has no such setting.* Default 16: an assumption \(RDS-2\)\.$/,
     );
-    expect(queryTime?.slice(0, 2)).toEqual([
-      "Query time",
-      "lognormal, median 15 ms, p99 60 ms",
-    ]);
-    expect(queryTime?.[2]).toMatch(
+    const queryTime = group("Query time");
+    expect(
+      within(queryTime).getByRole<HTMLSelectElement>("combobox", {
+        name: "Kind",
+      }).value,
+    ).toBe("lognormal");
+    const part = (name: string) =>
+      within(queryTime).getByRole<HTMLInputElement>("textbox", { name }).value;
+    expect([part("Median"), part("p99")]).toEqual(["15", "60"]);
+    expect(description(queryTime)).toMatch(
       /Default lognormal, median 15 ms, p99 60 ms: an assumption\.$/,
     );
-    expect(settings()).toHaveLength(3);
+    expect(settingLabels()).toEqual([
+      "Max connections",
+      "Query workers",
+      "Query time",
+    ]);
   });
 
   // Fails if Escape leaves the selection, keeps Details showing, or drops
@@ -216,19 +262,26 @@ describe("the Details tab, for the templates", () => {
         expectComponentDetails(component);
       }
     },
+    EVERY_COMPONENT_TIMEOUT_MS,
   );
 });
 
-/** Details shows the component, and every setting its type describes, with a value and help. */
+/**
+ * Details shows the component, and a field for every setting its type
+ * describes, each with a value, and its help and default.
+ */
 function expectComponentDetails(component: Component): void {
   expect(detailsHeading().textContent).toMatch(
     new RegExp(`^${component.name} · `),
   );
   const described = fields.get(component.type)?.fields ?? [];
-  expect(settings()).toHaveLength(described.length);
-  for (const [, value, help] of settings()) {
-    expect(value, component.name).not.toBe("");
-    expect(help, component.name).toMatch(/Default .*.$/);
+  expect(settingLabels()).toEqual(described.map((f) => f.label));
+  for (const { label, kind } of described) {
+    const element = kind === "distribution" ? group(label) : field(label);
+    if (element instanceof HTMLInputElement) {
+      expect(element.value, label).not.toBe("");
+    }
+    expect(description(element), label).toMatch(/Default .*\.$/);
   }
 }
 

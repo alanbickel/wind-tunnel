@@ -265,7 +265,7 @@ A new AWS service (or any other component type) touches these places, all in the
 3. For each place the model simplifies or guesses at AWS behavior, an entry in [`docs/design/fidelity.md`](docs/design/fidelity.md), with its ID cited in the code comment. Mark every claim about AWS as **Documented** (with a link you checked), **Observed**, or **Assumption**.
 4. Anything surprising about the service at scale goes in [AWS: Did you know?](docs/learning/aws-did-you-know.md).
 5. The [component definitions guide](docs/architecture/component-definitions.md), updated to list it.
-6. Field descriptors for its settings, in `src/application/details/fields/`, listed in `createFieldCatalog`: what each setting means to a user, in AWS terms, and its default's evidence, with a row for each in fidelity's [defaults table](docs/design/fidelity.md#default-values-and-their-evidence). `field-evidence.test.ts` fails until every setting has one.
+6. Field descriptors for its settings, in `src/application/details/fields/`, listed in `createFieldCatalog`: what each setting means to a user, in AWS terms, its default's evidence, and for a number its range, with a row for each in fidelity's [defaults table](docs/design/fidelity.md#default-values-and-their-evidence). `field-evidence.test.ts` fails until every setting has one, and `field-ranges.test.ts` until each range agrees with the config schema. The Details tab's fields come from the descriptors, so the type needs no UI code.
 
 ## Tests
 

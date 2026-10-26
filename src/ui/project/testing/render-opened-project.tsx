@@ -6,10 +6,13 @@ import {
   type RenderResult,
 } from "@testing-library/react";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
+import { awsSaveProject } from "../../../application/testing/aws-save-project";
+import { InMemoryProjectRepository } from "../../../application/testing/in-memory-project-repository";
 import { sampleRecord } from "../../../application/testing/sample-record";
 import { RunSimulation } from "../../../application/use-cases/run-simulation";
 import type { Project } from "../../../domain/model/project";
 import { fakeUseCases } from "../../app/testing/fake-use-cases";
+import type { UseCases } from "../../app/use-cases";
 import { UseCasesProvider } from "../../app/UseCasesProvider";
 import { ManualSimulationRunner } from "../../run/testing/manual-simulation-runner";
 import {
@@ -24,6 +27,8 @@ export interface RenderOpenedProjectInput {
   readonly project?: Project;
   /** Wide, unless given. */
   readonly width?: WindowWidth;
+  /** The real one over the AWS types, saving to `projects`, unless given. */
+  readonly saveProject?: UseCases["saveProject"];
 }
 
 /** An opened project on screen, and what drives it. */
@@ -32,23 +37,28 @@ export interface RenderedProject extends RenderResult {
   readonly runner: ManualSimulationRunner;
   /** Crosses the window's width breakpoint. */
   readonly resize: ResizeWindow;
-  /** Hands the open screen a changed project, as an edit will. */
+  /** Hands the open screen a changed project, as opening it again would. */
   readonly change: (project: Project) => void;
+  /** Where the default `saveProject` saves. */
+  readonly projects: InMemoryProjectRepository;
 }
 
 /**
  * Renders `OpenedProject` with the sample record, runs driven by the test,
- * and the AWS wording for selections.
+ * the AWS wording for selections, and saves to memory.
  */
 export function renderOpenedProject({
   project = sampleRecord.project,
   width = "wide",
+  saveProject,
 }: RenderOpenedProjectInput = {}): RenderedProject {
   const resize = stubWindowWidth(width);
   const runner = new ManualSimulationRunner();
+  const projects = new InMemoryProjectRepository();
   const useCases = fakeUseCases({
     runSimulation: new RunSimulation({ runner }),
     describeSelection: awsDescribeSelection(),
+    saveProject: saveProject ?? awsSaveProject(projects),
   });
   const screenOf = (shown: Project) => (
     <UseCasesProvider useCases={useCases}>
@@ -59,7 +69,7 @@ export function renderOpenedProject({
   const change = (changed: Project) => {
     view.rerender(screenOf(changed));
   };
-  return { runner, resize, change, ...view };
+  return { runner, resize, change, projects, ...view };
 }
 
 /** The project bar, named by the sample project. */

@@ -1,4 +1,5 @@
 import type { StepAction } from "../../domain/model/project";
+import type { ConfigFieldDescriptor } from "./field-descriptor";
 
 /**
  * What the Details tab shows for a selection, worded here so every screen
@@ -18,14 +19,31 @@ export interface SettingDetails {
    * (RDS-2)."; undefined for a setting with no default, such as an edge's.
    */
   readonly defaultNote: string | undefined;
+  /**
+   * What a field needs to edit the setting; undefined for one that can't
+   * be edited yet: an edge's, or a setting no descriptor covers.
+   */
+  readonly editor: SettingEditor | undefined;
+}
+
+/** An editable setting: its descriptor, its value, and its type's default. */
+export interface SettingEditor {
+  readonly field: ConfigFieldDescriptor;
+  /** As stored, e.g. `16` or a `Distribution`. */
+  readonly value: unknown;
+  /** The type's default; undefined if the type has none for this setting. */
+  readonly defaultValue: unknown;
 }
 
 /** A component: what it is, its settings, and what calls it. */
 export interface ComponentDetails {
   readonly kind: "component";
+  readonly componentId: string;
   readonly name: string;
   /** The type's display name, e.g. "RDS". */
   readonly typeName: string;
+  /** The type's `defaultConfig`, for "Reset to default"; undefined for an unknown type. */
+  readonly defaultConfig: unknown;
   readonly settings: readonly SettingDetails[];
   /** The names of the workflows with a step that calls it, in project order. */
   readonly calledBy: readonly string[];

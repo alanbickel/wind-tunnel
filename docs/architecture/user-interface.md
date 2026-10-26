@@ -53,7 +53,7 @@ The folders under `src/ui/`:
 | `shell/` | The top bar: the app's name, the breadcrumb (Projects › the open project), and the theme control |
 | `app/` | `UseCases`, `UseCasesProvider`, `useUseCases`, and the test helpers in `app/testing/` |
 | `projects/` | The first screen: the user's projects, and the template list with its `useCreateFromTemplate` hook |
-| `project/` | One opened project: `ProjectScreen` (open, or say why it can't), `OpenedProject` (the layout, the run's state, and the selection, through `useSelection`), `ProjectBar`, `ArchitectureView`, `SelectionDetails` (the Details tab's content), and `diagramOf` |
+| `project/` | One opened project: `ProjectScreen` (open, or say why it can't), `OpenedProject` (the layout, the record with its edits through `useProjectEdits`, the run's state, and the selection, through `useSelection`), `ProjectBar`, `ArchitectureView`, `SelectionDetails` (the Details tab's content), `diagramOf`, and in `fields/` the fields that edit a component's name and settings |
 | `run/` | `useProjectRun` (which holds `useSimulationRun` and `useRunFindings`), `RunControls`, `RunProgress`, `RunResults` and the narrow window's `RunPanel`, `Findings` (the verdict and findings), the totals tables, and `runCharts`, which turns snapshots into chart content |
 | `diagram/`, `charts/` | Our wrappers around React Flow and Recharts. Only these folders import those libraries ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) |
 | `storage/` | Asks the browser for persistent storage after the first create, and warns if it says no |
@@ -97,10 +97,38 @@ To give a component a new use case: add it to `UseCases`, build it in `main.tsx`
 A project screen has one selection, or none: a component or an edge, for now ([UX design §4.1](../design/user-experience.md#41-selection)). `OpenedProject` holds it with `useSelection`, above both columns, so the diagram, its text version, and Details read the same one. It lasts while the screen is open and isn't saved. Its type, `Selection`, lives in [`application/details/`](../../src/application/details/selection.ts), because the use case that describes it takes it.
 
 - **Selecting.** In the diagram's text version, each component and connection is a button, marked `aria-current` while it's the selection (not `aria-pressed`: pressing it again doesn't unselect it): the way every user can rely on. On the canvas, a click on a box or an arrow selects it, a box can be focused and selected with Enter, and a click on the empty canvas clears the selection. `Diagram` reports these through `onSelect` in its own terms (a `DiagramItem`: a node or an edge, by id), and `ArchitectureView` turns them into a `Selection` ([ADR-0010's addendum](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md#addendum-2026-10-25)). The diagram rings the selected box and draws the selected arrow thicker, through React Flow's `selected` class, so the mark is a shape and a width, not a color alone.
-- **What shows.** Selecting opens Details: the Details tab in a wide window, or a Details panel under the model, with a Close button, in a narrow one. `SelectionDetails` asks `describeSelection` for what to show: a component's name and type, each setting with its value and unit, its help, and its default with its evidence, then the workflows that call it; or an edge's two ends, its latency, timeout, and retries, and the steps that call along it. The words come from each type's field descriptors in [`application/details/fields/`](../../src/application/details/fields/), so a new component type brings its own.
-- **Focus.** Selecting moves the focus to the Details heading, so the keyboard and a screen reader land on it. Escape anywhere in Details, or Close, clears the selection, shows Run again in a wide window, and returns the focus to the element that had it when the selection was made, which `useSelection` remembers. A click on the empty canvas clears without moving the focus.
+- **What shows.** Selecting opens Details: the Details tab in a wide window, or a Details panel under the model, with a Close button, in a narrow one. `SelectionDetails` asks `describeSelection` for what to show: a component's name and type, a field for its name and each setting with its unit, its help, and its default with its evidence and "Reset to default", then the workflows that call it ([editing](#editing-and-saving)); or an edge's two ends, its latency, timeout, and retries, read-only, and the steps that call along it. The words come from each type's field descriptors in [`application/details/fields/`](../../src/application/details/fields/), so a new component type brings its own.
+- **Focus.** Selecting moves the focus to the Details heading, so the keyboard and a screen reader land on it. Escape anywhere in Details (except in a field with a draft to put back), or Close, clears the selection, shows Run again in a wide window, and returns the focus to the element that had it when the selection was made, which `useSelection` remembers. A click on the empty canvas clears without moving the focus.
 
 To make something else selectable (a workflow, a step, a finding), add it to `Selection`; `DescribeSelection` and the maps that read a selection stop compiling until each handles it.
+
+## Editing and saving
+
+Each change a user makes is a **command**, validated and saved at once; there's no Save button ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md), [UX design §4.3](../design/user-experience.md#43-editing-and-saving)). A command is a plain function in [`application/edits/`](../../src/application/edits/component-edits.ts) that takes the project record and returns the next one: `setComponentSetting`, `renameComponent`, `resetComponentSetting`. The UI never builds a record by hand. It fills in a command's input and hands it to `edit`.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant F as NumberField (ui)
+    participant E as useProjectEdits (ui)
+    participant Q as save queue (ui)
+    participant S as SaveProject (application)
+    User->>F: types 0
+    F->>F: draft "0" fails its range: "Query workers must be at least 1."
+    User->>F: types 64, leaves the field
+    F->>E: edit(record => setComponentSetting(record, { componentId, key, value: 64 }))
+    E->>E: holds the next record; the screen shows it, and the run goes out of date
+    E->>Q: save(next)
+    Q->>S: execute(next), one at a time
+    S-->>Q: saved, or not
+    Q-->>E: on a failure, saveFailed: the bar says "Couldn't save your last change." with Try again
+```
+
+- **A field holds a draft.** What's typed stays in the field (`useDraft`) until it passes the field's checks, which word their own messages: a number against its descriptor's `range` (`checkNumberDraft`), a distribution's parts and its rule that the p99 is at least the median (`checkDistributionDraft`), and a name that no other component of its type uses (`checkComponentName`). All are in [`application/details/`](../../src/application/details/), so they're tested without a browser. On Enter, or on leaving the field, a passing draft becomes a command; a failing one stays, with its message, and never reaches the project. Escape puts back the saved value. A draft starts again whenever the saved value changes, such as after a reset.
+- **Messages are tied to their field.** A failing field is `aria-invalid`, and its `aria-describedby` points at the message first, then its unit, help, and default, so a screen reader reads them whenever the field has the focus. Leaving a field with a failing draft also puts the message in Details' polite status region, since the focus has moved on.
+- **Field kinds.** `ComponentSettings` picks a field by the descriptor's `kind`: `NumberField` for a number or whole number, and `DistributionField` for a distribution: a kind picker (constant, exponential, lognormal) and a field for each of the kind's parts. Changing the kind fills the new parts from the old one's typical value (a constant takes the median; a lognormal starts with its p99 at its median), and a kind switched back to gets its old values back. The kind saves when the picker is left, not on each change, because arrow keys on a closed picker change it once for each kind they pass. A new component type brings its own descriptors, so it needs no field code.
+- **Saving.** `OpenedProject` holds the record through `useProjectEdits`, so the screen shows every change at once. Saves go through `saveProject` one at a time, in order. Each record is the whole project, so a record waiting behind the one in flight is replaced by a newer one. If a save fails, or `SaveProject` refuses the record (which the fields' checks should rule out), the change stays on screen, the project bar says "Couldn't save your last change." from a status region that's there from the start, and Try again saves it. A later save that works clears it. A save that works isn't announced: the field already shows it.
+- **Run freshness.** A saved change changes the project the screen holds, so a run on screen goes out of date with no extra code ([run freshness](#run-freshness)).
 
 ## A run, from click to chart
 
@@ -200,7 +228,7 @@ UI tests start with `// @vitest-environment jsdom`, render with Testing Library,
 | `fakeUseCases(overrides)` ([`app/testing/`](../../src/ui/app/testing/)) | A component that calls one or two use cases. Every call you don't override rejects, so an unexpected call fails the test |
 | `inMemoryUseCases(templates)` | Following a user through several steps: the real project use cases over in-memory adapters |
 | `new RunSimulation({ runner })` with a test runner | Run tests. `ManualSimulationRunner` ([`run/testing/`](../../src/ui/run/testing/)) sends snapshots and ends the run when the test says |
-| `renderOpenedProject()` ([`project/testing/`](../../src/ui/project/testing/)) | A test of the whole project screen: renders `OpenedProject` with the sample project and a `ManualSimulationRunner`, and returns `change(project)`, which hands the screen a changed project as an edit will. `bar()`, `statusRegions()`, `status()`, and `clickRun()` beside it read and drive the project bar |
+| `renderOpenedProject()` ([`project/testing/`](../../src/ui/project/testing/)) | A test of the whole project screen: renders `OpenedProject` with the sample project (or the one given), a `ManualSimulationRunner`, and a real `saveProject` over the AWS types that saves to the `projects` it returns, and returns `change(project)`, which hands the screen a changed project as opening it again would. `bar()`, `statusRegions()`, `status()`, and `clickRun()` beside it read and drive the project bar |
 | `stubWindowWidth("wide" \| "narrow")` ([`shared/testing/`](../../src/ui/shared/testing/)) | Any test that renders `OpenedProject`, `ProjectScreen`, or `App`: jsdom lacks the `matchMedia` that `useWideWindow` reads. Undo it with `vi.unstubAllGlobals()` |
 | `stubDiagramBrowserApis()` ([`diagram/testing/`](../../src/ui/diagram/testing/)) | Any test that renders a `Diagram`, `ProjectScreen`, or `App`: jsdom lacks the `ResizeObserver` and `DOMMatrixReadOnly` that React Flow needs. Undo it with `vi.unstubAllGlobals()` |
 

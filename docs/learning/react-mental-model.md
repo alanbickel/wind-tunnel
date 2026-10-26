@@ -55,6 +55,15 @@ Calling a setter doesn't change the variable in the code that's running; the new
 **In Wind Tunnel:** `useCreateFromTemplate`, `useSimulationRun`, and `useStoragePersistence` guard with refs so a double click can't start two creates or two runs.
 **Source:** [State as a snapshot](https://react.dev/learn/state-as-a-snapshot)
 
+### To reset state when a prop changes, set it during render, not in an effect
+
+A `useState` value starts from its initial value once; a later prop doesn't reach it. The obvious fix, an effect that copies the prop into state, renders the stale value first, then again with the new one.
+
+**Why it bites:** in Solid a derived value just follows its source. In React, state that should follow a prop has to be told to.
+**Fix:** first, see whether the state can go: compute the value during render, or give the component a `key` so React starts it fresh. If neither fits, keep the prop you last saw in state, and when it differs, set both during render, behind that guard. React throws away that render's output and renders again at once, so nothing stale reaches the screen.
+**In Wind Tunnel:** a field's draft starts again when the saved value changes (`useDraft`), and `useProjectEdits` starts from a newly loaded record. Details keys each component's fields by its id, so a draft can't carry over to the next component.
+**Source:** [Adjusting some state when a prop changes](https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+
 ### A function created during render is a new function every render
 
 Functions and objects written inside a component are recreated on every render, so an effect that depends on one re-runs every render too.

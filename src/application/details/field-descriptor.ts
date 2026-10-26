@@ -42,8 +42,34 @@ export interface FieldDescriptor {
   readonly help: string;
 }
 
+/**
+ * The values a number setting allows, as its config schema does. The schema
+ * stays the authority; the range words the messages a user reads, and a
+ * test checks that the two agree.
+ */
+export interface FieldRange {
+  /** The lowest value allowed, or the bound a value must be above if `minExclusive`. */
+  readonly min: number;
+  /** True if a value must be more than `min`, not at least `min`. */
+  readonly minExclusive: boolean;
+  /** The highest value allowed; undefined if there's no limit. */
+  readonly max: number | undefined;
+}
+
 /** A component setting: a descriptor, and the evidence for its default. */
-export interface ConfigFieldDescriptor extends FieldDescriptor {
+export type ConfigFieldDescriptor =
+  NumberFieldDescriptor | DistributionFieldDescriptor;
+
+/** A setting that's one number, such as a limit or a rate. */
+export interface NumberFieldDescriptor extends FieldDescriptor {
+  readonly kind: "number" | "whole-number";
+  readonly range: FieldRange;
+  readonly evidence: DefaultEvidence;
+}
+
+/** A setting that's a duration distribution, such as a service time. */
+export interface DistributionFieldDescriptor extends FieldDescriptor {
+  readonly kind: "distribution";
   readonly evidence: DefaultEvidence;
 }
 

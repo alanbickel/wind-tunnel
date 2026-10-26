@@ -39,18 +39,29 @@ export function ProjectBar(props: ProjectBarProps) {
         {ran !== undefined && (
           <RunProgress workload={ran} snapshots={run.snapshots} />
         )}
-        {/* Both regions are mounted from the start, so screen readers
-            announce each change: the run's status, then whether the run
-            is out of date, which changes on its own when the project does. */}
-        <p className={styles.status}>
-          <span role="status">{status}</span>
-          <span role="status" className={styles.outOfDate}>
-            {outOfDate ? "Out of date" : ""}
-          </span>
-        </p>
+        <RunStatus status={status} outOfDate={outOfDate} />
         <SaveStatus saveFailed={saveFailed} onRetry={onRetry} />
       </div>
     </section>
+  );
+}
+
+type RunStatusProps = Pick<ProjectRun, "status" | "outOfDate">;
+
+/**
+ * The run's status, and whether it's out of date. Both regions are mounted
+ * from the start, so screen readers announce each change: the run's status,
+ * then whether the run is out of date, which changes on its own when the
+ * project does.
+ */
+function RunStatus({ status, outOfDate }: RunStatusProps) {
+  return (
+    <p className={styles.status}>
+      <span role="status">{status}</span>
+      <span role="status" className={styles.outOfDate}>
+        {outOfDate ? "Out of date" : ""}
+      </span>
+    </p>
   );
 }
 

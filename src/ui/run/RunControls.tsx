@@ -20,11 +20,32 @@ export interface RunControlsProps {
  * focus stays on it.
  */
 export function RunControls(props: RunControlsProps) {
-  const { workloads, workload, onPick, running, onStart, onStop } = props;
-  const pickerId = useId();
+  const { running, onStart, onStop } = props;
 
   return (
     <div className={styles.controls}>
+      <WorkloadPicker {...props} />
+      <Button variant="primary" usable={!running} onClick={onStart}>
+        Run
+      </Button>
+      <Button usable={running} onClick={onStop}>
+        Stop
+      </Button>
+    </div>
+  );
+}
+
+type WorkloadPickerProps = Pick<
+  RunControlsProps,
+  "workloads" | "workload" | "onPick" | "running"
+>;
+
+/** The workload picker and its label; it waits while a run is going. */
+function WorkloadPicker(props: WorkloadPickerProps) {
+  const { workloads, workload, onPick, running } = props;
+  const pickerId = useId();
+  return (
+    <>
       <label htmlFor={pickerId}>Workload</label>
       <select
         id={pickerId}
@@ -41,12 +62,6 @@ export function RunControls(props: RunControlsProps) {
           </option>
         ))}
       </select>
-      <Button variant="primary" usable={!running} onClick={onStart}>
-        Run
-      </Button>
-      <Button usable={running} onClick={onStop}>
-        Stop
-      </Button>
-    </div>
+    </>
   );
 }

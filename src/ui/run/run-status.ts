@@ -4,7 +4,7 @@ import type { Workload } from "../../domain/model/project";
 import { handleStatus, type StatusHandlers } from "../shared/status-handlers";
 import { secondsOf } from "./run-charts";
 import type { RunMeaning } from "./useRunFindings";
-import type { RunPhase } from "./useSimulationRun";
+import type { RanModel, RunPhase } from "./useSimulationRun";
 
 /** What the status line says about the latest run. */
 export interface StatusTextInput {
@@ -50,9 +50,12 @@ export function currentVerdict(
   return meaning?.current ? meaning.findings.verdict : undefined;
 }
 
-/** The workload the latest run ran, if there has been one. */
-export function workloadOf(phase: RunPhase): Workload | undefined {
-  return "workload" in phase ? phase.workload : undefined;
+/**
+ * What the latest run ran, if there has been one: the phase itself, so it
+ * stays the same object until the phase changes.
+ */
+export function ranModelOf(phase: RunPhase): RanModel | undefined {
+  return phase.status === "idle" ? undefined : phase;
 }
 
 /** Measured like `simulatedSec`, so a finished run fills the bar. */

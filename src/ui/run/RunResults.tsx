@@ -5,22 +5,32 @@ import { runCharts } from "./run-charts";
 import styles from "./RunResults.module.css";
 import { RunTotals } from "./RunTotals";
 import type { RunMeaning } from "./useRunFindings";
+import type { ProjectRun } from "./useProjectRun";
 
-export interface RunResultsProps {
-  /** The run as of the deferred snapshots, and what it means. */
-  readonly meaning: RunMeaning | undefined;
-}
+/**
+ * What the results show of the screen's run: what it means, as of the
+ * deferred snapshots, and whether the project has changed since it started.
+ * A `ProjectRun` can be spread in.
+ */
+export type RunResultsProps = Pick<ProjectRun, "meaning" | "outOfDate">;
 
 /**
  * What the latest run means, then its totals and charts as the evidence;
- * a line saying so before the first run.
+ * a line saying so before the first run. A run of an earlier version of
+ * the project opens with a line saying so, and reads as it was.
  */
-export function RunResults({ meaning }: RunResultsProps) {
+export function RunResults({ meaning, outOfDate }: RunResultsProps) {
   if (meaning === undefined) {
     return <p className={styles.empty}>Nothing has run yet.</p>;
   }
   return (
     <div className={styles.results}>
+      {outOfDate && (
+        <p className={styles.outOfDate}>
+          This run is of an earlier version of the project. Run again to see
+          your changes.
+        </p>
+      )}
       <RunMetrics meaning={meaning} />
     </div>
   );

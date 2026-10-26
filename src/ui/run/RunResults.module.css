@@ -7,3 +7,14 @@
 .empty {
   color: var(--color-text-muted);
 }
+
+/* Marked like the storage hint: a warning about what's shown, not a
+   finding about the run. */
+.outOfDate {
+  max-width: var(--prose-max-width);
+  margin: 0;
+  background: var(--color-surface-raised);
+  border-left: var(--line-width-thick) solid var(--color-status-warn);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}

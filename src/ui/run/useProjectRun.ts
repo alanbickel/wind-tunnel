@@ -1,13 +1,18 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { runIsCurrent } from "../../application/run-analysis/run-freshness";
 import type { Project, Workload } from "../../domain/model/project";
 import {
   currentVerdict,
+  ranModelOf,
   simulatedSec,
   statusText,
-  workloadOf,
 } from "./run-status";
 import { useRunFindings, type RunMeaning } from "./useRunFindings";
-import { useSimulationRun, type SimulationRun } from "./useSimulationRun";
+import {
+  useSimulationRun,
+  type RanModel,
+  type SimulationRun,
+} from "./useSimulationRun";
 
 /**
  * A project screen's run, for every part of the screen that shows it: the
@@ -24,6 +29,11 @@ export interface ProjectRun {
   readonly meaning: RunMeaning | undefined;
   /** The status line's text; empty before the first run. */
   readonly status: string;
+  /**
+   * True while the latest run's copy of the project differs from the
+   * project in what makes its results (ADR-0018); false before the first.
+   */
+  readonly outOfDate: boolean;
 }
 
 /**
@@ -35,12 +45,29 @@ export interface ProjectRun {
 export function useProjectRun(project: Project): ProjectRun {
   const run = useSimulationRun(project);
   const [picked, pick] = useState(project.workloads[0]);
-  const ran = workloadOf(run.phase);
-  const meaning = useRunFindings({ project, workload: ran, received: run });
+  const ranModel = ranModelOf(run.phase);
+  const meaning = useRunFindings({ ran: ranModel, received: run });
   const status = statusText({
     phase: run.phase,
     seconds: simulatedSec(run.snapshots),
     verdict: currentVerdict(meaning),
   });
-  return { run, picked, pick, ran, meaning, status };
+  // Memoized, so the two projects are compared when either changes, not
+  // on every snapshot.
+  const outOfDate = useMemo(
+    () => isOutOfDate(ranModel, project),
+    [ranModel, project],
+  );
+  const ran = ranModel?.workload;
+  return { run, picked, pick, ran, meaning, status, outOfDate };
+}
+
+/** Whether there has been a run, and its copy no longer matches `project`. */
+function isOutOfDate(ran: RanModel | undefined, project: Project): boolean {
+  if (ran === undefined) return false;
+  return !runIsCurrent({
+    ran: ran.project,
+    workloadId: ran.workload.id,
+    project,
+  });
 }

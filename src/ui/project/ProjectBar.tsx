@@ -13,11 +13,12 @@ export interface ProjectBarProps {
 
 /**
  * The top of a project screen, above both columns: the project's name and
- * description, then what runs it, how far the run has got, and its status.
+ * description, then what runs it, how far the run has got, its status, and
+ * whether it's out of date.
  * A region named by the project, so a screen reader can jump to it.
  */
 export function ProjectBar({ project, projectRun }: ProjectBarProps) {
-  const { run, ran, status } = projectRun;
+  const { run, ran, status, outOfDate } = projectRun;
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className={styles.bar}>
@@ -32,9 +33,14 @@ export function ProjectBar({ project, projectRun }: ProjectBarProps) {
         {ran !== undefined && (
           <RunProgress workload={ran} snapshots={run.snapshots} />
         )}
-        {/* Mounted from the start, so screen readers announce each change. */}
-        <p role="status" className={styles.status}>
-          {status}
+        {/* Both regions are mounted from the start, so screen readers
+            announce each change: the run's status, then whether the run
+            is out of date, which changes on its own when the project does. */}
+        <p className={styles.status}>
+          <span role="status">{status}</span>
+          <span role="status" className={styles.outOfDate}>
+            {outOfDate ? "Out of date" : ""}
+          </span>
         </p>
       </div>
     </section>

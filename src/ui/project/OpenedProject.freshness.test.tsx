@@ -24,6 +24,15 @@ function withTableNamed(name: string): Project {
   };
 }
 
+/** The sample project with its workloads renamed to `name`. */
+function withWorkloadNamed(name: string): Project {
+  const workloads = sampleRecord.project.workloads.map((workload) => ({
+    ...workload,
+    name,
+  }));
+  return { ...sampleRecord.project, workloads };
+}
+
 /** A second of the sample run in which the table throttles a read. */
 function throttledSecond(second: number) {
   return sampleSnapshot({
@@ -131,5 +140,29 @@ describe("OpenedProject's run when the project changes", () => {
 
     expect(statusRegions()[1].textContent).toBe("");
     expect(within(runTab()).queryByText(EARLIER_VERSION)).toBeNull();
+  });
+
+  // Fails if the run keeps the picker's workload, picked before the
+  // project changed, not the project's own: it would say "Steady".
+  it("runs and names the workload as the project has it", () => {
+    const { change } = renderProject();
+    change(withWorkloadNamed("Steady 6 s"));
+
+    clickRun();
+
+    expect(status()).toBe("Running Steady 6 s… Healthy so far.");
+  });
+
+  // Fails if the narrow window's RunPanel isn't handed outOfDate: the
+  // notice would show only in the wide window's Run tab.
+  it("says the run is out of date in a narrow window", async () => {
+    const { runner, change } = renderProject({ width: "narrow" });
+    clickRun();
+    await runner.finish();
+
+    change(withTableNamed("Orders"));
+
+    const panel = screen.getByRole("region", { name: "Run" });
+    expect(within(panel).getByText(EARLIER_VERSION)).toBeTruthy();
   });
 });

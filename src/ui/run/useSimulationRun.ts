@@ -133,12 +133,12 @@ function runWorkload(
   { workload, controller }: RunWorkloadInput,
   { runSimulation, project, setPhase, setReceived }: RunWorkloadContext,
 ): Promise<void> {
-  const ran: RanModel = { project, workload };
+  const ran = ranModelFor(project, workload);
   setPhase({ status: "running", ...ran });
   setReceived(({ runId }) => ({ runId: runId + 1, snapshots: [] }));
   const attempt = runSimulation.execute({
     project,
-    workloadId: workload.id,
+    workloadId: ran.workload.id,
     stopSignal: controller.signal,
     onSnapshot: (snapshot) => {
       setReceived(({ runId, snapshots }) => ({
@@ -148,6 +148,17 @@ function runWorkload(
     },
   });
   return settleRun({ attempt, ran, setPhase });
+}
+
+/**
+ * The run's model: `project`, with its own copy of `workload`, which is
+ * what runs. The picker may hold the workload as it was before the
+ * project changed. If the project no longer has it, the run fails as
+ * "workload-missing", and `workload` names what was asked for.
+ */
+function ranModelFor(project: Project, workload: Workload): RanModel {
+  const own = project.workloads.find(({ id }) => id === workload.id);
+  return { project, workload: own ?? workload };
 }
 
 interface SettleRunInput {

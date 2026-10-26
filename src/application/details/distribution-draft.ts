@@ -95,7 +95,7 @@ function checkWhole(candidate: Record<string, unknown>): DistributionCheck {
   const parsed = distributionSchema.safeParse(candidate);
   if (parsed.success) return { status: "passes", value: parsed.data };
   // Reached only if a part's range disagrees with the schema, which
-  // distribution-parts.test.ts rules out.
+  // field-ranges.test.ts ("each distribution part's range") rules out.
   return fails(
     Object.fromEntries(
       parsed.error.issues.map((issue) => [

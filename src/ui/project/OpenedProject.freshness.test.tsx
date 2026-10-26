@@ -153,6 +153,22 @@ describe("OpenedProject's run when the project changes", () => {
     expect(status()).toBe("Running Steady 6 s… Healthy so far.");
   });
 
+  // Fails if the run falls back to another of the project's workloads when
+  // the picked one is gone: it would run "Spike", not fail naming "Steady".
+  it("fails naming the picked workload once the project no longer has it", async () => {
+    const { change } = renderProject();
+    const [steady] = sampleRecord.project.workloads;
+    if (steady === undefined) throw new Error("the sample has a workload");
+    const spike = { ...steady, id: "spike", name: "Spike" };
+    change({ ...sampleRecord.project, workloads: [spike] });
+
+    clickRun();
+
+    expect(await screen.findByText(/no longer in the project/)).toBeTruthy();
+    expect(status()).toContain("Steady");
+    expect(status()).not.toContain("Spike");
+  });
+
   // Fails if the narrow window's RunPanel isn't handed outOfDate: the
   // notice would show only in the wide window's Run tab.
   it("says the run is out of date in a narrow window", async () => {

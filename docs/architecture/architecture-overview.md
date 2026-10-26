@@ -82,6 +82,8 @@ flowchart LR
     R -->|"produces"| M[Metrics]
 ```
 
+A project is checked in two groups ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)). The **architecture checks** (components, their settings and names, edges, unique IDs) must pass for a project to be saved or opened. The **run checks** (each workflow's steps, each workload's mix and profile) find **run issues**, which save and open with the project and stop only a run of the workloads they affect: `RunSimulation` refuses such a workload, and the project bar says why.
+
 For how these fit together in code, including workflows as call trees and the validation rules, see [The domain model](domain-model.md).
 
 ## The guides in this folder
@@ -90,9 +92,9 @@ Each guide is a short, visual introduction to one part of the system, with a wor
 
 | Guide | Covers |
 |---|---|
-| [The domain model](domain-model.md) | Entities, workflows as call trees over the architecture, loading documents (`loadProject`), `validateProject` |
+| [The domain model](domain-model.md) | Entities, workflows as call trees over the architecture, loading documents (`loadProject`), architecture checks and run checks (`findArchitectureIssues`, `findRunIssues`) |
 | [How the simulation engine works](simulation-engine.md) | Discrete-event loop, `EventQueue`, `RateLimit`, `ConcurrencyLimit`, `Queue`, `ServiceTime`, distributions, `simulate`, `ArrivalProcess`, `backoffMs` |
-| [Component definitions](component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, `validateComponents`, the five AWS types |
+| [Component definitions](component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, the type-specific checks (`validateComponents`, `findStepIssues`), the five AWS types |
 | [How metrics work](metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, limits, gauges and counters, `LatencyHistogram` |
 | [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, the in-process and Web Worker runners, the repository and runner contracts |
 | [The user interface](user-interface.md) | The composition root, `UseCasesProvider` and `useUseCases`, the screens, selection and the Details tab, `useSimulationRun` and the Worker runner, a run traced from click to chart, UI test helpers |
@@ -140,7 +142,7 @@ flowchart TB
 
 | If you're writing… | Put it in | Notes |
 |---|---|---|
-| A new field or consistency rule on projects, workflows, or workloads | `src/domain/model/` | Update `validateProject`, the document schema and mapper in `src/adapters/persistence/`. A change old documents can't satisfy needs a new `schemaVersion` and a migration in `document-migrations.ts`, which `loadProject` runs before the schema. See [The domain model](domain-model.md). |
+| A new field or consistency rule on projects, workflows, or workloads | `src/domain/model/` | Decide its group: an architecture rule goes in `validateArchitecture` and stops a save; a workflow or workload rule is a run issue (a new kind in `run-issue.ts`, found by `findStepIssues` or `findWorkloadIssues`, and worded in `application/run-checks/run-issue-phrases.ts`) and stops only a run. Update the document schema and mapper in `src/adapters/persistence/`. A change old documents can't satisfy needs a new `schemaVersion` and a migration in `document-migrations.ts`, which `loadProject` runs before the schema. See [The domain model](domain-model.md). |
 | A new cloud service type (e.g. Kinesis) | `src/domain/components/aws/` | Register it in `createAwsComponentRegistry`; don't edit the engine. Must pass `checkComponentContract`. See [Component definitions](component-definitions.md). |
 | A new metric for one service type (e.g. Lambda warm instances) | That type's definition in `src/domain/components/aws/` | Expose it as a gauge or counter on the behavior; the engine and collector pass it through. See [How metrics work](metrics.md). |
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |

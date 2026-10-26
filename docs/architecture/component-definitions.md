@@ -14,13 +14,13 @@ How they connect to the rest of the code (the [legend](architecture-overview.md#
 %%{init: {"flowchart": {"wrappingWidth": 320}}}%%
 flowchart TB
     eng["<b>Engine</b><br/>[domain/engine]<br/>Topology, Simulation"]:::external
-    load["<b>loadProject, SaveProject</b><br/>[adapters, application]"]:::external
+    load["<b>loadProject, SaveProject, RunSimulation</b><br/>[adapters, application]"]:::external
     tests["<b>Each definition's tests</b>"]:::external
     subgraph comp["domain/components"]
         def["<b>ComponentDefinition</b><br/>[Component: one per type, aws/*.ts]<br/>Config schema, defaults, actions, build()"]:::component
         reg["<b>ComponentRegistry</b><br/>[Component: ComponentRegistryMap]<br/>Looks definitions up by type, parses configs"]:::component
         beh["<b>ComponentBehavior</b><br/>[Component: aws/*-behavior.ts]<br/>One component's state during one run"]:::component
-        val["<b>validateComponents</b><br/>[Component]<br/>Type-specific checks at load time"]:::component
+        val["<b>validateComponents, findStepIssues</b><br/>[Component]<br/>Type-specific checks: architecture, then runs"]:::component
         contract["<b>checkComponentContract</b><br/>[Component: with ContractHarness]<br/>Plays the engine's part against a definition"]:::component
     end
     prim["<b>Behavior primitives</b><br/>[domain/behaviors]<br/>RateLimit, ConcurrencyLimit, Queue, ServiceTime"]:::external
@@ -28,7 +28,7 @@ flowchart TB
     eng -->|"build(config) per run"| reg
     reg -->|"definition.build()"| beh
     eng -->|"arrive, finish;<br/>effects back"| beh
-    load -->|"findProjectIssues"| val
+    load -->|"findArchitectureIssues,<br/>findRunIssues"| val
     val -->|"looks up types, parses configs"| reg
     tests -->|"checkComponentContract(definition)"| contract
     contract -->|"build() per run"| def
@@ -261,7 +261,7 @@ The checker has its own tests, which feed it deliberately broken definitions to 
 
 ## Type-specific validation
 
-[`validateComponents`](../../src/domain/components/validate-components.ts) runs alongside `validateProject` (see [The domain model](domain-model.md)) and checks the rules that depend on types: the type exists, the config passes the type's schema (issues get full paths like `architecture.components.3.config.workers`), each step's action is one its target accepts, and only `deliversAsync` types carry `async` work.
+Two checks ask the registry about types (see [The domain model](domain-model.md#validation-who-checks-what) for the two groups). [`validateComponents`](../../src/domain/components/validate-components.ts), an architecture check that runs alongside `validateArchitecture`, checks that the type exists, the config passes the type's schema (issues get full paths like `architecture.components.3.config.workers`), and no two components of a type share a name. [`findStepIssues`](../../src/domain/components/find-step-issues.ts), a run check, checks that each step's action is one its target accepts, and that only `deliversAsync` types carry `async` work.
 
 ## Writing a new definition: checklist
 

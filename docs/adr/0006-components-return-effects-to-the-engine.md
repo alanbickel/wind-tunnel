@@ -55,3 +55,7 @@ The methods in the table above now take one input object instead of positional p
 | `dispatchFinished(request, succeeded, nowMs)` | `dispatchFinished({ request, succeeded, nowMs })`, a `DispatchFinishedInput<T>` |
 
 What each method may return, and every rule above, is unchanged. Measured with the engine's million-event test, the input objects cost nothing noticeable. At the same time, each definition's `build` started returning an instance of a named class (e.g. `LambdaBehavior`) instead of an object literal; that's a code-structure change and doesn't affect this decision.
+
+## Addendum, 2026-10-26
+
+The checks that use `actions` and `deliversAsync` moved from `validateComponents` to `findStepIssues`, when the project's checks were split into architecture checks and run checks ([ADR-0019](0019-edit-projects-with-commands-and-save-each-change.md), [#94](https://github.com/alanbickel/wind-tunnel/issues/94)). A step whose action its component doesn't accept is now a run issue: it stops a run of the workloads that use the workflow, not a save or an open. `validateComponents` keeps the checks on the components themselves. This decision is unchanged.

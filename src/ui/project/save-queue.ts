@@ -19,8 +19,9 @@ export interface SaveQueue {
  * A queue of saves. Each record is the whole project, so a record waiting
  * behind the one in flight is replaced by a newer one: the newer holds
  * every change the older did, and the saves still land in the order the
- * changes were made. A record that fails is kept for `retry`, unless a
- * newer one is already waiting, which holds its change too.
+ * changes were made. A record that fails is kept for `retry` until a
+ * newer one is saved, which holds its change too; so `retry` never saves
+ * a record older than one already saved.
  */
 export function createSaveQueue(deps: SaveQueueDependencies): SaveQueue {
   let waiting: ProjectRecord | undefined;
@@ -44,11 +45,13 @@ export function createSaveQueue(deps: SaveQueueDependencies): SaveQueue {
 
   return {
     save: (record) => {
+      failed = undefined;
       waiting = record;
       void saveWaiting();
     },
     retry: () => {
       waiting ??= failed;
+      failed = undefined;
       void saveWaiting();
     },
   };

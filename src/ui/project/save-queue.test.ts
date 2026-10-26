@@ -85,4 +85,34 @@ describe("createSaveQueue", () => {
     expect(pending.map((save) => save.name)).toEqual(["one", "two"]);
     expect(failedReports).toEqual([false]);
   });
+
+  // Fails if retry, pressed while a newer record's save is in flight,
+  // saves the failed record after the newer one: the store would go back
+  // to the older record, losing the newer change. Broken by not clearing
+  // the failed record in `save`, which saves ["one", "two", "one"].
+  it("doesn't retry a failed record a newer one replaced", async () => {
+    const { queue, pending } = queueUnderTest();
+    queue.save(recordNamed("one"));
+    await pending[0]?.end(false);
+    queue.save(recordNamed("two"));
+
+    queue.retry();
+    await pending[1]?.end(true);
+
+    expect(pending.map((save) => save.name)).toEqual(["one", "two"]);
+  });
+
+  // Fails if retry, pressed twice before the retried save ends, saves the
+  // failed record twice.
+  it("retries a failed record once", async () => {
+    const { queue, pending } = queueUnderTest();
+    queue.save(recordNamed("one"));
+    await pending[0]?.end(false);
+
+    queue.retry();
+    queue.retry();
+    await pending[1]?.end(true);
+
+    expect(pending.map((save) => save.name)).toEqual(["one", "one"]);
+  });
 });

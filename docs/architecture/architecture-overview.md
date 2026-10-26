@@ -113,7 +113,8 @@ flowchart TB
         UC["Use cases<br/>RunSimulation, CompareRuns, ..."]
         P["Ports (interfaces)<br/>Clock, IdGenerator, ProjectRepository,<br/>TemplateCatalog, SimulationRunner,<br/>StoragePersistence"]
         RA["Run analysis<br/>totals, per-second counts,<br/>findings and the verdict"]
-        FD["Field descriptors<br/>each setting's label, unit,<br/>help, and default's evidence"]
+        FD["Field descriptors and drafts<br/>each setting's label, unit, range,<br/>help, and default's evidence;<br/>a typed value's checks and messages"]
+        EC["Edit commands<br/>record in, next record out:<br/>set a setting, rename, reset"]
     end
     subgraph dom["domain/ (most stable)"]
         D["Entities & simulation engine<br/>Architecture, Component, Workflow,<br/>Workload, behavior primitives,<br/>component definitions, RandomSource,<br/>metrics collector"]
@@ -121,6 +122,9 @@ flowchart TB
 
     UI --> UC
     UI --> RA
+    UI --> EC
+    UI --> FD
+    EC --> D
     AD --> RA
     RA --> D
     AD -.->|implements| P
@@ -142,7 +146,8 @@ flowchart TB
 | A new capacity behavior (e.g. token bucket variant) | `src/domain/behaviors/` | Keep it small and composable. |
 | A new user action (e.g. "duplicate architecture") | `src/application/use-cases/` | Depend on ports, not concrete adapters. |
 | A number or finding derived from a run's snapshots that the UI or the CLI shows (e.g. totals, work in progress) | `src/application/run-analysis/` | Pure functions of a `RunSoFar`; the UI and the CLI only format the results. Add a check to `run-analysis-reconciles.test.ts` when it adds up to something ([ADR-0013](../adr/0013-derive-run-results-in-application-run-analysis.md)). |
-| What a component type's setting means to a user: its label, unit, help, and its default's evidence | That type's file in `src/application/details/fields/` | One descriptor per key of the type's `defaultConfig`, listed in `createFieldCatalog`. Cite fidelity entries by ID in the help; the evidence must match fidelity's [defaults table](../design/fidelity.md#default-values-and-their-evidence), and `field-evidence.test.ts` checks both. |
+| What a component type's setting means to a user: its label, unit, range, help, and its default's evidence | That type's file in `src/application/details/fields/` | One descriptor per key of the type's `defaultConfig`, listed in `createFieldCatalog`. Cite fidelity entries by ID in the help; the evidence must match fidelity's [defaults table](../design/fidelity.md#default-values-and-their-evidence), and `field-evidence.test.ts` checks both. A number's `range` words its messages; the schema stays the authority, and `field-ranges.test.ts` checks that they agree. |
+| A new change a user can make to a project (e.g. "add a component") | `src/application/edits/` | A command: a plain function that takes the record and returns the next one, doing the whole change, so it's one undo step ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)). The UI hands it to `edit`, which saves it ([UI guide](user-interface.md#editing-and-saving)). |
 | A new detector, or a fix for a component type's limit | `src/application/run-analysis/findings/detectors/`, or that type's file in `findings/catalog/` | List a detector in `createDetectors`, with its phrases beside it; never branch on a component's type. See [Findings and detectors](finding-detectors.md). |
 | Something that needs time, storage, or a Worker | Define a port in `src/application/ports/`, implement it in `src/adapters/` | Never call `Date.now` in `domain`/`application`. Add an in-memory fake to `src/application/testing/` for use case tests. |
 | A new field on `Project`, the model a run runs | `src/domain/model/project.ts`, plus the document schema and mapper in `src/adapters/persistence/` | Place it in the table in `runIsCurrent` (`src/application/run-analysis/run-freshness.ts`), which doesn't compile until you do: does changing it make a run on screen out of date ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md))? |

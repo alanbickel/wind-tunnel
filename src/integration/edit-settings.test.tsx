@@ -249,6 +249,12 @@ describe("editing a component's settings", () => {
 const registry = createAwsComponentRegistry();
 const catalog = createFieldCatalog();
 
+/**
+ * For a test that goes through every component of a template: 1 to 2.5 s
+ * alone, but past the 5 s default while a full run loads every worker.
+ */
+const EVERY_COMPONENT_TIMEOUT_MS = 20_000;
+
 /** A setting of the selected component, and where its saves land. */
 interface SettingUnderTest {
   readonly project: Project;
@@ -332,5 +338,6 @@ describe("every setting of the templates", () => {
         unmount();
       }
     },
+    EVERY_COMPONENT_TIMEOUT_MS,
   );
 });

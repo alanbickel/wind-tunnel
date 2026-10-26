@@ -29,6 +29,12 @@ import { stubWindowWidth } from "../ui/shared/testing/stub-window-width";
 
 const fields = createFieldCatalog();
 
+/**
+ * For a test that goes through every component of a template: 1 to 2.5 s
+ * alone, but past the 5 s default while a full run loads every worker.
+ */
+const EVERY_COMPONENT_TIMEOUT_MS = 20_000;
+
 /** The project on its screen, in a wide window, with the real descriptors. */
 function renderProject(project: Project): void {
   stubWindowWidth("wide");
@@ -256,6 +262,7 @@ describe("the Details tab, for the templates", () => {
         expectComponentDetails(component);
       }
     },
+    EVERY_COMPONENT_TIMEOUT_MS,
   );
 });
 

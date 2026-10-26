@@ -107,11 +107,11 @@ create-order  orders-db: too-many-connections            5,658
 Every failure is the database refusing a connection. The per-second table shows when:
 
 ```text
-t (s)  api requestRate  fn-orders concurrency  orders-db connections  orders-db queryWorkers  orders-db queue
-   13                2                     42                     25                      16                9
-   14                3                     75                     49                      16               33
-   15                3                    154                     90                      16               74
-   16                3                    135                     90                      16               74
+t (s)  API Gateway requestRate  fn-orders concurrency  orders-db connections  orders-db queryWorkers  orders-db queue
+   13                        2                     42                     25                      16                9
+   14                        3                     75                     49                      16               33
+   15                        3                    154                     90                      16               74
+   16                        3                    135                     90                      16               74
 ```
 
 As traffic ramps toward 2,000 requests per second, queries arrive faster than the database's 16 query workers can run them (`orders-db queryWorkers` at its limit of 16). The rest wait in line (`orders-db queue`) while holding a connection, so connections are held longer and longer, and in second 15 all 90 are taken (16 running + 74 waiting): the Limits table shows `connections` at 90 of 90, 100%, exhausted. Every query after that is refused until the spike passes. The API's token bucket barely moves (at most 5 of 5,000 tokens drawn), because 2,076 requests per second is well under its rate of 10,000. Real Lambda functions usually hold a connection for the life of each instance, which makes this worse; the model understates it (fidelity LMB-8). Compare [`reports/template-b.txt`](../../src/adapters/cli/reports/template-b.txt), where the same workload has no failures because writes go through a queue to a small, fixed set of consumers.

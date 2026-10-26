@@ -69,7 +69,7 @@ const failure = sampleFinding({
       scope: "wind-tunnel",
       claim: { kind: "observed", file: "src/x.test.ts", test: "shows it" },
     }),
-    fix({}),
+    fix({ message: say`Raise ${component("fn")}'s limit.` }),
   ],
   learnMore: "lambda-scales",
   causedBy: [sampleKey("cause")],
@@ -134,9 +134,9 @@ describe("Findings", () => {
   it("sets components and times apart from the text", () => {
     renderFindings([failure]);
 
-    const fn = screen.getByText("Function", { selector: "span" });
+    const [fn] = screen.getAllByText("Function", { selector: "span" });
     const time = screen.getByText("14 s", { selector: "span" });
-    expect(fn.closest("p")?.textContent).toBe(
+    expect(fn?.closest("p")?.textContent).toBe(
       "1. Failure: 1,234 requests failed at Function.",
     );
     expect(time.closest("p")?.textContent).toBe("Cause began at 14 s.");
@@ -162,8 +162,9 @@ describe("Findings", () => {
     expect(document.activeElement).toBe(control);
   });
 
-  // Fails if a fix loses its scope or its claim: a Documented link, an
-  // Observed test, or the Assumption label.
+  // Fails if a fix loses its scope or its claim (a Documented link, an
+  // Observed test, or the Assumption label), or names a component by its ID
+  // ("fn") rather than its name ("Function").
   it("shows each fix with its claim, and links Learn more", () => {
     renderFindings([failure]);
     fireEvent.click(screen.getByRole("button", { name: "About finding 1" }));
@@ -174,7 +175,7 @@ describe("Findings", () => {
     expect([...fixes].map((li) => li.textContent)).toEqual([
       "In AWS: Do it. (Documented: Lambda scaling; fidelity LAMBDA-1)",
       "In Wind Tunnel: Do it. (Observed: src/x.test.ts, “shows it”)",
-      "In AWS: Do it. (Assumption)",
+      "In AWS: Raise Function's limit. (Assumption)",
     ]);
     expect(docs.getAttribute("href")).toBe("https://example.com/scaling");
     expect(test.getAttribute("href")).toMatch(

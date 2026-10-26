@@ -10,6 +10,8 @@ describe.each([
   ["template-a", templateA],
   ["template-b", templateB],
 ])("%s", (id, template) => {
+  // Fails if the template breaks any project check, e.g. two of its Lambdas
+  // share a name, so no project made from it could open.
   it("loads through every validation stage", () => {
     const result = loadProject(template, registry);
     if (!result.ok) throw new Error(JSON.stringify(result.issues, null, 2));

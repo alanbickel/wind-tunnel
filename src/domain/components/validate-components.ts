@@ -4,8 +4,9 @@ import type { ComponentRegistry, ComponentType } from "./component-registry";
 
 /**
  * Checks the rules that depend on component types, using the registry: every
- * component has a known type and a valid config, every step uses an action
- * its target accepts, and only queue-like components carry `async` work.
+ * component has a known type and a valid config, no two components of one
+ * type share a name, every step uses an action its target accepts, and only
+ * queue-like components carry `async` work.
  *
  * Complements `validateProject`, which checks the type-independent rules.
  * Steps that target unknown components are skipped here; `validateProject`
@@ -21,6 +22,7 @@ export function validateComponents(
     const path = ["architecture", "components", index];
     checkComponent({ component, path }, { registry, issues });
   });
+  checkUniqueNames(components, { registry, issues });
 
   const byId = new Map(components.map((c) => [c.id, c]));
   const context: StepContext = { registry, byId, issues };
@@ -63,6 +65,30 @@ function checkComponent(at: ComponentInput, context: ComponentContext): void {
       message: issue.message,
     });
   }
+}
+
+/**
+ * A name is unique among its type's components: a Lambda and a DynamoDB
+ * table may both be "orders", two Lambdas may not. Reports the second and
+ * later; a component of an unknown type is reported by `checkComponent`.
+ */
+function checkUniqueNames(
+  components: readonly Component[],
+  { registry, issues }: ComponentContext,
+): void {
+  const namesByType = new Map<string, Set<string>>();
+  components.forEach((component, index) => {
+    const names = namesByType.get(component.type) ?? new Set<string>();
+    namesByType.set(component.type, names);
+    const type = registry.get(component.type);
+    if (type !== undefined && names.has(component.name)) {
+      issues.push({
+        path: ["architecture", "components", index, "name"],
+        message: `Another ${type.displayName} component already uses this name. Please choose another name.`,
+      });
+    }
+    names.add(component.name);
+  });
 }
 
 interface StepContext extends ComponentContext {

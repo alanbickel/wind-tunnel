@@ -11,6 +11,7 @@ import { ArchitectureView } from "./ArchitectureView";
 import styles from "./OpenedProject.module.css";
 import { ProjectBar } from "./ProjectBar";
 import { NothingSelected, SelectionDetails } from "./SelectionDetails";
+import { useAddAndRemove, type AddAndRemove } from "./useAddAndRemove";
 import { useProjectEdits, type ProjectEdits } from "./useProjectEdits";
 import { useSelection, type ProjectSelection } from "./useSelection";
 
@@ -32,7 +33,8 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
   const { project } = record;
   const projectRun = useProjectRun(project);
   const selecting = useSelection();
-  const architecture = useArchitecture(record, selecting);
+  const changes = useAddAndRemove(edits, selecting);
+  const architecture = useArchitecture({ record, selecting, changes });
   const Column = useWideWindow() ? SideTabs : Stacked;
 
   return (
@@ -50,6 +52,7 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
           projectRun={projectRun}
           selecting={selecting}
           onEdit={edits.edit}
+          onRemove={changes.remove}
         />
       </div>
     </div>
@@ -61,8 +64,9 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
  * are, so React skips it: the run's snapshots re-render the screen several
  * times a second.
  */
-function useArchitecture(record: ProjectRecord, selecting: ProjectSelection) {
+function useArchitecture({ record, selecting, changes }: ArchitectureInput) {
   const { selection, select, clear } = selecting;
+  const { add, addButtonRef } = changes;
   return useMemo(
     () => (
       <ArchitectureView
@@ -70,10 +74,19 @@ function useArchitecture(record: ProjectRecord, selecting: ProjectSelection) {
         selection={selection}
         onSelect={select}
         onClear={clear}
+        onAdd={add}
+        addButtonRef={addButtonRef}
       />
     ),
-    [record, selection, select, clear],
+    [record, selection, select, clear, add, addButtonRef],
   );
+}
+
+/** What the architecture shows, and what it changes. */
+interface ArchitectureInput {
+  readonly record: ProjectRecord;
+  readonly selecting: ProjectSelection;
+  readonly changes: AddAndRemove;
 }
 
 /** The column beside or under the architecture, by the window's width. */
@@ -82,6 +95,7 @@ interface ColumnProps {
   readonly projectRun: ProjectRun;
   readonly selecting: ProjectSelection;
   readonly onEdit: ProjectEdits["edit"];
+  readonly onRemove: AddAndRemove["remove"];
 }
 
 /** Details and Run, beside the architecture; Run first. */
@@ -106,7 +120,7 @@ function SideTabs(props: ColumnProps) {
 }
 
 /** The Details tab's content: the selection's details, or that there's none. */
-function DetailsTab({ project, selecting, onEdit }: ColumnProps) {
+function DetailsTab({ project, selecting, onEdit, onRemove }: ColumnProps) {
   const { selection, close, takeFocus } = selecting;
   if (selection === undefined) return <NothingSelected />;
   return (
@@ -114,6 +128,7 @@ function DetailsTab({ project, selecting, onEdit }: ColumnProps) {
       project={project}
       selection={selection}
       onEdit={onEdit}
+      onRemove={onRemove}
       onClose={close}
       takeFocus={takeFocus}
     />
@@ -122,7 +137,7 @@ function DetailsTab({ project, selecting, onEdit }: ColumnProps) {
 
 /** Under the architecture: Details while something is selected, then Run. */
 function Stacked(props: ColumnProps) {
-  const { project, projectRun, selecting, onEdit } = props;
+  const { project, projectRun, selecting, onEdit, onRemove } = props;
   const { selection, close, takeFocus } = selecting;
   return (
     <>
@@ -132,6 +147,7 @@ function Stacked(props: ColumnProps) {
             project={project}
             selection={selection}
             onEdit={onEdit}
+            onRemove={onRemove}
             onClose={close}
             takeFocus={takeFocus}
             closable

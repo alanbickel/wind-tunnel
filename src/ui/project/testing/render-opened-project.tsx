@@ -5,6 +5,7 @@ import {
   within,
   type RenderResult,
 } from "@testing-library/react";
+import { awsNewComponent } from "../../../application/testing/aws-component-types";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import { awsSaveProject } from "../../../application/testing/aws-save-project";
 import { InMemoryProjectRepository } from "../../../application/testing/in-memory-project-repository";
@@ -47,7 +48,8 @@ export interface RenderedProject extends RenderResult {
 
 /**
  * Renders `OpenedProject` with the sample record, runs driven by the test,
- * the AWS wording for selections, and saves to memory.
+ * the AWS wording for selections, new components with ids `new-1`, `new-2`,
+ * …, and saves to memory.
  */
 export function renderOpenedProject({
   project = sampleRecord.project,
@@ -61,6 +63,7 @@ export function renderOpenedProject({
   const useCases = fakeUseCases({
     runSimulation: runSimulation ?? awsRunSimulation(runner),
     describeSelection: awsDescribeSelection(),
+    newComponent: awsNewComponent(),
     saveProject: saveProject ?? awsSaveProject(projects),
   });
   const screenOf = (shown: Project) => (

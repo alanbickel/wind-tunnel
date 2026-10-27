@@ -4,6 +4,7 @@ import { workflowsCalling } from "./called-by";
 import { valueAt } from "./config-value";
 import type { ComponentDetails, SettingDetails } from "./details";
 import type { ConfigFieldDescriptor, TypeFields } from "./field-descriptor";
+import { removalText } from "./removal-text";
 import { defaultNote, settingValueText } from "./setting-text";
 
 /** A component, and what's known about its type. */
@@ -33,6 +34,7 @@ export function componentDetails(
     defaultConfig: type?.defaultConfig,
     settings: [...describedSettings(input), ...undescribedSettings(input)],
     calledBy: workflowsCalling(project, component.id),
+    removal: removalText(project, component),
   };
 }
 

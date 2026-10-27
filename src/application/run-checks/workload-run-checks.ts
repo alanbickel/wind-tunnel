@@ -31,7 +31,7 @@ export interface WorkloadRunCheck {
   readonly reasons: readonly string[];
   /**
    * One message for the project bar: "Lunch rush can't run yet: Get order
-   * and Create order call orders-db, which isn't in the architecture."
+   * and Create order call a component that isn't in the architecture any more."
    * Empty when it can run.
    */
   readonly summary: string;
@@ -112,9 +112,13 @@ function checkOf(at: CheckInput, names: RunIssueNames): WorkloadRunCheck {
     ...own.map((issue) => ownIssue(issue, names)),
     ...steps.map((owned) => stepIssue(owned, names)),
   ];
+  // A set, since two issues can read the same: a workflow calling two
+  // removed components says so once.
   const reasons = [
-    ...own.map((issue) => workloadIssueText(issue, names)),
-    ...groupByIssue(steps).map((group) => stepIssueText(group, names)),
+    ...new Set([
+      ...own.map((issue) => workloadIssueText(issue, names)),
+      ...groupByIssue(steps).map((group) => stepIssueText(group, names)),
+    ]),
   ];
   const canRun = issues.length === 0;
   const summary = canRun

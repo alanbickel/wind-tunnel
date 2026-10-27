@@ -36,12 +36,14 @@ describe("workloadRunChecks", () => {
         {
           path: ["workflows", 1, "root", "calls", 0, "calls", 0, "componentId"],
           message:
-            "Write item calls orders-db, which isn't in the architecture.",
+            "Write item calls a component that isn't in the architecture any more.",
         },
       ],
-      reasons: ["Write item calls orders-db, which isn't in the architecture."],
+      reasons: [
+        "Write item calls a component that isn't in the architecture any more.",
+      ],
       summary:
-        "Write rush can't run yet: Write item calls orders-db, which isn't in the architecture.",
+        "Write rush can't run yet: Write item calls a component that isn't in the architecture any more.",
     });
   });
 
@@ -71,12 +73,40 @@ describe("workloadRunChecks", () => {
     const check = checksOf(project).get("write-rush");
 
     expect(check?.summary).toBe(
-      "Write rush can't run yet: The profile has no points. Write item and Write again call orders-db, which isn't in the architecture.",
+      "Write rush can't run yet: The profile has no points. Write item and Write again call a component that isn't in the architecture any more.",
     );
     expect(check?.issues.map((issue) => issue.message)).toEqual([
       "The profile has no points.",
-      "Write item calls orders-db, which isn't in the architecture.",
-      "Write again calls orders-db, which isn't in the architecture.",
+      "Write item calls a component that isn't in the architecture any more.",
+      "Write again calls a component that isn't in the architecture any more.",
+    ]);
+  });
+
+  // Fails if reasons that read the same are said twice, as two removed
+  // components called by one workflow read.
+  it("says a reason once, however many issues read as it", () => {
+    const [, write] = projectWithRunIssue.workflows;
+    if (write === undefined) throw new Error("The fixture has Write item");
+    const twoGone: Workflow = {
+      ...write,
+      root: {
+        componentId: "api",
+        action: "invoke",
+        calls: [
+          { componentId: "gone-1", action: "invoke" },
+          { componentId: "gone-2", action: "invoke" },
+        ],
+      },
+    };
+    const [read] = projectWithRunIssue.workflows;
+    if (read === undefined) throw new Error("The fixture has Read item");
+    const project = { ...projectWithRunIssue, workflows: [read, twoGone] };
+
+    const check = checksOf(project).get("write-rush");
+
+    expect(check?.issues).toHaveLength(2);
+    expect(check?.reasons).toEqual([
+      "Write item calls a component that isn't in the architecture any more.",
     ]);
   });
 

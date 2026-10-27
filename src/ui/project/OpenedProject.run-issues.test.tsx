@@ -13,7 +13,7 @@ import {
 } from "./testing/render-opened-project";
 
 const WRITE_RUSH_REASON =
-  "Write rush can't run yet: Write item calls orders-db, which isn't in the architecture.";
+  "Write rush can't run yet: Write item calls a component that isn't in the architecture any more.";
 
 /** The sample project with its one workflow reading a table that isn't there. */
 function withReadOfMissingTable(): Project {
@@ -103,7 +103,7 @@ describe("OpenedProject's workloads that can't run", () => {
 
     expect(cantRunRegion()).toBe(region);
     expect(region.textContent).toBe(
-      "Steady can't run yet: Read item calls orders-db, which isn't in the architecture.",
+      "Steady can't run yet: Read item calls a component that isn't in the architecture any more.",
     );
     expect(runButton().getAttribute("aria-disabled")).toBe("true");
   });

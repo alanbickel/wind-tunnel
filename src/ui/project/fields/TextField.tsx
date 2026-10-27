@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type Ref } from "react";
 import { describedBy, fieldKeys } from "./field-parts";
 import styles from "./Fields.module.css";
 import type { Draft } from "./useDraft";
@@ -16,6 +16,7 @@ export interface TextFieldProps {
   readonly onCommit: () => void;
   /** The id of what else describes the field, such as its help. */
   readonly helpId?: string;
+  readonly inputRef?: Ref<HTMLInputElement>;
 }
 
 /**
@@ -60,8 +61,10 @@ interface DraftInputProps extends TextFieldProps {
 /** The input: shows the draft, and commits it on Enter or on leaving. */
 function DraftInput(props: DraftInputProps) {
   const { id, inputMode, draft, message, onCommit, describedBy: ids } = props;
+  const { inputRef } = props;
   return (
     <input
+      ref={inputRef}
       id={id}
       type="text"
       inputMode={inputMode}

@@ -2,6 +2,8 @@ import type { TypeFields } from "../field-descriptor";
 
 export const sqsFields: TypeFields = {
   type: "sqs",
+  purpose:
+    "a queue; holds messages until a consumer takes them, so work can wait.",
   fields: [
     {
       key: "consumerMaxConcurrency",

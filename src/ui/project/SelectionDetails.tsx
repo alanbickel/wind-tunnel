@@ -11,6 +11,7 @@ import type {
   ComponentDetails,
   Details,
   EdgeDetails,
+  RemovalText,
   SettingDetails,
 } from "../../application/details/details";
 import type { Selection } from "../../application/details/selection";
@@ -20,8 +21,11 @@ import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { ComponentSettings } from "./fields/ComponentSettings";
+import { RemoveConfirmation } from "./RemoveConfirmation";
+import { useConfirming } from "./useConfirming";
 import styles from "./SelectionDetails.module.css";
 import type { EditCommand } from "./useProjectEdits";
+import type { ProjectSelection } from "./useSelection";
 
 export interface SelectionDetailsProps {
   readonly project: Project;
@@ -30,8 +34,10 @@ export interface SelectionDetailsProps {
   readonly onEdit: (command: EditCommand) => void;
   /** Clears the selection and returns the focus: on Escape, and on Close. */
   readonly onClose: () => void;
-  /** Whether to take the focus to the heading: true just after a selection. */
-  readonly takeFocus: () => boolean;
+  /** Removes the selected component, once the user confirms it. */
+  readonly onRemove: (componentId: string) => void;
+  /** Whether a part of Details should take the focus: just after a selection. */
+  readonly takeFocus: ProjectSelection["takeFocus"];
   /** Shows a Close button beside the heading, as the narrow layout does. */
   readonly closable?: boolean;
 }
@@ -42,10 +48,10 @@ export interface SelectionDetailsProps {
  * calls it (UX design §4.1, §4.3). Takes the focus to its heading when
  * `takeFocus` says a selection was just made, so the keyboard and a screen
  * reader land on it. Escape anywhere in it closes it, unless a field has
- * a draft to put back first.
+ * a draft to put back first. A component's Remove asks before it removes.
  */
 export function SelectionDetails(props: SelectionDetailsProps) {
-  const { project, selection, onEdit, onClose } = props;
+  const { project, selection, onEdit, onClose, takeFocus } = props;
   const { describeSelection } = useUseCases();
   const details = useMemo(
     () => describeSelection.execute({ project, selection }),
@@ -61,8 +67,9 @@ export function SelectionDetails(props: SelectionDetailsProps) {
         closeOnEscape(event, onClose);
       }}
     >
-      <DetailsHeader {...props} details={details} />
-      {dispatchKind(BODIES, details)({ project, onEdit, announce })}
+      {/* Keyed by the selection, so a confirmation doesn't carry over. */}
+      <DetailsHeader key={keyOf(selection)} {...props} details={details} />
+      {dispatchKind(BODIES, details)({ project, onEdit, announce, takeFocus })}
       <p className={styles.callers}>{dispatchKind(CALLERS, details)}</p>
       {/* On the page from the start, empty, so a screen reader announces
           a message put in it (UX design §4.4). */}
@@ -88,6 +95,11 @@ function useAnnouncement(): [string, (message: string) => void] {
   return [announcement, announce];
 }
 
+/** One key per thing that can be selected. */
+function keyOf(selection: Selection): string {
+  return JSON.stringify(selection);
+}
+
 /** What the Details tab says while nothing is selected. */
 export function NothingSelected() {
   return (
@@ -102,23 +114,70 @@ interface DetailsHeaderProps extends SelectionDetailsProps {
   readonly details: Details;
 }
 
-/** The heading, which takes the focus after a selection, and Close if there is one. */
+/**
+ * The heading; Remove, for what can be removed; and Close, if there is
+ * one. Remove opens a confirmation under them, and Cancel there returns
+ * the focus to Remove.
+ */
 function DetailsHeader(props: DetailsHeaderProps) {
-  const { details, selection, takeFocus, onClose, closable = false } = props;
+  const { details, onRemove, onClose, closable = false } = props;
+  const removal = dispatchKind(REMOVALS, details);
+  const openerRef = useRef<HTMLButtonElement>(null);
+  const { open, ask, cancel } = useConfirming(openerRef);
+  return (
+    <>
+      <div className={styles.header}>
+        <Heading {...props} />
+        <div className={styles.actions}>
+          {removal !== undefined && !open && (
+            <Button ref={openerRef} onClick={ask}>
+              Remove
+            </Button>
+          )}
+          {closable && <Button onClick={onClose}>Close</Button>}
+        </div>
+      </div>
+      {removal !== undefined && open && (
+        <RemoveConfirmation
+          text={removal.text}
+          onConfirm={() => {
+            onRemove(removal.componentId);
+          }}
+          onCancel={cancel}
+        />
+      )}
+    </>
+  );
+}
+
+/** What's selected, and what kind it is; takes the focus after a selection. */
+function Heading({ details, selection, takeFocus }: DetailsHeaderProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   // A layout effect, so the focus moves in the commit that shows Details.
   useLayoutEffect(() => {
-    if (takeFocus()) headingRef.current?.focus();
+    if (takeFocus("heading")) headingRef.current?.focus();
   }, [selection, takeFocus]);
   return (
-    <div className={styles.header}>
-      <h4 ref={headingRef} tabIndex={-1} className={styles.heading}>
-        {dispatchKind(HEADINGS, details)}
-      </h4>
-      {closable && <Button onClick={onClose}>Close</Button>}
-    </div>
+    <h4 ref={headingRef} tabIndex={-1} className={styles.heading}>
+      {dispatchKind(HEADINGS, details)}
+    </h4>
   );
 }
+
+/** What a remove would take, and what it removes. */
+interface Removal {
+  readonly text: RemovalText;
+  readonly componentId: string;
+}
+
+/** A component can be removed; an edge can't yet (#96). */
+const REMOVALS: KindHandlers<Details, Removal | undefined> = {
+  component: ({ componentId, removal }: ComponentDetails) => ({
+    text: removal,
+    componentId,
+  }),
+  edge: () => undefined,
+};
 
 function closeOnEscape(
   event: KeyboardEvent<HTMLElement>,
@@ -145,11 +204,15 @@ const HEADINGS: KindHandlers<Details, ReactNode> = {
   ),
 };
 
-/** What a body needs beyond the details: the project, and how to save and announce. */
+/**
+ * What a body needs beyond the details: the project, how to save and
+ * announce, and whether its name field takes the focus.
+ */
 interface BodyContext {
   readonly project: Project;
   readonly onEdit: (command: EditCommand) => void;
   readonly announce: (message: string) => void;
+  readonly takeFocus: ProjectSelection["takeFocus"];
 }
 
 /** A component's settings can be edited; an edge's are read-only for now. */

@@ -1,8 +1,10 @@
+import { useLayoutEffect, useRef } from "react";
 import type { ComponentDetails } from "../../../application/details/details";
 import { checkComponentName } from "../../../application/details/name-draft";
 import type { DraftCheck } from "../../../application/details/number-draft";
 import { renameComponent } from "../../../application/edits/component-edits";
 import type { Project } from "../../../domain/model/project";
+import type { ProjectSelection } from "../useSelection";
 import type { FieldProps } from "./field-parts";
 import { TextField } from "./TextField";
 import { useDraft } from "./useDraft";
@@ -10,16 +12,26 @@ import { useDraft } from "./useDraft";
 export interface NameFieldProps extends FieldProps {
   readonly project: Project;
   readonly details: ComponentDetails;
+  /** Whether to take the focus, with the name selected: just after an add. */
+  readonly takeFocus: ProjectSelection["takeFocus"];
 }
 
 /**
  * A component's name. A draft that's empty, or that another component of
  * the type already uses, stays in the field with its message and doesn't
- * save (UX design §5).
+ * save (UX design §5). Takes the focus with its text selected when
+ * `takeFocus` says so, so a new component can be named by typing.
  */
 export function NameField(props: NameFieldProps) {
-  const { project, details, componentId } = props;
+  const { project, details, componentId, takeFocus } = props;
   const draft = useDraft(details.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // A layout effect, as Details' heading takes the focus.
+  useLayoutEffect(() => {
+    if (!takeFocus("name")) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [takeFocus]);
   const check = checkComponentName({
     project,
     componentId,
@@ -29,6 +41,7 @@ export function NameField(props: NameFieldProps) {
   return (
     <TextField
       label="Name"
+      inputRef={inputRef}
       draft={draft}
       message={check.status === "fails" ? check.message : undefined}
       onCommit={() => {

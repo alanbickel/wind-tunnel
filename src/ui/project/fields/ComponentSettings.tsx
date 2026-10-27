@@ -17,7 +17,7 @@ import { dispatchKind } from "../../shared/kind-dispatch";
 import { DistributionField } from "./DistributionField";
 import type { FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
-import { NameField } from "./NameField";
+import { NameField, type NameFieldProps } from "./NameField";
 import { NumberField } from "./NumberField";
 
 export interface ComponentSettingsProps {
@@ -25,6 +25,8 @@ export interface ComponentSettingsProps {
   readonly details: ComponentDetails;
   readonly onEdit: FieldProps["onEdit"];
   readonly announce: FieldProps["announce"];
+  /** Whether the name field takes the focus, as it does for a new component. */
+  readonly takeFocus: NameFieldProps["takeFocus"];
 }
 
 /**
@@ -33,7 +35,7 @@ export interface ComponentSettingsProps {
  * come from its type's descriptors, so a new type brings its own.
  */
 export function ComponentSettings(props: ComponentSettingsProps) {
-  const { project, details, onEdit, announce } = props;
+  const { project, details, onEdit, announce, takeFocus } = props;
   const fieldProps: FieldProps = {
     componentId: details.componentId,
     onEdit,
@@ -41,7 +43,12 @@ export function ComponentSettings(props: ComponentSettingsProps) {
   };
   return (
     <div className={styles.settings}>
-      <NameField project={project} details={details} {...fieldProps} />
+      <NameField
+        project={project}
+        details={details}
+        takeFocus={takeFocus}
+        {...fieldProps}
+      />
       {details.settings.map((setting) => (
         <Setting
           key={setting.key}

@@ -47,6 +47,19 @@ export interface ComponentDetails {
   readonly settings: readonly SettingDetails[];
   /** The names of the workflows with a step that calls it, in project order. */
   readonly calledBy: readonly string[];
+  /** What Remove's confirmation says. */
+  readonly removal: RemovalText;
+}
+
+/** What removing a component would take, as its confirmation says it. */
+export interface RemovalText {
+  /** E.g. "Remove orders-db and its edge from fn-orders?" */
+  readonly question: string;
+  /**
+   * E.g. "2 workflow steps call it, and won't run until you change them.";
+   * undefined if no step calls it.
+   */
+  readonly warning: string | undefined;
 }
 
 /** An edge: what it joins, its settings, and the steps that call along it. */

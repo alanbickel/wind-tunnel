@@ -18,8 +18,10 @@ import { createFieldCatalog } from "./application/details/create-field-catalog";
 import { CreateProjectFromTemplate } from "./application/use-cases/create-project-from-template";
 import { CheckWorkloads } from "./application/use-cases/check-workloads";
 import { NameComponents } from "./application/use-cases/name-components";
+import { NewComponent } from "./application/use-cases/new-component";
 import { DescribeSelection } from "./application/use-cases/describe-selection";
 import { DeleteProject } from "./application/use-cases/delete-project";
+import { ListComponentTypes } from "./application/use-cases/list-component-types";
 import { ListProjects } from "./application/use-cases/list-projects";
 import { ListTemplates } from "./application/use-cases/list-templates";
 import { OpenProject } from "./application/use-cases/open-project";
@@ -83,6 +85,7 @@ function createUseCases(database: ProjectDatabase): UseCases {
     saveProject: new SaveProject({ projects, clock, registry }),
     deleteProject: new DeleteProject({ projects }),
     runSimulation: new RunSimulation({ runner, registry }),
+    newComponent: new NewComponent({ registry, ids }),
     ...createProjectReaders(registry),
     storagePersistence: new BrowserStoragePersistence({
       storage: navigator.storage,
@@ -93,14 +96,19 @@ function createUseCases(database: ProjectDatabase): UseCases {
 /** The use cases that read a project for the screen, over the component types. */
 function createProjectReaders(
   registry: ComponentRegistry,
-): Pick<UseCases, "describeSelection" | "nameComponents" | "checkWorkloads"> {
+): Pick<
+  UseCases,
+  | "describeSelection"
+  | "nameComponents"
+  | "checkWorkloads"
+  | "listComponentTypes"
+> {
+  const fields = createFieldCatalog();
   return {
-    describeSelection: new DescribeSelection({
-      registry,
-      fields: createFieldCatalog(),
-    }),
+    describeSelection: new DescribeSelection({ registry, fields }),
     nameComponents: new NameComponents({ registry }),
     checkWorkloads: new CheckWorkloads({ registry }),
+    listComponentTypes: new ListComponentTypes({ registry, fields }),
   };
 }
 

@@ -136,7 +136,7 @@ describe("RunSimulation", () => {
       check: {
         canRun: false,
         summary:
-          "Write rush can't run yet: Write item calls orders-db, which isn't in the architecture.",
+          "Write rush can't run yet: Write item calls a component that isn't in the architecture any more.",
       },
     });
     expect(runner.requests).toEqual([]);

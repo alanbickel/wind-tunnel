@@ -74,6 +74,17 @@ describe("findRunIssues", () => {
       ]);
     });
 
+    // Fails if checkEdge reports a call from a component that isn't in the architecture.
+    it("reports a missing component's calls only as its own issue", () => {
+      expect(stepIssues(invoke("ghost", [invoke("front")]))).toEqual([
+        {
+          kind: "unknown-component",
+          path: ["workflows", 0, "root", "componentId"],
+          componentId: "ghost",
+        },
+      ]);
+    });
+
     // Fails if checkEdge is skipped, or looks the edge up the wrong way round.
     it("reports a call that doesn't follow an edge, in its direction", () => {
       expect(stepIssues(invoke("consumer", [invoke("q")]))).toMatchObject([

@@ -97,10 +97,15 @@ function checkTarget(at: StepInput, context: StepContext): void {
   if (type !== undefined) checkType({ ...at, type }, context.issues);
 }
 
-/** The step's caller has an edge to it. */
-function checkEdge(at: StepInput, { edgeTargets, issues }: StepContext): void {
+/**
+ * The step's caller has an edge to it. A caller that isn't in the
+ * architecture has its own `unknown-component` issue, so it isn't reported
+ * again here.
+ */
+function checkEdge(at: StepInput, context: StepContext): void {
   const { step, path, callerId } = at;
-  if (callerId === undefined) return;
+  const { components, edgeTargets, issues } = context;
+  if (callerId === undefined || !components.has(callerId)) return;
   if (edgeTargets.get(callerId)?.has(step.componentId) === true) return;
   issues.push({
     kind: "missing-edge",

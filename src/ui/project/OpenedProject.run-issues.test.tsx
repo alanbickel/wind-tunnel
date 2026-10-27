@@ -35,6 +35,13 @@ function runButton(): HTMLElement {
   return screen.getByRole("button", { name: "Run" });
 }
 
+/** The text of the element Run is described by, if any. */
+function runDescription(): string | undefined {
+  const id = runButton().getAttribute("aria-describedby");
+  if (id === null) return undefined;
+  return document.getElementById(id)?.textContent ?? undefined;
+}
+
 describe("OpenedProject's workloads that can't run", () => {
   beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
@@ -65,6 +72,23 @@ describe("OpenedProject's workloads that can't run", () => {
     clickRun();
     expect(status()).toBe("");
     expect(runner.runs).toBe(0);
+  });
+
+  // Fails if Run doesn't point to the reason, so a screen reader on Run
+  // isn't told why when the project opens with that workload picked.
+  it("describes Run by the reason from the start, and only then", () => {
+    const { workloads } = projectWithRunIssue;
+    const project = {
+      ...projectWithRunIssue,
+      workloads: workloads.toReversed(),
+    };
+    renderProject({ project });
+
+    expect(runDescription()).toBe(WRITE_RUSH_REASON);
+
+    fireEvent.change(picker(), { target: { value: "steady" } });
+
+    expect(runDescription()).toBeUndefined();
   });
 
   // Fails if the reason's live region is mounted only once there's a

@@ -21,6 +21,7 @@ function renderControls(running: boolean): Clicks {
       workload={workload}
       onPick={() => undefined}
       checks={new Map()}
+      cantRunReasonId="reason"
       running={running}
       onStart={() => (clicks.starts += 1)}
       onStop={() => (clicks.stops += 1)}

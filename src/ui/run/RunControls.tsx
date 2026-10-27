@@ -10,6 +10,8 @@ export interface RunControlsProps {
   readonly onPick: (workload: Workload) => void;
   /** Which workloads can run; one that can't is marked, and Run waits. */
   readonly checks: WorkloadRunChecks;
+  /** The ID of the element that says why the picked workload can't run. */
+  readonly cantRunReasonId: string;
   /** True while a run is going: the picker and Run wait, Stop works. */
   readonly running: boolean;
   readonly onStart: () => void;
@@ -21,11 +23,13 @@ export interface RunControlsProps {
  * late click on Stop can't start the next run. The one that can't be used
  * is marked unusable (see `Button`) rather than disabled, so the keyboard
  * focus stays on it. A workload with run issues is marked in the picker,
- * and Run is unusable while it's picked; the project bar says why.
+ * and Run is unusable while it's picked; the project bar says why, and
+ * Run points to it, so a screen reader reads the reason on Run.
  */
 export function RunControls(props: RunControlsProps) {
   const { workloads, workload, onPick, checks, running, onStart, onStop } =
     props;
+  const canRun = canRunIn(checks)(workload);
 
   return (
     <div className={styles.controls}>
@@ -38,7 +42,8 @@ export function RunControls(props: RunControlsProps) {
       />
       <Button
         variant="primary"
-        usable={!running && canRunIn(checks)(workload)}
+        usable={!running && canRun}
+        describedBy={canRun ? undefined : props.cantRunReasonId}
         onClick={onStart}
       >
         Run

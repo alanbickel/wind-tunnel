@@ -11,6 +11,8 @@ import { table } from "./format";
 // then check the guide still matches.
 
 describe("traces", () => {
+  // Fails if either group's issues or paths change without the guide's
+  // trace changing too.
   it("validateArchitecture and findRunIssues: every problem, with a path to it", async () => {
     const edge = (from: string, to: string): Edge => ({
       id: `${from}->${to}`,

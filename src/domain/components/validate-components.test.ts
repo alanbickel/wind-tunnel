@@ -62,6 +62,7 @@ const validRoot: Step = {
 };
 
 describe("validateComponents", () => {
+  // Fails if checkComponent reports a known type with a valid config.
   it("accepts a project whose types and configs all fit", () => {
     expect(validateComponents(project(validRoot), registry)).toEqual([]);
   });

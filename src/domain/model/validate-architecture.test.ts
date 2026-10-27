@@ -95,11 +95,13 @@ const messages = (project: Project) =>
   validateArchitecture(project).map((issue) => issue.message);
 
 describe("validateArchitecture", () => {
+  // Fails if a check reports an issue in a sound architecture.
   it("accepts a valid project", () => {
     expect(validateArchitecture(validProject())).toEqual([]);
   });
 
   describe("unique IDs", () => {
+    // Fails if checkUniqueIds skips components, or reports the first of a pair.
     it("rejects duplicate component IDs", () => {
       const p = validProject();
       const project = {
@@ -117,6 +119,7 @@ describe("validateArchitecture", () => {
       ]);
     });
 
+    // Fails if checkAllUniqueIds leaves out workflows or workloads.
     it("rejects duplicate workflow and workload IDs", () => {
       const p = validProject();
       const [first] = p.workflows;
@@ -145,18 +148,21 @@ describe("validateArchitecture", () => {
       };
     };
 
+    // Fails if checkEndpoints stops checking an edge's ends exist.
     it("rejects edges to unknown components", () => {
       expect(messages(withEdges([edge("api", "ghost")]))).toEqual([
         'Edge "api->ghost" refers to unknown component "ghost".',
       ]);
     });
 
+    // Fails if checkEndpoints lets an edge loop back to its own component.
     it("rejects an edge from a component to itself", () => {
       expect(messages(withEdges([edge("api", "api")]))).toEqual([
         'Edge "api->api" connects "api" to itself.',
       ]);
     });
 
+    // Fails if checkNotDuplicate is skipped.
     it("rejects two edges between the same pair", () => {
       const duplicate = { ...edge("api", "fn-api"), id: "second" };
       expect(messages(withEdges([duplicate]))).toEqual([

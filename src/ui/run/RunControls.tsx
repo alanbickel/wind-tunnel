@@ -20,11 +20,16 @@ export interface RunControlsProps {
  * focus stays on it.
  */
 export function RunControls(props: RunControlsProps) {
-  const { running, onStart, onStop } = props;
+  const { workloads, workload, onPick, running, onStart, onStop } = props;
 
   return (
     <div className={styles.controls}>
-      <WorkloadPicker {...props} />
+      <WorkloadPicker
+        workloads={workloads}
+        workload={workload}
+        onPick={onPick}
+        running={running}
+      />
       <Button variant="primary" usable={!running} onClick={onStart}>
         Run
       </Button>

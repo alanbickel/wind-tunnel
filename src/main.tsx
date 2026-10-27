@@ -25,6 +25,7 @@ import { OpenProject } from "./application/use-cases/open-project";
 import { RunSimulation } from "./application/use-cases/run-simulation";
 import { SaveProject } from "./application/use-cases/save-project";
 import { createAwsComponentRegistry } from "./domain/components/aws";
+import type { ComponentRegistry } from "./domain/components/component-registry";
 import { App } from "./ui/App";
 import type { UseCases } from "./ui/app/use-cases";
 import { UseCasesProvider } from "./ui/app/UseCasesProvider";
@@ -81,14 +82,23 @@ function createUseCases(database: ProjectDatabase): UseCases {
     saveProject: new SaveProject({ projects, clock, registry }),
     deleteProject: new DeleteProject({ projects }),
     runSimulation: new RunSimulation({ runner }),
+    ...createProjectReaders(registry),
+    storagePersistence: new BrowserStoragePersistence({
+      storage: navigator.storage,
+    }),
+  };
+}
+
+/** The use cases that read a project for the screen, over the component types. */
+function createProjectReaders(
+  registry: ComponentRegistry,
+): Pick<UseCases, "describeSelection" | "nameComponents"> {
+  return {
     describeSelection: new DescribeSelection({
       registry,
       fields: createFieldCatalog(),
     }),
     nameComponents: new NameComponents({ registry }),
-    storagePersistence: new BrowserStoragePersistence({
-      storage: navigator.storage,
-    }),
   };
 }
 

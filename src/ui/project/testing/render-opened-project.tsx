@@ -29,6 +29,8 @@ export interface RenderOpenedProjectInput {
   readonly width?: WindowWidth;
   /** The real one over the AWS types, saving to `projects`, unless given. */
   readonly saveProject?: UseCases["saveProject"];
+  /** The real one over the AWS types, driven by `runner`, unless given. */
+  readonly runSimulation?: UseCases["runSimulation"];
 }
 
 /** An opened project on screen, and what drives it. */
@@ -51,12 +53,13 @@ export function renderOpenedProject({
   project = sampleRecord.project,
   width = "wide",
   saveProject,
+  runSimulation,
 }: RenderOpenedProjectInput = {}): RenderedProject {
   const resize = stubWindowWidth(width);
   const runner = new ManualSimulationRunner();
   const projects = new InMemoryProjectRepository();
   const useCases = fakeUseCases({
-    runSimulation: awsRunSimulation(runner),
+    runSimulation: runSimulation ?? awsRunSimulation(runner),
     describeSelection: awsDescribeSelection(),
     saveProject: saveProject ?? awsSaveProject(projects),
   });

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
@@ -167,6 +167,40 @@ describe("OpenedProject's run when the project changes", () => {
     expect(await screen.findByText(/no longer in the project/)).toBeTruthy();
     expect(status()).toContain("Steady");
     expect(status()).not.toContain("Spike");
+  });
+
+  // Fails if useSimulationRun drops a cant-run result's reasons: the
+  // status would say the run failed, but not why.
+  it("fails with the reasons when the workload can't run as the run starts", async () => {
+    const reasons = ["Write item calls gone.", "Read item calls gone."];
+    const runSimulation = {
+      execute: () => {
+        const { project } = sampleRecord;
+        const [workload] = project.workloads;
+        if (workload === undefined)
+          throw new Error("the sample has a workload");
+        const check = {
+          workloadId: workload.id,
+          canRun: false,
+          issues: [],
+          reasons,
+          summary: "",
+        };
+        return Promise.resolve({
+          status: "cant-run" as const,
+          project,
+          workload,
+          check,
+        });
+      },
+    };
+    renderProject({ runSimulation });
+
+    clickRun();
+
+    await waitFor(() => {
+      expect(status()).toBe(`Steady failed: ${reasons.join(" ")}`);
+    });
   });
 
   // Fails if the narrow window's RunPanel isn't handed outOfDate: the

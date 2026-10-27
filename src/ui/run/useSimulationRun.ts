@@ -193,5 +193,12 @@ function resultPhases(
       ...ran,
       problem: "That workload is no longer in the project.",
     }),
+    // The run controls don't offer a workload that can't run, so this
+    // means the project changed as the run started.
+    "cant-run": ({ check }) => ({
+      status: "failed",
+      ...ran,
+      problem: check.reasons.join(" "),
+    }),
   };
 }

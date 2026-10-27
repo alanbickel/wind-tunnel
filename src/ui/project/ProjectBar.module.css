@@ -67,3 +67,14 @@
   color: var(--color-status-error);
   font-weight: var(--font-weight-bold);
 }
+
+/* Like the run's status: there from the start, taking no room while the
+   picked workload can run. */
+.run > .cantRun:empty {
+  margin-top: 0;
+}
+
+.cantRun {
+  max-width: var(--prose-max-width);
+  color: var(--color-status-warn);
+}

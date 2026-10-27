@@ -73,7 +73,7 @@ function firstDescription(input: HTMLElement): string | null | undefined {
     : document.getElementById(first)?.textContent;
 }
 
-/** The project bar's status regions: run status, out of date, save failure. */
+/** The project bar's status regions: run status, out of date, why the workload can't run, save failure. */
 function barStatus(project: Project): (string | null)[] {
   const bar = screen.getByRole("region", { name: project.name });
   return within(bar)
@@ -277,14 +277,14 @@ describe("editing a component's settings", () => {
     typeAndLeave(field("Query workers"), "64");
 
     await waitFor(() => {
-      expect(barStatus(projectA)[2]).toBe("Couldn't save your last change.");
+      expect(barStatus(projectA)[3]).toBe("Couldn't save your last change.");
     });
     expect(field("Query workers").value).toBe("64");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     const saved = await savedRecord(projects, projectA);
     expect(configIn(saved, "orders-db")?.["queryWorkers"]).toBe(64);
     await waitFor(() => {
-      expect(barStatus(projectA)[2]).toBe("");
+      expect(barStatus(projectA)[3]).toBe("");
     });
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });

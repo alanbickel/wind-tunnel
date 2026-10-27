@@ -1,4 +1,4 @@
-import type { ValidationIssue } from "../../domain/model/validate-project";
+import type { ValidationIssue } from "../../domain/model/validation-issue";
 
 // Brings a stored or imported document up to the schema version this build
 // parses (ADR-0004). Each migration is a pure function that upgrades a

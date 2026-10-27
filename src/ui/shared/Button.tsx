@@ -23,6 +23,8 @@ export interface ButtonProps {
   readonly usable?: boolean;
   /** Names the button for screen readers when its text alone is ambiguous. */
   readonly label?: string;
+  /** The ID of an element that says more, e.g. why the button is unusable. */
+  readonly describedBy?: string | undefined;
   readonly ref?: Ref<HTMLButtonElement>;
 }
 
@@ -33,6 +35,7 @@ export function Button({
   variant = "secondary",
   usable = true,
   label,
+  describedBy,
   ref,
 }: ButtonProps) {
   return (
@@ -42,6 +45,7 @@ export function Button({
       className={VARIANT_CLASSES[variant]}
       aria-disabled={!usable}
       aria-label={label}
+      aria-describedby={describedBy}
       onClick={() => {
         if (usable) onClick();
       }}

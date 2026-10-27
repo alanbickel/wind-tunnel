@@ -45,13 +45,18 @@ Thick arrows are this workflow's calls; the dotted one is an edge this workflow 
 
 ## Validation: who checks what
 
-Projects are stored as JSON documents ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). [`loadProject`](../../src/adapters/persistence/load-project.ts) turns one into a `ProjectRecord` (the domain `Project` plus timestamps, `source`, and `layout`; [ADR-0008](../adr/0008-ports-exchange-project-records.md)) in three stages. Each runs only if the one before passed, because the later checks assume the earlier ones hold:
+A project's checks come in two groups ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md), decision 2):
+
+- **Architecture checks** cover the components, their settings and names, and the edges. A project that fails one can't be saved or opened, so nothing invalid in the architecture is ever stored.
+- **Run checks** cover the workflows' steps and the workloads' mixes and profiles. A project that fails one saves and opens; only a run of the workloads it affects is refused. An edit can make one: removing a component that a step calls, for example. Their problems are **run issues**.
+
+Projects are stored as JSON documents ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). [`loadProject`](../../src/adapters/persistence/load-project.ts) turns one into a `ProjectRecord` (the domain `Project` plus timestamps, `source`, and `layout`; [ADR-0008](../adr/0008-ports-exchange-project-records.md)), checking the shape first, then the architecture:
 
 | Stage | Where | Checks |
 |---|---|---|
 | 1. Shape | [`projectDocumentV1Schema`](../../src/adapters/persistence/project-document-v1.ts) in `adapters/` | The schema version is one this build reads; fields exist and have the right types; numbers are in range (e.g. timeouts are positive); no unknown keys |
-| 2. Consistency | [`validateProject`](../../src/domain/model/validate-project.ts) in `domain/` | Rules that span the whole project, listed below |
-| 3. Component types | [`validateComponents`](../../src/domain/components/validate-components.ts) in `domain/` | Known types, valid configs, actions each type accepts |
+| 2. Architecture | [`validateArchitecture`](../../src/domain/model/validate-architecture.ts) in `domain/` | Unique IDs and edges, listed below |
+| 3. Component types | [`validateComponents`](../../src/domain/components/validate-components.ts) in `domain/` | Known types, valid configs, names unique among a type's components |
 
 ```mermaid
 flowchart LR
@@ -60,34 +65,37 @@ flowchart LR
     V -->|yes| S[1. Schema]
     S -->|issues| I[Issues with paths]
     S --> M["toProjectRecord()<br/>layout, timestamps, source<br/>stay outside the Project"]
-    M --> P[2. validateProject]
-    P -->|issues| I
-    P --> C[3. validateComponents]
-    C -->|issues| I
-    C --> OK[Record ready to use]
+    M --> A["2, 3. findArchitectureIssues"]
+    A -->|issues| I
+    A --> OK[Record ready to use]
+    OK -.->|"before a run"| R["findRunIssues"]
 ```
 
-Stages 2 and 3 together are [`findProjectIssues`](../../src/domain/components/find-project-issues.ts), for code that has a `Project` rather than a document.
+Stages 2 and 3 together are [`findArchitectureIssues`](../../src/domain/components/find-architecture-issues.ts), which `SaveProject` runs too. The run checks are [`findRunIssues`](../../src/domain/components/find-run-issues.ts), which assumes the architecture passed. It gives each workflow's issues and each workload's own; [`workloadRunChecks`](../../src/application/run-checks/workload-run-checks.ts) in `application/` puts them together per workload, and `RunSimulation` refuses a workload that has any.
 
-The document's structure mirrors the domain's, so an issue's path, like `["architecture", "edges", 2, "to"]`, points at the same place whichever stage found it. The one difference is units: the document gives workload times in seconds (`durationSec`, `atSec`), which are easier to write by hand, and the domain keeps every time in milliseconds (`durationMs`, `atMs`). The [document mapper](../../src/adapters/persistence/project-document-mapper.ts) converts them in both directions (`toProjectRecord`, `toProjectDocument`), and `loadProject` renames those fields in issue paths (`toDocumentIssue`), so the user always sees a path into the document. Objects in the schema are **strict**: an unknown key such as `latencyMS` is an error rather than being silently dropped, which catches typos in hand-written templates.
+The document's structure mirrors the domain's, so an issue's path, like `["architecture", "edges", 2, "to"]`, points at the same place whichever stage found it. The one difference is units: the document gives workload times in seconds (`durationSec`, `atSec`), which are easier to write by hand, and the domain keeps every time in milliseconds (`durationMs`, `atMs`). The [document mapper](../../src/adapters/persistence/project-document-mapper.ts) converts them in both directions (`toProjectRecord`, `toProjectDocument`), and `loadProject` renames those fields in issue paths (`toDocumentIssue`), so the user always sees a path into the document. Run issues keep their paths into the domain `Project`, which is what the screen edits. Objects in the schema are **strict**: an unknown key such as `latencyMS` is an error rather than being silently dropped, which catches typos in hand-written templates.
 
-Consistency rules:
+Architecture rules (`validateArchitecture`):
 
-- IDs are unique within components, edges, workflows, and workloads.
+- IDs are unique within components, edges, workflows, and workloads. Workflows and workloads aren't the architecture, but every reference to one is by ID, so the run checks need them unique.
 - Edges connect two different, existing components, and there's at most one edge per direction between a pair.
+
+Run rules (`findStepIssues` for steps, `findWorkloadIssues` for workloads):
+
 - Every step targets an existing component, and every call (including `async` ones) follows an edge in the right direction.
-- Only `enqueue` steps have `async` work.
+- The target's type accepts the step's action, and only an `enqueue` step on a queue-like (`deliversAsync`) component has `async` work.
 - A workload's mix is non-empty, names existing workflows once each, and has positive weights.
 - A workload's profile is non-empty, its times strictly increase, and its rates aren't negative.
 
-`validateProject` returns **every** problem with a path to it, rather than throwing on the first, so the UI can show them all. From [`validate-project.txt`](../../src/domain/traces/validate-project.txt):
+Both groups return **every** problem with a path to it, rather than throwing on the first, so the UI can show them all. An architecture issue is a message; a run issue is a value ([`run-issue.ts`](../../src/domain/model/run-issue.ts)) with the IDs it's about, so `application/run-checks/` can word it with names rather than IDs. From [`validate-project.txt`](../../src/domain/traces/validate-project.txt):
 
 ```text
-path                          message
-architecture.edges.2.to       Edge "fn->cache" refers to unknown component "cache".
-workflows.0.root.calls.0      No edge from "api" to "db"; every call must follow an edge.
-workloads.0.mix.0.workflowId  Mix refers to unknown workflow "gett".
-workloads.0.profile.1.atMs    Profile times must increase; 0 s comes after 0 s.
+check         path                          message or kind
+architecture  architecture.edges.2.to       Edge "fn->cache" refers to unknown component "cache".
+run           workflows.0.root.calls.0      missing-edge
+run           workloads.0.mix.0.workflowId  unknown-workflow
+run           workloads.0.profile.1.atMs    profile-time-not-increasing
 ```
 
-Rules that depend on a component's type (for example, "only queues accept `enqueue`" or "this Lambda's config is valid") belong to the component definitions, not here. That keeps this validator unchanged when new component types are added. Those rules are checked by `validateComponents`; see [Component definitions](component-definitions.md#type-specific-validation).
+Rules that depend on a component's type (for example, "only queues accept `enqueue`" or "this Lambda's config is valid") ask the registry, so neither group changes when a new component type is added; see [Component definitions](component-definitions.md#type-specific-validation).
+

@@ -158,24 +158,6 @@ describe("loadProject", () => {
     ]);
   });
 
-  it("reports issues in renamed fields at the document's field name", () => {
-    const doc = document();
-    set(
-      doc,
-      ["workloads", 0, "profile"],
-      [
-        { atSec: 2, requestsPerSec: 50 },
-        { atSec: 1, requestsPerSec: 50 },
-      ],
-    );
-    expect(issuesFor(doc)).toEqual([
-      {
-        path: ["workloads", 0, "profile", 1, "atSec"],
-        message: "Profile times must increase; 1 s comes after 2 s.",
-      },
-    ]);
-  });
-
   it("refuses an unknown schema version, or something that isn't a project", () => {
     const newer = document();
     newer["schemaVersion"] = 2;
@@ -222,16 +204,25 @@ describe("loadProject", () => {
     ]);
   });
 
-  it("then checks rules across the project", () => {
+  // Fails if loadProject stops checking the architecture's own rules.
+  it("then checks the architecture's rules", () => {
+    const doc = document();
+    set(doc, ["architecture", "edges", 2, "to"], "ghost");
+    expect(issuesFor(doc)).toEqual([
+      {
+        path: ["architecture", "edges", 2, "to"],
+        message: 'Edge "queue->fn" refers to unknown component "ghost".',
+      },
+    ]);
+  });
+
+  // Fails if loadProject refuses run issues again: a step with no edge to
+  // follow stops a run, not opening (ADR-0019).
+  it("opens a document whose workflow has a run issue", () => {
     const doc = document();
     const architecture = doc["architecture"] as { edges: unknown[] };
     architecture.edges.splice(2, 1); // queue -> fn
-    expect(issuesFor(doc)).toEqual([
-      {
-        path: ["workflows", 0, "root", "calls", 0, "calls", 0, "async"],
-        message: expect.stringMatching(/queue.*fn/) as unknown,
-      },
-    ]);
+    expect(loadProject(doc, registry)).toMatchObject({ ok: true });
   });
 
   it("then checks each component's type and config", () => {

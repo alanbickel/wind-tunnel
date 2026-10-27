@@ -171,7 +171,12 @@ export interface MetricsTickEvent {
 export type RandomStreams = (stream: string) => RandomSource;
 
 export interface SimulationInput {
-  /** A project that passed `validateProject` and `validateComponents`. */
+  /**
+   * A project whose architecture passes `findArchitectureIssues`, and whose
+   * workload, with the workflows in its mix, has no run issues
+   * (`findRunIssues`). An opened project has the first; `RunSimulation`
+   * checks the second before a run.
+   */
   readonly project: Project;
   readonly workloadId: string;
   readonly registry: ComponentRegistry;

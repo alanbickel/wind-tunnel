@@ -175,6 +175,16 @@ A run keeps the model it ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-r
 
 When the run is out of date, the project bar's second status region says "Out of date", after the run's status, and the Run tab opens with "This run is of an earlier version of the project. Run again to see your changes." above the findings, which stay as they were. Both status regions are on the page from the start, empty, so screen readers announce their text when it arrives, and the focus doesn't move.
 
+### A workload that can't run
+
+A project can be saved with run issues: a step that calls a removed component, say, or a workload whose mix is empty ([the two groups of checks](domain-model.md#validation-who-checks-what)). `useProjectRun` asks the `checkWorkloads` use case which workloads can run, once per change to the project, and exposes the answer as `checks`. The screen shows it in three places:
+
+- **The picker** adds "(can't run yet)" to such a workload's name.
+- **Run** is unusable (`aria-disabled`) while one is picked, and its `aria-describedby` points at the project bar's reason, so a screen reader on Run hears why. `RunSimulation` refuses it anyway, as `cant-run`, if a run starts before the screen catches up.
+- **The project bar** says why, in its third status region: the check's summary, such as "Lunch rush can't run yet: Get order and Create order call orders-db, which isn't in the architecture." Components and workflows show by name.
+
+Like the others, that region is on the page from the start, empty while the picked workload can run. So when a saved change stops the picked workload running, screen readers announce the reason politely, and the focus stays where the user was editing (UX design §4.4). Showing each issue on its step or mix entry waits for the workflow and workload editors; every issue keeps its path for them.
+
 ### Worked example
 
 [`src/ui/traces/user-interface.test.tsx`](../../src/ui/traces/user-interface.test.tsx) renders the whole app the way `main.tsx` does and follows a user from a template to a finished run. It records each click, each use case call, and what the screen shows, in [`user-interface.txt`](../../src/ui/traces/user-interface.txt). `ui/` can't import adapters, so the test's runner stands in for the Worker runner and sends two snapshots itself; the Worker's side is tested in `src/adapters/simulation/`.

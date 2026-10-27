@@ -1,3 +1,4 @@
+import { awsCheckWorkloads } from "../../../application/testing/aws-check-workloads";
 import { awsNameComponents } from "../../../application/testing/aws-name-components";
 import type { UseCases } from "../use-cases";
 
@@ -8,8 +9,8 @@ const unexpected = (name: string) => () =>
  * `UseCases` whose every call rejects (or throws, for the synchronous
  * `describeSelection`), for UI tests. Override the ones a test
  * expects: `fakeUseCases({ listProjects: { execute: () => ... } })`.
- * `nameComponents` is the real one over the AWS types: it's pure, and
- * every test that runs a simulation names components.
+ * `nameComponents` and `checkWorkloads` are the real ones over the AWS
+ * types: they're pure, and every test that shows a project uses them.
  */
 export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
   return {
@@ -28,6 +29,7 @@ export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
       },
     },
     nameComponents: awsNameComponents(),
+    checkWorkloads: awsCheckWorkloads(),
     storagePersistence: { request: unexpected("storagePersistence") },
     ...overrides,
   };

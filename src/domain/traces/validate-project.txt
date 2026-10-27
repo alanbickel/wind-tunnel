@@ -2,8 +2,8 @@ Architecture: api -> fn -> db, plus an edge to a missing 'cache'.
 Workflow 'get' calls db straight from api. The workload has a typo
 in its mix and two profile points at 0 s.
 
-path                          message
-architecture.edges.2.to       Edge "fn->cache" refers to unknown component "cache".
-workflows.0.root.calls.0      No edge from "api" to "db"; every call must follow an edge.
-workloads.0.mix.0.workflowId  Mix refers to unknown workflow "gett".
-workloads.0.profile.1.atMs    Profile times must increase; 0 s comes after 0 s.
+check         path                          message or kind
+architecture  architecture.edges.2.to       Edge "fn->cache" refers to unknown component "cache".
+run           workflows.0.root.calls.0      missing-edge
+run           workloads.0.mix.0.workflowId  unknown-workflow
+run           workloads.0.profile.1.atMs    profile-time-not-increasing

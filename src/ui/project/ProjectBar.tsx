@@ -26,6 +26,7 @@ export function ProjectBar(props: ProjectBarProps) {
   const { project, projectRun, saveFailed, onRetry } = props;
   const { run, ran, status, outOfDate } = projectRun;
   const headingId = useId();
+  const cantRunReasonId = useId();
   return (
     <section aria-labelledby={headingId} className={styles.bar}>
       <div className={styles.intro}>
@@ -35,11 +36,16 @@ export function ProjectBar(props: ProjectBarProps) {
         )}
       </div>
       <div className={styles.run}>
-        <WorkloadControls project={project} projectRun={projectRun} />
+        <WorkloadControls
+          project={project}
+          projectRun={projectRun}
+          cantRunReasonId={cantRunReasonId}
+        />
         {ran !== undefined && (
           <RunProgress workload={ran} snapshots={run.snapshots} />
         )}
         <RunStatus status={status} outOfDate={outOfDate} />
+        <CantRunReason id={cantRunReasonId} projectRun={projectRun} />
         <SaveStatus saveFailed={saveFailed} onRetry={onRetry} />
       </div>
     </section>
@@ -65,6 +71,24 @@ function RunStatus({ status, outOfDate }: RunStatusProps) {
   );
 }
 
+interface CantRunReasonProps {
+  readonly id: string;
+  readonly projectRun: ProjectRun;
+}
+
+/**
+ * Why the picked workload can't run. Mounted from the start, like the run's
+ * status, so screen readers announce it when a change to the project stops
+ * the workload; Run points to it by `id`, so it's read on Run too.
+ */
+function CantRunReason({ id, projectRun }: CantRunReasonProps) {
+  return (
+    <p id={id} role="status" className={styles.cantRun}>
+      {cantRunReason(projectRun)}
+    </p>
+  );
+}
+
 type SaveStatusProps = Pick<ProjectBarProps, "saveFailed" | "onRetry">;
 
 /**
@@ -84,10 +108,17 @@ function SaveStatus({ saveFailed, onRetry }: SaveStatusProps) {
   );
 }
 
-type WorkloadControlsProps = Pick<ProjectBarProps, "project" | "projectRun">;
+interface WorkloadControlsProps extends Pick<
+  ProjectBarProps,
+  "project" | "projectRun"
+> {
+  /** The ID of the element that says why the picked workload can't run. */
+  readonly cantRunReasonId: string;
+}
 
 /** The run controls, on the picked workload; a line instead if there are none. */
-function WorkloadControls({ project, projectRun }: WorkloadControlsProps) {
+function WorkloadControls(props: WorkloadControlsProps) {
+  const { project, projectRun, cantRunReasonId } = props;
   const { run, picked, pick } = projectRun;
   if (picked === undefined) {
     return <p>This project has no workloads to run.</p>;
@@ -97,6 +128,8 @@ function WorkloadControls({ project, projectRun }: WorkloadControlsProps) {
       workloads={project.workloads}
       workload={picked}
       onPick={pick}
+      checks={projectRun.checks}
+      cantRunReasonId={cantRunReasonId}
       running={run.phase.status === "running"}
       onStart={() => {
         run.start(picked);
@@ -104,4 +137,10 @@ function WorkloadControls({ project, projectRun }: WorkloadControlsProps) {
       onStop={run.stop}
     />
   );
+}
+
+/** Why the picked workload can't run; empty if it can, or there's none. */
+function cantRunReason({ picked, checks }: ProjectRun): string {
+  if (picked === undefined) return "";
+  return checks.get(picked.id)?.summary ?? "";
 }

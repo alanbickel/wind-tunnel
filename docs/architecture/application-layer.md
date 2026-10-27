@@ -77,15 +77,17 @@ Each use case is a class: ports go into the constructor as one object, and the w
 | `OpenProject` | projects | `found`, `missing`, or `invalid` with a `reason` for the user |
 | `SaveProject` | projects, clock, registry | `saved` with the new `updatedAt`, or `invalid` with the issues |
 | `DeleteProject` | projects | nothing; deleting a missing project does nothing |
-| `RunSimulation` | runner | `finished` with the run, `stopped`, or `workload-missing` |
+| `RunSimulation` | runner, registry | `finished` with the run, `stopped`, `workload-missing`, or `cant-run` with the workload's run check |
+| `CheckWorkloads` | registry | Each workload's run check: whether it can run, its issues worded by name, and a summary for the project bar. Synchronous: it reads no port |
 | `DescribeSelection` | registry, field descriptors | What the Details tab shows for a selected component or edge, or undefined if the project has no such item. Synchronous: it reads no port |
 
 Most are a single call on a port. The ones with logic:
 
 - **`CreateProjectFromTemplate`** copies the template's record with a new ID from `IdGenerator` and both timestamps from `Clock`. It keeps `source` (template ID and version), so the project remembers where it came from.
-- **`SaveProject`** refuses a project that fails validation (`findProjectIssues`). The repository would store it, but couldn't open it again.
+- **`SaveProject`** refuses a project whose architecture fails its checks (`findArchitectureIssues`). The repository would store it, but couldn't open it again. Run issues, in the workflows and workloads, save ([the two groups](domain-model.md#validation-who-checks-what)).
 - **`DescribeSelection`** words a component's settings from its type's field descriptors ([`application/details/`](../../src/application/details/)): each value with its unit, the help, and the type's default with its evidence, such as "Default 16: an assumption (RDS-2)." It also works out what calls the component, or along the edge, from the workflows' steps.
-- **`RunSimulation`** picks the workload (the first one by default) and applies a seed override to a copy. Nothing is saved.
+- **`RunSimulation`** picks the workload (the first one by default) and applies a seed override to a copy. Nothing is saved. It refuses a workload with run issues, its own or its workflows', as `cant-run`, so the runner is only handed one whose run checks pass.
+- **`CheckWorkloads`** and `RunSimulation` share [`workloadRunChecks`](../../src/application/run-checks/workload-run-checks.ts): a workload's run issues are its own and those of the workflows in its mix, so a broken workflow stops only the workloads that run it. A phrasebook ([`run-issue-phrases.ts`](../../src/application/run-checks/run-issue-phrases.ts)) words each issue by name, and says an issue that several workflows share once: "Write rush can't run yet: Write item and Write again call orders-db, which isn't in the architecture."
 
 ## Run analysis: what a run's numbers add up to
 
@@ -111,7 +113,7 @@ flowchart LR
         direction TB
         M["migrateDocument<br/>older version → current"] --> S["v1 Zod schema"]
         S --> TR["toProjectRecord"]
-        TR --> V["findProjectIssues<br/>(domain rules, component configs)"]
+        TR --> V["findArchitectureIssues<br/>(IDs, edges, component configs)"]
     end
     L -->|ok| R
     L -->|issues| INV["ProjectLookup: invalid"]

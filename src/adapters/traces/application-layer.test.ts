@@ -237,7 +237,7 @@ function wireUseCases(trace: Trace) {
     saveProject: new SaveProject({ projects, clock: tracedClock, registry }),
     listProjects: new ListProjects({ projects }),
     openProject: new OpenProject({ projects }),
-    runSimulation: new RunSimulation({ runner }),
+    runSimulation: new RunSimulation({ runner, registry }),
     deleteProject: new DeleteProject({ projects }),
   };
 }

@@ -253,7 +253,7 @@ The repository and the catalog exchange **`ProjectRecord`s**: a domain `Project`
 
 ## 6. Project document (persistence format)
 
-This is the stored and exported shape described in ADR-0004. It is separate from the domain entities; a mapper in `src/adapters/persistence/` converts between them. In code, the shape below is defined as a Zod schema ([ADR-0005](../adr/0005-use-zod-for-schema-validation.md)) and the TypeScript types are derived from it; it's written as interfaces here for readability. Every document is parsed against the schema before it reaches the domain. In code: `projectDocumentV1Schema` (objects are strict, so unknown keys are errors) and `loadProject`, which runs the schema, `validateProject`, and `validateComponents` in turn ([domain model guide](../architecture/domain-model.md#validation-who-checks-what)).
+This is the stored and exported shape described in ADR-0004. It is separate from the domain entities; a mapper in `src/adapters/persistence/` converts between them. In code, the shape below is defined as a Zod schema ([ADR-0005](../adr/0005-use-zod-for-schema-validation.md)) and the TypeScript types are derived from it; it's written as interfaces here for readability. Every document is parsed against the schema before it reaches the domain. In code: `projectDocumentV1Schema` (objects are strict, so unknown keys are errors) and `loadProject`, which runs the schema, then the architecture checks (`validateArchitecture` and `validateComponents`); the workflows' and workloads' checks stop a run, not loading (ADR-0019) ([domain model guide](../architecture/domain-model.md#validation-who-checks-what)).
 
 ```ts
 interface ProjectDocumentV1 {

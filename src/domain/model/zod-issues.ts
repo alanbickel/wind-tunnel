@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { ValidationIssue } from "./validate-project";
+import type { ValidationIssue } from "./validation-issue";
 
 /**
  * Converts a failed Zod parse into `ValidationIssue`s, keeping each issue's

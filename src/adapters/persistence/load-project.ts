@@ -1,7 +1,7 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
-import { findProjectIssues } from "../../domain/components/find-project-issues";
+import { findArchitectureIssues } from "../../domain/components/find-architecture-issues";
 import type { ProjectRecord } from "../../application/ports/project-record";
-import type { ValidationIssue } from "../../domain/model/validate-project";
+import type { ValidationIssue } from "../../domain/model/validation-issue";
 import { issuesFromZod } from "../../domain/model/zod-issues";
 import { projectDocumentV1Schema } from "./project-document-v1";
 import { toDocumentIssue, toProjectRecord } from "./project-document-mapper";
@@ -26,14 +26,15 @@ export interface LoadFailed {
  * "Load-time checks"):
  *
  * 1. The document's shape and number ranges (`projectDocumentV1Schema`).
- * 2. Rules across the project: unique IDs, references, steps following edges
- *    (`validateProject`).
- * 3. Rules for each component type: known types, valid configs, accepted
- *    actions (`validateComponents`).
+ * 2. The architecture's type-independent rules: unique IDs, and edges
+ *    between components that exist (`validateArchitecture`).
+ * 3. Its rules for each component type: known types, valid configs, unique
+ *    names (`validateComponents`).
  *
- * Each stage runs only if the previous one passed, because later checks
- * assume the earlier ones hold. Every issue in the failing stage is
- * returned, with paths into the document.
+ * Stages 2 and 3 run together, once the schema passes. Every issue in the
+ * failing stage is returned, with paths into the document. Run issues, in
+ * the workflows and workloads, don't stop a project opening; they stop a
+ * run of the workloads they affect (ADR-0019, decision 2).
  */
 export function loadProject(
   input: unknown,
@@ -48,7 +49,7 @@ export function loadProject(
   }
 
   const record = toProjectRecord(parsed.data);
-  const issues = findProjectIssues(record.project, registry).map(
+  const issues = findArchitectureIssues(record.project, registry).map(
     toDocumentIssue,
   );
   if (issues.length > 0) return { ok: false, issues };

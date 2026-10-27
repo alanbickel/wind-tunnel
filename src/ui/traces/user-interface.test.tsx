@@ -16,7 +16,7 @@ import type {
 import type { ProjectRecord } from "../../application/ports/project-record";
 import type { StoragePersistence } from "../../application/ports/storage-persistence";
 import { sampleRecord } from "../../application/testing/sample-record";
-import { RunSimulation } from "../../application/use-cases/run-simulation";
+import { awsRunSimulation } from "../../application/testing/aws-run-simulation";
 import type { LatencySummary } from "../../domain/metrics/latency-histogram";
 import type {
   MetricsSnapshot,
@@ -141,7 +141,7 @@ function runTotals(snapshots: readonly MetricsSnapshot[]): MetricsSnapshot {
 /** Wraps each use case the components call so it records the call and result. */
 function tracedUseCases(trace: Trace, runner: SimulationRunner): UseCases {
   const { useCases } = inMemoryUseCases([TWO_SECOND_TEMPLATE]);
-  const runSimulation = new RunSimulation({ runner });
+  const runSimulation = awsRunSimulation(runner);
   const storagePersistence: StoragePersistence = {
     request: () => {
       trace.call("storagePersistence.request() → persisted");

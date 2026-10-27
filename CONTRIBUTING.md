@@ -373,6 +373,7 @@ While a PR is open:
 
 - Only sync with `main` when you need to (a conflict, or CI needs a change from `main`), and do it by merging `main` into the branch. Don't rebase or force-push a branch that's under review: reviewers and review replies point at its commits.
 - If your branch was cut from another PR's branch and that PR is merged first, merge `main` into your branch as usual. The squash commit holds the same changes as the parent's commits your branch already has, so they usually merge cleanly; if the parent changed after you branched, resolve the conflicts in the merge.
+- A PR whose base is another PR's branch closes for good when that branch is deleted on merge: GitHub can't reopen it or change its base. Before merging the parent, change the stacked PR's base to `main` (`gh pr edit <number> --base main`). If it already closed, open a new PR from the same branch, say in its description which PR it replaces, and comment on the closed one with a link to the new one.
 
 The repository allows only squash merges, and a ruleset stops `main` from being deleted or force-pushed.
 

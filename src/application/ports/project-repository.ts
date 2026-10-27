@@ -1,4 +1,4 @@
-import type { ValidationIssue } from "../../domain/model/validate-project";
+import type { ValidationIssue } from "../../domain/model/validation-issue";
 import type { ProjectRecord, ProjectSummary } from "./project-record";
 
 /**

@@ -5,7 +5,7 @@ import type {
   Workflow,
   Workload,
 } from "../../domain/model/project";
-import type { ValidationIssue } from "../../domain/model/validate-project";
+import type { ValidationIssue } from "../../domain/model/validation-issue";
 import type { ProjectRecord } from "../../application/ports/project-record";
 import type {
   ArchitectureDocument,

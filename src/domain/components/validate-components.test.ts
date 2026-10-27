@@ -62,7 +62,8 @@ const validRoot: Step = {
 };
 
 describe("validateComponents", () => {
-  it("accepts a project whose types, configs, and actions all fit", () => {
+  // Fails if checkComponent reports a known type with a valid config.
+  it("accepts a project whose types and configs all fit", () => {
     expect(validateComponents(project(validRoot), registry)).toEqual([]);
   });
 
@@ -134,49 +135,9 @@ describe("validateComponents", () => {
     expect(validateComponents(named, registry)).toEqual([]);
   });
 
-  it("reports actions the target doesn't accept, including in async steps", () => {
-    const root: Step = {
-      componentId: "front",
-      action: "write",
-      calls: [
-        {
-          componentId: "q",
-          action: "read",
-          async: { componentId: "consumer", action: "enqueue" },
-        },
-      ],
-    };
-    expect(validateComponents(project(root), registry)).toEqual([
-      {
-        path: ["workflows", 0, "root", "action"],
-        message:
-          'Test worker pool "front" doesn\'t accept "write"; it accepts "invoke", "read".',
-      },
-      {
-        path: ["workflows", 0, "root", "calls", 0, "action"],
-        message:
-          'Test message queue "q" doesn\'t accept "read"; it accepts "enqueue".',
-      },
-      {
-        path: ["workflows", 0, "root", "calls", 0, "async", "action"],
-        message:
-          'Test worker pool "consumer" doesn\'t accept "enqueue"; it accepts "invoke", "read".',
-      },
-    ]);
-  });
-
-  it("reports async work on a component that isn't queue-like", () => {
-    const root: Step = {
-      componentId: "front",
-      action: "invoke",
-      async: { componentId: "q", action: "enqueue" },
-    };
-    expect(validateComponents(project(root), registry)).toEqual([
-      {
-        path: ["workflows", 0, "root", "async"],
-        message:
-          'Test worker pool "front" can\'t run async work; only queue-like components can.',
-      },
-    ]);
+  // Fails if validateComponents checks steps again: they're run checks now.
+  it("leaves the steps' actions to the run checks", () => {
+    const root: Step = { componentId: "front", action: "enqueue" };
+    expect(validateComponents(project(root), registry)).toEqual([]);
   });
 });

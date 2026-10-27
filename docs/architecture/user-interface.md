@@ -80,7 +80,7 @@ const { loadable } = useLoad(load);
 
 Each use case is typed as `Pick<Class, "execute">`. A class with private fields accepts only its own instances, so this lets a test pass a plain object with an `execute` ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)).
 
-To give a component a new use case: add it to `UseCases`, build it in `main.tsx`'s `createUseCases`, and add a default to `fakeUseCases` that rejects (or throws, for a synchronous one such as `describeSelection`). The exception is `nameComponents`, which is pure: its default is the real one over the AWS types, because every test that runs a simulation names components.
+To give a component a new use case: add it to `UseCases`, build it in `main.tsx`'s `createUseCases` (or `createProjectReaders`, for a use case that reads a project over the registry), and add a default to `fakeUseCases` that rejects (or throws, for a synchronous one such as `describeSelection`). The exception is `nameComponents`, which is pure: its default is the real one over the AWS types, because every test that runs a simulation names components.
 
 ## Patterns you'll see
 

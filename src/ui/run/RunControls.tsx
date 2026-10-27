@@ -24,11 +24,18 @@ export interface RunControlsProps {
  * and Run is unusable while it's picked; the project bar says why.
  */
 export function RunControls(props: RunControlsProps) {
-  const { workload, checks, running, onStart, onStop } = props;
+  const { workloads, workload, onPick, checks, running, onStart, onStop } =
+    props;
 
   return (
     <div className={styles.controls}>
-      <WorkloadPicker {...props} />
+      <WorkloadPicker
+        workloads={workloads}
+        workload={workload}
+        onPick={onPick}
+        checks={checks}
+        running={running}
+      />
       <Button
         variant="primary"
         usable={!running && canRunIn(checks)(workload)}

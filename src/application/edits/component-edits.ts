@@ -144,7 +144,10 @@ export function removeComponent(
   );
   return {
     ...record,
-    project: { ...project, architecture: { components, edges } },
+    project: {
+      ...project,
+      architecture: { ...architecture, components, edges },
+    },
     layout: { ...layout, nodes },
   };
 }

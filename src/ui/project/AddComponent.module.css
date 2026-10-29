@@ -32,3 +32,13 @@
 .typeName {
   font-weight: var(--font-weight-bold);
 }
+
+/* Heard, not seen: the focus is on the button, and the diagram shows the change. */
+.announcement {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

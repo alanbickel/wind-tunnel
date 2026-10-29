@@ -40,8 +40,7 @@ function renderView({ selection }: RenderViewInput = {}) {
         selection={selection}
         onSelect={onSelect}
         onClear={onClear}
-        onAdd={onAdd}
-        addButtonRef={{ current: null }}
+        adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
       />
     </UseCasesProvider>,
   );

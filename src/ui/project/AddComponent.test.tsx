@@ -11,7 +11,7 @@ function renderAdd() {
   const buttonRef = { current: null };
   render(
     <UseCasesProvider useCases={fakeUseCases()}>
-      <AddComponent onAdd={onAdd} buttonRef={buttonRef} />
+      <AddComponent onAdd={onAdd} buttonRef={buttonRef} announcement="" />
     </UseCasesProvider>,
   );
   return { onAdd, buttonRef };

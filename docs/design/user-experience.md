@@ -247,6 +247,7 @@ A change saves when its field is left, and what follows can show somewhere else 
 - **Status messages are announced politely**, without moving the focus: "Out of date" when the run on screen goes out of date (§4.2), "Couldn't save your last change." when a save fails, and a workload's "can't run yet" when a change stops it running (§2.4). Each comes from a live region that's on the page before its text changes, since many screen readers skip a region that appears with its text already in it ([#14](https://github.com/alanbickel/wind-tunnel/issues/14) fixes today's messages the same way).
 - **A field's error is tied to its field.** The field is marked `aria-invalid`, and its `aria-describedby` points at the message, so the message is read whenever the field has the focus. Leaving a field with a draft that fails its checks also announces the message, since the focus has moved on.
 - **A save that works isn't announced.** The change is what the user just did, and the field shows it.
+- **A remove is announced:** "Removed orders-db." The focus moves to "Add component" (§4.1), away from what changed, so nothing on it says the component went. The message comes from a polite region beside that button, on the page from the start (decided in [#95](https://github.com/alanbickel/wind-tunnel/issues/95)).
 
 Each slice that adds one of these messages announces it ([§6](#6-slices)).
 

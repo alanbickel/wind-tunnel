@@ -1,9 +1,7 @@
 import {
-  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
@@ -20,6 +18,7 @@ import type { Project } from "../../domain/model/project";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
 import { dispatchKind } from "../shared/kind-dispatch";
+import { useAnnouncement } from "../shared/useAnnouncement";
 import { ComponentSettings } from "./fields/ComponentSettings";
 import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
@@ -78,21 +77,6 @@ export function SelectionDetails(props: SelectionDetailsProps) {
       </p>
     </div>
   );
-}
-
-/**
- * A message for the polite status region, and what sets it. The same
- * message twice in a row gets a no-break space added, so the region's
- * text changes and a screen reader says it again.
- */
-function useAnnouncement(): [string, (message: string) => void] {
-  const [announcement, setAnnouncement] = useState("");
-  const announce = useCallback((message: string) => {
-    setAnnouncement((shown) =>
-      shown === message ? `${message}\u00a0` : message,
-    );
-  }, []);
-  return [announcement, announce];
 }
 
 /** One key per thing that can be selected. */

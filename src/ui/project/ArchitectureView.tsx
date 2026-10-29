@@ -21,8 +21,8 @@ export interface ArchitectureViewProps {
   readonly onSelect: (selection: Selection) => void;
   /** Called when the user clicks the diagram's empty space. */
   readonly onClear: () => void;
-  readonly onAdd: AddComponentProps["onAdd"];
-  readonly addButtonRef: AddComponentProps["buttonRef"];
+  /** "Add component", above the diagram. */
+  readonly adding: AddComponentProps;
 }
 
 /**
@@ -33,7 +33,7 @@ export interface ArchitectureViewProps {
  * on.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
-  const { record, selection, onSelect, onClear, onAdd, addButtonRef } = props;
+  const { record, selection, onSelect, onClear, adding } = props;
   const content = useMemo(() => diagramOf(record), [record]);
   const selected = selection && dispatchKind(DIAGRAM_ITEMS, selection);
   const onItem = useCallback(
@@ -49,7 +49,7 @@ export function ArchitectureView(props: ArchitectureViewProps) {
 
   return (
     <Panel heading="Architecture" scrolls>
-      <AddComponent onAdd={onAdd} buttonRef={addButtonRef} />
+      <AddComponent {...adding} />
       <Diagram
         content={content}
         label={`Architecture diagram of ${record.project.name}`}

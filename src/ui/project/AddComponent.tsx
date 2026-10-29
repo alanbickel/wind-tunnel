@@ -15,6 +15,8 @@ export interface AddComponentProps {
   readonly onAdd: (type: string) => void;
   /** The "Add component" button, where the focus goes after a remove. */
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
+  /** What a remove, which sends the focus here, announces: "Removed Table." */
+  readonly announcement: string;
 }
 
 /**
@@ -22,9 +24,11 @@ export interface AddComponentProps {
  * line on what it's for (UX design §2.1 step 2). Choosing one closes the
  * list, with the focus back on the button, and adds the component; so the
  * button is what made the new selection, and Escape in Details returns to
- * it. Escape in the list closes it.
+ * it. Escape in the list closes it. Beside it, a polite region says what
+ * a remove took (UX design §4.4).
  */
-export function AddComponent({ onAdd, buttonRef }: AddComponentProps) {
+export function AddComponent(props: AddComponentProps) {
+  const { onAdd, buttonRef, announcement } = props;
   const { open, toggle, close } = useDisclosure(buttonRef);
   const listId = useId();
   return (
@@ -47,7 +51,24 @@ export function AddComponent({ onAdd, buttonRef }: AddComponentProps) {
           onClose={close}
         />
       )}
+      <Announcement text={announcement} />
     </div>
+  );
+}
+
+interface AnnouncementProps {
+  readonly text: string;
+}
+
+/**
+ * The polite region, on the page from the start, empty, so a screen reader
+ * announces a message put in it.
+ */
+function Announcement({ text }: AnnouncementProps) {
+  return (
+    <p role="status" className={styles.announcement}>
+      {text}
+    </p>
   );
 }
 

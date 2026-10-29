@@ -63,6 +63,13 @@ function detailsHeading(): HTMLElement {
   return screen.getByRole("heading", { level: 4 });
 }
 
+/** The polite region beside "Add component", which says what a remove took. */
+function removedRegion(): HTMLElement {
+  const region = addButton().parentElement?.querySelector('[role="status"]');
+  if (!(region instanceof HTMLElement)) throw new Error("No removed region");
+  return region;
+}
+
 /** Remove's confirmation, by its question. */
 function confirmation(question: string): HTMLElement {
   return screen.getByRole("group", { name: question });
@@ -133,6 +140,22 @@ describe("OpenedProject's adding and removing components", () => {
     expect(cantRunRegion().textContent).toBe(
       "Steady can't run yet: Read item calls a component that isn't in the architecture any more.",
     );
+  });
+
+  // Fails if a remove isn't announced, or is announced from a region that
+  // appears with its text in it, which many screen readers skip (UX §4.4).
+  it("announces a remove from a region that was there, empty, before", () => {
+    renderOpenedProject();
+    const region = removedRegion();
+    expect(region.textContent).toBe("");
+    select("Function (lambda)");
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    const asking = screen.getByRole("group", { name: /^Remove Function/ });
+    fireEvent.click(within(asking).getByRole("button", { name: "Remove" }));
+
+    expect(removedRegion()).toBe(region);
+    expect(region.textContent).toBe("Removed Function.");
   });
 
   // Fails if Cancel or Escape removes anything, Escape also closes

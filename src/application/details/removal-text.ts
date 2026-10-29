@@ -15,14 +15,17 @@ export function removalText(
   const ends = project.architecture.edges.flatMap((edge) =>
     otherEnd({ project, edge, componentId: component.id }),
   );
-  const edges =
-    ends.length === 0
-      ? ""
-      : ` and its ${ends.length === 1 ? "edge" : "edges"} ${listOf(ends)}`;
   return {
-    question: `Remove ${component.name}${edges}?`,
+    question: `Remove ${component.name}${edgesPhrase(ends)}?`,
     warning: callersWarning(stepsCalling(project, component.id)),
   };
+}
+
+/** " and its edge from Function", or nothing if it has no edges. */
+function edgesPhrase(ends: readonly string[]): string {
+  if (ends.length === 0) return "";
+  const noun = ends.length === 1 ? "edge" : "edges";
+  return ` and its ${noun} ${listOf(ends)}`;
 }
 
 interface OtherEndInput {

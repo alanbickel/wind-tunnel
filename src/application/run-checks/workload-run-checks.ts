@@ -8,6 +8,7 @@ import type { StepIssue, WorkloadIssue } from "../../domain/model/run-issue";
 import type { ValidationIssue } from "../../domain/model/validation-issue";
 import { componentNames } from "../run-analysis/component-names";
 import {
+  stepIssueKey,
   stepIssueText,
   workloadIssueText,
   type RunIssueNames,
@@ -112,13 +113,9 @@ function checkOf(at: CheckInput, names: RunIssueNames): WorkloadRunCheck {
     ...own.map((issue) => ownIssue(issue, names)),
     ...steps.map((owned) => stepIssue(owned, names)),
   ];
-  // A set, since two issues can read the same: a workflow calling two
-  // removed components says so once.
   const reasons = [
-    ...new Set([
-      ...own.map((issue) => workloadIssueText(issue, names)),
-      ...groupByIssue(steps).map((group) => stepIssueText(group, names)),
-    ]),
+    ...own.map((issue) => workloadIssueText(issue, names)),
+    ...groupByIssue(steps, names).map((group) => stepIssueText(group, names)),
   ];
   const canRun = issues.length === 0;
   const summary = canRun
@@ -151,13 +148,17 @@ function stepIssue(
 }
 
 /**
- * The step issues with their workflows, the same issue (all but its path)
- * in several steps or workflows grouped as one, in the order first found.
+ * The step issues with their workflows, issues that read the same (a call to
+ * any removed component) in several steps or workflows grouped as one, in
+ * the order first found.
  */
-function groupByIssue(steps: readonly OwnedStepIssue[]): StepIssueGroup[] {
+function groupByIssue(
+  steps: readonly OwnedStepIssue[],
+  names: RunIssueNames,
+): StepIssueGroup[] {
   const groups = new Map<string, StepIssueGroup>();
   for (const { issue, workflowId } of steps) {
-    const key = JSON.stringify({ ...issue, path: undefined });
+    const key = stepIssueKey(issue, names);
     const group = groups.get(key) ?? { issue, workflowIds: [] };
     const workflowIds = group.workflowIds.includes(workflowId)
       ? group.workflowIds

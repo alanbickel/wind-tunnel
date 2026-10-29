@@ -82,8 +82,8 @@ describe("workloadRunChecks", () => {
     ]);
   });
 
-  // Fails if reasons that read the same are said twice, as two removed
-  // components called by one workflow read.
+  // Fails if step issues are grouped by anything the sentence doesn't say,
+  // such as the removed component's ID: the two calls read the same.
   it("says a reason once, however many issues read as it", () => {
     const [, write] = projectWithRunIssue.workflows;
     if (write === undefined) throw new Error("The fixture has Write item");
@@ -108,6 +108,47 @@ describe("workloadRunChecks", () => {
     expect(check?.reasons).toEqual([
       "Write item calls a component that isn't in the architecture any more.",
     ]);
+  });
+
+  // Fails if step issues are grouped by the removed component's ID: Write
+  // item would be named again, in a second sentence for gone-2.
+  it("names each workflow once when their removed components overlap", () => {
+    const calling = (id: string, name: string, componentIds: string[]) => ({
+      id,
+      name,
+      root: {
+        componentId: "api",
+        action: "invoke" as const,
+        calls: componentIds.map((componentId) => ({
+          componentId,
+          action: "invoke" as const,
+        })),
+      },
+    });
+    const project: Project = {
+      ...projectWithRunIssue,
+      workflows: [
+        calling("read", "Read item", ["gone-1"]),
+        calling("write", "Write item", ["gone-1", "gone-2"]),
+      ],
+      workloads: [
+        {
+          id: "both",
+          name: "Both",
+          durationMs: 5_000,
+          seed: 1,
+          mix: [
+            { workflowId: "read", weight: 1 },
+            { workflowId: "write", weight: 1 },
+          ],
+          profile: [{ atMs: 0, requestsPerSec: 20 }],
+        },
+      ],
+    };
+
+    expect(checksOf(project).get("both")?.summary).toBe(
+      "Both can't run yet: Read item and Write item call a component that isn't in the architecture any more.",
+    );
   });
 
   // Fails if the phrases name components by ID.

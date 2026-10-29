@@ -34,6 +34,15 @@ export function stepIssueText(
   return handleKind(stepPhrases(group, names), group.issue);
 }
 
+/**
+ * What a step issue's sentence says about anything but its workflows. Issues
+ * with the same key read the same, so they're said once, naming every
+ * workflow that has one. It's the sentence itself, so the two can't drift.
+ */
+export function stepIssueKey(issue: StepIssue, names: RunIssueNames): string {
+  return stepIssueText({ issue, workflowIds: [""] }, names);
+}
+
 /** A workload's own issue as a sentence, e.g. "The mix has no workflows." */
 export function workloadIssueText(
   issue: WorkloadIssue,

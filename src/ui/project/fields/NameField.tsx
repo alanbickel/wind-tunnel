@@ -5,13 +5,17 @@ import type { DraftCheck } from "../../../application/details/number-draft";
 import { renameComponent } from "../../../application/edits/component-edits";
 import type { Project } from "../../../domain/model/project";
 import type { ProjectSelection } from "../useSelection";
+import type { EditCommand } from "../useProjectEdits";
 import type { FieldProps } from "./field-parts";
 import { TextField } from "./TextField";
 import { useDraft } from "./useDraft";
 
-export interface NameFieldProps extends FieldProps {
+export interface NameFieldProps {
   readonly project: Project;
   readonly details: ComponentDetails;
+  /** Saves the rename, once the draft passes. */
+  readonly onEdit: (command: EditCommand) => void;
+  readonly announce: FieldProps["announce"];
   /** Whether to take the focus, with the name selected: just after an add. */
   readonly takeFocus: ProjectSelection["takeFocus"];
 }
@@ -23,7 +27,7 @@ export interface NameFieldProps extends FieldProps {
  * `takeFocus` says so, so a new component can be named by typing.
  */
 export function NameField(props: NameFieldProps) {
-  const { project, details, componentId, takeFocus } = props;
+  const { project, details, takeFocus } = props;
   const draft = useDraft(details.name);
   const inputRef = useRef<HTMLInputElement>(null);
   // A layout effect, as Details' heading takes the focus.
@@ -34,7 +38,7 @@ export function NameField(props: NameFieldProps) {
   }, [takeFocus]);
   const check = checkComponentName({
     project,
-    componentId,
+    componentId: details.componentId,
     text: draft.value,
     typeName: details.typeName,
   });
@@ -63,7 +67,7 @@ interface CommitNameInput extends NameFieldProps {
  * name as it was.
  */
 function commitName(input: CommitNameInput): void {
-  const { check, details, componentId, onEdit, announce, reset } = input;
+  const { check, details, onEdit, announce, reset } = input;
   if (check.status === "fails") {
     announce(check.message);
     return;
@@ -73,6 +77,9 @@ function commitName(input: CommitNameInput): void {
     return;
   }
   onEdit((record) =>
-    renameComponent(record, { componentId, name: check.value }),
+    renameComponent(record, {
+      componentId: details.componentId,
+      name: check.value,
+    }),
   );
 }

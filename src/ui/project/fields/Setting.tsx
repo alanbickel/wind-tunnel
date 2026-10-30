@@ -1,9 +1,10 @@
 import { useId, type ReactNode } from "react";
 import type { SettingDetails } from "../../../application/details/details";
 import type {
-  ConfigFieldDescriptor,
   DistributionFieldDescriptor,
   NumberFieldDescriptor,
+  RetryFieldDescriptor,
+  SettingFieldDescriptor,
 } from "../../../application/details/field-descriptor";
 import { sameContent } from "../../../application/run-analysis/same-content";
 import type { KindHandlers } from "../../../domain/shared/kind-handlers";
@@ -13,6 +14,7 @@ import { DistributionField } from "./DistributionField";
 import type { FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
 import { NumberField } from "./NumberField";
+import { RetryField } from "./RetryField";
 
 export interface SettingProps extends FieldProps {
   readonly setting: SettingDetails;
@@ -22,8 +24,8 @@ export interface SettingProps extends FieldProps {
 
 /**
  * One setting: its field, its help, and its default with Reset beside it.
- * It saves and resets through `save` and `reset`, so it serves any
- * setting a descriptor covers.
+ * It saves and resets through `save` and `reset`, so it serves a
+ * component's settings and an edge's alike.
  */
 export function Setting(props: SettingProps) {
   const { setting, reset, ...fieldProps } = props;
@@ -48,8 +50,8 @@ interface SettingFieldProps extends FieldProps {
 }
 
 /**
- * The field for the setting's kind, a number or a distribution; or its
- * value, read-only, if no descriptor covers it.
+ * The field for the setting's kind, a number, a distribution, or a retry
+ * policy; or its value, read-only, if no descriptor covers it.
  */
 function SettingField({ setting, ...props }: SettingFieldProps) {
   const { editor } = setting;
@@ -73,13 +75,16 @@ const numberField =
 
 /** The field for each kind of descriptor; a new kind registers its own. */
 const FIELDS: KindHandlers<
-  ConfigFieldDescriptor,
+  SettingFieldDescriptor,
   (context: FieldContext) => ReactNode
 > = {
   number: numberField,
   "whole-number": numberField,
   distribution: (field: DistributionFieldDescriptor) => (context) => (
     <DistributionField field={field} {...context} />
+  ),
+  retry: (field: RetryFieldDescriptor) => (context) => (
+    <RetryField field={field} {...context} />
   ),
 };
 

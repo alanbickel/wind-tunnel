@@ -46,7 +46,7 @@ describe("settingValueText", () => {
   it.each([
     [
       { maxAttempts: 1, backoff: "none", baseDelayMs: 0 },
-      "1 attempt: no retries",
+      "1 attempt, no retries",
     ],
     [
       { maxAttempts: 3, backoff: "none", baseDelayMs: 50 },

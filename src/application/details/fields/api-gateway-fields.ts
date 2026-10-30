@@ -1,4 +1,5 @@
 import type { TypeFields } from "../field-descriptor";
+import { ASSUMED_EDGE_EVIDENCE } from "./edge-fields";
 
 export const apiGatewayFields: TypeFields = {
   type: "api-gateway",
@@ -31,4 +32,9 @@ export const apiGatewayFields: TypeFields = {
       evidence: { level: "assumption", fidelityId: "APIGW-4" },
     },
   ],
+  // A REST API's integration timeout of 29 s is documented (ENG-5).
+  edgeEvidence: {
+    ...ASSUMED_EDGE_EVIDENCE,
+    timeoutMs: { level: "documented", fidelityId: "ENG-5" },
+  },
 };

@@ -3,14 +3,19 @@ import {
   render,
   screen,
   within,
+  waitFor,
   type RenderResult,
 } from "@testing-library/react";
-import { awsNewComponent } from "../../../application/testing/aws-component-types";
+import {
+  awsNewComponent,
+  awsNewEdge,
+} from "../../../application/testing/aws-component-types";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import { awsSaveProject } from "../../../application/testing/aws-save-project";
 import { InMemoryProjectRepository } from "../../../application/testing/in-memory-project-repository";
 import { sampleRecord } from "../../../application/testing/sample-record";
 import { awsRunSimulation } from "../../../application/testing/aws-run-simulation";
+import type { ProjectRecord } from "../../../application/ports/project-record";
 import type { Project } from "../../../domain/model/project";
 import { fakeUseCases } from "../../app/testing/fake-use-cases";
 import type { UseCases } from "../../app/use-cases";
@@ -64,6 +69,7 @@ export function renderOpenedProject({
     runSimulation: runSimulation ?? awsRunSimulation(runner),
     describeSelection: awsDescribeSelection(),
     newComponent: awsNewComponent(),
+    newEdge: awsNewEdge(),
     saveProject: saveProject ?? awsSaveProject(projects),
   });
   const screenOf = (shown: Project) => (
@@ -109,4 +115,21 @@ export function status(): string | null {
 
 export function clickRun(): void {
   fireEvent.click(screen.getByRole("button", { name: "Run" }));
+}
+
+/** The record saved for the sample, once a save matching `check` lands. */
+export async function savedRecord(
+  projects: InMemoryProjectRepository,
+  check: (record: ProjectRecord) => boolean,
+): Promise<ProjectRecord> {
+  let saved: ProjectRecord | undefined;
+  await waitFor(async () => {
+    const lookup = await projects.get(sampleRecord.project.id);
+    if (lookup.status !== "found" || !check(lookup.record)) {
+      throw new Error("not saved yet");
+    }
+    saved = lookup.record;
+  });
+  if (saved === undefined) throw new Error("not saved");
+  return saved;
 }

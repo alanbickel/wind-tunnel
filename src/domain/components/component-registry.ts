@@ -1,3 +1,4 @@
+import type { EdgeSettings } from "../model/edge-settings";
 import type { StepAction } from "../model/project";
 import type { ValidationIssue } from "../model/validation-issue";
 import type { ComponentBehavior } from "./component-behavior";
@@ -16,6 +17,8 @@ export interface ComponentType {
   /** Every reason the type may reject with; see `ComponentDefinition`. */
   readonly rejectionReasons: readonly string[];
   readonly defaultConfig: unknown;
+  /** The settings of a new edge from a component of this type. */
+  readonly edgeDefaults: EdgeSettings;
   /** Problems with `config`, with paths relative to the config. */
   checkConfig(config: unknown): ValidationIssue[];
   /**

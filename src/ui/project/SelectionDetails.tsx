@@ -10,7 +10,6 @@ import type {
   Details,
   EdgeDetails,
   RemovalText,
-  SettingDetails,
 } from "../../application/details/details";
 import type { Selection } from "../../application/details/selection";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
@@ -19,10 +18,13 @@ import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { useAnnouncement } from "../shared/useAnnouncement";
+import { ConnectTo } from "./ConnectTo";
 import { ComponentSettings } from "./fields/ComponentSettings";
+import { EdgeSettings } from "./fields/EdgeSettings";
 import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
 import styles from "./SelectionDetails.module.css";
+import { useConnect, type Connect } from "./useConnect";
 import type { EditCommand } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
 
@@ -33,8 +35,8 @@ export interface SelectionDetailsProps {
   readonly onEdit: (command: EditCommand) => void;
   /** Clears the selection and returns the focus: on Escape, and on Close. */
   readonly onClose: () => void;
-  /** Removes the selected component, once the user confirms it. */
-  readonly onRemove: (componentId: string) => void;
+  /** Removes the selected component or edge, once the user confirms it. */
+  readonly onRemove: (target: Selection) => void;
   /** Whether a part of Details should take the focus: just after a selection. */
   readonly takeFocus: ProjectSelection["takeFocus"];
   /** Shows a Close button beside the heading, as the narrow layout does. */
@@ -42,15 +44,15 @@ export interface SelectionDetailsProps {
 }
 
 /**
- * The selected component's settings, each a field that saves a change
- * once it passes its checks, or the selected edge's, read-only; then what
- * calls it (UX design §4.1, §4.3). Takes the focus to its heading when
+ * The selected component's or edge's settings, each a field that saves a
+ * change once it passes its checks, and a component's "Connect to…"; then
+ * what calls it (UX design §4.1, §4.3). Takes the focus to its heading when
  * `takeFocus` says a selection was just made, so the keyboard and a screen
  * reader land on it. Escape anywhere in it closes it, unless a field has
- * a draft to put back first. A component's Remove asks before it removes.
+ * a draft to put back first. Remove asks before it removes.
  */
 export function SelectionDetails(props: SelectionDetailsProps) {
-  const { project, selection, onEdit, onClose, takeFocus } = props;
+  const { project, selection, onClose } = props;
   const { describeSelection } = useUseCases();
   const details = useMemo(
     () => describeSelection.execute({ project, selection }),
@@ -68,7 +70,7 @@ export function SelectionDetails(props: SelectionDetailsProps) {
     >
       {/* Keyed by the selection, so a confirmation doesn't carry over. */}
       <DetailsHeader key={keyOf(selection)} {...props} details={details} />
-      {dispatchKind(BODIES, details)({ project, onEdit, announce, takeFocus })}
+      <DetailsBody {...props} details={details} announce={announce} />
       <p className={styles.callers}>{dispatchKind(CALLERS, details)}</p>
       {/* On the page from the start, empty, so a screen reader announces
           a message put in it (UX design §4.4). */}
@@ -99,9 +101,8 @@ interface DetailsHeaderProps extends SelectionDetailsProps {
 }
 
 /**
- * The heading; Remove, for what can be removed; and Close, if there is
- * one. Remove opens a confirmation under them, and Cancel there returns
- * the focus to Remove.
+ * The heading, Remove, and Close, if there is one. Remove opens a
+ * confirmation under them, and Cancel there returns the focus to Remove.
  */
 function DetailsHeader(props: DetailsHeaderProps) {
   const { details, onRemove, onClose, closable = false } = props;
@@ -113,7 +114,7 @@ function DetailsHeader(props: DetailsHeaderProps) {
       <div className={styles.header}>
         <Heading {...props} />
         <div className={styles.actions}>
-          {removal !== undefined && !open && (
+          {!open && (
             <Button ref={openerRef} onClick={ask}>
               Remove
             </Button>
@@ -121,11 +122,11 @@ function DetailsHeader(props: DetailsHeaderProps) {
           {closable && <Button onClick={onClose}>Close</Button>}
         </div>
       </div>
-      {removal !== undefined && open && (
+      {open && (
         <RemoveConfirmation
           text={removal.text}
           onConfirm={() => {
-            onRemove(removal.componentId);
+            onRemove(removal.target);
           }}
           onCancel={cancel}
         />
@@ -151,16 +152,18 @@ function Heading({ details, selection, takeFocus }: DetailsHeaderProps) {
 /** What a remove would take, and what it removes. */
 interface Removal {
   readonly text: RemovalText;
-  readonly componentId: string;
+  readonly target: Selection;
 }
 
-/** A component can be removed; an edge can't yet (#96). */
-const REMOVALS: KindHandlers<Details, Removal | undefined> = {
+const REMOVALS: KindHandlers<Details, Removal> = {
   component: ({ componentId, removal }: ComponentDetails) => ({
     text: removal,
-    componentId,
+    target: { kind: "component", componentId },
   }),
-  edge: () => undefined,
+  edge: ({ edgeId, removal }: EdgeDetails) => ({
+    text: removal,
+    target: { kind: "edge", edgeId },
+  }),
 };
 
 function closeOnEscape(
@@ -189,29 +192,44 @@ const HEADINGS: KindHandlers<Details, ReactNode> = {
 };
 
 /**
- * What a body needs beyond the details: the project, how to save and
- * announce, and whether its name field takes the focus.
+ * What a body needs beyond the details: the project, how to save,
+ * connect, and announce, and whether its name field takes the focus.
  */
 interface BodyContext {
   readonly project: Project;
   readonly onEdit: (command: EditCommand) => void;
   readonly announce: (message: string) => void;
   readonly takeFocus: ProjectSelection["takeFocus"];
+  readonly connect: Connect;
 }
 
-/** A component's settings can be edited; an edge's are read-only for now. */
+interface DetailsBodyProps extends SelectionDetailsProps {
+  readonly details: Details;
+  readonly announce: (message: string) => void;
+}
+
+/** What's selected, as its kind's body shows it; connects through `onEdit`. */
+function DetailsBody(props: DetailsBodyProps) {
+  const { details, project, onEdit, announce, takeFocus } = props;
+  const connect = useConnect(onEdit);
+  const context = { project, onEdit, announce, takeFocus, connect };
+  return dispatchKind(BODIES, details)(context);
+}
+
+/**
+ * A component's settings, then "Connect to…"; an edge's settings. Each is
+ * keyed by what's selected, so no draft carries over to the next one.
+ */
 const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
   component: (details: ComponentDetails) => (context) => (
-    // Keyed by the component, so no draft carries over to the next one.
-    <ComponentSettings
-      key={details.componentId}
-      details={details}
-      {...context}
-    />
+    <div key={details.componentId}>
+      <ComponentSettings details={details} {...context} />
+      <ConnectTo details={details} {...context} />
+    </div>
   ),
-  edge:
-    ({ settings }: EdgeDetails) =>
-    () => <Settings settings={settings} />,
+  edge: (details: EdgeDetails) => (context) => (
+    <EdgeSettings key={details.edgeId} details={details} {...context} />
+  ),
 };
 
 /** What calls the component, or along the edge, or that nothing does yet. */
@@ -231,25 +249,4 @@ const CALLERS: KindHandlers<Details, string> = {
 /** The items, joined with commas, or `none` if there are none. */
 function listOr(items: readonly string[], none: string): string {
   return items.length === 0 ? none : items.join(", ");
-}
-
-interface SettingsProps {
-  readonly settings: readonly SettingDetails[];
-}
-
-/** Each setting, read-only: its label, its value with the unit, then its help. */
-function Settings({ settings }: SettingsProps) {
-  return (
-    <dl className={styles.settings}>
-      {settings.map((setting) => (
-        <div key={setting.key} className={styles.setting}>
-          <dt className={styles.label}>{setting.label}</dt>
-          <dd className={styles.value}>{setting.value}</dd>
-          <dd className={styles.help}>
-            {[setting.help, setting.defaultNote].filter(Boolean).join(" ")}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
 }

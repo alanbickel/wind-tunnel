@@ -15,6 +15,25 @@ import fidelityDoc from "../../../../docs/design/fidelity.md?raw";
 const registry = createAwsComponentRegistry();
 const catalog = createFieldCatalog();
 
+/** A caller type and one of its edge settings. */
+interface EdgeRowInput {
+  readonly displayName: string;
+  readonly key: string;
+}
+
+/**
+ * The edge row for a caller type's setting: its own, or else the one for
+ * every type, or else the one for the other types.
+ */
+function edgeRow(
+  rows: ReadonlyMap<string, DefaultRow>,
+  { displayName, key }: EdgeRowInput,
+): DefaultRow | undefined {
+  return [displayName, "every type", "the other types"]
+    .map((who) => rows.get(`Edges from ${who} ${key}`))
+    .find((row) => row !== undefined);
+}
+
 /** Each component setting's descriptor, labeled "type key". */
 const configFields = [...catalog.values()].flatMap(({ type, fields }) =>
   fields.map((field) => ({ label: `${type} ${field.key}`, type, field })),
@@ -108,6 +127,24 @@ describe("the setting descriptors", () => {
         expect(row?.fidelityIds, label).toEqual([]);
       } else {
         expect(row?.fidelityIds, label).toContain(fidelityId);
+      }
+    }
+  });
+
+  // Fails if a type's edgeEvidence differs from fidelity's edge rows, or
+  // has none for a setting: e.g. API Gateway's timeout called an
+  // assumption, or Lambda's called documented.
+  it("give each type's edge defaults the evidence fidelity's edge rows give them", () => {
+    const rows = defaultRows();
+    for (const { type, displayName } of registry.list()) {
+      const evidence = catalog.get(type)?.edgeEvidence;
+      expect(evidence, type).toBeDefined();
+      for (const { key } of EDGE_FIELDS) {
+        const label = `${type} edge ${key}`;
+        const row = edgeRow(rows, { displayName, key });
+        expect(row, label).toBeDefined();
+        expect(evidence?.[key].level, label).toBe(row?.level);
+        expect(row?.fidelityIds, label).toContain(evidence?.[key].fidelityId);
       }
     }
   });

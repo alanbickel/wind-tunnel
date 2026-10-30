@@ -1,7 +1,8 @@
 import type { Component, Edge, Project } from "../../domain/model/project";
 import { listOf } from "../shared/list-of";
-import { stepsCalling } from "./called-by";
+import { stepsCalling, stepsCallingAlong } from "./called-by";
 import type { RemovalText } from "./details";
+import { nameOf } from "./name-of";
 
 /**
  * What removing a component would take, as Remove's confirmation asks it
@@ -17,7 +18,26 @@ export function removalText(
   );
   return {
     question: `Remove ${component.name}${edgesPhrase(ends)}?`,
-    warning: callersWarning(stepsCalling(project, component.id)),
+    warning: callersWarning({
+      steps: stepsCalling(project, component.id),
+      call: "it",
+    }),
+  };
+}
+
+/**
+ * What removing an edge would take, as Remove's confirmation asks it: the
+ * edge, by the components it joins, and how many workflow steps call along
+ * it, which stay (UX design §4.3).
+ */
+export function edgeRemovalText(project: Project, edge: Edge): RemovalText {
+  const name = (id: string) => nameOf(project, id);
+  return {
+    question: `Remove the edge from ${name(edge.from)} to ${name(edge.to)}?`,
+    warning: callersWarning({
+      steps: stepsCallingAlong(project, edge),
+      call: "along it",
+    }),
   };
 }
 
@@ -39,18 +59,27 @@ interface OtherEndInput {
  * the component's own edges.
  */
 function otherEnd({ project, edge, componentId }: OtherEndInput): string[] {
-  const name = (id: string) =>
-    project.architecture.components.find((c) => c.id === id)?.name ?? id;
+  const name = (id: string) => nameOf(project, id);
   if (edge.to === componentId) return [`from ${name(edge.from)}`];
   if (edge.from === componentId) return [`to ${name(edge.to)}`];
   return [];
 }
 
+/** The steps that call a component or along an edge, and how they call. */
+interface CallersWarningInput {
+  readonly steps: number;
+  /** What the steps call: "it", a component, or "along it", an edge. */
+  readonly call: string;
+}
+
 /** That the steps calling it stay, and won't run; undefined if none does. */
-function callersWarning(steps: number): string | undefined {
+function callersWarning({
+  steps,
+  call,
+}: CallersWarningInput): string | undefined {
   if (steps === 0) return undefined;
   if (steps === 1) {
-    return "1 workflow step calls it, and won't run until you change it.";
+    return `1 workflow step calls ${call}, and won't run until you change it.`;
   }
-  return `${String(steps)} workflow steps call it, and won't run until you change them.`;
+  return `${String(steps)} workflow steps call ${call}, and won't run until you change them.`;
 }

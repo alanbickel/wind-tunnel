@@ -55,7 +55,7 @@ Projects are stored as JSON documents ([ADR-0004](../adr/0004-persist-projects-i
 | Stage | Where | Checks |
 |---|---|---|
 | 1. Shape | [`projectDocumentV1Schema`](../../src/adapters/persistence/project-document-v1.ts) in `adapters/` | The schema version is one this build reads; fields exist and have the right types; numbers are in range (e.g. timeouts are positive); no unknown keys |
-| 2. Architecture | [`validateArchitecture`](../../src/domain/model/validate-architecture.ts) in `domain/` | Unique IDs and edges, listed below |
+| 2. Architecture | [`validateArchitecture`](../../src/domain/model/validate-architecture.ts) in `domain/` | Unique IDs and edges, and each edge's settings in range, listed below |
 | 3. Component types | [`validateComponents`](../../src/domain/components/validate-components.ts) in `domain/` | Known types, valid configs, names unique among a type's components |
 
 ```mermaid
@@ -79,6 +79,7 @@ Architecture rules (`validateArchitecture`):
 
 - IDs are unique within components, edges, workflows, and workloads. Workflows and workloads aren't the architecture, but every reference to one is by ID, so the run checks need them unique.
 - Edges connect two different, existing components, and there's at most one edge per direction between a pair.
+- Each edge's latency, timeout, and retry policy pass [`edgeSettingsSchema`](../../src/domain/model/edge-settings.ts), the schema the document's edges build on. The document schema has checked them by the time a project opens, but an edited edge reaches `SaveProject` without it, so the save checks them here.
 
 Run rules (`findStepIssues` for steps, `findWorkloadIssues` for workloads):
 

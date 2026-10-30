@@ -8,6 +8,7 @@ import type { ListProjects } from "../../application/use-cases/list-projects";
 import type { ListTemplates } from "../../application/use-cases/list-templates";
 import type { NameComponents } from "../../application/use-cases/name-components";
 import type { NewComponent } from "../../application/use-cases/new-component";
+import type { NewEdge } from "../../application/use-cases/new-edge";
 import type { OpenProject } from "../../application/use-cases/open-project";
 import type { RunSimulation } from "../../application/use-cases/run-simulation";
 import type { SaveProject } from "../../application/use-cases/save-project";
@@ -40,6 +41,7 @@ export interface UseCases {
   readonly checkWorkloads: UseCase<CheckWorkloads>;
   readonly listComponentTypes: UseCase<ListComponentTypes>;
   readonly newComponent: UseCase<NewComponent>;
+  readonly newEdge: UseCase<NewEdge>;
   /**
    * The one port the UI calls directly: when to ask for persistent storage
    * is a UI decision (after the first project is created), not a use case.

@@ -169,6 +169,22 @@ describe("validateArchitecture", () => {
         'Edge "second" duplicates another edge from "api" to "fn-api".',
       ]);
     });
+
+    // Fails if checkSettings is skipped: a save would store an edge whose
+    // timeout the document schema refuses, so the project wouldn't open.
+    it("rejects an edge whose settings are out of range, at the setting", () => {
+      const bad = {
+        ...edge("api", "orders-db"),
+        timeoutMs: 0,
+        retry: { maxAttempts: 11, backoff: "none", baseDelayMs: 0 },
+      } satisfies Edge;
+      const issues = validateArchitecture(withEdges([bad]));
+      expect(issues.map((issue) => issue.path)).toEqual([
+        ["architecture", "edges", 5, "timeoutMs"],
+        ["architecture", "edges", 5, "retry", "maxAttempts"],
+      ]);
+      expect(issues[0]?.message).toMatch(/^Edge "api->orders-db": /);
+    });
   });
 
   // Fails if validateArchitecture stops at the first issue it finds.

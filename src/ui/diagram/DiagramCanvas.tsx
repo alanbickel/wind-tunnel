@@ -80,15 +80,7 @@ export function DiagramCanvas({
   onSelect,
   onConnect,
 }: DiagramCanvasProps) {
-  const nodes = useMemo(
-    () => content.nodes.map((node) => toFlowNode(node, selected)),
-    [content.nodes, selected],
-  );
-  const edges = useMemo(
-    () => content.edges.map((edge) => toFlowEdge(edge, selected)),
-    [content.edges, selected],
-  );
-
+  const { nodes, edges } = useFlowItems(content, selected);
   return (
     <ReactFlow
       nodes={nodes}
@@ -109,6 +101,22 @@ export function DiagramCanvas({
       <FitViewOnResize />
     </ReactFlow>
   );
+}
+
+/** The boxes and arrows as React Flow takes them, marking the selected one. */
+function useFlowItems(
+  content: DiagramContent,
+  selected: DiagramItem | undefined,
+): Pick<ReactFlowProps, "nodes" | "edges"> {
+  const nodes = useMemo(
+    () => content.nodes.map((node) => toFlowNode(node, selected)),
+    [content.nodes, selected],
+  );
+  const edges = useMemo(
+    () => content.edges.map((edge) => toFlowEdge(edge, selected)),
+    [content.edges, selected],
+  );
+  return { nodes, edges };
 }
 
 /** The props that select, if `onSelect` is given, or keep the canvas read-only. */

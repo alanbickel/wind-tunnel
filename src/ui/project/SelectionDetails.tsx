@@ -52,14 +52,13 @@ export interface SelectionDetailsProps {
  * a draft to put back first. Remove asks before it removes.
  */
 export function SelectionDetails(props: SelectionDetailsProps) {
-  const { project, selection, onEdit, onClose, takeFocus } = props;
+  const { project, selection, onClose } = props;
   const { describeSelection } = useUseCases();
   const details = useMemo(
     () => describeSelection.execute({ project, selection }),
     [describeSelection, project, selection],
   );
   const [announcement, announce] = useAnnouncement();
-  const connect = useConnect(onEdit);
 
   if (details === undefined) return <NothingSelected />;
   return (
@@ -71,16 +70,7 @@ export function SelectionDetails(props: SelectionDetailsProps) {
     >
       {/* Keyed by the selection, so a confirmation doesn't carry over. */}
       <DetailsHeader key={keyOf(selection)} {...props} details={details} />
-      {dispatchKind(
-        BODIES,
-        details,
-      )({
-        project,
-        onEdit,
-        announce,
-        takeFocus,
-        connect,
-      })}
+      <DetailsBody {...props} details={details} announce={announce} />
       <p className={styles.callers}>{dispatchKind(CALLERS, details)}</p>
       {/* On the page from the start, empty, so a screen reader announces
           a message put in it (UX design §4.4). */}
@@ -211,6 +201,19 @@ interface BodyContext {
   readonly announce: (message: string) => void;
   readonly takeFocus: ProjectSelection["takeFocus"];
   readonly connect: Connect;
+}
+
+interface DetailsBodyProps extends SelectionDetailsProps {
+  readonly details: Details;
+  readonly announce: (message: string) => void;
+}
+
+/** What's selected, as its kind's body shows it; connects through `onEdit`. */
+function DetailsBody(props: DetailsBodyProps) {
+  const { details, project, onEdit, announce, takeFocus } = props;
+  const connect = useConnect(onEdit);
+  const context = { project, onEdit, announce, takeFocus, connect };
+  return dispatchKind(BODIES, details)(context);
 }
 
 /**

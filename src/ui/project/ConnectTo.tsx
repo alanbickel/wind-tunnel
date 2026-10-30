@@ -1,5 +1,8 @@
 import { useId, useState } from "react";
-import type { ComponentDetails } from "../../application/details/details";
+import type {
+  ComponentDetails,
+  ConnectTarget,
+} from "../../application/details/details";
 import type { Project } from "../../domain/model/project";
 import { Button } from "../shared/Button";
 import fieldStyles from "./fields/Fields.module.css";
@@ -21,42 +24,43 @@ export interface ConnectToProps {
  * type's defaults, the picker loses the component it now reaches, and the
  * focus stays on Connect, so the next can follow.
  */
-export function ConnectTo({
-  project,
-  details,
-  connect,
-  announce,
-}: ConnectToProps) {
-  const id = useId();
-  const { connectTargets } = details;
+export function ConnectTo(props: ConnectToProps) {
+  const { connectTargets } = props.details;
   const [picked, pick] = useState<string>();
   const target =
     connectTargets.find((t) => t.componentId === picked) ?? connectTargets[0];
-  if (target === undefined) {
-    return (
-      <p className={styles.connect}>
-        Connected to every other component already.
-      </p>
-    );
-  }
   return (
-    <div className={`${styles.connect} ${fieldStyles.field}`}>
+    <div className={styles.connect}>
+      {target === undefined ? (
+        <p>Connected to every other component already.</p>
+      ) : (
+        <ConnectPicker {...props} target={target} onPick={pick} />
+      )}
+    </div>
+  );
+}
+
+interface ConnectPickerProps extends ConnectToProps {
+  /** The component picked, or the first if none is. */
+  readonly target: ConnectTarget;
+  readonly onPick: (componentId: string) => void;
+}
+
+/** The picker of components to connect to, and Connect. */
+function ConnectPicker(props: ConnectPickerProps) {
+  const { project, details, connect, announce, target, onPick } = props;
+  const id = useId();
+  return (
+    <div className={fieldStyles.field}>
       <label htmlFor={id} className={fieldStyles.label}>
         Connect to
       </label>
-      <select
+      <TargetSelect
         id={id}
-        value={target.componentId}
-        onChange={(event) => {
-          pick(event.target.value);
-        }}
-      >
-        {connectTargets.map(({ componentId, label }) => (
-          <option key={componentId} value={componentId}>
-            {label}
-          </option>
-        ))}
-      </select>
+        targets={details.connectTargets}
+        target={target}
+        onPick={onPick}
+      />
       <Button
         onClick={() => {
           const from = details.componentId;
@@ -67,5 +71,31 @@ export function ConnectTo({
         Connect
       </Button>
     </div>
+  );
+}
+
+interface TargetSelectProps {
+  readonly id: string;
+  readonly targets: readonly ConnectTarget[];
+  readonly target: ConnectTarget;
+  readonly onPick: (componentId: string) => void;
+}
+
+/** One option per component to connect to, by its name and type. */
+function TargetSelect({ id, targets, target, onPick }: TargetSelectProps) {
+  return (
+    <select
+      id={id}
+      value={target.componentId}
+      onChange={(event) => {
+        onPick(event.target.value);
+      }}
+    >
+      {targets.map(({ componentId, label }) => (
+        <option key={componentId} value={componentId}>
+          {label}
+        </option>
+      ))}
+    </select>
   );
 }

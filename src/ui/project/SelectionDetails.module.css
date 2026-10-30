@@ -52,6 +52,10 @@
   margin: 0 0 var(--space-4);
 }
 
+.connect > p {
+  margin: 0;
+}
+
 .callers {
   max-width: var(--prose-max-width);
   margin: 0;

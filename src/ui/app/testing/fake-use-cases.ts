@@ -6,6 +6,11 @@ import type { UseCases } from "../use-cases";
 const unexpected = (name: string) => () =>
   Promise.reject(new Error(`${name} wasn't expected in this test.`));
 
+/** A synchronous use case's `execute` that throws, as `unexpected` rejects. */
+const throwsUnexpected = (name: string) => (): never => {
+  throw new Error(`${name} wasn't expected in this test.`);
+};
+
 /**
  * `UseCases` whose every call rejects (or throws, for the synchronous
  * `describeSelection`, `newComponent`, and `newEdge`), for UI tests. Override the ones a test
@@ -25,24 +30,12 @@ export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
     saveProject: { execute: unexpected("saveProject") },
     deleteProject: { execute: unexpected("deleteProject") },
     runSimulation: { execute: unexpected("runSimulation") },
-    describeSelection: {
-      execute: () => {
-        throw new Error("describeSelection wasn't expected in this test.");
-      },
-    },
+    describeSelection: { execute: throwsUnexpected("describeSelection") },
     nameComponents: awsNameComponents(),
     checkWorkloads: awsCheckWorkloads(),
     listComponentTypes: awsListComponentTypes(),
-    newComponent: {
-      execute: () => {
-        throw new Error("newComponent wasn't expected in this test.");
-      },
-    },
-    newEdge: {
-      execute: () => {
-        throw new Error("newEdge wasn't expected in this test.");
-      },
-    },
+    newComponent: { execute: throwsUnexpected("newComponent") },
+    newEdge: { execute: throwsUnexpected("newEdge") },
     storagePersistence: { request: unexpected("storagePersistence") },
     ...overrides,
   };

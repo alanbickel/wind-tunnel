@@ -2,6 +2,7 @@ import type { TypeFields } from "../field-descriptor";
 
 export const lambdaFields: TypeFields = {
   type: "lambda",
+  purpose: "runs your code; throttles invocations over its concurrency.",
   fields: [
     {
       key: "concurrency",

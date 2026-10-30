@@ -4,6 +4,7 @@ import {
   type KindHandlers,
 } from "../../domain/shared/kind-handlers";
 import type { ComponentNames } from "../run-analysis/component-names";
+import { listOf } from "../shared/list-of";
 
 /** How the phrases name what an issue is about: by name, never by ID (UX §5). */
 export interface RunIssueNames {
@@ -24,13 +25,22 @@ export interface StepIssueGroup {
 
 /**
  * A step issue as a sentence, e.g. "Get order and Create order call
- * orders-db, which isn't in the architecture."
+ * orders-db from fn-orders, which has no edge to it."
  */
 export function stepIssueText(
   group: StepIssueGroup,
   names: RunIssueNames,
 ): string {
   return handleKind(stepPhrases(group, names), group.issue);
+}
+
+/**
+ * What a step issue's sentence says about anything but its workflows. Issues
+ * with the same key read the same, so they're said once, naming every
+ * workflow that has one. It's the sentence itself, so the two can't drift.
+ */
+export function stepIssueKey(issue: StepIssue, names: RunIssueNames): string {
+  return stepIssueText({ issue, workflowIds: [""] }, names);
 }
 
 /** A workload's own issue as a sentence, e.g. "The mix has no workflows." */
@@ -52,8 +62,10 @@ function stepPhrases(
     workflowIds.length > 1 ? singular.slice(0, -1) : singular;
   const name = names.component;
   return {
-    "unknown-component": ({ componentId }) =>
-      `${who} ${verb("calls")} ${componentId}, which isn't in the architecture.`,
+    // Once removed, a component has no name to give: the step keeps only
+    // its id, which is never shown (UX design §2.4 step 5).
+    "unknown-component": () =>
+      `${who} ${verb("calls")} a component that isn't in the architecture any more.`,
     "missing-edge": ({ fromId, toId }) =>
       `${who} ${verb("calls")} ${name(toId)} from ${name(fromId)}, which has no edge to it.`,
     "action-not-accepted": ({ componentId, action, accepted }) =>
@@ -83,12 +95,6 @@ function workloadPhrases(
     "negative-rate": ({ atMs, requestsPerSec }) =>
       `The profile's rate at ${seconds(atMs)} is ${String(requestsPerSec)} requests per second; rates can't be negative.`,
   };
-}
-
-/** "A", "A and B", "A, B, and C". */
-function listOf(items: readonly string[]): string {
-  if (items.length <= 2) return items.join(" and ");
-  return `${items.slice(0, -1).join(", ")}, and ${String(items.at(-1))}`;
 }
 
 /** A time in the seconds users enter, e.g. "10 s". */

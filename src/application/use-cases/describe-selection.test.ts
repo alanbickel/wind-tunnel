@@ -148,6 +148,42 @@ describe("DescribeSelection", () => {
     expect(componentIn(queued, "table").calledBy).toEqual([]);
   });
 
+  // Fails if Remove's question misses one of the component's edges, names
+  // an edge it isn't on, or names an edge's end the wrong way round.
+  it("asks to remove a component and each of its own edges", () => {
+    const unjoined = {
+      ...sample,
+      architecture: { ...sample.architecture, edges: [] },
+    };
+
+    expect(componentIn(unjoined, "table").removal.question).toBe(
+      "Remove Table?",
+    );
+    expect(componentIn(queued, "table").removal.question).toBe(
+      "Remove Table and its edge from Function?",
+    );
+    expect(componentIn(queued, "fn").removal.question).toBe(
+      "Remove Function and its edges from API, to Table, from Queue, and to Queue?",
+    );
+  });
+
+  // Fails if the warning miscounts the steps that call the component,
+  // async work included, or warns when none does.
+  it("warns how many steps call a component, which stay", () => {
+    const both = {
+      ...queued,
+      workflows: [...sample.workflows, ...queued.workflows],
+    };
+
+    expect(componentIn(queued, "table").removal.warning).toBeUndefined();
+    expect(componentIn(queued, "fn").removal.warning).toBe(
+      "1 workflow step calls it, and won't run until you change it.",
+    );
+    expect(componentIn(both, "fn").removal.warning).toBe(
+      "2 workflow steps call it, and won't run until you change them.",
+    );
+  });
+
   // Fails if an edge's settings lose their units, the retry policy isn't
   // read as one value, an edge shows a default it doesn't have, or the
   // steps along it are missed.

@@ -25,6 +25,13 @@ export interface ButtonProps {
   readonly label?: string;
   /** The ID of an element that says more, e.g. why the button is unusable. */
   readonly describedBy?: string | undefined;
+  /**
+   * For a button that shows and hides something: whether it's shown, as
+   * `aria-expanded`. Undefined for any other button.
+   */
+  readonly expanded?: boolean;
+  /** The ID of what the button shows and hides, while it's shown. */
+  readonly controls?: string | undefined;
   readonly ref?: Ref<HTMLButtonElement>;
 }
 
@@ -36,6 +43,8 @@ export function Button({
   usable = true,
   label,
   describedBy,
+  expanded,
+  controls,
   ref,
 }: ButtonProps) {
   return (
@@ -46,6 +55,8 @@ export function Button({
       aria-disabled={!usable}
       aria-label={label}
       aria-describedby={describedBy}
+      aria-expanded={expanded}
+      aria-controls={controls}
       onClick={() => {
         if (usable) onClick();
       }}

@@ -14,7 +14,7 @@ const names: RunIssueNames = {
 const STEP_ISSUES: readonly (readonly [StepIssue, string])[] = [
   [
     { kind: "unknown-component", path: [], componentId: "db" },
-    "[a] calls db, which isn't in the architecture.",
+    "[a] calls a component that isn't in the architecture any more.",
   ],
   [
     { kind: "missing-edge", path: [], fromId: "api", toId: "db" },
@@ -90,10 +90,10 @@ describe("run issue phrases", () => {
       componentId: "db",
     };
     expect(stepIssueText({ issue, workflowIds: ["a", "b"] }, names)).toBe(
-      "[a] and [b] call db, which isn't in the architecture.",
+      "[a] and [b] call a component that isn't in the architecture any more.",
     );
     expect(stepIssueText({ issue, workflowIds: ["a", "b", "c"] }, names)).toBe(
-      "[a], [b], and [c] call db, which isn't in the architecture.",
+      "[a], [b], and [c] call a component that isn't in the architecture any more.",
     );
   });
 });

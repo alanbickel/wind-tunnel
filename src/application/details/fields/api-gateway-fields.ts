@@ -2,6 +2,7 @@ import type { TypeFields } from "../field-descriptor";
 
 export const apiGatewayFields: TypeFields = {
   type: "api-gateway",
+  purpose: "the front door; throttles requests over its rate.",
   fields: [
     {
       key: "ratePerSec",

@@ -8,6 +8,7 @@ import type { StepIssue, WorkloadIssue } from "../../domain/model/run-issue";
 import type { ValidationIssue } from "../../domain/model/validation-issue";
 import { componentNames } from "../run-analysis/component-names";
 import {
+  stepIssueKey,
   stepIssueText,
   workloadIssueText,
   type RunIssueNames,
@@ -31,7 +32,7 @@ export interface WorkloadRunCheck {
   readonly reasons: readonly string[];
   /**
    * One message for the project bar: "Lunch rush can't run yet: Get order
-   * and Create order call orders-db, which isn't in the architecture."
+   * and Create order call a component that isn't in the architecture any more."
    * Empty when it can run.
    */
   readonly summary: string;
@@ -114,7 +115,7 @@ function checkOf(at: CheckInput, names: RunIssueNames): WorkloadRunCheck {
   ];
   const reasons = [
     ...own.map((issue) => workloadIssueText(issue, names)),
-    ...groupByIssue(steps).map((group) => stepIssueText(group, names)),
+    ...groupByIssue(steps, names).map((group) => stepIssueText(group, names)),
   ];
   const canRun = issues.length === 0;
   const summary = canRun
@@ -147,13 +148,17 @@ function stepIssue(
 }
 
 /**
- * The step issues with their workflows, the same issue (all but its path)
- * in several steps or workflows grouped as one, in the order first found.
+ * The step issues with their workflows, issues that read the same (a call to
+ * any removed component) in several steps or workflows grouped as one, in
+ * the order first found.
  */
-function groupByIssue(steps: readonly OwnedStepIssue[]): StepIssueGroup[] {
+function groupByIssue(
+  steps: readonly OwnedStepIssue[],
+  names: RunIssueNames,
+): StepIssueGroup[] {
   const groups = new Map<string, StepIssueGroup>();
   for (const { issue, workflowId } of steps) {
-    const key = JSON.stringify({ ...issue, path: undefined });
+    const key = stepIssueKey(issue, names);
     const group = groups.get(key) ?? { issue, workflowIds: [] };
     const workflowIds = group.workflowIds.includes(workflowId)
       ? group.workflowIds

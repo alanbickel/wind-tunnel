@@ -11,6 +11,36 @@
   margin: 0;
 }
 
+/* Remove and Close, side by side, and the confirmation's two buttons. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Remove's question, on a raised surface under the header, so it reads as
+   a step to finish before going on. */
+.confirmation {
+  max-width: var(--prose-max-width);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: var(--line-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.question {
+  margin: 0 0 var(--space-2);
+  font-weight: var(--font-weight-bold);
+}
+
+/* The steps a remove leaves that can't run. */
+.warning {
+  margin: 0 0 var(--space-2);
+  border-inline-start: var(--line-width-thick) solid var(--color-status-warn);
+  padding-inline-start: var(--space-2);
+}
+
 /* "· RDS": what kind of thing is selected, quieter than its name. */
 .kind {
   color: var(--color-text-muted);

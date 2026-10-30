@@ -11,6 +11,7 @@ import {
 } from "../diagram/diagram-model";
 import { Panel } from "../shared/Panel";
 import { dispatchKind } from "../shared/kind-dispatch";
+import { AddComponent, type AddComponentProps } from "./AddComponent";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
 
@@ -20,16 +21,19 @@ export interface ArchitectureViewProps {
   readonly onSelect: (selection: Selection) => void;
   /** Called when the user clicks the diagram's empty space. */
   readonly onClear: () => void;
+  /** "Add component", above the diagram. */
+  readonly adding: AddComponentProps;
 }
 
 /**
- * The project's components and connections as a diagram, with the same
- * facts as a list for anyone who can't see the canvas. Either selects a
- * component or a connection: a click on the diagram, or a button in the
- * list, which is the way every user can rely on.
+ * "Add component", then the project's components and connections as a
+ * diagram, with the same facts as a list for anyone who can't see the
+ * canvas. Either selects a component or a connection: a click on the
+ * diagram, or a button in the list, which is the way every user can rely
+ * on.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
-  const { record, selection, onSelect, onClear } = props;
+  const { record, selection, onSelect, onClear, adding } = props;
   const content = useMemo(() => diagramOf(record), [record]);
   const selected = selection && dispatchKind(DIAGRAM_ITEMS, selection);
   const onItem = useCallback(
@@ -45,6 +49,7 @@ export function ArchitectureView(props: ArchitectureViewProps) {
 
   return (
     <Panel heading="Architecture" scrolls>
+      <AddComponent {...adding} />
       <Diagram
         content={content}
         label={`Architecture diagram of ${record.project.name}`}

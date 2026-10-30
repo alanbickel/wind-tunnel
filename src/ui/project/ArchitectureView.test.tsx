@@ -10,6 +10,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Selection } from "../../application/details/selection";
 import { sampleRecord } from "../../application/testing/sample-record";
+import { fakeUseCases } from "../app/testing/fake-use-cases";
+import { UseCasesProvider } from "../app/UseCasesProvider";
 import { ArchitectureView } from "./ArchitectureView";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
@@ -30,15 +32,19 @@ interface RenderViewInput {
 function renderView({ selection }: RenderViewInput = {}) {
   const onSelect = vi.fn<(selection: Selection) => void>();
   const onClear = vi.fn<() => void>();
+  const onAdd = vi.fn<(type: string) => void>();
   render(
-    <ArchitectureView
-      record={sampleRecord}
-      selection={selection}
-      onSelect={onSelect}
-      onClear={onClear}
-    />,
+    <UseCasesProvider useCases={fakeUseCases()}>
+      <ArchitectureView
+        record={sampleRecord}
+        selection={selection}
+        onSelect={onSelect}
+        onClear={onClear}
+        adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
+      />
+    </UseCasesProvider>,
   );
-  return { onSelect, onClear };
+  return { onSelect, onClear, onAdd };
 }
 
 function diagram(): HTMLElement {

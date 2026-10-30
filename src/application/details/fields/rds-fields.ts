@@ -2,6 +2,8 @@ import type { TypeFields } from "../field-descriptor";
 
 export const rdsFields: TypeFields = {
   type: "rds",
+  purpose:
+    "a relational database; refuses connections over its limit, and queues queries for its workers.",
   fields: [
     {
       key: "maxConnections",

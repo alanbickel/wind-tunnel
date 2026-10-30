@@ -1,0 +1,44 @@
+.add {
+  margin-bottom: var(--space-3);
+}
+
+/* The types, one to a line, under the button. */
+.types {
+  list-style: none;
+  max-width: var(--prose-max-width);
+  margin: var(--space-2) 0 0;
+  padding-inline-start: 0;
+}
+
+.types li + li {
+  margin-top: var(--space-1);
+}
+
+/* Each type reads as a line of the list, and is a button to add one. */
+.type {
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  color: var(--color-accent);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.type:hover {
+  color: var(--color-accent-hover);
+}
+
+.typeName {
+  font-weight: var(--font-weight-bold);
+}
+
+/* Heard, not seen: the focus is on the button, and the diagram shows the change. */
+.announcement {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -17,6 +17,13 @@ export function workflowsCalling(
     .map((workflow) => workflow.name);
 }
 
+/** How many steps call the component, in every workflow, async work included. */
+export function stepsCalling(project: Project, componentId: string): number {
+  return project.workflows
+    .flatMap((workflow) => stepsUnder(workflow.root))
+    .filter((step) => step.componentId === componentId).length;
+}
+
 /**
  * The steps that call along the edge: each step on the edge's target whose
  * caller is on its source, once per workflow and action, in project order.

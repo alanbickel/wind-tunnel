@@ -74,12 +74,18 @@ export interface DistributionFieldDescriptor extends FieldDescriptor {
 }
 
 /**
- * One component type's settings, in the order the Details tab lists them.
- * There's one for every key of the type's `defaultConfig`.
+ * One component type's settings, in the order the Details tab lists them,
+ * and a line on what the type is for. There's a setting for every key of
+ * the type's `defaultConfig`.
  */
 export interface TypeFields {
   /** The component definition's type, e.g. `"rds"`. */
   readonly type: string;
+  /**
+   * What the type is for, after its display name in "Add component", e.g.
+   * "the front door; throttles requests over its rate." for API Gateway.
+   */
+  readonly purpose: string;
   readonly fields: readonly ConfigFieldDescriptor[];
 }
 

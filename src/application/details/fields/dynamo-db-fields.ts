@@ -2,6 +2,7 @@ import type { TypeFields } from "../field-descriptor";
 
 export const dynamoDbFields: TypeFields = {
   type: "dynamodb",
+  purpose: "a key-value table; throttles reads and writes over its capacity.",
   fields: [
     {
       key: "readUnitsPerSec",

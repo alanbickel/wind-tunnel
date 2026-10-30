@@ -40,6 +40,7 @@ function renderView({ selection }: RenderViewInput = {}) {
         selection={selection}
         onSelect={onSelect}
         onClear={onClear}
+        onConnect={vi.fn()}
         adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
       />
     </UseCasesProvider>,

@@ -9,7 +9,12 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, type KeyboardEvent } from "react";
-import type { DiagramContent, DiagramItem } from "./diagram-model";
+import {
+  canConnect,
+  type DiagramConnection,
+  type DiagramContent,
+  type DiagramItem,
+} from "./diagram-model";
 import { toFlowEdge, toFlowNode } from "./to-react-flow";
 
 /**
@@ -20,6 +25,8 @@ const READ_ONLY_DESCRIPTION =
   "Read-only. The text version after the diagram lists the same items.";
 const SELECTABLE_DESCRIPTION =
   "Press Enter to show its details. The text version after the diagram lists the same items.";
+const CONNECTABLE_DESCRIPTION =
+  "Press Enter to show its details, or drag from its right edge to another box to connect them. The text version after the diagram lists the same items.";
 const READ_ONLY_DESCRIPTIONS = {
   "node.a11yDescription.default": READ_ONLY_DESCRIPTION,
   "node.a11yDescription.keyboardDisabled": READ_ONLY_DESCRIPTION,
@@ -31,6 +38,11 @@ const SELECTABLE_DESCRIPTIONS = {
   ...READ_ONLY_DESCRIPTIONS,
   "node.a11yDescription.default": SELECTABLE_DESCRIPTION,
   "node.a11yDescription.keyboardDisabled": SELECTABLE_DESCRIPTION,
+} satisfies Partial<AriaLabelConfig>;
+const CONNECTABLE_DESCRIPTIONS = {
+  ...SELECTABLE_DESCRIPTIONS,
+  "node.a11yDescription.default": CONNECTABLE_DESCRIPTION,
+  "node.a11yDescription.keyboardDisabled": CONNECTABLE_DESCRIPTION,
 } satisfies Partial<AriaLabelConfig>;
 
 /**
@@ -55,6 +67,7 @@ export interface DiagramCanvasProps {
   readonly content: DiagramContent;
   readonly selected?: DiagramItem | undefined;
   readonly onSelect?: ((item: DiagramItem | undefined) => void) | undefined;
+  readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
 }
 
 /**
@@ -65,6 +78,7 @@ export function DiagramCanvas({
   content,
   selected,
   onSelect,
+  onConnect,
 }: DiagramCanvasProps) {
   const nodes = useMemo(
     () => content.nodes.map((node) => toFlowNode(node, selected)),
@@ -80,7 +94,6 @@ export function DiagramCanvas({
       nodes={nodes}
       edges={edges}
       nodesDraggable={false}
-      nodesConnectable={false}
       // React Flow's own selection stays off: the diagram shows the
       // selection it's given, and reports clicks through onSelect.
       elementsSelectable={false}
@@ -88,6 +101,7 @@ export function DiagramCanvas({
       // way to select them.
       edgesFocusable={false}
       {...selectionProps(onSelect)}
+      {...connectionProps({ edges: content.edges, onConnect })}
       fitView
     >
       <Background />
@@ -131,6 +145,36 @@ function selectionProps(
     },
     onKeyDown: (event) => {
       selectNodeByKey(event, onSelect);
+    },
+  };
+}
+
+/** The arrows already drawn, and what a new one is reported to. */
+interface ConnectionInput {
+  readonly edges: DiagramContent["edges"];
+  readonly onConnect: DiagramCanvasProps["onConnect"];
+}
+
+/** The props that let a drag between boxes draw an arrow, if `onConnect` is given. */
+type ConnectionProps = Pick<
+  ReactFlowProps,
+  "nodesConnectable" | "onConnect" | "isValidConnection" | "ariaLabelConfig"
+>;
+
+function connectionProps({
+  edges,
+  onConnect,
+}: ConnectionInput): ConnectionProps {
+  if (onConnect === undefined) return { nodesConnectable: false };
+  return {
+    nodesConnectable: true,
+    ariaLabelConfig: CONNECTABLE_DESCRIPTIONS,
+    // Refuses a loop or a second arrow the same way before it's dropped,
+    // so React Flow never draws one.
+    isValidConnection: ({ source, target }) =>
+      canConnect(edges, { source, target }),
+    onConnect: ({ source, target }) => {
+      onConnect({ source, target });
     },
   };
 }

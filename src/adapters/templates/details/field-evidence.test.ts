@@ -112,6 +112,27 @@ describe("the setting descriptors", () => {
     }
   });
 
+  // Fails if a type's edgeEvidence differs from fidelity's edge rows, or
+  // has none for a setting: e.g. API Gateway's timeout called an
+  // assumption, or Lambda's called documented.
+  it("give each type's edge defaults the evidence fidelity's edge rows give them", () => {
+    const rows = defaultRows();
+    for (const { type, displayName } of registry.list()) {
+      const evidence = catalog.get(type)?.edgeEvidence;
+      expect(evidence, type).toBeDefined();
+      for (const { key } of EDGE_FIELDS) {
+        const label = `${type} edge ${key}`;
+        const row =
+          rows.get(`Edges from ${displayName} ${key}`) ??
+          rows.get(`Edges from every type ${key}`) ??
+          rows.get(`Edges from the other types ${key}`);
+        expect(row, label).toBeDefined();
+        expect(evidence?.[key].level, label).toBe(row?.level);
+        expect(row?.fidelityIds, label).toContain(evidence?.[key].fidelityId);
+      }
+    }
+  });
+
   // Fails if a setting's help is left empty, or its label is its key.
   it("give every setting a label and help of its own", () => {
     for (const field of allFields) {

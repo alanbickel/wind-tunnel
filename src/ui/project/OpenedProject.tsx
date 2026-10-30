@@ -66,7 +66,7 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
  */
 function useArchitecture({ record, selecting, changes }: ArchitectureInput) {
   const { selection, select, clear } = selecting;
-  const { add, addButtonRef, announcement } = changes;
+  const { add, connect, addButtonRef, announcement } = changes;
   return useMemo(
     () => (
       <ArchitectureView
@@ -74,10 +74,20 @@ function useArchitecture({ record, selecting, changes }: ArchitectureInput) {
         selection={selection}
         onSelect={select}
         onClear={clear}
+        onConnect={connect}
         adding={{ onAdd: add, buttonRef: addButtonRef, announcement }}
       />
     ),
-    [record, selection, select, clear, add, addButtonRef, announcement],
+    [
+      record,
+      selection,
+      select,
+      clear,
+      connect,
+      add,
+      addButtonRef,
+      announcement,
+    ],
   );
 }
 

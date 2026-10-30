@@ -25,6 +25,7 @@ export class ComponentRegistryMap implements ComponentRegistry {
       deliversAsync: definition.deliversAsync,
       rejectionReasons: definition.rejectionReasons,
       defaultConfig: definition.defaultConfig,
+      edgeDefaults: definition.edgeDefaults,
       checkConfig(config) {
         const result = schema.safeParse(config);
         if (result.success) return [];

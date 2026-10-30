@@ -47,34 +47,9 @@
   font-weight: normal;
 }
 
-.settings {
+/* "Connect to…": its picker and button, under the settings. */
+.connect {
   margin: 0 0 var(--space-4);
-}
-
-.setting + .setting {
-  margin-top: var(--space-3);
-}
-
-/* The label and the value on one line, the help under them. */
-.label {
-  display: inline;
-  font-weight: var(--font-weight-bold);
-}
-
-.label::after {
-  content: ": ";
-}
-
-.value {
-  display: inline;
-  margin: 0;
-}
-
-.help {
-  max-width: var(--prose-max-width);
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .callers {

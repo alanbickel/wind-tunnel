@@ -25,8 +25,9 @@ export interface DescribeSelectionInput {
 
 /**
  * What the Details tab shows for a selected component or edge (UX design
- * §4.1): its settings, read-only, with their labels, units, help, and
- * defaults, and what calls it. Undefined if the project has no such item.
+ * §4.1): its settings, with their labels, units, help, and defaults, what
+ * an editor needs, and what calls it. An edge's defaults are its caller
+ * type's. Undefined if the project has no such item.
  */
 export class DescribeSelection {
   private readonly deps: DescribeSelectionDependencies;
@@ -42,24 +43,45 @@ export class DescribeSelection {
   private describers(
     project: Project,
   ): KindHandlers<Selection, Details | undefined> {
-    const { registry, fields } = this.deps;
-    const { components, edges } = project.architecture;
     return {
-      component: ({ componentId }) => {
-        const component = components.find((c) => c.id === componentId);
-        if (component === undefined) return undefined;
-        const { type } = component;
-        return componentDetails({
-          project,
-          component,
-          type: registry.get(type),
-          fields: fields.get(type),
-        });
-      },
-      edge: ({ edgeId }) => {
-        const edge = edges.find((e) => e.id === edgeId);
-        return edge && edgeDetails(project, edge);
-      },
+      component: ({ componentId }) =>
+        this.describeComponent({ project, id: componentId }),
+      edge: ({ edgeId }) => this.describeEdge({ project, id: edgeId }),
     };
   }
+
+  private describeComponent({ project, id }: ItemInput): Details | undefined {
+    const { registry, fields } = this.deps;
+    const component = project.architecture.components.find((c) => c.id === id);
+    if (component === undefined) return undefined;
+    const { type } = component;
+    return componentDetails({
+      project,
+      component,
+      type: registry.get(type),
+      fields: fields.get(type),
+      displayNameOf: (other) => registry.get(other)?.displayName ?? other,
+    });
+  }
+
+  /** The edge, with its caller type's edge defaults and their evidence. */
+  private describeEdge({ project, id }: ItemInput): Details | undefined {
+    const { registry, fields } = this.deps;
+    const { components, edges } = project.architecture;
+    const edge = edges.find((e) => e.id === id);
+    if (edge === undefined) return undefined;
+    const callerType = components.find((c) => c.id === edge.from)?.type ?? "";
+    return edgeDetails({
+      project,
+      edge,
+      defaults: registry.get(callerType)?.edgeDefaults,
+      evidence: fields.get(callerType)?.edgeEvidence,
+    });
+  }
+}
+
+/** A selected item, by its id, in its project. */
+interface ItemInput {
+  readonly project: Project;
+  readonly id: string;
 }

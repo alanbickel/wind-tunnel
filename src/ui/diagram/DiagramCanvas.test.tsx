@@ -59,3 +59,40 @@ describe("DiagramCanvas", () => {
     expect(fitView).not.toHaveBeenCalled();
   });
 });
+
+describe("DiagramCanvas's connections", () => {
+  const boxes: DiagramContent = {
+    nodes: [
+      { id: "a", label: "A", caption: "a", position: { x: 0, y: 0 } },
+      { id: "b", label: "B", caption: "b", position: { x: 200, y: 0 } },
+    ],
+    edges: [],
+  };
+  beforeEach(() => {
+    stubDiagramBrowserApis();
+    measureBoxAt(800, 400);
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** The boxes' handles that a drag can start or end on. */
+  const connectableHandles = (container: HTMLElement) =>
+    container.querySelectorAll(".react-flow__handle.connectable");
+
+  // Fails if the canvas lets a drag connect boxes when nothing would save
+  // the arrow, or stops letting it when onConnect is given.
+  it("lets a drag connect boxes only when given onConnect", () => {
+    const readOnly = render(<DiagramCanvas content={boxes} />);
+    expect(connectableHandles(readOnly.container)).toHaveLength(0);
+    cleanup();
+
+    const drawable = render(
+      <DiagramCanvas content={boxes} onConnect={vi.fn()} />,
+    );
+    // Each box has a handle on each side: one to start from, one to end on.
+    expect(connectableHandles(drawable.container)).toHaveLength(4);
+  });
+});

@@ -8,7 +8,7 @@ const unexpected = (name: string) => () =>
 
 /**
  * `UseCases` whose every call rejects (or throws, for the synchronous
- * `describeSelection` and `newComponent`), for UI tests. Override the ones a test
+ * `describeSelection`, `newComponent`, and `newEdge`), for UI tests. Override the ones a test
  * expects: `fakeUseCases({ listProjects: { execute: () => ... } })`.
  * `nameComponents`, `checkWorkloads`, and `listComponentTypes` are the
  * real ones over the AWS types: they're pure, and every test that shows a
@@ -36,6 +36,11 @@ export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
     newComponent: {
       execute: () => {
         throw new Error("newComponent wasn't expected in this test.");
+      },
+    },
+    newEdge: {
+      execute: () => {
+        throw new Error("newEdge wasn't expected in this test.");
       },
     },
     storagePersistence: { request: unexpected("storagePersistence") },

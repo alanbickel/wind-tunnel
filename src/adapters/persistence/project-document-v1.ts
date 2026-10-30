@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { edgeSettingsSchema } from "../../domain/model/edge-settings";
 
 // The stored and exported project format, version 1 (MVP design §6,
 // ADR-0004). This schema checks shapes and number ranges only. Rules that
@@ -15,12 +16,6 @@ const id = z.string().min(1);
 const name = z.string().min(1);
 const timestamp = z.iso.datetime({ offset: true });
 
-const retryPolicySchema = z.strictObject({
-  maxAttempts: z.number().int().min(1).max(10),
-  backoff: z.enum(["none", "exponential", "exponential-jitter"]),
-  baseDelayMs: z.number().nonnegative(),
-});
-
 const componentSchema = z.strictObject({
   id,
   type: z.string().min(1),
@@ -29,13 +24,12 @@ const componentSchema = z.strictObject({
   config: z.record(z.string(), z.unknown()),
 });
 
+/** An edge: its ends, then its settings, whose schema is the domain's. */
 const edgeSchema = z.strictObject({
   id,
   from: id,
   to: id,
-  latencyMs: z.number().nonnegative(),
-  timeoutMs: z.number().positive(),
-  retry: retryPolicySchema,
+  ...edgeSettingsSchema.shape,
 });
 
 const stepSchema = z.strictObject({

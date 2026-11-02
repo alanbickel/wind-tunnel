@@ -55,7 +55,8 @@ describe("OpenedProject's edges", () => {
 
   // Fails if "Connect to…" offers the component itself or one it already
   // reaches, if choosing one doesn't save an edge with the caller type's
-  // defaults, or if the connection isn't announced.
+  // defaults, or if the connection isn't announced; or if connecting the
+  // last one leaves the focus on <body>, outside Details.
   it("connects a component from Connect to…, and saves the edge", async () => {
     const { projects } = renderOpenedProject();
     select("Function (lambda)");
@@ -78,15 +79,19 @@ describe("OpenedProject's edges", () => {
     });
     expect(detailsRegion().textContent).toBe("Connected Function to API.");
     expect(screen.queryByRole("combobox", { name: "Connect to" })).toBeNull();
+    expect(document.activeElement?.textContent).toBe(
+      "Connected to every other component already.",
+    );
     expect(screen.getByRole("button", { name: "Function → API" })).toBeTruthy();
   });
 
   // Fails if an edge's timeout field doesn't check its draft (0 would save
   // a project that can't open), or Reset doesn't put back the caller
-  // type's default: 5,000 ms from a Lambda.
+  // type's default: 29,000 ms from API Gateway, where the callee, a Lambda,
+  // would give 5,000 ms.
   it("holds a timeout of 0 with its message, and resets to the caller type's default", async () => {
     const { projects } = renderOpenedProject();
-    select(FN_TO_TABLE);
+    select("API → Function");
     const timeout = screen.getByRole("textbox", { name: "Timeout" });
 
     enter(timeout, "0");
@@ -102,14 +107,19 @@ describe("OpenedProject's edges", () => {
       "missing",
     );
 
+    enter(timeout, "10000");
+    await savedRecord(
+      projects,
+      (r) => edgeOf(r, "api", "fn")?.timeoutMs === 10_000,
+    );
     fireEvent.click(
       screen.getByRole("button", { name: "Reset to default: Timeout" }),
     );
     const saved = await savedRecord(
       projects,
-      (r) => edgeOf(r, "fn", "table")?.timeoutMs === 5_000,
+      (r) => edgeOf(r, "api", "fn")?.timeoutMs === 29_000,
     );
-    expect(edgeOf(saved, "fn", "table")?.latencyMs).toBe(2);
+    expect(edgeOf(saved, "api", "fn")?.latencyMs).toBe(1);
   });
 
   // Fails if the retry field doesn't save the whole policy from its parts.

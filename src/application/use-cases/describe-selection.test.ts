@@ -84,6 +84,24 @@ const queued: Project = {
   ],
 };
 
+const sampleFn = sample.workflows[0]?.root.calls?.[0];
+
+/** One workflow whose function reads the table twice. */
+const readTwice: Project = {
+  ...sample,
+  workflows: [
+    {
+      id: "twice",
+      name: "Read twice",
+      root: {
+        componentId: "fn",
+        action: "invoke",
+        calls: [...(sampleFn?.calls ?? []), ...(sampleFn?.calls ?? [])],
+      },
+    },
+  ],
+};
+
 describe("DescribeSelection", () => {
   // Fails if a setting loses its label, its unit, its default, or the
   // default's evidence, or the type's display name isn't looked up.
@@ -224,14 +242,21 @@ describe("DescribeSelection", () => {
   });
 
   // Fails if an edge's Remove names the wrong ends, or doesn't count every
-  // step that calls along it, async work included.
+  // step that calls along it: a queue's async work, and both of two steps
+  // in one workflow with the same action.
   it("asks to remove an edge, and warns how many steps call along it", () => {
     expect(edgeIn(sample, "fn-table").removal).toEqual({
       question: "Remove the edge from Function to Table?",
       warning:
         "1 workflow step calls along it, and won't run until you change it.",
     });
+    expect(edgeIn(queued, "queue-fn").removal.warning).toBe(
+      "1 workflow step calls along it, and won't run until you change it.",
+    );
     expect(edgeIn(queued, "fn-queue").removal.warning).toBeUndefined();
+    expect(edgeIn(readTwice, "fn-table").removal.warning).toBe(
+      "2 workflow steps call along it, and won't run until you change them.",
+    );
   });
 
   // Fails if "Connect to…" offers the component itself, or one it already
@@ -257,23 +282,7 @@ describe("DescribeSelection", () => {
   // Fails if stepsAlong stops dropping repeats: a workflow that reads the
   // table twice would be listed twice.
   it("lists each workflow and action along an edge once", () => {
-    const fn = sample.workflows[0]?.root.calls?.[0];
-    const twice: Project = {
-      ...sample,
-      workflows: [
-        {
-          id: "twice",
-          name: "Read twice",
-          root: {
-            componentId: "fn",
-            action: "invoke",
-            calls: [...(fn?.calls ?? []), ...(fn?.calls ?? [])],
-          },
-        },
-      ],
-    };
-
-    expect(edgeIn(twice, "fn-table").calledAlongBy).toEqual([
+    expect(edgeIn(readTwice, "fn-table").calledAlongBy).toEqual([
       { workflowName: "Read twice", action: "read" },
     ]);
   });

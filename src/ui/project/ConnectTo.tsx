@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import type {
   ComponentDetails,
   ConnectTarget,
@@ -22,19 +22,35 @@ export interface ConnectToProps {
  * (UX design §2.1 step 5): a picker of the components it has no edge to
  * yet, itself excluded, and Connect. The edge saves with its caller
  * type's defaults, the picker loses the component it now reaches, and the
- * focus stays on Connect, so the next can follow.
+ * focus stays on Connect, so the next can follow. Connecting the last one
+ * takes Connect away, so the focus moves to the line that replaces it.
  */
 export function ConnectTo(props: ConnectToProps) {
   const { connectTargets } = props.details;
   const [picked, pick] = useState<string>();
+  const connectedLast = useRef(false);
+  const focusIfConnectedLast = useCallback((line: HTMLElement | null) => {
+    if (line === null || !connectedLast.current) return;
+    connectedLast.current = false;
+    line.focus();
+  }, []);
   const target =
     connectTargets.find((t) => t.componentId === picked) ?? connectTargets[0];
   return (
     <div className={styles.connect}>
       {target === undefined ? (
-        <p>Connected to every other component already.</p>
+        <p ref={focusIfConnectedLast} tabIndex={-1}>
+          Connected to every other component already.
+        </p>
       ) : (
-        <ConnectPicker {...props} target={target} onPick={pick} />
+        <ConnectPicker
+          {...props}
+          target={target}
+          onPick={pick}
+          onConnectedLast={() => {
+            connectedLast.current = true;
+          }}
+        />
       )}
     </div>
   );
@@ -44,11 +60,14 @@ interface ConnectPickerProps extends ConnectToProps {
   /** The component picked, or the first if none is. */
   readonly target: ConnectTarget;
   readonly onPick: (componentId: string) => void;
+  /** Called when Connect connects the last component it could. */
+  readonly onConnectedLast: () => void;
 }
 
 /** The picker of components to connect to, and Connect. */
 function ConnectPicker(props: ConnectPickerProps) {
-  const { project, details, connect, announce, target, onPick } = props;
+  const { project, details, connect, announce, target } = props;
+  const { onPick, onConnectedLast } = props;
   const id = useId();
   return (
     <div className={fieldStyles.field}>
@@ -65,7 +84,9 @@ function ConnectPicker(props: ConnectPickerProps) {
         onClick={() => {
           const from = details.componentId;
           const said = connect({ project, from, to: target.componentId });
-          if (said !== undefined) announce(said);
+          if (said === undefined) return;
+          announce(said);
+          if (details.connectTargets.length === 1) onConnectedLast();
         }}
       >
         Connect

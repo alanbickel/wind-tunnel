@@ -46,12 +46,22 @@ export interface BackoffChoice {
   readonly label: string;
 }
 
-/** The backoffs, in the picker's order. */
-export const BACKOFF_CHOICES: readonly BackoffChoice[] = [
-  { value: "none", label: "none: the same delay each time" },
-  { value: "exponential", label: "exponential" },
-  { value: "exponential-jitter", label: "exponential, with jitter" },
-];
+/**
+ * How each backoff reads in the picker. A strategy added to
+ * `BackoffStrategy` without a label fails typecheck here.
+ */
+const BACKOFF_LABELS: Readonly<Record<BackoffStrategy, string>> = {
+  none: "none: the same delay each time",
+  exponential: "exponential",
+  "exponential-jitter": "exponential, with jitter",
+};
+
+/** The backoffs, in the schema's order. */
+export const BACKOFF_CHOICES: readonly BackoffChoice[] =
+  retryPolicySchema.shape.backoff.options.map((value) => ({
+    value,
+    label: BACKOFF_LABELS[value],
+  }));
 
 /** What's typed into a retry field: each number's text, and the backoff. */
 export interface RetryDraft {

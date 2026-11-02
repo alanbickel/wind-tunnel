@@ -3,13 +3,13 @@ import type { BackoffStrategy, Edge, RetryPolicy } from "./project";
 
 /**
  * Every backoff strategy. A strategy added to or removed from
- * `BackoffStrategy` fails typecheck here until the schema matches.
+ * `BackoffStrategy`, or a value that isn't its own key, fails typecheck here.
  */
 const BACKOFF_STRATEGIES = {
   none: "none",
   exponential: "exponential",
   "exponential-jitter": "exponential-jitter",
-} as const satisfies Record<BackoffStrategy, BackoffStrategy>;
+} as const satisfies { readonly [K in BackoffStrategy]: K };
 
 /** An edge's retry policy, as `RetryPolicy` describes it. At most 10 attempts. */
 export const retryPolicySchema = z.strictObject({

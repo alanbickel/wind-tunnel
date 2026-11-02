@@ -1,11 +1,12 @@
 import type { KeyboardEvent } from "react";
-import type { EditCommand } from "../useProjectEdits";
 
-/** What every field of a component's settings is given. */
+/**
+ * What every setting's field is given. It saves through `save`, so it
+ * doesn't know whose setting it is.
+ */
 export interface FieldProps {
-  readonly componentId: string;
-  /** Saves a command: the field's draft, once it passes. */
-  readonly onEdit: (command: EditCommand) => void;
+  /** Saves the setting's new value: the field's draft, once it passes. */
+  readonly save: (value: unknown) => void;
   /** Says a message politely, without moving the focus. */
   readonly announce: (message: string) => void;
 }

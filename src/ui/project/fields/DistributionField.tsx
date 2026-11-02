@@ -13,7 +13,6 @@ import {
   type DistributionKind,
   type DistributionPart,
 } from "../../../application/details/distribution-parts";
-import { setComponentSetting } from "../../../application/edits/component-edits";
 import { sameContent } from "../../../application/run-analysis/same-content";
 import { fieldKeys, type FieldKeysInput, type FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
@@ -117,7 +116,7 @@ interface DistributionDraftState {
 function useDistributionDraft(
   props: DistributionFieldProps,
 ): DistributionDraftState {
-  const { field, value, componentId, onEdit, announce } = props;
+  const { value, save, announce } = props;
   const saved = distributionDraft(value);
   const typed = useDraft(saved);
   // Changed only if what's on screen differs, so Escape after switching
@@ -131,10 +130,7 @@ function useDistributionDraft(
       return;
     }
     if (sameContent(check.value, value)) return;
-    const { key } = field;
-    onEdit((record) =>
-      setComponentSetting(record, { componentId, key, value: check.value }),
-    );
+    save(check.value);
   };
   const pick = (kind: DistributionKind) => {
     draft.set(switchKind(draft.value, kind));

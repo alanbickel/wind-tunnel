@@ -4,7 +4,6 @@ import {
   numberDraft,
   settingRule,
 } from "../../../application/details/number-draft";
-import { setComponentSetting } from "../../../application/edits/component-edits";
 import type { FieldProps } from "./field-parts";
 import { TextField } from "./TextField";
 import { useDraft } from "./useDraft";
@@ -24,7 +23,7 @@ export interface NumberFieldProps extends FieldProps {
  * message, and is announced as the focus leaves.
  */
 export function NumberField(props: NumberFieldProps) {
-  const { field, value, helpId, componentId, onEdit, announce } = props;
+  const { field, value, helpId, save, announce } = props;
   const draft = useDraft(numberDraft(value));
   const check = checkNumberDraft(draft.value, settingRule(field));
 
@@ -34,10 +33,7 @@ export function NumberField(props: NumberFieldProps) {
       return;
     }
     if (check.value === value) return;
-    const { key } = field;
-    onEdit((record) =>
-      setComponentSetting(record, { componentId, key, value: check.value }),
-    );
+    save(check.value);
   };
 
   return (

@@ -54,7 +54,7 @@ Projects are stored as JSON documents ([ADR-0004](../adr/0004-persist-projects-i
 
 | Stage | Where | Checks |
 |---|---|---|
-| 1. Shape | [`projectDocumentV1Schema`](../../src/adapters/persistence/project-document-v1.ts) in `adapters/` | The schema version is one this build reads; fields exist and have the right types; numbers are in range (e.g. timeouts are positive); no unknown keys |
+| 1. Shape | [`projectDocumentV1Schema`](../../src/adapters/persistence/project-document-v1.ts) in `adapters/` | The schema version is one this build reads; fields exist and have the right types; numbers are in range (e.g. timeouts are positive); no unknown keys. An edge's settings use [`edgeSettingsSchema`](../../src/domain/model/edge-settings.ts) from `domain/model/` |
 | 2. Architecture | [`validateArchitecture`](../../src/domain/model/validate-architecture.ts) in `domain/` | Unique IDs and edges, listed below |
 | 3. Component types | [`validateComponents`](../../src/domain/components/validate-components.ts) in `domain/` | Known types, valid configs, names unique among a type's components |
 

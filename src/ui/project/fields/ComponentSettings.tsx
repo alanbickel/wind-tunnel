@@ -64,6 +64,7 @@ interface SettingCommands {
   readonly reset: () => void;
 }
 
+/** A setting's save and Reset, as commands on this component. */
 function settingCommands({
   details,
   setting,

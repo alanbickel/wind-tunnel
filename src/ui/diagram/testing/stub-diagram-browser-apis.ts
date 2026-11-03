@@ -21,3 +21,35 @@ export function stubDiagramBrowserApis(): void {
     }),
   );
 }
+
+/** What a stubbed `ResizeObserver` reports to. */
+type ResizeCallback = (entries: readonly ResizeEntry[]) => void;
+
+/** The part of a `ResizeObserverEntry` React Flow reads. */
+interface ResizeEntry {
+  readonly target: Element;
+  readonly contentRect: DOMRectReadOnly;
+}
+
+/**
+ * A `ResizeObserver` that reports each element it's asked to observe, a
+ * tick later, as a browser's does a frame later. React Flow measures a box
+ * only then, so a test can see a box that's hidden while it waits. Call it
+ * after `stubDiagramBrowserApis`; `vi.unstubAllGlobals()` undoes it.
+ */
+export function stubMeasuringResizeObserver(): void {
+  vi.stubGlobal(
+    "ResizeObserver",
+    vi.fn(function measuringResizeObserver(callback: ResizeCallback) {
+      return {
+        observe: (target: Element) => {
+          setTimeout(() => {
+            callback([{ target, contentRect: target.getBoundingClientRect() }]);
+          }, 0);
+        },
+        unobserve: vi.fn(),
+        disconnect: vi.fn(),
+      };
+    }),
+  );
+}

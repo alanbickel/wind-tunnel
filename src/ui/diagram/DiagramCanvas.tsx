@@ -5,6 +5,7 @@ import {
   useReactFlow,
   useStore,
   type AriaLabelConfig,
+  type Node,
   type ReactFlowProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -19,6 +20,7 @@ import {
 } from "./diagram-model";
 import { nodeIdOf } from "./node-id-of";
 import { toFlowEdge, toFlowNode } from "./to-react-flow";
+import { useMeasuredSizes, type MeasuredSizes } from "./useMeasuredSizes";
 import {
   useNodeMoves,
   type HeldPositions,
@@ -87,7 +89,7 @@ export function DiagramCanvas({
       edgesFocusable={false}
       {...selectionProps(onSelect)}
       {...connectionProps({ edges: content.edges, onConnect })}
-      {...items.moveProps}
+      {...items.nodeProps}
       ariaLabelConfig={descriptionsOf({ onSelect, onConnect, onMove })}
       fitView
     >
@@ -105,16 +107,20 @@ interface FlowItemsInput {
   readonly onMove: DiagramCanvasProps["onMove"];
 }
 
-/** The boxes and arrows as React Flow takes them, and the props that move the boxes. */
+/**
+ * The boxes and arrows as React Flow takes them, and the props that take
+ * React Flow's changes to the boxes and move them.
+ */
 interface FlowItems {
   readonly nodes: NonNullable<ReactFlowProps["nodes"]>;
   readonly edges: NonNullable<ReactFlowProps["edges"]>;
-  readonly moveProps: NodeMoves["props"];
+  readonly nodeProps: NodeMoves["props"];
 }
 
 /**
  * The boxes and arrows as React Flow takes them, marking the selected one,
- * and drawing each box being moved where it was put.
+ * drawing each box being moved where it was put, and giving each box the
+ * size React Flow measured, so it stays shown when its node is new.
  */
 function useFlowItems({
   content,
@@ -122,18 +128,29 @@ function useFlowItems({
   onMove,
 }: FlowItemsInput): FlowItems {
   const { positions, props } = useNodeMoves({ nodes: content.nodes, onMove });
+  const { sizes, remember } = useMeasuredSizes();
   const nodes = useMemo(
     () =>
       content.nodes.map((node) =>
-        toFlowNode(placed(node, positions), selected),
+        sized(toFlowNode(placed(node, positions), selected), sizes),
       ),
-    [content.nodes, selected, positions],
+    [content.nodes, selected, positions, sizes],
   );
   const edges = useMemo(
     () => content.edges.map((edge) => toFlowEdge(edge, selected)),
     [content.edges, selected],
   );
-  return { nodes, edges, moveProps: props };
+  const onNodesChange: NodeMoves["props"]["onNodesChange"] = (changes) => {
+    remember(changes);
+    props.onNodesChange?.(changes);
+  };
+  return { nodes, edges, nodeProps: { ...props, onNodesChange } };
+}
+
+/** The React Flow node, with the size React Flow measured it at, if it has. */
+function sized(node: Node, sizes: MeasuredSizes): Node {
+  const measured = sizes.get(node.id);
+  return measured === undefined ? node : { ...node, measured };
 }
 
 /** The node, at its held position if it's being moved. */

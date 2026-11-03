@@ -4,7 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DiagramCanvas } from "./DiagramCanvas";
 import type { DiagramContent } from "./diagram-model";
 import { dragNode, mouse } from "./testing/drag-node";
-import { stubDiagramBrowserApis } from "./testing/stub-diagram-browser-apis";
+import {
+  stubDiagramBrowserApis,
+  stubMeasuringResizeObserver,
+} from "./testing/stub-diagram-browser-apis";
 import { KEYBOARD_MOVE_PAUSE_MS } from "./useNodeMoves";
 
 const fitView = vi.fn(() => Promise.resolve(true));
@@ -153,6 +156,33 @@ describe("DiagramCanvas's moves", () => {
 
     expect(box.classList.contains("draggable")).toBe(false);
     expect(box.style.transform).toBe("translate(200px,0px)");
+  });
+
+  // Fails if the canvas hands React Flow new boxes without the sizes it
+  // measured: React Flow hides each box, and its arrows, until it measures
+  // it again, so the boxes flash on every step of a drag.
+  it("keeps every box shown while one is dragged", async () => {
+    stubMeasuringResizeObserver();
+    const { container } = render(
+      <DiagramCanvas content={boxes} onMove={vi.fn()} />,
+    );
+    // The boxes' first measurement, a tick after they're drawn.
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+      });
+    });
+    const box = boxB(container);
+
+    mouse({ target: box, type: "mouseDown", point: [210, 10] });
+    mouse({ target: document, type: "mouseMove", point: [220, 10] });
+    mouse({ target: document, type: "mouseMove", point: [250, 50] });
+
+    const shown = [...container.querySelectorAll(".react-flow__node")].map(
+      (node) => (node as HTMLElement).style.visibility,
+    );
+    expect(shown).toEqual(["visible", "visible"]);
+    mouse({ target: document, type: "mouseUp", point: [250, 50] });
   });
 
   // Fails if the canvas reports while the box is dragged, so each step

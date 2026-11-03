@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { nameOf } from "../../application/details/name-of";
 import { moveComponent } from "../../application/edits/layout-edits";
 import type {
   Point,
@@ -70,9 +71,9 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
  */
 function useArchitecture({ edits, selecting, changes }: ArchitectureInput) {
   const { record } = edits;
-  const move = useMove(edits.edit);
+  const { add, connect, addButtonRef, announcement, announce } = changes;
+  const move = useMove({ edit: edits.edit, project: record.project, announce });
   const { selection, select, clear } = selecting;
-  const { add, connect, addButtonRef, announcement } = changes;
   return useMemo(
     () => (
       <ArchitectureView
@@ -109,17 +110,26 @@ interface ArchitectureInput {
 /** Moves a component on the diagram. */
 type Move = (componentId: string, position: Point) => void;
 
+/** What a move saves through, the project it names from, and where it's said. */
+interface MoveInput {
+  readonly edit: ProjectEdits["edit"];
+  readonly project: Project;
+  readonly announce: AddAndRemove["announce"];
+}
+
 /**
- * Saves a component's new place on the diagram. A move only changes the
+ * Saves a component's new place on the diagram, and announces it, since
+ * the canvas says nothing to a screen reader. A move only changes the
  * layout, which isn't part of the project, so the run on screen stays
  * current (ADR-0018).
  */
-function useMove(edit: ProjectEdits["edit"]): Move {
+function useMove({ edit, project, announce }: MoveInput): Move {
   return useCallback(
     (componentId: string, position: Point) => {
       edit((record) => moveComponent(record, { componentId, position }));
+      announce(`Moved ${nameOf(project, componentId)}.`);
     },
-    [edit],
+    [edit, project, announce],
   );
 }
 

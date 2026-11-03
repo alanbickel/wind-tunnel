@@ -14,36 +14,28 @@ import {
   type DiagramConnection,
   type DiagramContent,
   type DiagramItem,
+  type DiagramMove,
+  type DiagramNode,
 } from "./diagram-model";
+import { nodeIdOf } from "./node-id-of";
 import { toFlowEdge, toFlowNode } from "./to-react-flow";
+import {
+  useNodeMoves,
+  type HeldPositions,
+  type NodeMoves,
+} from "./useNodeMoves";
 
 /**
  * React Flow still points each box and arrow at a description, which by
- * default offers select, move, and delete. Say what's true instead.
+ * default offers select, move, and delete. Say what's true instead: a
+ * sentence for each thing the canvas lets a box do, in this order.
  */
-const READ_ONLY_DESCRIPTION =
-  "Read-only. The text version after the diagram lists the same items.";
-const SELECTABLE_DESCRIPTION =
-  "Press Enter to show its details. The text version after the diagram lists the same items.";
-const CONNECTABLE_DESCRIPTION =
-  "Press Enter to show its details, or drag from its right edge to another box to connect them. The text version after the diagram lists the same items.";
-const READ_ONLY_DESCRIPTIONS = {
-  "node.a11yDescription.default": READ_ONLY_DESCRIPTION,
-  "node.a11yDescription.keyboardDisabled": READ_ONLY_DESCRIPTION,
-  "edge.a11yDescription.default": READ_ONLY_DESCRIPTION,
-} satisfies Partial<AriaLabelConfig>;
-// React Flow shows `keyboardDisabled` while the keyboard is enabled, and
-// `default` while it isn't, so both say what Enter does.
-const SELECTABLE_DESCRIPTIONS = {
-  ...READ_ONLY_DESCRIPTIONS,
-  "node.a11yDescription.default": SELECTABLE_DESCRIPTION,
-  "node.a11yDescription.keyboardDisabled": SELECTABLE_DESCRIPTION,
-} satisfies Partial<AriaLabelConfig>;
-const CONNECTABLE_DESCRIPTIONS = {
-  ...SELECTABLE_DESCRIPTIONS,
-  "node.a11yDescription.default": CONNECTABLE_DESCRIPTION,
-  "node.a11yDescription.keyboardDisabled": CONNECTABLE_DESCRIPTION,
-} satisfies Partial<AriaLabelConfig>;
+const TEXT_VERSION = "The text version after the diagram lists the same items.";
+const READ_ONLY = "Read-only.";
+const SELECT_SENTENCE = "Press Enter to show its details.";
+const MOVE_SENTENCE = "Press the arrow keys, or drag it, to move it.";
+const CONNECT_SENTENCE =
+  "Drag from its right edge to another box to connect them.";
 
 /**
  * Fits the diagram to its box again whenever the box changes size. React
@@ -68,6 +60,7 @@ export interface DiagramCanvasProps {
   readonly selected?: DiagramItem | undefined;
   readonly onSelect?: ((item: DiagramItem | undefined) => void) | undefined;
   readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
+  readonly onMove?: ((move: DiagramMove) => void) | undefined;
 }
 
 /**
@@ -79,13 +72,13 @@ export function DiagramCanvas({
   selected,
   onSelect,
   onConnect,
+  onMove,
 }: DiagramCanvasProps) {
-  const { nodes, edges } = useFlowItems(content, selected);
+  const items = useFlowItems({ content, selected, onMove });
   return (
     <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodesDraggable={false}
+      nodes={items.nodes}
+      edges={items.edges}
       // React Flow's own selection stays off: the diagram shows the
       // selection it's given, and reports clicks through onSelect.
       elementsSelectable={false}
@@ -94,6 +87,8 @@ export function DiagramCanvas({
       edgesFocusable={false}
       {...selectionProps(onSelect)}
       {...connectionProps({ edges: content.edges, onConnect })}
+      {...items.moveProps}
+      ariaLabelConfig={descriptionsOf({ onSelect, onConnect, onMove })}
       fitView
     >
       <Background />
@@ -103,31 +98,82 @@ export function DiagramCanvas({
   );
 }
 
-/** The boxes and arrows as React Flow takes them, marking the selected one. */
-function useFlowItems(
-  content: DiagramContent,
-  selected: DiagramItem | undefined,
-): Pick<ReactFlowProps, "nodes" | "edges"> {
+/** What the canvas draws: its content and the selection, and what a move is reported to. */
+interface FlowItemsInput {
+  readonly content: DiagramContent;
+  readonly selected: DiagramItem | undefined;
+  readonly onMove: DiagramCanvasProps["onMove"];
+}
+
+/** The boxes and arrows as React Flow takes them, and the props that move the boxes. */
+interface FlowItems {
+  readonly nodes: NonNullable<ReactFlowProps["nodes"]>;
+  readonly edges: NonNullable<ReactFlowProps["edges"]>;
+  readonly moveProps: NodeMoves["props"];
+}
+
+/**
+ * The boxes and arrows as React Flow takes them, marking the selected one,
+ * and drawing each box being moved where it was put.
+ */
+function useFlowItems({
+  content,
+  selected,
+  onMove,
+}: FlowItemsInput): FlowItems {
+  const { positions, props } = useNodeMoves({ nodes: content.nodes, onMove });
   const nodes = useMemo(
-    () => content.nodes.map((node) => toFlowNode(node, selected)),
-    [content.nodes, selected],
+    () =>
+      content.nodes.map((node) =>
+        toFlowNode(placed(node, positions), selected),
+      ),
+    [content.nodes, selected, positions],
   );
   const edges = useMemo(
     () => content.edges.map((edge) => toFlowEdge(edge, selected)),
     [content.edges, selected],
   );
-  return { nodes, edges };
+  return { nodes, edges, moveProps: props };
+}
+
+/** The node, at its held position if it's being moved. */
+function placed(node: DiagramNode, positions: HeldPositions): DiagramNode {
+  const position = positions.get(node.id);
+  return position === undefined ? node : { ...node, position };
+}
+
+/** What the canvas reports to, which decides what a box can do. */
+type Abilities = Pick<DiagramCanvasProps, "onSelect" | "onConnect" | "onMove">;
+
+/**
+ * The descriptions React Flow points each box and arrow at. React Flow
+ * shows `keyboardDisabled` while the keyboard is enabled, and `default`
+ * while it isn't, so both say the same.
+ */
+function descriptionsOf(abilities: Abilities): Partial<AriaLabelConfig> {
+  const node = nodeDescription(abilities);
+  return {
+    "node.a11yDescription.default": node,
+    "node.a11yDescription.keyboardDisabled": node,
+    "edge.a11yDescription.default": `${READ_ONLY} ${TEXT_VERSION}`,
+  };
+}
+
+/** A sentence for each thing a box can do, or "Read-only.", then the text version. */
+function nodeDescription({ onSelect, onConnect, onMove }: Abilities): string {
+  const sentences = [
+    onSelect && SELECT_SENTENCE,
+    onMove && MOVE_SENTENCE,
+    onConnect && CONNECT_SENTENCE,
+  ].filter((sentence) => sentence !== undefined);
+  if (sentences.length === 0) sentences.push(READ_ONLY);
+  return [...sentences, TEXT_VERSION].join(" ");
 }
 
 /** The props that select, if `onSelect` is given, or keep the canvas read-only. */
 type SelectionProps = Pick<
   ReactFlowProps,
-  | "nodesFocusable"
-  | "ariaLabelConfig"
-  | "onNodeClick"
-  | "onEdgeClick"
-  | "onPaneClick"
-  | "onKeyDown"
+  "nodesFocusable" | "onNodeClick" | "onEdgeClick" | "onPaneClick" | "onKeyDown"
 >;
 
 function selectionProps(
@@ -136,12 +182,12 @@ function selectionProps(
   if (onSelect === undefined) {
     // Otherwise each box is a tab stop whose description offers select,
     // move, and delete, none of which a read-only view supports.
-    return { nodesFocusable: false, ariaLabelConfig: READ_ONLY_DESCRIPTIONS };
+    return { nodesFocusable: false };
   }
   return {
-    // A box takes a tab stop, so Enter can select it.
+    // A box takes a tab stop, so Enter can select it, and the arrow keys
+    // move it if the canvas moves boxes.
     nodesFocusable: true,
-    ariaLabelConfig: SELECTABLE_DESCRIPTIONS,
     onNodeClick: (_event, node) => {
       onSelect({ kind: "node", id: node.id });
     },
@@ -166,7 +212,7 @@ interface ConnectionInput {
 /** The props that let a drag between boxes draw an arrow, if `onConnect` is given. */
 type ConnectionProps = Pick<
   ReactFlowProps,
-  "nodesConnectable" | "onConnect" | "isValidConnection" | "ariaLabelConfig"
+  "nodesConnectable" | "onConnect" | "isValidConnection"
 >;
 
 function connectionProps({
@@ -176,7 +222,6 @@ function connectionProps({
   if (onConnect === undefined) return { nodesConnectable: false };
   return {
     nodesConnectable: true,
-    ariaLabelConfig: CONNECTABLE_DESCRIPTIONS,
     // Refuses a loop or a second arrow the same way before it's dropped,
     // so React Flow never draws one.
     isValidConnection: ({ source, target }) =>
@@ -192,8 +237,8 @@ function selectNodeByKey(
   event: KeyboardEvent,
   onSelect: (item: DiagramItem) => void,
 ): void {
-  if (event.key !== "Enter" || !(event.target instanceof Element)) return;
-  const id = event.target.closest(".react-flow__node")?.getAttribute("data-id");
-  if (id === null || id === undefined) return;
+  if (event.key !== "Enter") return;
+  const id = nodeIdOf(event.target);
+  if (id === undefined) return;
   onSelect({ kind: "node", id });
 }

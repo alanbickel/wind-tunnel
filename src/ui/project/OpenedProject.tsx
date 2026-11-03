@@ -1,5 +1,9 @@
-import { useMemo } from "react";
-import type { ProjectRecord } from "../../application/ports/project-record";
+import { useCallback, useMemo } from "react";
+import { moveComponent } from "../../application/edits/layout-edits";
+import type {
+  Point,
+  ProjectRecord,
+} from "../../application/ports/project-record";
 import type { Project } from "../../domain/model/project";
 import { RunPanel } from "../run/RunPanel";
 import { RunResults } from "../run/RunResults";
@@ -34,7 +38,7 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
   const projectRun = useProjectRun(project);
   const selecting = useSelection();
   const changes = useAddAndRemove(edits, selecting);
-  const architecture = useArchitecture({ record, selecting, changes });
+  const architecture = useArchitecture({ edits, selecting, changes });
   const Column = useWideWindow() ? SideTabs : Stacked;
 
   return (
@@ -64,7 +68,9 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
  * are, so React skips it: the run's snapshots re-render the screen several
  * times a second.
  */
-function useArchitecture({ record, selecting, changes }: ArchitectureInput) {
+function useArchitecture({ edits, selecting, changes }: ArchitectureInput) {
+  const { record } = edits;
+  const move = useMove(edits.edit);
   const { selection, select, clear } = selecting;
   const { add, connect, addButtonRef, announcement } = changes;
   return useMemo(
@@ -75,6 +81,7 @@ function useArchitecture({ record, selecting, changes }: ArchitectureInput) {
         onSelect={select}
         onClear={clear}
         onConnect={connect}
+        onMove={move}
         adding={{ onAdd: add, buttonRef: addButtonRef, announcement }}
       />
     ),
@@ -84,6 +91,7 @@ function useArchitecture({ record, selecting, changes }: ArchitectureInput) {
       select,
       clear,
       connect,
+      move,
       add,
       addButtonRef,
       announcement,
@@ -93,9 +101,26 @@ function useArchitecture({ record, selecting, changes }: ArchitectureInput) {
 
 /** What the architecture shows, and what it changes. */
 interface ArchitectureInput {
-  readonly record: ProjectRecord;
+  readonly edits: ProjectEdits;
   readonly selecting: ProjectSelection;
   readonly changes: AddAndRemove;
+}
+
+/** Moves a component on the diagram. */
+type Move = (componentId: string, position: Point) => void;
+
+/**
+ * Saves a component's new place on the diagram. A move only changes the
+ * layout, which isn't part of the project, so the run on screen stays
+ * current (ADR-0018).
+ */
+function useMove(edit: ProjectEdits["edit"]): Move {
+  return useCallback(
+    (componentId: string, position: Point) => {
+      edit((record) => moveComponent(record, { componentId, position }));
+    },
+    [edit],
+  );
 }
 
 /** The column beside or under the architecture, by the window's width. */

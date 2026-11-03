@@ -64,3 +64,10 @@ export function canConnect(
   if (source === target) return false;
   return !edges.some((e) => e.source === source && e.target === target);
 }
+
+/** A node the user moved, and where it ended up. */
+export interface DiagramMove {
+  readonly id: string;
+  /** The box's new top left. */
+  readonly position: DiagramPoint;
+}

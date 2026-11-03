@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DiagramCanvas } from "./DiagramCanvas";
 import type { DiagramContent } from "./diagram-model";
+import { dragNode, mouse } from "./testing/drag-node";
 import { stubDiagramBrowserApis } from "./testing/stub-diagram-browser-apis";
+import { KEYBOARD_MOVE_PAUSE_MS } from "./useNodeMoves";
 
 const fitView = vi.fn(() => Promise.resolve(true));
 
@@ -94,5 +96,174 @@ describe("DiagramCanvas's connections", () => {
     );
     // Each box has a handle on each side: one to start from, one to end on.
     expect(connectableHandles(drawable.container)).toHaveLength(4);
+  });
+});
+
+describe("DiagramCanvas's moves", () => {
+  const boxes: DiagramContent = {
+    nodes: [
+      { id: "a", label: "A", caption: "a", position: { x: 0, y: 0 } },
+      { id: "b", label: "B", caption: "b", position: { x: 200, y: 0 } },
+    ],
+    edges: [],
+  };
+  beforeEach(() => {
+    stubDiagramBrowserApis();
+    measureBoxAt(800, 400);
+  });
+  afterEach(async () => {
+    cleanup();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    // After a drag, d3-drag swallows the window's next click until a
+    // zero-delay timeout; let it run, or the next test's click is lost.
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  });
+
+  function boxB(container: HTMLElement): HTMLElement {
+    const box = container.querySelector('.react-flow__node[data-id="b"]');
+    if (!(box instanceof HTMLElement)) throw new Error("no box b");
+    return box;
+  }
+
+  function press(box: HTMLElement, key: string, shiftKey = false): void {
+    fireEvent.keyDown(box, { key, shiftKey });
+  }
+
+  /** Waits out the pause after the arrow keys, which reports their move. */
+  function pause(): void {
+    act(() => {
+      vi.advanceTimersByTime(KEYBOARD_MOVE_PAUSE_MS);
+    });
+  }
+
+  // Fails if a canvas given no onMove lets boxes be dragged, or moves one
+  // with the arrow keys: nothing would save the move.
+  it("keeps the boxes fixed without onMove", () => {
+    const { container } = render(
+      <DiagramCanvas content={boxes} onSelect={vi.fn()} />,
+    );
+    const box = boxB(container);
+
+    press(box, "ArrowRight");
+    dragNode({ box, by: [50, 30] });
+
+    expect(box.classList.contains("draggable")).toBe(false);
+    expect(box.style.transform).toBe("translate(200px,0px)");
+  });
+
+  // Fails if the canvas reports while the box is dragged, so each step
+  // would save, or not when the drag ends; or the box snaps back to where
+  // its content has it before the content changes.
+  it("reports a drag once, when it ends, and draws the box where it was put", () => {
+    const onMove = vi.fn();
+    const { container } = render(
+      <DiagramCanvas content={boxes} onMove={onMove} />,
+    );
+    const box = boxB(container);
+
+    mouse({ target: box, type: "mouseDown", point: [210, 10] });
+    mouse({ target: document, type: "mouseMove", point: [220, 10] });
+    mouse({ target: document, type: "mouseMove", point: [250, 50] });
+    expect(onMove).not.toHaveBeenCalled();
+    expect(box.style.transform).toBe("translate(230px,40px)");
+    mouse({ target: document, type: "mouseUp", point: [250, 50] });
+
+    expect(onMove.mock.calls).toEqual([
+      [{ id: "b", position: { x: 230, y: 40 } }],
+    ]);
+    expect(box.style.transform).toBe("translate(230px,40px)");
+  });
+
+  // Fails if a click reports a move, which would save the box where it
+  // already is, or a drag-capable box stops selecting on a click.
+  it("reports no move for a click, which selects the box", () => {
+    const onMove = vi.fn();
+    const onSelect = vi.fn();
+    const { container } = render(
+      <DiagramCanvas content={boxes} onMove={onMove} onSelect={onSelect} />,
+    );
+    const box = boxB(container);
+
+    mouse({ target: box, type: "mouseDown", point: [210, 10] });
+    mouse({ target: document, type: "mouseUp", point: [210, 10] });
+    fireEvent.click(box);
+
+    expect(onMove).not.toHaveBeenCalled();
+    expect(onSelect.mock.calls).toEqual([[{ kind: "node", id: "b" }]]);
+  });
+
+  // Fails if each press reports a move, so a run of presses would be
+  // several saves and undo steps, or the run isn't reported once the keys
+  // pause, or the box doesn't move while the keys are pressed.
+  it("reports a run of arrow key presses once, when the keys pause", () => {
+    const onMove = vi.fn();
+    const { container } = render(
+      <DiagramCanvas content={boxes} onMove={onMove} onSelect={vi.fn()} />,
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const box = boxB(container);
+
+    press(box, "ArrowRight");
+    press(box, "ArrowRight");
+    press(box, "ArrowDown", true);
+    expect(box.style.transform).toBe("translate(210px,20px)");
+    act(() => {
+      vi.advanceTimersByTime(KEYBOARD_MOVE_PAUSE_MS - 1);
+    });
+    expect(onMove).not.toHaveBeenCalled();
+    pause();
+
+    expect(onMove.mock.calls).toEqual([
+      [{ id: "b", position: { x: 210, y: 20 } }],
+    ]);
+  });
+
+  // Fails if a box that loses the focus keeps its move until the pause,
+  // so a move then a click elsewhere could save after what the click did.
+  it("reports the arrow keys' move when the box loses the focus", () => {
+    const onMove = vi.fn();
+    const { container } = render(
+      <DiagramCanvas content={boxes} onMove={onMove} onSelect={vi.fn()} />,
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const box = boxB(container);
+
+    press(box, "ArrowLeft");
+    fireEvent.blur(box);
+
+    expect(onMove.mock.calls).toEqual([
+      [{ id: "b", position: { x: 195, y: 0 } }],
+    ]);
+  });
+
+  // Fails if the canvas lets React Flow handle the arrow keys too: on its
+  // selected box, React Flow moves it itself and interrupts the screen
+  // reader with "Moved selected node up. New position, x: 200, y: 0", the
+  // place it left, while no other box says anything.
+  it("moves the selected box itself, one step a press, without React Flow's message", () => {
+    const onMove = vi.fn();
+    const { container } = render(
+      <DiagramCanvas
+        content={boxes}
+        selected={{ kind: "node", id: "b" }}
+        onMove={onMove}
+        onSelect={vi.fn()}
+      />,
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const box = boxB(container);
+
+    press(box, "ArrowUp");
+    pause();
+
+    expect(onMove.mock.calls).toEqual([
+      [{ id: "b", position: { x: 200, y: -5 } }],
+    ]);
+    const reactFlowLive = container.querySelector('[aria-live="assertive"]');
+    expect(reactFlowLive?.textContent).toBe("");
   });
 });

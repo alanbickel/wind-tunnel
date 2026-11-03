@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { awsSaveProject } from "../../application/testing/aws-save-project";
 import { InMemoryProjectRepository } from "../../application/testing/in-memory-project-repository";
 import type { ProjectRecord } from "../../application/ports/project-record";
-import { dragNode } from "../diagram/testing/drag-node";
+import { dragNode, mouse } from "../diagram/testing/drag-node";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 import {
@@ -31,6 +31,21 @@ function countedSaves() {
   return { projects, saveProject, execute };
 }
 
+/** Clicks a box as a user does: the mouse pressed and let go, then the click. */
+function clickNode(box: HTMLElement): void {
+  mouse({ target: box, type: "mouseDown", point: [10, 10] });
+  mouse({ target: document, type: "mouseUp", point: [10, 10] });
+  fireEvent.click(box);
+}
+
+/** The polite region beside "Add component", which says what a move did. */
+function movedRegion(): HTMLElement {
+  const addButton = screen.getByRole("button", { name: "Add component" });
+  const region = addButton.parentElement?.querySelector('[role="status"]');
+  if (!(region instanceof HTMLElement)) throw new Error("No moved region");
+  return region;
+}
+
 const fnAt = (x: number, y: number) => (record: ProjectRecord) =>
   record.layout.nodes.fn?.x === x && record.layout.nodes.fn.y === y;
 
@@ -49,13 +64,14 @@ describe("OpenedProject's moves", () => {
   });
 
   // Fails if the end of a drag doesn't save the box's new place, saves it
-  // more than once, or a click that doesn't move a box saves anything.
+  // more than once, or a click that doesn't move a box saves anything, as
+  // reporting a move from a click, or saving a selection, would.
   it("saves a drag's end once, and nothing for a click", async () => {
     const { projects, saveProject, execute } = countedSaves();
     renderOpenedProject({ saveProject });
     const fn = await drawnNode("fn");
 
-    fireEvent.click(await drawnNode("table"));
+    clickNode(await drawnNode("table"));
     dragNode({ box: fn, by: [40, 60] });
 
     const saved = await savedRecord(projects, fnAt(290, 60));
@@ -82,6 +98,22 @@ describe("OpenedProject's moves", () => {
 
     await savedRecord(projects, fnAt(260, 20));
     expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  // Fails if a move isn't announced, though the canvas says nothing to a
+  // screen reader, or is announced for each press rather than the run.
+  it("announces a run of arrow key presses once, by the component's name", async () => {
+    renderOpenedProject();
+    const fn = await drawnNode("fn");
+    const region = movedRegion();
+
+    fn.focus();
+    fireEvent.keyDown(fn, { key: "ArrowRight" });
+    fireEvent.keyDown(fn, { key: "ArrowRight" });
+    expect(region.textContent).toBe("");
+    fireEvent.blur(fn);
+
+    expect(region.textContent).toBe("Moved Function.");
   });
 
   // Fails if the screen draws a box where the template's layout has it,

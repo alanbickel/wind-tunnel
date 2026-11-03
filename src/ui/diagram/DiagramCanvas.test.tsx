@@ -143,6 +143,17 @@ describe("DiagramCanvas's moves", () => {
     });
   }
 
+  // Fails if a canvas that moves boxes but doesn't select them leaves them
+  // out of the tab order, so its description offers arrow keys no one can
+  // use.
+  it("lets the keyboard reach a box it can move without onSelect", () => {
+    const { container } = render(
+      <DiagramCanvas content={boxes} onMove={vi.fn()} />,
+    );
+
+    expect(boxB(container).tabIndex).toBe(0);
+  });
+
   // Fails if a canvas given no onMove lets boxes be dragged, or moves one
   // with the arrow keys: nothing would save the move.
   it("keeps the boxes fixed without onMove", () => {
@@ -208,8 +219,11 @@ describe("DiagramCanvas's moves", () => {
     expect(box.style.transform).toBe("translate(230px,40px)");
   });
 
-  // Fails if a click reports a move, which would save the box where it
-  // already is, or a drag-capable box stops selecting on a click.
+  // Fails if a click reports a move, as reporting from the click rather
+  // than the drag's end would, saving the box where it already is; or a
+  // drag-capable box stops selecting on a click. React Flow calls neither
+  // onNodeDragStart nor onNodeDragStop for a click, so this also guards
+  // that across upgrades.
   it("reports no move for a click, which selects the box", () => {
     const onMove = vi.fn();
     const onSelect = vi.fn();
@@ -249,6 +263,27 @@ describe("DiagramCanvas's moves", () => {
 
     expect(onMove.mock.calls).toEqual([
       [{ id: "b", position: { x: 210, y: 20 } }],
+    ]);
+  });
+
+  // Fails if a drag doesn't report the arrow keys' held move when it
+  // starts: the mouse doesn't blur the focused box, so the pause would
+  // report the keys' move after the drag's, putting the box back.
+  it("reports the arrow keys' move before a drag, so the drag's stays", () => {
+    const onMove = vi.fn();
+    const { container } = render(
+      <DiagramCanvas content={boxes} onMove={onMove} onSelect={vi.fn()} />,
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const box = boxB(container);
+
+    press(box, "ArrowRight");
+    dragNode({ box, by: [40, 60] });
+    pause();
+
+    expect(onMove.mock.calls).toEqual([
+      [{ id: "b", position: { x: 205, y: 0 } }],
+      [{ id: "b", position: { x: 245, y: 60 } }],
     ]);
   });
 

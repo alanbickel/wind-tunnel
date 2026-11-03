@@ -32,7 +32,9 @@ export type HeldPositions = ReadonlyMap<string, DiagramPoint>;
 type MoveProps = Pick<
   ReactFlowProps,
   | "nodesDraggable"
+  | "nodesFocusable"
   | "onNodesChange"
+  | "onNodeDragStart"
   | "onNodeDragStop"
   | "onKeyDownCapture"
   | "onBlur"
@@ -56,9 +58,10 @@ const NO_POSITIONS: HeldPositions = new Map();
  * Lets boxes move, if `onMove` is given. A box follows the pointer while
  * it's dragged, and the move is reported when the drag ends. A focused box
  * moves with the arrow keys, and a run of presses is reported once, when
- * the keys stop for `KEYBOARD_MOVE_PAUSE_MS` or the box loses the focus, so
- * either is one save. The canvas draws each moved box where it was put
- * until it's given new nodes, which should then hold the move.
+ * the keys stop for `KEYBOARD_MOVE_PAUSE_MS`, the box loses the focus, or
+ * a drag starts, so either is one save. The canvas draws each moved box
+ * where it was put until it's given new nodes, which should then hold the
+ * move.
  */
 export function useNodeMoves({ nodes, onMove }: NodeMovesInput): NodeMoves {
   const { positions, place } = useHeldPositions(nodes);
@@ -72,6 +75,9 @@ export function useNodeMoves({ nodes, onMove }: NodeMovesInput): NodeMoves {
     positions,
     props: {
       nodesDraggable: true,
+      // A box takes the focus, so the arrow keys can move it, even on a
+      // canvas that doesn't select.
+      nodesFocusable: true,
       onNodesChange: (changes) => {
         placeDragged(changes, place);
       },
@@ -134,9 +140,15 @@ interface KeyboardMovesInput {
   readonly onMove: ((move: DiagramMove) => void) | undefined;
 }
 
-type KeyboardMoveProps = Pick<MoveProps, "onKeyDownCapture" | "onBlur">;
+type KeyboardMoveProps = Pick<
+  MoveProps,
+  "onKeyDownCapture" | "onBlur" | "onNodeDragStart"
+>;
 
-/** The arrow keys' moves, held until the keys pause or the box loses the focus. */
+/**
+ * The arrow keys' moves, held until the keys pause, the box loses the
+ * focus, or a drag starts.
+ */
 function useKeyboardMoves({
   positionOf,
   place,
@@ -163,6 +175,12 @@ function useKeyboardMoves({
     },
     onBlur: (event) => {
       if (nodeIdOf(event.target) === held.current()?.id) held.report();
+    },
+    // Pressing the mouse on the focused box doesn't blur it, so a held move
+    // would be reported after the drag's, putting the box back. The drag
+    // starts where the keys put the box, so reporting first loses nothing.
+    onNodeDragStart: () => {
+      held.report();
     },
   };
 }

@@ -7,7 +7,8 @@ import {
   setComponentSetting,
 } from "../../../application/edits/component-edits";
 import type { Project } from "../../../domain/model/project";
-import type { EditCommand } from "../useProjectEdits";
+import { inSentence } from "../../shared/in-sentence";
+import type { Edit } from "../useProjectEdits";
 import type { FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
 import { NameField, type NameFieldProps } from "./NameField";
@@ -17,7 +18,7 @@ export interface ComponentSettingsProps {
   readonly project: Project;
   readonly details: ComponentDetails;
   /** Saves a change: a setting, a rename, or a reset to the default. */
-  readonly onEdit: (command: EditCommand) => void;
+  readonly onEdit: (edit: Edit) => void;
   readonly announce: FieldProps["announce"];
   /** Whether the name field takes the focus, as it does for a new component. */
   readonly takeFocus: NameFieldProps["takeFocus"];
@@ -55,7 +56,7 @@ export function ComponentSettings(props: ComponentSettingsProps) {
 interface SettingCommandsInput {
   readonly details: ComponentDetails;
   readonly setting: SettingDetails;
-  readonly onEdit: (command: EditCommand) => void;
+  readonly onEdit: (edit: Edit) => void;
 }
 
 /** What a setting's field and its Reset save: commands on this component. */
@@ -72,16 +73,21 @@ function settingCommands({
 }: SettingCommandsInput): SettingCommands {
   const { componentId, defaultConfig } = details;
   const { key } = setting;
+  const what = `${details.name}'s ${inSentence(setting.label)}`;
   return {
     save: (value) => {
-      onEdit((record) =>
-        setComponentSetting(record, { componentId, key, value }),
-      );
+      onEdit({
+        command: (record) =>
+          setComponentSetting(record, { componentId, key, value }),
+        describe: () => `Change ${what}`,
+      });
     },
     reset: () => {
-      onEdit((record) =>
-        resetComponentSetting(record, { componentId, key, defaultConfig }),
-      );
+      onEdit({
+        command: (record) =>
+          resetComponentSetting(record, { componentId, key, defaultConfig }),
+        describe: () => `Reset ${what}`,
+      });
     },
   };
 }

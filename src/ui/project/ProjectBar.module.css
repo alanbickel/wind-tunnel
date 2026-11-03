@@ -78,3 +78,17 @@
   max-width: var(--prose-max-width);
   color: var(--color-status-warn);
 }
+
+/* Undo and Redo under the project's name, with what the last one did
+   beside them. */
+.undo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.undone {
+  color: var(--color-text-muted);
+}

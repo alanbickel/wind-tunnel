@@ -3,7 +3,7 @@ import { nameOf } from "../../application/details/name-of";
 import { connectComponents } from "../../application/edits/edge-edits";
 import type { Project } from "../../domain/model/project";
 import { useUseCases } from "../app/useUseCases";
-import type { EditCommand } from "./useProjectEdits";
+import type { Edit } from "./useProjectEdits";
 
 /** Two components to connect, in the project the screen shows. */
 export interface ConnectInput {
@@ -23,15 +23,19 @@ export interface ConnectInput {
 export type Connect = (input: ConnectInput) => string | undefined;
 
 /** `Connect`, over the screen's `edit`. */
-export function useConnect(edit: (command: EditCommand) => void): Connect {
+export function useConnect(edit: (edit: Edit) => void): Connect {
   const { newEdge } = useUseCases();
   return useCallback(
     (input: ConnectInput) => {
       const connection = newEdge.execute(input);
       if (connection === undefined) return undefined;
-      edit((record) => connectComponents(record, connection));
       const { project, from, to } = input;
-      return `Connected ${nameOf(project, from)} to ${nameOf(project, to)}.`;
+      const between = `${nameOf(project, from)} to ${nameOf(project, to)}`;
+      edit({
+        command: (record) => connectComponents(record, connection),
+        describe: () => `Connect ${between}`,
+      });
+      return `Connected ${between}.`;
     },
     [newEdge, edit],
   );

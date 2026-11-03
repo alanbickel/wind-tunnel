@@ -73,11 +73,15 @@ function firstDescription(input: HTMLElement): string | null | undefined {
     : document.getElementById(first)?.textContent;
 }
 
-/** The project bar's status regions: run status, out of date, why the workload can't run, save failure. */
+/**
+ * The project bar's status regions after Undo's: run status, out of date,
+ * why the workload can't run, save failure.
+ */
 function barStatus(project: Project): (string | null)[] {
   const bar = screen.getByRole("region", { name: project.name });
   return within(bar)
     .getAllByRole("status")
+    .slice(1)
     .map((region) => region.textContent);
 }
 

@@ -12,7 +12,7 @@ import { useUseCases } from "../app/useUseCases";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { useAnnouncement } from "../shared/useAnnouncement";
 import { useConnect } from "./useConnect";
-import type { EditCommand, ProjectEdits } from "./useProjectEdits";
+import type { Edit, ProjectEdits } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
 
 /** Adding, connecting, and removing, and the button the focus goes to. */
@@ -46,20 +46,10 @@ export function useAddAndRemove(
   edits: ProjectEdits,
   selecting: ProjectSelection,
 ): AddAndRemove {
-  const { newComponent } = useUseCases();
   const { edit, record } = edits;
-  const { select } = selecting;
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const [announcement, announce] = useAnnouncement();
-  const add = useCallback(
-    (type: string) => {
-      const input = newComponent.execute({ type });
-      if (input === undefined) return;
-      edit((current) => addComponent(current, input));
-      select({ kind: "component", componentId: input.componentId }, "name");
-    },
-    [newComponent, edit, select],
-  );
+  const add = useAdd(edit, selecting.select);
   const connectWith = useConnect(edit);
   const { project } = record;
   const connect = useCallback(
@@ -71,6 +61,26 @@ export function useAddAndRemove(
   );
   const remove = useRemove({ edits, selecting, addButtonRef, announce });
   return { add, connect, remove, addButtonRef, announcement, announce };
+}
+
+/** Add, as `AddAndRemove` describes it. */
+function useAdd(
+  edit: ProjectEdits["edit"],
+  select: ProjectSelection["select"],
+): AddAndRemove["add"] {
+  const { newComponent } = useUseCases();
+  return useCallback(
+    (type: string) => {
+      const input = newComponent.execute({ type });
+      if (input === undefined) return;
+      edit({
+        command: (current) => addComponent(current, input),
+        describe: (after) => `Add ${nameOf(after.project, input.componentId)}`,
+      });
+      select({ kind: "component", componentId: input.componentId }, "name");
+    },
+    [newComponent, edit, select],
+  );
 }
 
 interface RemoveInput {
@@ -93,7 +103,7 @@ function useRemove({
     (target: Selection) => {
       const removal = dispatchKind(REMOVALS, target)(record);
       if (removal === undefined) return;
-      edit(removal.command);
+      edit(removal.edit);
       clear();
       addButtonRef.current?.focus();
       announce(removal.message);
@@ -102,9 +112,9 @@ function useRemove({
   );
 }
 
-/** A remove's command, and what it announces. */
+/** A remove's edit, and what it announces. */
 interface Removal {
-  readonly command: EditCommand;
+  readonly edit: Edit;
   /** E.g. "Removed Table." or "Removed the edge from API to Function." */
   readonly message: string;
 }
@@ -122,7 +132,10 @@ const REMOVALS: KindHandlers<
       );
       return (
         removed && {
-          command: (current) => removeComponent(current, { componentId }),
+          edit: {
+            command: (current) => removeComponent(current, { componentId }),
+            describe: () => `Remove ${removed.name}`,
+          },
           message: `Removed ${removed.name}.`,
         }
       );
@@ -131,12 +144,15 @@ const REMOVALS: KindHandlers<
     ({ edgeId }) =>
     ({ project }) => {
       const removed = project.architecture.edges.find((e) => e.id === edgeId);
+      if (removed === undefined) return undefined;
       const name = (id: string) => nameOf(project, id);
-      return (
-        removed && {
+      const edge = `the edge from ${name(removed.from)} to ${name(removed.to)}`;
+      return {
+        edit: {
           command: (current) => removeEdge(current, { edgeId }),
-          message: `Removed the edge from ${name(removed.from)} to ${name(removed.to)}.`,
-        }
-      );
+          describe: () => `Remove ${edge}`,
+        },
+        message: `Removed ${edge}.`,
+      };
     },
 };

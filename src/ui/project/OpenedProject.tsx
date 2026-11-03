@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { nameOf } from "../../application/details/name-of";
 import { moveComponent } from "../../application/edits/layout-edits";
 import type {
@@ -19,6 +19,8 @@ import { NothingSelected, SelectionDetails } from "./SelectionDetails";
 import { useAddAndRemove, type AddAndRemove } from "./useAddAndRemove";
 import { useProjectEdits, type ProjectEdits } from "./useProjectEdits";
 import { useSelection, type ProjectSelection } from "./useSelection";
+import { useUndoRedo, type UndoRedo } from "./useUndoRedo";
+import { useUndoShortcuts } from "./useUndoShortcuts";
 
 export interface OpenedProjectProps {
   readonly record: ProjectRecord;
@@ -33,13 +35,9 @@ export interface OpenedProjectProps {
  * doesn't stop the run.
  */
 export function OpenedProject({ record: loaded }: OpenedProjectProps) {
-  const edits = useProjectEdits(loaded);
-  const { record } = edits;
-  const { project } = record;
-  const projectRun = useProjectRun(project);
-  const selecting = useSelection();
-  const changes = useAddAndRemove(edits, selecting);
-  const architecture = useArchitecture({ edits, selecting, changes });
+  const screen = useProjectScreen(loaded);
+  const { edits, projectRun, selecting, changes, undoRedo } = screen;
+  const { project } = edits.record;
   const Column = useWideWindow() ? SideTabs : Stacked;
 
   return (
@@ -47,11 +45,12 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
       <ProjectBar
         project={project}
         projectRun={projectRun}
+        undoRedo={undoRedo}
         saveFailed={edits.saveFailed}
         onRetry={edits.retry}
       />
       <div className={styles.columns}>
-        {architecture}
+        {screen.architecture}
         <Column
           project={project}
           projectRun={projectRun}
@@ -62,6 +61,31 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
       </div>
     </div>
   );
+}
+
+/** What a project screen holds, and the architecture it draws from them. */
+interface ProjectScreen {
+  readonly edits: ProjectEdits;
+  readonly projectRun: ProjectRun;
+  readonly selecting: ProjectSelection;
+  readonly changes: AddAndRemove;
+  readonly undoRedo: UndoRedo;
+  readonly architecture: ReactNode;
+}
+
+/**
+ * The record with its edits and their history, the run, and the
+ * selection, and Undo's shortcuts while the screen is open.
+ */
+function useProjectScreen(loaded: ProjectRecord): ProjectScreen {
+  const edits = useProjectEdits(loaded);
+  const projectRun = useProjectRun(edits.record.project);
+  const selecting = useSelection();
+  const changes = useAddAndRemove(edits, selecting);
+  const undoRedo = useUndoRedo(edits, selecting);
+  useUndoShortcuts(undoRedo);
+  const architecture = useArchitecture({ edits, selecting, changes });
+  return { edits, projectRun, selecting, changes, undoRedo, architecture };
 }
 
 /**
@@ -130,12 +154,16 @@ function useMove({ edit, project, announce }: MoveInput): Move {
       // `edit` runs the command at once, on the latest record. An object,
       // so the flag set in the command reads as set after it.
       const change = { moved: false };
-      edit((record) => {
-        const next = moveComponent(record, { componentId, position });
-        change.moved = next !== record;
-        return next;
+      const name = nameOf(project, componentId);
+      edit({
+        command: (record) => {
+          const next = moveComponent(record, { componentId, position });
+          change.moved = next !== record;
+          return next;
+        },
+        describe: () => `Move ${name}`,
       });
-      if (change.moved) announce(`Moved ${nameOf(project, componentId)}.`);
+      if (change.moved) announce(`Moved ${name}.`);
     },
     [edit, project, announce],
   );

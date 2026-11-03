@@ -36,19 +36,9 @@ export interface ArchitectureViewProps {
  * "Connect to…" in a component's Details is the keyboard's way.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
-  const { record, selection, onSelect, onClear, onConnect, adding } = props;
+  const { record, onConnect, adding } = props;
   const content = useMemo(() => diagramOf(record), [record]);
-  const selected = selection && dispatchKind(DIAGRAM_ITEMS, selection);
-  const onItem = useCallback(
-    (item: DiagramItem | undefined) => {
-      if (item === undefined) {
-        onClear();
-        return;
-      }
-      onSelect(SELECTIONS[item.kind](item.id));
-    },
-    [onSelect, onClear],
-  );
+  const { selected, onItem } = useDiagramSelection(props);
 
   return (
     <Panel heading="Architecture" scrolls>
@@ -65,6 +55,33 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       <TextVersion content={content} selected={selected} onSelect={onItem} />
     </Panel>
   );
+}
+
+/** The screen's selection as the diagram's item, and what an item selects. */
+interface DiagramSelection {
+  readonly selected: DiagramItem | undefined;
+  /** Selects the item's component or connection, or clears for none. */
+  readonly onItem: (item: DiagramItem | undefined) => void;
+}
+
+/** The screen's selection in the diagram's terms, both ways. */
+function useDiagramSelection({
+  selection,
+  onSelect,
+  onClear,
+}: ArchitectureViewProps): DiagramSelection {
+  const selected = selection && dispatchKind(DIAGRAM_ITEMS, selection);
+  const onItem = useCallback(
+    (item: DiagramItem | undefined) => {
+      if (item === undefined) {
+        onClear();
+        return;
+      }
+      onSelect(SELECTIONS[item.kind](item.id));
+    },
+    [onSelect, onClear],
+  );
+  return { selected, onItem };
 }
 
 /** The diagram's item for each kind of selection it can show. */

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CountingSemaphore } from "../../behaviors/counting-semaphore";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import type { EdgeSettings } from "../../model/edge-settings";
 import { distributionSchema } from "../../random/distribution";
 import type { ComponentBehavior } from "../component-behavior";
 import type {
@@ -13,6 +14,13 @@ import { QUEUE_FULL, WorkerPoolBehavior } from "./worker-pool-behavior";
 // Small, correct definitions for tests of the registry, validation, and the
 // contract checker. They also serve as reference implementations of
 // `ComponentBehavior`: one ordinary component and one queue-like one.
+
+/** A new edge from either: fast, with no retries. */
+const TEST_EDGE_DEFAULTS: EdgeSettings = {
+  latencyMs: 1,
+  timeoutMs: 1_000,
+  retry: { maxAttempts: 1, backoff: "none", baseDelayMs: 0 },
+};
 
 const workerPoolConfig = z.object({
   workers: z.number().int().min(1),
@@ -35,6 +43,7 @@ export const workerPoolDefinition: ComponentDefinition<WorkerPoolConfig> = {
   actions: ["invoke", "read"],
   deliversAsync: false,
   rejectionReasons: [QUEUE_FULL.reason],
+  edgeDefaults: TEST_EDGE_DEFAULTS,
   build<T>(
     config: WorkerPoolConfig,
     { random }: BuildContext,
@@ -70,6 +79,7 @@ export const messageQueueDefinition: ComponentDefinition<MessageQueueConfig> = {
   actions: ["enqueue"],
   deliversAsync: true,
   rejectionReasons: [],
+  edgeDefaults: TEST_EDGE_DEFAULTS,
   build<T>(config: MessageQueueConfig): ComponentBehavior<T> {
     return new MessageQueueBehavior<T>(config);
   },

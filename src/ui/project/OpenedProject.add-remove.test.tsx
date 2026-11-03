@@ -1,37 +1,14 @@
 // @vitest-environment jsdom
-import {
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectRecord } from "../../application/ports/project-record";
-import type { InMemoryProjectRepository } from "../../application/testing/in-memory-project-repository";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
   cantRunRegion,
   renderOpenedProject,
+  savedRecord,
 } from "./testing/render-opened-project";
-
-/** The record saved for the sample, once a save matching `check` lands. */
-async function savedRecord(
-  projects: InMemoryProjectRepository,
-  check: (record: ProjectRecord) => boolean,
-): Promise<ProjectRecord> {
-  let saved: ProjectRecord | undefined;
-  await waitFor(async () => {
-    const lookup = await projects.get(sampleRecord.project.id);
-    if (lookup.status !== "found" || !check(lookup.record)) {
-      throw new Error("not saved yet");
-    }
-    saved = lookup.record;
-  });
-  if (saved === undefined) throw new Error("not saved");
-  return saved;
-}
 
 function componentIds(record: ProjectRecord): string[] {
   return record.project.architecture.components.map((c) => c.id);

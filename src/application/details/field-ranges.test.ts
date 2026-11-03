@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
+import {
+  edgeSettingsSchema,
+  retryPolicySchema,
+  type EdgeSettings,
+} from "../../domain/model/edge-settings";
 import { distributionSchema } from "../../domain/random/distribution";
 import { createFieldCatalog } from "./create-field-catalog";
 import { DISTRIBUTION_KINDS, DISTRIBUTION_PARTS } from "./distribution-parts";
 import type { FieldRange } from "./field-descriptor";
+import { EDGE_FIELDS } from "./fields/edge-fields";
+import { RETRY_PARTS } from "./retry-draft";
 
 // The schemas stay the authority (UX design §5); a descriptor's range only
 // words the messages. These check that the two agree: each end of a range
@@ -109,4 +116,52 @@ describe("each distribution part's range", () => {
     );
     expect([...DISTRIBUTION_KINDS].sort()).toEqual([...schemaKinds].sort());
   });
+});
+
+describe("each edge setting's range", () => {
+  const settings: EdgeSettings = {
+    latencyMs: 1,
+    timeoutMs: 1_000,
+    retry: { maxAttempts: 1, backoff: "none", baseDelayMs: 0 },
+  };
+  const numberEdgeFields = EDGE_FIELDS.flatMap((field) =>
+    field.kind === "number" ? [field] : [],
+  );
+
+  // Fails if an edge field's range disagrees with edgeSettingsSchema: e.g.
+  // a timeout of 0 allowed, so a field would pass what the save refuses.
+  it.each(numberEdgeFields.map((field) => [field.key, field] as const))(
+    "%s agrees with the schema",
+    (_key, field) => {
+      const passes = (value: number) =>
+        edgeSettingsSchema.safeParse({ ...settings, [field.key]: value })
+          .success;
+      const { inside, outside } = endsOf(field.range, false);
+
+      for (const value of inside)
+        expect(passes(value), String(value)).toBe(true);
+      for (const value of outside)
+        expect(passes(value), String(value)).toBe(false);
+    },
+  );
+
+  // Fails if a retry part's rule disagrees with retryPolicySchema: e.g.
+  // attempts allowed up to 20, or a fraction of an attempt.
+  it.each(RETRY_PARTS.map((part) => [part.key, part] as const))(
+    "retry %s agrees with the schema",
+    (_key, part) => {
+      const passes = (value: number) =>
+        retryPolicySchema.safeParse({ ...settings.retry, [part.key]: value })
+          .success;
+      const { inside, outside } = endsOf(
+        part.rule.range,
+        part.rule.wholeNumber,
+      );
+
+      for (const value of inside)
+        expect(passes(value), String(value)).toBe(true);
+      for (const value of outside)
+        expect(passes(value), String(value)).toBe(false);
+    },
+  );
 });

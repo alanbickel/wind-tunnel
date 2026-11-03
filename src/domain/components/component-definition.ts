@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { EdgeSettings } from "../model/edge-settings";
 import type { StepAction } from "../model/project";
 import type { RandomSource } from "../random/random-source";
 import type { ComponentBehavior } from "./component-behavior";
@@ -26,6 +27,13 @@ export interface ComponentDefinition<Config> {
   readonly configSchema: z.ZodType<Config>;
   /** Config for a newly added component. Must pass `configSchema`. */
   readonly defaultConfig: Config;
+  /**
+   * The settings of a new edge from a component of this type: its latency,
+   * timeout, and retry policy (UX design §5). The caller's type decides
+   * them, since how long a caller waits is the caller's setting. Must pass
+   * `edgeSettingsSchema`.
+   */
+  readonly edgeDefaults: EdgeSettings;
   /** Step actions this type accepts, e.g. `["read", "write"]`. */
   readonly actions: readonly StepAction[];
   /**

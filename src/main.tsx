@@ -19,6 +19,7 @@ import { CreateProjectFromTemplate } from "./application/use-cases/create-projec
 import { CheckWorkloads } from "./application/use-cases/check-workloads";
 import { NameComponents } from "./application/use-cases/name-components";
 import { NewComponent } from "./application/use-cases/new-component";
+import { NewEdge } from "./application/use-cases/new-edge";
 import { DescribeSelection } from "./application/use-cases/describe-selection";
 import { DeleteProject } from "./application/use-cases/delete-project";
 import { ListComponentTypes } from "./application/use-cases/list-component-types";
@@ -86,6 +87,7 @@ function createUseCases(database: ProjectDatabase): UseCases {
     deleteProject: new DeleteProject({ projects }),
     runSimulation: new RunSimulation({ runner, registry }),
     newComponent: new NewComponent({ registry, ids }),
+    newEdge: new NewEdge({ registry, ids }),
     ...createProjectReaders(registry),
     storagePersistence: new BrowserStoragePersistence({
       storage: navigator.storage,

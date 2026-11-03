@@ -40,6 +40,7 @@ function renderView({ selection }: RenderViewInput = {}) {
         selection={selection}
         onSelect={onSelect}
         onClear={onClear}
+        onConnect={vi.fn()}
         adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
       />
     </UseCasesProvider>,
@@ -75,10 +76,10 @@ describe("ArchitectureView", () => {
     expect(await drawnNodes(diagram())).toHaveLength(3);
   });
 
-  // Fails if DiagramCanvas lets boxes be dragged or connected, turns on
-  // React Flow's own selection, or stops giving each box a tab stop and a
-  // description that says what Enter does.
-  it("offers nothing to move or connect, and a tab stop to select each box", async () => {
+  // Fails if DiagramCanvas lets boxes be dragged, turns on React Flow's
+  // own selection, stops letting a drag connect them, or stops giving each
+  // box a tab stop and a description that says what Enter and a drag do.
+  it("offers nothing to move, a handle to connect, and a tab stop to select each box", async () => {
     renderView();
 
     for (const node of await drawnNodes(diagram())) {
@@ -87,12 +88,13 @@ describe("ArchitectureView", () => {
       expect(node.getAttribute("tabindex")).toBe("0");
       const description = node.getAttribute("aria-describedby") ?? "";
       expect(document.getElementById(description)?.textContent).toBe(
-        "Press Enter to show its details. The text version after the diagram lists the same items.",
+        "Press Enter to show its details, or drag from its right edge to another box to connect them. The text version after the diagram lists the same items.",
       );
     }
+    const nodes = await drawnNodes(diagram());
     expect(
       diagram().querySelectorAll(".react-flow__handle.connectable"),
-    ).toHaveLength(0);
+    ).toHaveLength(nodes.length * 2);
   });
 
   // Fails if Enter on a focused box doesn't select its component, or

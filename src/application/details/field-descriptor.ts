@@ -2,6 +2,8 @@
 // type's settings are validated by its config schema in `domain/`; these
 // descriptors say what each one means to a user, in AWS terms.
 
+import type { EdgeSettings } from "../../domain/model/edge-settings";
+
 /**
  * How a setting's value is read and, later, edited: a number, a whole
  * number, a duration distribution (`Distribution`), or an edge's retry
@@ -60,6 +62,13 @@ export interface FieldRange {
 export type ConfigFieldDescriptor =
   NumberFieldDescriptor | DistributionFieldDescriptor;
 
+/**
+ * A setting a field can edit, a component's or an edge's, with the
+ * evidence for its default.
+ */
+export type SettingFieldDescriptor =
+  ConfigFieldDescriptor | RetryFieldDescriptor;
+
 /** A setting that's one number, such as a limit or a rate. */
 export interface NumberFieldDescriptor extends FieldDescriptor {
   readonly kind: "number" | "whole-number";
@@ -72,6 +81,20 @@ export interface DistributionFieldDescriptor extends FieldDescriptor {
   readonly kind: "distribution";
   readonly evidence: DefaultEvidence;
 }
+
+/** An edge's retry policy: attempts, backoff, and base delay. */
+export interface RetryFieldDescriptor extends FieldDescriptor {
+  readonly kind: "retry";
+  readonly evidence: DefaultEvidence;
+}
+
+/**
+ * Where each default of a type's `edgeDefaults` comes from, by the edge
+ * setting's key.
+ */
+export type EdgeEvidence = Readonly<
+  Record<keyof EdgeSettings, DefaultEvidence>
+>;
 
 /**
  * One component type's settings, in the order the Details tab lists them,
@@ -87,6 +110,11 @@ export interface TypeFields {
    */
   readonly purpose: string;
   readonly fields: readonly ConfigFieldDescriptor[];
+  /**
+   * The evidence for each of the type's edge defaults: how sure the latency,
+   * timeout, and retry policy of a new edge from it are.
+   */
+  readonly edgeEvidence: EdgeEvidence;
 }
 
 /** Every type's settings, keyed by type. */

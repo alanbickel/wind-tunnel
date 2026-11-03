@@ -46,3 +46,21 @@ export function isSelected(
 ): boolean {
   return selected?.kind === item.kind && selected.id === item.id;
 }
+
+/** An arrow the user draws, from one node to another. */
+export interface DiagramConnection {
+  readonly source: string;
+  readonly target: string;
+}
+
+/**
+ * Whether `connection` may be drawn: not from a node to itself, and not a
+ * second arrow from the same node to the same node.
+ */
+export function canConnect(
+  edges: readonly DiagramEdge[],
+  { source, target }: DiagramConnection,
+): boolean {
+  if (source === target) return false;
+  return !edges.some((e) => e.source === source && e.target === target);
+}

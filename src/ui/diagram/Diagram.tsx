@@ -1,7 +1,11 @@
 import { lazy, Suspense } from "react";
 import { LoadFailureBoundary } from "../shared/load-failure-boundary";
 import styles from "./Diagram.module.css";
-import type { DiagramContent, DiagramItem } from "./diagram-model";
+import type {
+  DiagramConnection,
+  DiagramContent,
+  DiagramItem,
+} from "./diagram-model";
 
 // React Flow arrives in its own chunk the first time a diagram draws, so the
 // project list loads without it (#16).
@@ -23,11 +27,19 @@ export interface DiagramProps {
    * it, nothing on the diagram can be selected or tabbed to.
    */
   readonly onSelect?: ((item: DiagramItem | undefined) => void) | undefined;
+  /**
+   * Called with the arrow the user draws, by dragging from a box's right
+   * edge to another box. Without it, nothing can be connected. The
+   * diagram refuses an arrow from a box to itself, or a second one the
+   * same way, before it's reported.
+   */
+  readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
 }
 
 /**
- * A read-only diagram of boxes and arrows (ADR-0010). The user can pan and
- * zoom, but not move or connect anything. Given `onSelect`, a click
+ * A diagram of boxes and arrows (ADR-0010). The user can pan and zoom,
+ * but not move anything. Given `onConnect`, a drag from one box's handle
+ * to another draws an arrow. Given `onSelect`, a click
  * selects a box or an arrow, and the boxes take tab stops so Enter can
  * select them; the diagram rings the selected box and thickens the
  * selected arrow. It isn't readable by screen readers, so pair it with a
@@ -37,7 +49,8 @@ export interface DiagramProps {
  * room changes. While React Flow loads, or if it can't, the box holds its
  * place.
  */
-export function Diagram({ content, label, selected, onSelect }: DiagramProps) {
+export function Diagram(props: DiagramProps) {
+  const { content, label, selected, onSelect, onConnect } = props;
   return (
     <div role="group" aria-label={label} className={styles.diagram}>
       <div className={styles.canvas}>
@@ -55,6 +68,7 @@ export function Diagram({ content, label, selected, onSelect }: DiagramProps) {
               content={content}
               selected={selected}
               onSelect={onSelect}
+              onConnect={onConnect}
             />
           </Suspense>
         </LoadFailureBoundary>

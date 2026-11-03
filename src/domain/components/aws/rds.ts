@@ -3,6 +3,7 @@ import { CountingSemaphore } from "../../behaviors/counting-semaphore";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
 import { distributionSchema } from "../../random/distribution";
 import type { ComponentBehavior } from "../component-behavior";
+import { AWS_EDGE_DEFAULTS } from "./edge-defaults";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -45,6 +46,7 @@ export const rdsDefinition: ComponentDefinition<RdsConfig> = {
     queryWorkers: 16,
     queryTime: { kind: "lognormal", medianMs: 15, p99Ms: 60 },
   },
+  edgeDefaults: AWS_EDGE_DEFAULTS,
   actions: ["read", "write"],
   deliversAsync: false,
   rejectionReasons: [TOO_MANY_CONNECTIONS.reason],

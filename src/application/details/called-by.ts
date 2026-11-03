@@ -48,6 +48,17 @@ export function stepsAlong(project: Project, edge: Edge): StepCall[] {
   );
 }
 
+/**
+ * How many steps call along the edge, in every workflow, a queue's async
+ * work included. Unlike `stepsAlong`, each is counted, even two in one
+ * workflow with the same action.
+ */
+export function stepsCallingAlong(project: Project, edge: Edge): number {
+  return project.workflows
+    .flatMap((workflow) => callsUnder(workflow.root))
+    .filter((pair) => isAlong(edge, pair)).length;
+}
+
 /** One step calling another: a nested call, or a queue's async work. */
 interface StepPair {
   readonly caller: Step;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkComponentContract } from "./check-component-contract";
+import type { EdgeSettings } from "../model/edge-settings";
 import type {
   ComponentBehavior,
   DispatchFinishedInput,
@@ -495,6 +496,20 @@ describe("checkComponentContract", () => {
         defaultConfig: { ...workerPoolDefinition.defaultConfig, workers: 0 },
       };
       expect(firstViolation(def)).toMatch(/defaultConfig/);
+    });
+
+    // Fails if checkDefinition stops checking edgeDefaults, so a type
+    // without them, or with a timeout of 0, would give every edge drawn
+    // from it settings the save refuses.
+    it.each([
+      ["missing", undefined],
+      ["out of range", { ...workerPoolDefinition.edgeDefaults, timeoutMs: 0 }],
+    ])("edgeDefaults that are %s", (_name, edgeDefaults) => {
+      const def = {
+        ...workerPoolDefinition,
+        edgeDefaults: edgeDefaults as EdgeSettings,
+      };
+      expect(firstViolation(def)).toMatch(/edgeDefaults/);
     });
   });
 });

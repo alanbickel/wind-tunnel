@@ -333,7 +333,7 @@ See [LMB-8](#lmb-8-rds-connections-are-held-per-invocation-not-per-environment).
 
 ## Default values and their evidence
 
-The Details tab quotes this table: each setting's help ends with its default and how sure it is ("Default 16: an assumption (RDS-2)."). The field descriptors in [`src/application/details/fields/`](../../src/application/details/fields/) carry the level and the entry, and `field-evidence.test.ts` checks them against this table, so keep each Evidence cell starting with its level and naming its entry, if it has one, by ID.
+The Details tab quotes this table: each setting's help ends with its default and how sure it is ("Default 16: an assumption (RDS-2)."). A new edge's settings come from its caller's type (`edgeDefaults`), so the edge rows are by caller. The field descriptors in [`src/application/details/fields/`](../../src/application/details/fields/) carry the level and the entry, and `field-evidence.test.ts` checks them against this table, so keep each Evidence cell starting with its level and naming its entry, if it has one, by ID.
 
 | Component | Setting | Default | Evidence |
 |---|---|---|---|
@@ -352,6 +352,10 @@ The Details tab quotes this table: each setting's help ends with its default and
 | SQS | `consumerMaxConcurrency` | 10 (allowed 2 to 1,000) | Assumption: our choice, within the documented range ([SQS scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)) |
 | SQS | `sendLatency` | median 10 ms, p99 30 ms | Assumption |
 | Edges | backoff cap | 20 s | Documented ([AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html)) |
+| Edges from every type | `latencyMs` | 1 ms | Assumption (ENG-1) |
+| Edges from every type | `retry` | 1 attempt, no retries | Assumption: the caller retries only if you say so; the AWS SDKs would retry on their own (ENG-2) |
+| Edges from API Gateway | `timeoutMs` | 29,000 ms | Documented: a REST API's integration timeout is 29 s at most, unless a Regional or private API requests more ([quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html)); see ENG-5 |
+| Edges from the other types | `timeoutMs` | 5,000 ms | Assumption: a client timeout of our choosing (ENG-5) |
 
 ## Keeping this page current
 

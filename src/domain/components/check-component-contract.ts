@@ -1,4 +1,5 @@
 import { TIMEOUT_REASON } from "../engine/simulation-events";
+import { edgeSettingsSchema } from "../model/edge-settings";
 import type { ComponentDefinition } from "./component-definition";
 import {
   createContractHarness,
@@ -92,6 +93,9 @@ function checkDefinition<Config>(
   const problems: string[] = [];
   if (!definition.configSchema.safeParse(definition.defaultConfig).success) {
     problems.push("defaultConfig doesn't pass configSchema.");
+  }
+  if (!edgeSettingsSchema.safeParse(definition.edgeDefaults).success) {
+    problems.push("edgeDefaults doesn't pass edgeSettingsSchema.");
   }
   if (definition.actions.length === 0) {
     problems.push("The definition accepts no actions.");

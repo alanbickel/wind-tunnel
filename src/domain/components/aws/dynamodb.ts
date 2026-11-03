@@ -4,6 +4,7 @@ import { TokenBucket } from "../../behaviors/token-bucket";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
 import { distributionSchema } from "../../random/distribution";
 import type { ComponentBehavior } from "../component-behavior";
+import { AWS_EDGE_DEFAULTS } from "./edge-defaults";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -44,6 +45,7 @@ export const dynamoDbDefinition: ComponentDefinition<DynamoDbConfig> = {
     burstSec: 300,
     latency: { kind: "lognormal", medianMs: 5, p99Ms: 20 },
   },
+  edgeDefaults: AWS_EDGE_DEFAULTS,
   actions: ["read", "write"],
   deliversAsync: false,
   rejectionReasons: [THROTTLED.reason],

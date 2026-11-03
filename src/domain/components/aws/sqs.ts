@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
 import { distributionSchema } from "../../random/distribution";
 import type { ComponentBehavior } from "../component-behavior";
+import { AWS_EDGE_DEFAULTS } from "./edge-defaults";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -41,6 +42,7 @@ export const sqsDefinition: ComponentDefinition<SqsConfig> = {
     consumerMaxConcurrency: 10,
     sendLatency: { kind: "lognormal", medianMs: 10, p99Ms: 30 },
   },
+  edgeDefaults: AWS_EDGE_DEFAULTS,
   actions: ["enqueue"],
   deliversAsync: true,
   // Messages wait in the backlog; SQS never refuses one here.

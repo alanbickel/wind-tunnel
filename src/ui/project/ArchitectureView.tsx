@@ -21,6 +21,8 @@ export interface ArchitectureViewProps {
   readonly onSelect: (selection: Selection) => void;
   /** Called when the user clicks the diagram's empty space. */
   readonly onClear: () => void;
+  /** Connects two components, as drawn on the diagram: caller, then callee. */
+  readonly onConnect: (from: string, to: string) => void;
   /** "Add component", above the diagram. */
   readonly adding: AddComponentProps;
 }
@@ -30,10 +32,11 @@ export interface ArchitectureViewProps {
  * diagram, with the same facts as a list for anyone who can't see the
  * canvas. Either selects a component or a connection: a click on the
  * diagram, or a button in the list, which is the way every user can rely
- * on.
+ * on. A drag from one box to another on the diagram connects them;
+ * "Connect to…" in a component's Details is the keyboard's way.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
-  const { record, selection, onSelect, onClear, adding } = props;
+  const { record, selection, onSelect, onClear, onConnect, adding } = props;
   const content = useMemo(() => diagramOf(record), [record]);
   const selected = selection && dispatchKind(DIAGRAM_ITEMS, selection);
   const onItem = useCallback(
@@ -55,6 +58,9 @@ export function ArchitectureView(props: ArchitectureViewProps) {
         label={`Architecture diagram of ${record.project.name}`}
         selected={selected}
         onSelect={onItem}
+        onConnect={({ source, target }) => {
+          onConnect(source, target);
+        }}
       />
       <TextVersion content={content} selected={selected} onSelect={onItem} />
     </Panel>

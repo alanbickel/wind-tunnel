@@ -84,6 +84,24 @@ const queued: Project = {
   ],
 };
 
+const sampleFn = sample.workflows[0]?.root.calls?.[0];
+
+/** One workflow whose function reads the table twice. */
+const readTwice: Project = {
+  ...sample,
+  workflows: [
+    {
+      id: "twice",
+      name: "Read twice",
+      root: {
+        componentId: "fn",
+        action: "invoke",
+        calls: [...(sampleFn?.calls ?? []), ...(sampleFn?.calls ?? [])],
+      },
+    },
+  ],
+};
+
 describe("DescribeSelection", () => {
   // Fails if a setting loses its label, its unit, its default, or the
   // default's evidence, or the type's display name isn't looked up.
@@ -185,26 +203,71 @@ describe("DescribeSelection", () => {
   });
 
   // Fails if an edge's settings lose their units, the retry policy isn't
-  // read as one value, an edge shows a default it doesn't have, or the
-  // steps along it are missed.
-  it("describes an edge's settings and the steps that call along it", () => {
+  // read as one value, an edge's defaults aren't its caller type's (here
+  // Lambda's), or the steps along it are missed.
+  it("describes an edge's settings, its caller type's defaults, and the steps along it", () => {
     const edge = edgeIn(sample, "fn-table");
 
     expect([edge.sourceName, edge.targetName]).toEqual(["Function", "Table"]);
     expect(edge.settings.map((s) => [s.label, s.value, s.defaultNote])).toEqual(
       [
-        ["Latency", "2 ms", undefined],
-        ["Timeout", "1,000 ms", undefined],
+        ["Latency", "2 ms", "Default 1: an assumption (ENG-1)."],
+        ["Timeout", "1,000 ms", "Default 5,000: an assumption (ENG-5)."],
         [
           "Retries",
           "3 attempts, backing off exponentially from 50 ms",
-          undefined,
+          "Default 1 attempt, no retries: an assumption (ENG-2).",
         ],
       ],
     );
     expect(edge.calledAlongBy).toEqual([
       { workflowName: "Read item", action: "read" },
     ]);
+  });
+
+  // Fails if an edge from API Gateway takes another type's timeout or
+  // evidence, or its settings come without what a field needs to edit them.
+  it("gives an edge from API Gateway its documented timeout, and an editor for each setting", () => {
+    const edge = edgeIn(sample, "api-fn");
+
+    expect(edge.defaults?.timeoutMs).toBe(29_000);
+    const timeout = edge.settings.find((s) => s.key === "timeoutMs");
+    expect(timeout?.defaultNote).toBe("Default 29,000: documented (ENG-5).");
+    expect(timeout?.editor?.defaultValue).toBe(29_000);
+    expect(edge.settings.map((s) => s.editor?.field.kind)).toEqual([
+      "number",
+      "number",
+      "retry",
+    ]);
+  });
+
+  // Fails if an edge's Remove names the wrong ends, or doesn't count every
+  // step that calls along it: a queue's async work, and both of two steps
+  // in one workflow with the same action.
+  it("asks to remove an edge, and warns how many steps call along it", () => {
+    expect(edgeIn(sample, "fn-table").removal).toEqual({
+      question: "Remove the edge from Function to Table?",
+      warning:
+        "1 workflow step calls along it, and won't run until you change it.",
+    });
+    expect(edgeIn(queued, "queue-fn").removal.warning).toBe(
+      "1 workflow step calls along it, and won't run until you change it.",
+    );
+    expect(edgeIn(queued, "fn-queue").removal.warning).toBeUndefined();
+    expect(edgeIn(readTwice, "fn-table").removal.warning).toBe(
+      "2 workflow steps call along it, and won't run until you change them.",
+    );
+  });
+
+  // Fails if "Connect to…" offers the component itself, or one it already
+  // has an edge to; or loses the type's display name.
+  it("offers to connect a component to the others it doesn't reach yet", () => {
+    expect(componentIn(sample, "fn").connectTargets).toEqual([
+      { componentId: "api", label: "API (API Gateway)" },
+    ]);
+    expect(
+      componentIn(sample, "table").connectTargets.map((t) => t.componentId),
+    ).toEqual(["api", "fn"]);
   });
 
   // Fails if a queue's async work isn't counted as calling along the edge
@@ -219,23 +282,7 @@ describe("DescribeSelection", () => {
   // Fails if stepsAlong stops dropping repeats: a workflow that reads the
   // table twice would be listed twice.
   it("lists each workflow and action along an edge once", () => {
-    const fn = sample.workflows[0]?.root.calls?.[0];
-    const twice: Project = {
-      ...sample,
-      workflows: [
-        {
-          id: "twice",
-          name: "Read twice",
-          root: {
-            componentId: "fn",
-            action: "invoke",
-            calls: [...(fn?.calls ?? []), ...(fn?.calls ?? [])],
-          },
-        },
-      ],
-    };
-
-    expect(edgeIn(twice, "fn-table").calledAlongBy).toEqual([
+    expect(edgeIn(readTwice, "fn-table").calledAlongBy).toEqual([
       { workflowName: "Read twice", action: "read" },
     ]);
   });

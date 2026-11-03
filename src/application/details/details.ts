@@ -1,5 +1,6 @@
+import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { StepAction } from "../../domain/model/project";
-import type { ConfigFieldDescriptor } from "./field-descriptor";
+import type { SettingFieldDescriptor } from "./field-descriptor";
 
 /**
  * What the Details tab shows for a selection, worded here so every screen
@@ -15,23 +16,28 @@ export interface SettingDetails {
   readonly value: string;
   readonly help: string;
   /**
-   * The type's default and how sure it is, e.g. "Default 16: an assumption
-   * (RDS-2)."; undefined for a setting with no default, such as an edge's.
+   * The default and how sure it is, e.g. "Default 16: an assumption
+   * (RDS-2)."; undefined for a setting with no default, such as one no
+   * descriptor covers.
    */
   readonly defaultNote: string | undefined;
   /**
    * What a field needs to edit the setting; undefined for one that can't
-   * be edited yet: an edge's, or a setting no descriptor covers.
+   * be edited: a setting no descriptor covers, or an edge's whose caller
+   * has no known type.
    */
   readonly editor: SettingEditor | undefined;
 }
 
-/** An editable setting: its descriptor, its value, and its type's default. */
+/** An editable setting: its descriptor, its value, and its default. */
 export interface SettingEditor {
-  readonly field: ConfigFieldDescriptor;
+  readonly field: SettingFieldDescriptor;
   /** As stored, e.g. `16` or a `Distribution`. */
   readonly value: unknown;
-  /** The type's default; undefined if the type has none for this setting. */
+  /**
+   * The component type's default, or for an edge its caller type's;
+   * undefined if the type has none for this setting.
+   */
   readonly defaultValue: unknown;
 }
 
@@ -49,15 +55,30 @@ export interface ComponentDetails {
   readonly calledBy: readonly string[];
   /** What Remove's confirmation says. */
   readonly removal: RemovalText;
+  /**
+   * The components "Connect to…" offers: every other one this component
+   * has no edge to yet, in project order.
+   */
+  readonly connectTargets: readonly ConnectTarget[];
 }
 
-/** What removing a component would take, as its confirmation says it. */
+/** A component "Connect to…" offers. */
+export interface ConnectTarget {
+  readonly componentId: string;
+  /** E.g. "orders-db (RDS)": its name, then its type's display name. */
+  readonly label: string;
+}
+
+/** What removing a component or an edge would take, as its confirmation says it. */
 export interface RemovalText {
-  /** E.g. "Remove orders-db and its edge from fn-orders?" */
+  /**
+   * E.g. "Remove orders-db and its edge from fn-orders?" or "Remove the
+   * edge from fn-orders to orders-db?"
+   */
   readonly question: string;
   /**
-   * E.g. "2 workflow steps call it, and won't run until you change them.";
-   * undefined if no step calls it.
+   * E.g. "2 workflow steps call it, and won't run until you change them.",
+   * or "call along it" for an edge; undefined if no step does.
    */
   readonly warning: string | undefined;
 }
@@ -65,10 +86,18 @@ export interface RemovalText {
 /** An edge: what it joins, its settings, and the steps that call along it. */
 export interface EdgeDetails {
   readonly kind: "edge";
+  readonly edgeId: string;
   readonly sourceName: string;
   readonly targetName: string;
   readonly settings: readonly SettingDetails[];
   readonly calledAlongBy: readonly StepCall[];
+  /**
+   * The caller type's `edgeDefaults`, for "Reset to default"; undefined if
+   * the caller has no known type.
+   */
+  readonly defaults: EdgeSettings | undefined;
+  /** What Remove's confirmation says. */
+  readonly removal: RemovalText;
 }
 
 /** A workflow step that calls along an edge: its workflow, and what it does. */

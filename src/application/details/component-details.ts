@@ -2,6 +2,7 @@ import type { ComponentType } from "../../domain/components/component-registry";
 import type { Component, Project } from "../../domain/model/project";
 import { workflowsCalling } from "./called-by";
 import { valueAt } from "./config-value";
+import { connectTargets } from "./connect-targets";
 import type { ComponentDetails, SettingDetails } from "./details";
 import type { ConfigFieldDescriptor, TypeFields } from "./field-descriptor";
 import { removalText } from "./removal-text";
@@ -15,17 +16,20 @@ export interface ComponentDetailsInput {
   readonly type: ComponentType | undefined;
   /** Undefined if the catalog has no descriptors for the type. */
   readonly fields: TypeFields | undefined;
+  /** A type's display name, for the components "Connect to…" offers. */
+  readonly displayNameOf: (type: string) => string;
 }
 
 /**
  * A component's details: its name and type, each setting as its descriptor
- * reads it, with the type's default, and the workflows that call it. A
+ * reads it, with the type's default, the workflows that call it, what
+ * removing it would take, and the components it can connect to. A
  * setting with no descriptor is still listed, by its key, so none is hidden.
  */
 export function componentDetails(
   input: ComponentDetailsInput,
 ): ComponentDetails {
-  const { project, component, type } = input;
+  const { project, component, type, displayNameOf } = input;
   return {
     kind: "component",
     componentId: component.id,
@@ -35,6 +39,11 @@ export function componentDetails(
     settings: [...describedSettings(input), ...undescribedSettings(input)],
     calledBy: workflowsCalling(project, component.id),
     removal: removalText(project, component),
+    connectTargets: connectTargets({
+      project,
+      componentId: component.id,
+      displayNameOf,
+    }),
   };
 }
 

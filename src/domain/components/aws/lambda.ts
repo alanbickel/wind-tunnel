@@ -3,6 +3,7 @@ import { CountingSemaphore } from "../../behaviors/counting-semaphore";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
 import { distributionSchema } from "../../random/distribution";
 import type { ComponentBehavior } from "../component-behavior";
+import { AWS_EDGE_DEFAULTS } from "./edge-defaults";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -49,6 +50,7 @@ export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
     idleTimeoutSec: 600,
     computeTime: { kind: "lognormal", medianMs: 20, p99Ms: 80 },
   },
+  edgeDefaults: AWS_EDGE_DEFAULTS,
   actions: ["invoke"],
   deliversAsync: false,
   rejectionReasons: [THROTTLED.reason],

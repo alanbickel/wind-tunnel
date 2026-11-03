@@ -3,6 +3,7 @@ import { createFieldCatalog } from "../details/create-field-catalog";
 import type { IdGenerator } from "../ports/id-generator";
 import { ListComponentTypes } from "../use-cases/list-component-types";
 import { NewComponent } from "../use-cases/new-component";
+import { NewEdge } from "../use-cases/new-edge";
 import { SequentialIds } from "./sequential-ids";
 
 /**
@@ -24,4 +25,14 @@ export function awsNewComponent(
   ids: IdGenerator = new SequentialIds("new"),
 ): NewComponent {
   return new NewComponent({ registry: createAwsComponentRegistry(), ids });
+}
+
+/**
+ * `NewEdge` over the AWS registry, with ids `edge-1`, `edge-2`, …
+ * unless given others.
+ */
+export function awsNewEdge(
+  ids: IdGenerator = new SequentialIds("edge"),
+): NewEdge {
+  return new NewEdge({ registry: createAwsComponentRegistry(), ids });
 }

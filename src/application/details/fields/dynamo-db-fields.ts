@@ -1,4 +1,5 @@
 import type { TypeFields } from "../field-descriptor";
+import { ASSUMED_EDGE_EVIDENCE } from "./edge-fields";
 
 export const dynamoDbFields: TypeFields = {
   type: "dynamodb",
@@ -40,4 +41,5 @@ export const dynamoDbFields: TypeFields = {
       evidence: { level: "assumption", fidelityId: undefined },
     },
   ],
+  edgeEvidence: ASSUMED_EDGE_EVIDENCE,
 };

@@ -93,9 +93,9 @@ const BACKOFF_TEXTS: Readonly<
     `backing off exponentially, with jitter, from ${delay}`,
 };
 
-/** E.g. "1 attempt: no retries", or "3 attempts, 50 ms apart". */
+/** E.g. "1 attempt, no retries", or "3 attempts, 50 ms apart". */
 function retryText({ maxAttempts, backoff, baseDelayMs }: RetryPolicy): string {
-  if (maxAttempts === 1) return "1 attempt: no retries";
+  if (maxAttempts === 1) return "1 attempt, no retries";
   const delay = `${count(baseDelayMs)} ms`;
   return `${count(maxAttempts)} attempts, ${lookup(BACKOFF_TEXTS, backoff)(delay)}`;
 }

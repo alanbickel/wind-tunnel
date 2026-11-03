@@ -3,6 +3,7 @@ import { TokenBucket } from "../../behaviors/token-bucket";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
 import { distributionSchema } from "../../random/distribution";
 import type { ComponentBehavior } from "../component-behavior";
+import { AWS_EDGE_DEFAULTS } from "./edge-defaults";
 import type {
   BuildContext,
   ComponentDefinition,
@@ -34,6 +35,8 @@ export const apiGatewayDefinition: ComponentDefinition<ApiGatewayConfig> = {
     burst: 5_000,
     overhead: { kind: "lognormal", medianMs: 10, p99Ms: 25 },
   },
+  // A REST API waits up to 29 s for its integration (ENG-5).
+  edgeDefaults: { ...AWS_EDGE_DEFAULTS, timeoutMs: 29_000 },
   actions: ["invoke"],
   deliversAsync: false,
   rejectionReasons: [THROTTLED.reason],

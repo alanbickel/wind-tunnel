@@ -11,7 +11,7 @@ See [The domain model](architecture/domain-model.md). The types are in [`project
 | **Project** | Everything a user models: one architecture, its workflows, and its workloads. | `Project` |
 | **Architecture** | The graph of components and edges: who can call whom. | `Architecture` |
 | **Component** | One cloud service instance in the model, such as a Lambda function or a DynamoDB table. Its `type` picks the definition that simulates it, and its `config` sets its capacity. It's shown by its `name`, which is unique among its type's components; its `id` is internal and never shown. | `Component` |
-| **Edge** | A connection that calls travel along, from caller to callee. It sets a call's one-way latency, its timeout, and its retry policy. | `Edge` |
+| **Edge** | A connection that calls travel along, from caller to callee. It sets a call's one-way latency, its timeout, and its retry policy. | `Edge`; a new one's settings are its caller type's `edgeDefaults` |
 | **Workflow** | What one request does, as a tree of steps laid over the architecture. Example: "Create order". | `Workflow` |
 | **Step** | One node of a workflow: a call to a component with an action (`invoke`, `read`, `write`, `enqueue`). Its nested `calls` are made while it holds its resources. Its `async` step runs later, when a queue hands the message on. | `Step` |
 | **Workload** | Which workflows run, in what mix, at what rate over time, for how long, and from which seed. Example: 80% browse and 20% checkout, ramping from 100 to 5,000 requests per second. | `Workload` |

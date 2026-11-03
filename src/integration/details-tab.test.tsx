@@ -64,17 +64,6 @@ function detailsHeading(): HTMLElement {
   return within(detailsTab()).getByRole("heading", { level: 4 });
 }
 
-/** Each read-only setting in Details (an edge's): its label, its value, and its help. */
-function settings(): string[][] {
-  const terms = within(detailsTab()).queryAllByRole("term");
-  return terms.map((term) => [
-    term.textContent,
-    ...[...(term.parentElement?.querySelectorAll("dd") ?? [])].map(
-      (dd) => dd.textContent,
-    ),
-  ]);
-}
-
 /** A text field in Details, by its label. */
 function field(name: string): HTMLInputElement {
   return within(detailsTab()).getByRole("textbox", { name });
@@ -93,7 +82,7 @@ function description(element: Element): string {
     .join(" ");
 }
 
-/** The labels of a component's settings in Details, in order: a distribution's once. */
+/** The labels of the settings in Details, in order: a group's (a distribution's or a retry policy's) once. */
 function settingLabels(): (string | null | undefined)[] {
   const fields = [...detailsTab().querySelectorAll("input, fieldset")];
   return fields
@@ -179,7 +168,8 @@ describe("the Details tab, for the templates", () => {
   });
 
   // Fails if an edge's latency, timeout, or retry policy is missing or
-  // unread, an edge shows a default, or the steps along it are missed.
+  // unread, a setting loses its help or its caller type's default (here
+  // Lambda's), or the steps along it are missed.
   it("shows an edge's latency, timeout, and retries, and the steps along it", () => {
     renderProject(projectB);
 
@@ -188,18 +178,21 @@ describe("the Details tab, for the templates", () => {
     expect(detailsHeading().textContent).toBe(
       "fn-api → orders-queue · Connection",
     );
-    expect(settings().map((setting) => setting.slice(0, 2))).toEqual([
-      ["Latency", "1 ms"],
-      ["Timeout", "5,000 ms"],
-      [
-        "Retries",
-        "3 attempts, backing off exponentially, with jitter, from 50 ms",
-      ],
+    expect(settingLabels()).toEqual(["Latency", "Timeout", "Retries"]);
+    expect([field("Latency").value, field("Timeout").value]).toEqual([
+      "1",
+      "5000",
     ]);
-    for (const [, , help] of settings()) {
-      expect(help).toMatch(/\(ENG-\d\)\.$/);
-      expect(help).not.toContain("Default");
-    }
+    expect([field("Attempts").value, field("Base delay").value]).toEqual([
+      "3",
+      "50",
+    ]);
+    expect(description(field("Timeout"))).toMatch(
+      /\(ENG-5\)\. Default 5,000: an assumption \(ENG-5\)\.$/,
+    );
+    expect(description(group("Retries"))).toMatch(
+      /\(ENG-2\)\. Default 1 attempt, no retries: an assumption \(ENG-2\)\.$/,
+    );
     expect(
       within(detailsTab()).getByText("Called along by: Create order (enqueue)"),
     ).toBeTruthy();
@@ -255,7 +248,7 @@ describe("the Details tab, for the templates", () => {
         const name = edgeName(project, edge);
         selectFromText(name);
         expect(detailsHeading().textContent).toBe(`${name} · Connection`);
-        expect(settings()).toHaveLength(3);
+        expect(settingLabels()).toEqual(["Latency", "Timeout", "Retries"]);
       }
       for (const component of components) {
         fireEvent.click(await drawnNode(component.id));

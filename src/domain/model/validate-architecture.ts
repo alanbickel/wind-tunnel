@@ -1,5 +1,7 @@
+import { edgeSettingsSchema } from "./edge-settings";
 import type { Edge, Project } from "./project";
 import type { IssuePath, ValidationIssue } from "./validation-issue";
+import { issuesFromZod } from "./zod-issues";
 
 /** Anything with an ID that must be unique among its siblings. */
 interface Identified {
@@ -10,8 +12,10 @@ interface Identified {
  * Checks the architecture's rules that don't depend on component types and
  * that a schema can't express (MVP design §6, "Load-time checks"): unique
  * IDs, and edges whose ends exist, that don't loop to themselves, and that
- * don't duplicate another edge. Field shapes and number ranges are checked
- * earlier, by the document schema.
+ * don't duplicate another edge. It checks each edge's settings against
+ * `edgeSettingsSchema` too, so an edited edge saves only if the project
+ * could open again. The document schema checks the rest of the shapes and
+ * ranges when a project loads.
  *
  * Workflow and workload IDs are checked here too, though they aren't the
  * architecture: every reference to a workflow is by ID, so the run checks
@@ -93,6 +97,7 @@ function checkEdges(edges: readonly Edge[], context: EdgeContext): void {
   edges.forEach((edge, index) => {
     const at: EdgeInput = { edge, path: ["architecture", "edges", index] };
     checkEndpoints(at, context);
+    checkSettings(at, context.report);
     checkNotDuplicate(at, { targets, report: context.report });
   });
 }
@@ -109,6 +114,16 @@ function checkEndpoints({ edge, path }: EdgeInput, context: EdgeContext): void {
   }
   if (edge.from === edge.to) {
     report(path, `Edge "${edge.id}" connects "${edge.from}" to itself.`);
+  }
+}
+
+/** The edge's latency, timeout, and retry policy are in range. */
+function checkSettings({ edge, path }: EdgeInput, report: Report): void {
+  const { latencyMs, timeoutMs, retry } = edge;
+  const parsed = edgeSettingsSchema.safeParse({ latencyMs, timeoutMs, retry });
+  if (parsed.success) return;
+  for (const issue of issuesFromZod(parsed.error)) {
+    report([...path, ...issue.path], `Edge "${edge.id}": ${issue.message}`);
   }
 }
 

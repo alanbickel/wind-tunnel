@@ -116,6 +116,21 @@ describe("OpenedProject's moves", () => {
     expect(region.textContent).toBe("Moved Function.");
   });
 
+  // Fails if a move back to where the box was is announced, though it
+  // saves nothing.
+  it("announces nothing for a move back to where the box was", async () => {
+    renderOpenedProject();
+    const fn = await drawnNode("fn");
+    const region = movedRegion();
+
+    fn.focus();
+    fireEvent.keyDown(fn, { key: "ArrowRight" });
+    fireEvent.keyDown(fn, { key: "ArrowLeft" });
+    fireEvent.blur(fn);
+
+    expect(region.textContent).toBe("");
+  });
+
   // Fails if the screen draws a box where the template's layout has it,
   // not where the saved layout puts it, so a move is lost on reopening.
   it("draws a moved box where it was put once the project opens again", async () => {

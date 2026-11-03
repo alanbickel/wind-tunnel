@@ -119,15 +119,23 @@ interface MoveInput {
 
 /**
  * Saves a component's new place on the diagram, and announces it, since
- * the canvas says nothing to a screen reader. A move only changes the
+ * the canvas says nothing to a screen reader. A move back to where the
+ * component was saves nothing, so says nothing. A move only changes the
  * layout, which isn't part of the project, so the run on screen stays
  * current (ADR-0018).
  */
 function useMove({ edit, project, announce }: MoveInput): Move {
   return useCallback(
     (componentId: string, position: Point) => {
-      edit((record) => moveComponent(record, { componentId, position }));
-      announce(`Moved ${nameOf(project, componentId)}.`);
+      // `edit` runs the command at once, on the latest record. An object,
+      // so the flag set in the command reads as set after it.
+      const change = { moved: false };
+      edit((record) => {
+        const next = moveComponent(record, { componentId, position });
+        change.moved = next !== record;
+        return next;
+      });
+      if (change.moved) announce(`Moved ${nameOf(project, componentId)}.`);
     },
     [edit, project, announce],
   );

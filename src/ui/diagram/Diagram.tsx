@@ -5,6 +5,7 @@ import type {
   DiagramConnection,
   DiagramContent,
   DiagramItem,
+  DiagramMove,
 } from "./diagram-model";
 
 // React Flow arrives in its own chunk the first time a diagram draws, so the
@@ -34,12 +35,21 @@ export interface DiagramProps {
    * same way, before it's reported.
    */
   readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
+  /**
+   * Called with a box the user moves and where they put it: once when a
+   * drag ends, and once for a run of arrow key presses on a focused box,
+   * when the keys pause or the box loses the focus. The box stays where it
+   * was put until `content` changes, which should then hold the move.
+   * Without it, nothing can be moved.
+   */
+  readonly onMove?: ((move: DiagramMove) => void) | undefined;
 }
 
 /**
- * A diagram of boxes and arrows (ADR-0010). The user can pan and zoom,
- * but not move anything. Given `onConnect`, a drag from one box's handle
- * to another draws an arrow. Given `onSelect`, a click
+ * A diagram of boxes and arrows (ADR-0010). The user can pan and zoom.
+ * Given `onMove`, they can move a box by dragging it, or with the arrow
+ * keys once it has the focus. Given `onConnect`, a drag from one box's
+ * handle to another draws an arrow. Given `onSelect`, a click
  * selects a box or an arrow, and the boxes take tab stops so Enter can
  * select them; the diagram rings the selected box and thickens the
  * selected arrow. It isn't readable by screen readers, so pair it with a
@@ -50,7 +60,7 @@ export interface DiagramProps {
  * place.
  */
 export function Diagram(props: DiagramProps) {
-  const { content, label, selected, onSelect, onConnect } = props;
+  const { content, label, selected, onSelect, onConnect, onMove } = props;
   return (
     <div role="group" aria-label={label} className={styles.diagram}>
       <div className={styles.canvas}>
@@ -69,6 +79,7 @@ export function Diagram(props: DiagramProps) {
               selected={selected}
               onSelect={onSelect}
               onConnect={onConnect}
+              onMove={onMove}
             />
           </Suspense>
         </LoadFailureBoundary>

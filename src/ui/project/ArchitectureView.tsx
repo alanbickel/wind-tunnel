@@ -1,5 +1,8 @@
 import { useCallback, useMemo, type ReactNode } from "react";
-import type { ProjectRecord } from "../../application/ports/project-record";
+import type {
+  Point,
+  ProjectRecord,
+} from "../../application/ports/project-record";
 import type { Selection } from "../../application/details/selection";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { Diagram } from "../diagram/Diagram";
@@ -23,6 +26,8 @@ export interface ArchitectureViewProps {
   readonly onClear: () => void;
   /** Connects two components, as drawn on the diagram: caller, then callee. */
   readonly onConnect: (from: string, to: string) => void;
+  /** Moves a component to where it was put on the diagram. */
+  readonly onMove: (componentId: string, position: Point) => void;
   /** "Add component", above the diagram. */
   readonly adding: AddComponentProps;
 }
@@ -33,10 +38,12 @@ export interface ArchitectureViewProps {
  * canvas. Either selects a component or a connection: a click on the
  * diagram, or a button in the list, which is the way every user can rely
  * on. A drag from one box to another on the diagram connects them;
- * "Connect to…" in a component's Details is the keyboard's way.
+ * "Connect to…" in a component's Details is the keyboard's way. A box
+ * moves by dragging it, or with the arrow keys once it has the focus; its
+ * place is only visual, so the text version doesn't change.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
-  const { record, onConnect, adding } = props;
+  const { record, onConnect, onMove, adding } = props;
   const content = useMemo(() => diagramOf(record), [record]);
   const { selected, onItem } = useDiagramSelection(props);
 
@@ -50,6 +57,9 @@ export function ArchitectureView(props: ArchitectureViewProps) {
         onSelect={onItem}
         onConnect={({ source, target }) => {
           onConnect(source, target);
+        }}
+        onMove={({ id, position }) => {
+          onMove(id, position);
         }}
       />
       <TextVersion content={content} selected={selected} onSelect={onItem} />

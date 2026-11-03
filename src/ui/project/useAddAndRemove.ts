@@ -34,6 +34,8 @@ export interface AddAndRemove {
   readonly addButtonRef: RefObject<HTMLButtonElement | null>;
   /** "Removed Table.", for the polite region beside "Add component". */
   readonly announcement: string;
+  /** Says a message in that region, without moving the focus. */
+  readonly announce: (message: string) => void;
 }
 
 /**
@@ -68,7 +70,7 @@ export function useAddAndRemove(
     [connectWith, project, announce],
   );
   const remove = useRemove({ edits, selecting, addButtonRef, announce });
-  return { add, connect, remove, addButtonRef, announcement };
+  return { add, connect, remove, addButtonRef, announcement, announce };
 }
 
 interface RemoveInput {

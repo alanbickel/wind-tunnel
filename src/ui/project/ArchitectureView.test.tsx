@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Selection } from "../../application/details/selection";
+import type { Point } from "../../application/ports/project-record";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
@@ -33,6 +34,7 @@ function renderView({ selection }: RenderViewInput = {}) {
   const onSelect = vi.fn<(selection: Selection) => void>();
   const onClear = vi.fn<() => void>();
   const onAdd = vi.fn<(type: string) => void>();
+  const onMove = vi.fn<(componentId: string, position: Point) => void>();
   render(
     <UseCasesProvider useCases={fakeUseCases()}>
       <ArchitectureView
@@ -41,11 +43,12 @@ function renderView({ selection }: RenderViewInput = {}) {
         onSelect={onSelect}
         onClear={onClear}
         onConnect={vi.fn()}
+        onMove={onMove}
         adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
       />
     </UseCasesProvider>,
   );
-  return { onSelect, onClear, onAdd };
+  return { onSelect, onClear, onAdd, onMove };
 }
 
 function diagram(): HTMLElement {
@@ -76,19 +79,20 @@ describe("ArchitectureView", () => {
     expect(await drawnNodes(diagram())).toHaveLength(3);
   });
 
-  // Fails if DiagramCanvas lets boxes be dragged, turns on React Flow's
-  // own selection, stops letting a drag connect them, or stops giving each
-  // box a tab stop and a description that says what Enter and a drag do.
-  it("offers nothing to move, a handle to connect, and a tab stop to select each box", async () => {
+  // Fails if the view stops letting boxes be dragged, DiagramCanvas turns
+  // on React Flow's own selection, stops letting a drag connect them, or
+  // stops giving each box a tab stop and a description that says what
+  // Enter, the arrow keys, and a drag do.
+  it("lets each box move, connect, and take a tab stop to select it", async () => {
     renderView();
 
     for (const node of await drawnNodes(diagram())) {
-      expect(node.classList.contains("draggable")).toBe(false);
+      expect(node.classList.contains("draggable")).toBe(true);
       expect(node.classList.contains("selectable")).toBe(false);
       expect(node.getAttribute("tabindex")).toBe("0");
       const description = node.getAttribute("aria-describedby") ?? "";
       expect(document.getElementById(description)?.textContent).toBe(
-        "Press Enter to show its details, or drag from its right edge to another box to connect them. The text version after the diagram lists the same items.",
+        "Press Enter to show its details. Press the arrow keys, or drag it, to move it. Drag from its right edge to another box to connect them. The text version after the diagram lists the same items.",
       );
     }
     const nodes = await drawnNodes(diagram());
@@ -109,6 +113,18 @@ describe("ArchitectureView", () => {
     expect(onSelect.mock.calls).toEqual([
       [{ kind: "component", componentId: "fn" }],
     ]);
+  });
+
+  // Fails if a box's move isn't reported as its component's, at the place
+  // it was put.
+  it("moves a box's component to where it was put", async () => {
+    const { onMove } = renderView();
+    const [, fn] = await drawnNodes(diagram());
+
+    fireEvent.keyDown(fn as Element, { key: "ArrowDown" });
+    fireEvent.blur(fn as Element);
+
+    expect(onMove.mock.calls).toEqual([["fn", { x: 250, y: 5 }]]);
   });
 
   // Fails if the diagram rings a box other than the selected component, or

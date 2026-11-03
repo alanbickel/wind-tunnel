@@ -15,7 +15,10 @@ import { awsSaveProject } from "../../../application/testing/aws-save-project";
 import { InMemoryProjectRepository } from "../../../application/testing/in-memory-project-repository";
 import { sampleRecord } from "../../../application/testing/sample-record";
 import { awsRunSimulation } from "../../../application/testing/aws-run-simulation";
-import type { ProjectRecord } from "../../../application/ports/project-record";
+import type {
+  Layout,
+  ProjectRecord,
+} from "../../../application/ports/project-record";
 import type { Project } from "../../../domain/model/project";
 import { fakeUseCases } from "../../app/testing/fake-use-cases";
 import type { UseCases } from "../../app/use-cases";
@@ -31,6 +34,8 @@ import { OpenedProject } from "../OpenedProject";
 export interface RenderOpenedProjectInput {
   /** The sample record's project, unless given. */
   readonly project?: Project;
+  /** The sample record's layout, unless given, as a project saved with moves would have. */
+  readonly layout?: Layout;
   /** Wide, unless given. */
   readonly width?: WindowWidth;
   /** The real one over the AWS types, saving to `projects`, unless given. */
@@ -58,6 +63,7 @@ export interface RenderedProject extends RenderResult {
  */
 export function renderOpenedProject({
   project = sampleRecord.project,
+  layout = sampleRecord.layout,
   width = "wide",
   saveProject,
   runSimulation,
@@ -74,7 +80,7 @@ export function renderOpenedProject({
   });
   const screenOf = (shown: Project) => (
     <UseCasesProvider useCases={useCases}>
-      <OpenedProject record={{ ...sampleRecord, project: shown }} />
+      <OpenedProject record={{ ...sampleRecord, project: shown, layout }} />
     </UseCasesProvider>
   );
   const view = render(screenOf(project));

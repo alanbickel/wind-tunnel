@@ -27,7 +27,7 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
 - **Inline findings:** each unresolved thread whose first comment starts with `🤖 Claude review:` and has no answer since the reviewer's last comment in it.
 - **Findings in the review summary** (findings on lines outside the diff, given as `path:line`): answer them all in one PR comment that starts with `🤖 Claude (author):`, with one numbered answer per finding, in the summary's order.
 - **A reply from the maintainer** (no `🤖` prefix) settles its thread. Do what it says, and answer with the tag that fits.
-- Don't answer threads that are resolved, or that only the maintainer can settle (see **[decision]** below).
+- Don't answer threads that are resolved. Don't fix a finding the reviewer tagged [decision]: answer it with a link to the reviewer's question (see **[decision]** below).
 
 ## Choosing an answer
 
@@ -40,7 +40,7 @@ For each finding, pick an answer that the review protocol allows for its tag:
   - body: what's wrong, the reviewer's reproduction, a suggested fix, and `Found in the review of #$ARGUMENTS: <link to the finding's comment>`
   - label `fix`
   Don't file feature issues. Something that would be new feature work, not a fix, is [won't fix] with a note that it could be a future item, or a [decision] if you think it matters now.
-- **[decision]:** you can't settle it, or the reviewer tagged it [decision]. Don't try to fix it. Post the question (below), and reply in the thread with a link to it. Any finding can take this answer, a [defect] included.
+- **[decision]:** the reviewer tagged it [decision], or you can't settle it. Don't try to fix it. If the reviewer tagged it, it has already posted a `🤖 Claude question:`: reply in the thread with a link to that question, and post nothing new. If you're the one escalating it, post a question (below) and reply with a link to yours. Any finding can take this answer, a [defect] included.
 
 ### A [defect] has three possible answers
 
@@ -77,7 +77,7 @@ Don't resolve threads. The reviewer resolves the ones it accepts.
 
 ## Questions for the maintainer
 
-For each [decision], post a question on the PR (`gh pr comment $ARGUMENTS --body-file <file>`, with the file outside the repo). Start it with `🤖 Claude question:`, say what needs deciding, the options, and which you recommend and why, and link the finding. Then add the label: `gh pr edit $ARGUMENTS --add-label needs-decision`. Answer the other findings first, then stop.
+For each finding you escalate to [decision] yourself, post a question on the PR (`gh pr comment $ARGUMENTS --body-file <file>`, with the file outside the repo). Start it with `🤖 Claude question:`, say what needs deciding, the options, and which you recommend and why, and link the finding. Then add the label: `gh pr edit $ARGUMENTS --add-label needs-decision`. Answer the other findings first, then stop.
 
 ## Recording your choices
 

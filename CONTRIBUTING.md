@@ -104,7 +104,7 @@ The repository allows only squash merges, and a ruleset stops `main` from being 
 
 ### Reviews
 
-[`/pr-review`](.claude/commands/pr-review.md) is a project command for Claude Code. It reads the PR in its own worktree, checks it against this guide, and posts one review. Run it again after the author answers: a follow-up round checks each answer and reviews only the commits pushed since. The reviewer never pushes, approves, or merges. It doesn't run tests either: CI runs `npm run check`, and each test's `// Fails if` comment (see [Tests](docs/contributing/testing.md)) is the author's record that it can fail.
+[`/pr-review`](.claude/commands/pr-review.md) is a project command for Claude Code. It reads the PR in its own worktree, checks it against this guide and its pages in `docs/contributing/`, and posts one review. Run it again after the author answers: a follow-up round checks each answer and reviews only the commits pushed since. The reviewer never pushes, approves, or merges. It doesn't run tests either: CI runs `npm run check`, and each test's `// Fails if` comment (see [Tests](docs/contributing/testing.md)) is the author's record that it can fail.
 
 [`/pr-address`](.claude/commands/pr-address.md) is its counterpart for the author. It answers each finding of the latest review in the finding's thread, fixes what it fixes in commits on the branch, and pushes. Use it to answer a review in interactive and scripted sessions alike, so every answer uses the same tags. It can run in the session that wrote the PR; only the reviewer needs a fresh one.
 

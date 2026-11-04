@@ -15,7 +15,7 @@ export interface ProjectListProps {
 export function ProjectList({ projects, onOpen, focusId }: ProjectListProps) {
   const focusRef = useFocusOnMount<HTMLButtonElement>();
   if (projects.length === 0) {
-    return <p>No projects yet. Create one from a template below.</p>;
+    return <p>No projects yet. Create one below.</p>;
   }
   return (
     <CardList>

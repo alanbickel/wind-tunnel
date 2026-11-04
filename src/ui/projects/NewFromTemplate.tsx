@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useId } from "react";
 import { useUseCases } from "../app/useUseCases";
 import { LoadableView } from "../shared/LoadableView";
 import { useLoad } from "../shared/useLoad";
@@ -10,16 +10,20 @@ export interface NewFromTemplateProps {
   readonly onCreated: () => void;
 }
 
-/** Lists the templates and creates a project from the one the user picks. */
+/**
+ * Lists the templates and creates a project from the one the user picks.
+ * The copy stays on the list, not opened.
+ */
 export function NewFromTemplate({ onCreated }: NewFromTemplateProps) {
   const { listTemplates } = useUseCases();
   const load = useCallback(() => listTemplates.execute(), [listTemplates]);
   const { loadable } = useLoad(load);
   const { create, problem, pending } = useCreateFromTemplate(onCreated);
+  const headingId = useId();
 
   return (
-    <section aria-labelledby="new-project-heading">
-      <h2 id="new-project-heading">New from template</h2>
+    <section aria-labelledby={headingId}>
+      <h3 id={headingId}>Create from template</h3>
       <LoadableView loadable={loadable} what="the templates">
         {(templates) => (
           <TemplateList

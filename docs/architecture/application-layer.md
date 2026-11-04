@@ -74,6 +74,7 @@ Each use case is a class: ports go into the constructor as one object, and the w
 | `ListProjects` | projects | Summaries, most recently updated first |
 | `ListTemplates` | templates | Template summaries (ID, version, name) |
 | `CreateProjectFromTemplate` | templates, projects, clock, ids | `created` with the new record, or `template-missing` |
+| `CreateBlankProject` | projects, clock, ids | `created` with the new record, or `name-taken` |
 | `OpenProject` | projects | `found`, `missing`, or `invalid` with a `reason` for the user |
 | `SaveProject` | projects, clock, registry | `saved` with the new `updatedAt`, or `invalid` with the issues |
 | `DeleteProject` | projects | nothing; deleting a missing project does nothing |
@@ -86,7 +87,8 @@ Each use case is a class: ports go into the constructor as one object, and the w
 
 Most are a single call on a port. The ones with logic:
 
-- **`CreateProjectFromTemplate`** copies the template's record with a new ID from `IdGenerator` and both timestamps from `Clock`. It keeps `source` (template ID and version), so the project remembers where it came from.
+- **`CreateProjectFromTemplate`** copies the template's record with a new ID from `IdGenerator` and both timestamps from `Clock`. It keeps `source` (template ID and version), so the project remembers where it came from. It keeps the template's name too, unless another project uses it: then the copy takes the first free number, "Serverless API with RDS (2)".
+- **`CreateBlankProject`** saves a project with only a name: no components, edges, workflows, or workloads, an empty layout, and no `source`. Project names are unique, compared without the spaces around them and ignoring case. The screen checks the name first with [`checkProjectName`](../../src/application/details/project-name.ts), against the projects `ListProjects` returns, and words what's wrong; the use case refuses a taken name as `name-taken`, as a backstop. The repository doesn't enforce it, so two tabs creating at once could still clash, and projects stored before the rule keep their names.
 - **`SaveProject`** refuses a project whose architecture fails its checks (`findArchitectureIssues`). The repository would store it, but couldn't open it again. Run issues, in the workflows and workloads, save ([the two groups](domain-model.md#validation-who-checks-what)).
 - **`DescribeSelection`** words a component's settings from its type's field descriptors ([`application/details/`](../../src/application/details/)): each value with its unit, the help, and the type's default with its evidence, such as "Default 16: an assumption (RDS-2)." It also works out what calls the component, or along the edge, from the workflows' steps, and words what Remove's confirmation asks: "Remove orders-db and its edge from fn-orders? 2 workflow steps call it, and won't run until you change them." An edge's defaults are its caller type's `edgeDefaults`, with the evidence its `TypeFields` give in `edgeEvidence` ("Default 29,000: documented (ENG-5)." from API Gateway). A component's details list what "Connect to…" offers: every other component it has no edge to yet.
 - **`NewComponent`** leaves the name to the `addComponent` command, which picks it from the record it's applied to: the type and the lowest number no component of the type uses ("lambda-2" beside "lambda-1" and "lambda-3"). So the name is free in the project as it is when the add lands, not when the input was made.
@@ -141,11 +143,12 @@ Things to know:
 
 [`src/adapters/traces/application-layer.test.ts`](../../src/adapters/traces/application-layer.test.ts) wires the use cases to the real adapters (IndexedDB through `fake-indexeddb`), wraps each port so it records every call, and saves the timeline to [`application-layer.txt`](../../src/adapters/traces/application-layer.txt). `port` lines are calls a use case made; `result` is what it returned.
 
-Creating a project from a template takes the template, a new ID, and the time from the ports, then saves. IndexedDB holds the document, not the record: note `schemaVersion` and the workload's duration in seconds.
+Creating a project from a template takes the template, the saved projects (to keep its name free), a new ID, and the time from the ports, then saves. IndexedDB holds the document, not the record: note `schemaVersion` and the workload's duration in seconds.
 
 ```text
 CreateProjectFromTemplate.execute("template-a")
   port     templates.get("template-a") → record template-a "Serverless API with RDS" (updatedAt 2026-10-14T00:00:00Z)
+  port     projects.list() → []
   port     ids.newId() → project-1
   port     clock.now() → 2026-10-15T12:00:00.000Z
   port     projects.save(record project-1 "Serverless API with RDS" (updatedAt 2026-10-15T12:00:00.000Z))

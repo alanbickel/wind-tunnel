@@ -26,6 +26,7 @@ export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
     createProjectFromTemplate: {
       execute: unexpected("createProjectFromTemplate"),
     },
+    createBlankProject: { execute: unexpected("createBlankProject") },
     openProject: { execute: unexpected("openProject") },
     saveProject: { execute: unexpected("saveProject") },
     deleteProject: { execute: unexpected("deleteProject") },

@@ -40,16 +40,34 @@ export interface ArchitectureViewProps {
  * on. A drag from one box to another on the diagram connects them;
  * "Connect to…" in a component's Details is the keyboard's way. A box
  * moves by dragging it, or with the arrow keys once it has the focus; its
- * place is only visual, so the text version doesn't change.
+ * place is only visual, so the text version doesn't change. With no
+ * components, a line under "Add component" says what to do instead (UX
+ * design §2.1 step 1).
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
-  const { record, onConnect, onMove, adding } = props;
-  const content = useMemo(() => diagramOf(record), [record]);
-  const { selected, onItem } = useDiagramSelection(props);
-
+  const content = useMemo(() => diagramOf(props.record), [props.record]);
   return (
     <Panel heading="Architecture" scrolls>
-      <AddComponent {...adding} />
+      <AddComponent {...props.adding} />
+      {content.nodes.length === 0 ? (
+        <p>No components yet. Add one to start describing your system.</p>
+      ) : (
+        <Drawing {...props} content={content} />
+      )}
+    </Panel>
+  );
+}
+
+interface DrawingProps extends ArchitectureViewProps {
+  readonly content: DiagramContent;
+}
+
+/** The diagram, and its text version, of a project with components. */
+function Drawing(props: DrawingProps) {
+  const { record, content, onConnect, onMove } = props;
+  const { selected, onItem } = useDiagramSelection(props);
+  return (
+    <>
       <Diagram
         content={content}
         label={`Architecture diagram of ${record.project.name}`}
@@ -63,7 +81,7 @@ export function ArchitectureView(props: ArchitectureViewProps) {
         }}
       />
       <TextVersion content={content} selected={selected} onSelect={onItem} />
-    </Panel>
+    </>
   );
 }
 

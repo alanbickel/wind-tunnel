@@ -1,0 +1,31 @@
+.blank {
+  margin-bottom: var(--space-4);
+}
+
+/* The label, the field, and the button on one line, wrapping when there's no room. */
+.entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.label {
+  font-weight: var(--font-weight-bold);
+}
+
+.name {
+  width: var(--text-field-width);
+  max-width: 100%;
+}
+
+/* In words, and by aria-invalid's border, not by color alone. */
+.message {
+  margin: var(--space-1) 0 0;
+  color: var(--color-status-error);
+}
+
+.name[aria-invalid="true"] {
+  border-color: var(--color-status-error);
+  border-width: var(--line-width-thick);
+}

@@ -49,6 +49,25 @@ describe("CreateProjectFromTemplate", () => {
     expect(ids).toEqual(["project-1", "project-2"]);
   });
 
+  // Fails if a copy keeps a name another project uses, or numbering
+  // reuses a number already taken.
+  it("numbers a copy whose name is taken: (2), then (3)", async () => {
+    const { createProject } = setUp();
+
+    const names = [];
+    for (let copy = 0; copy < 3; copy++) {
+      const result = await createProject.execute(TEMPLATE_ID);
+      if (result.status !== "created") throw new Error(result.status);
+      names.push(result.record.project.name);
+    }
+
+    expect(names).toEqual([
+      "Sample project",
+      "Sample project (2)",
+      "Sample project (3)",
+    ]);
+  });
+
   it("reports an unknown template and saves nothing", async () => {
     const { projects, createProject } = setUp();
 

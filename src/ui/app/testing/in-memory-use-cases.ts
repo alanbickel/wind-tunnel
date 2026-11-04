@@ -4,6 +4,7 @@ import { InMemoryProjectRepository } from "../../../application/testing/in-memor
 import { InMemoryTemplateCatalog } from "../../../application/testing/in-memory-template-catalog";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import { SequentialIds } from "../../../application/testing/sequential-ids";
+import { CreateBlankProject } from "../../../application/use-cases/create-blank-project";
 import { CreateProjectFromTemplate } from "../../../application/use-cases/create-project-from-template";
 import { DeleteProject } from "../../../application/use-cases/delete-project";
 import { ListProjects } from "../../../application/use-cases/list-projects";
@@ -38,6 +39,7 @@ export function inMemoryUseCases(
       clock,
       ids,
     }),
+    createBlankProject: new CreateBlankProject({ projects, clock, ids }),
     openProject: new OpenProject({ projects }),
     deleteProject: new DeleteProject({ projects }),
     describeSelection: awsDescribeSelection(),

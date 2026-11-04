@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +13,8 @@ import type {
   PersistenceStatus,
   StoragePersistence,
 } from "../application/ports/storage-persistence";
+import { awsNewComponent } from "../application/testing/aws-component-types";
+import { awsSaveProject } from "../application/testing/aws-save-project";
 import { sampleRecord } from "../application/testing/sample-record";
 import { App } from "./App";
 import { inMemoryUseCases } from "./app/testing/in-memory-use-cases";
@@ -89,6 +92,109 @@ describe("App", () => {
     await screen.findByRole("heading", { name: "Sample project" });
 
     expect(breadcrumb.textContent).toBe("Projects›Sample project");
+  });
+});
+
+describe("App's blank project", () => {
+  beforeEach(() => {
+    stubDiagramBrowserApis();
+    stubWindowWidth("wide");
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  const PROMPT = "No components yet. Add one to start describing your system.";
+
+  /** The app over memory, with the sample saved, adding and saving components. */
+  async function renderApp() {
+    const { useCases, projects } = inMemoryUseCases([]);
+    await projects.save(sampleRecord);
+    const storagePersistence = {
+      request: vi.fn(() => Promise.resolve("persisted" as const)),
+    };
+    render(
+      <UseCasesProvider
+        useCases={{
+          ...useCases,
+          newComponent: awsNewComponent(),
+          saveProject: awsSaveProject(projects),
+          storagePersistence,
+        }}
+      >
+        <App />
+      </UseCasesProvider>,
+    );
+    return { storagePersistence };
+  }
+
+  /** Creates "Orders service" from the projects screen, and waits for it to open. */
+  async function createOrdersService() {
+    const field = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(field, { target: { value: "Orders service" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create blank" }));
+    return screen.findByRole("heading", { name: "Orders service", level: 2 });
+  }
+
+  // Fails if a blank project stays on the list instead of opening, opens
+  // without its name in the breadcrumb, shows an empty diagram without the
+  // prompt, or doesn't ask for persistent storage as a template copy does.
+  it("opens a new blank project, named, with the empty diagram's prompt", async () => {
+    const { storagePersistence } = await renderApp();
+
+    const heading = await createOrdersService();
+
+    expect(document.activeElement).toBe(heading);
+    const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(breadcrumb.textContent).toBe("Projects›Orders service");
+    expect(screen.getByText(PROMPT)).toBeTruthy();
+    expect(
+      screen.queryByRole("group", { name: /Architecture diagram/ }),
+    ).toBeNull();
+    expect(storagePersistence.request).toHaveBeenCalledOnce();
+  });
+
+  // Fails if the prompt outlives the first component, or the diagram and
+  // its text version don't come back to show it.
+  it("replaces the prompt with the diagram once a component is added", async () => {
+    await renderApp();
+    await createOrdersService();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add component" }));
+    const types = screen.getByRole("list", { name: "Component types" });
+    const lambda = within(types)
+      .getAllByRole("button")
+      .find((button) => button.textContent.startsWith("Lambda:"));
+    if (lambda === undefined) throw new Error("No Lambda type");
+    fireEvent.click(lambda);
+
+    expect(screen.queryByText(PROMPT)).toBeNull();
+    expect(
+      screen.getByRole("group", {
+        name: "Architecture diagram of Orders service",
+      }),
+    ).toBeTruthy();
+    const components = screen.getByRole("list", { name: "Components" });
+    expect(components.textContent).toBe("lambda-1 (lambda)");
+  });
+
+  // Fails if the new project isn't saved, or is saved without a later
+  // `updatedAt` than the sample, so going back doesn't list it first.
+  it("lists the new project first on going back", async () => {
+    await renderApp();
+    await createOrdersService();
+
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
+
+    await screen.findByRole("button", { name: "Orders service" });
+    const listed = within(
+      screen.getByRole("region", { name: "Your projects" }),
+    ).getAllByRole("button");
+    expect(listed.map((button) => button.textContent)).toEqual([
+      "Orders service",
+      "Sample project",
+    ]);
   });
 });
 

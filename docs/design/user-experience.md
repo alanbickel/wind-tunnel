@@ -57,11 +57,11 @@ Going round the loop again, from the end of §2.1 (or from a copy of Template A,
 
 ### 2.3 Rename a project
 
-You copied Template A, and it's called "Serverless API with RDS", as is anything else you copy from it.
+You copied Template A, and it's called "Serverless API with RDS". A second copy would be "Serverless API with RDS (2)", since no two projects share a name.
 
 1. The project's name is the heading at the top of the project screen, with a "Rename" button beside it. You choose it; the heading becomes a text field holding the name, selected.
 2. You type "Orders API" and press Enter. The heading and the breadcrumb ("Projects › Orders API") change, and the projects list shows the new name, first, since it's the most recently updated. Escape instead puts the old name back.
-3. An empty name doesn't save: **New** "A project needs a name." The document schema requires one today.
+3. An empty name doesn't save: **New** "A project needs a name." The document schema requires one today. Nor does a name another project uses, compared without the spaces around it and ignoring case: **New** "Another project already uses this name. Please choose another name." The project's own name, in another case, is fine. **Proposed:** unique project names ([§5](#5-data-needs)).
 4. The project still came from Template A. **Proposed:** what `source` means after editing ([§5](#5-data-needs)).
 
 ### 2.4 Add a component, and remove one
@@ -268,6 +268,7 @@ Each row is something a journey step needs: whether it exists today, the change 
 | Defaults for a new edge (2.1) | Edges have no defaults | Each component type declares the defaults of the edges it calls along, beside its `defaultConfig`, so a new type brings its own. Each default says how sure it is, as a setting's does, and fidelity's defaults table gets a row for each. To start: 1 ms latency and one attempt (assumptions), and a timeout of 29 s from API Gateway (**Documented**, §2.1 step 5) or 5 s from the other types (an assumption) | No |
 | What calls a component (2.1, 2.4) | Nothing works it out | "Called by", from the workflows' steps | No |
 | A workflow's path on the diagram (2.1, 2.5) | `diagramOf` knows nothing of workflows | The components and edges a workflow uses, to highlight, and a line for the text version | No |
+| Unique project names (2.1, 2.3) | Nothing stops two projects sharing a name; every copy of a template has the template's | No two projects share a name, compared without the spaces around it and ignoring case. Creating a blank project and renaming one refuse a name in use; a template copy whose name is taken gets the first free number, "Serverless API with RDS (2)". The application checks it against the list it reads, not the repository, so two tabs creating at once could still clash | No: names already shared stay, and the rule applies only when a name is chosen |
 | A project with nothing in it (2.1) | Projects come only from templates | A blank project: a name, and no components, edges, workflows, or workloads. Today's schema and checks already accept it; it has nothing to run | No |
 | Placing a new component (2.4) | `diagramOf` places a component the layout doesn't list; nodes can't be dragged | Drag a node; the drag's end is a command that saves its position in the layout | No: the layout is already stored |
 | Which version of the project a run ran (2.2) | `useSimulationRun` keeps one run in memory, and its findings are worded from the current project | The run keeps a copy of the project, and is current while its content matches (ADR-0018) | No: runs aren't stored |

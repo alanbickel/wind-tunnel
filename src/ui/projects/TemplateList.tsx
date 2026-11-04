@@ -21,7 +21,7 @@ export function TemplateList({
       {templates.map((template) => (
         <Card key={template.id}>
           <div className={styles.header}>
-            <h3 className={styles.name}>{template.name}</h3>
+            <h4 className={styles.name}>{template.name}</h4>
             <Button
               usable={!pending}
               label={`Create a project from ${template.name}`}

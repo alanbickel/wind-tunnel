@@ -15,6 +15,7 @@ import { RandomUuidIds } from "./adapters/system/random-uuid-ids";
 import { SystemClock } from "./adapters/system/system-clock";
 import { createBundledTemplateCatalog } from "./adapters/templates/bundled-template-catalog";
 import { createFieldCatalog } from "./application/details/create-field-catalog";
+import { CreateBlankProject } from "./application/use-cases/create-blank-project";
 import { CreateProjectFromTemplate } from "./application/use-cases/create-project-from-template";
 import { CheckWorkloads } from "./application/use-cases/check-workloads";
 import { NameComponents } from "./application/use-cases/name-components";
@@ -82,6 +83,7 @@ function createUseCases(database: ProjectDatabase): UseCases {
       clock,
       ids,
     }),
+    createBlankProject: new CreateBlankProject({ projects, clock, ids }),
     openProject: new OpenProject({ projects }),
     saveProject: new SaveProject({ projects, clock, registry }),
     deleteProject: new DeleteProject({ projects }),

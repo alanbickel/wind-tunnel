@@ -16,7 +16,7 @@ This is a reading review. CI runs `npm run check`, and the author proves their t
    gh pr diff $ARGUMENTS
    ```
    Read each issue it closes (`gh issue view <n>`).
-2. Read `CLAUDE.md` and `CONTRIBUTING.md`. Their standards are the review criteria, and CONTRIBUTING's "Review comments" section sets the tags, answers, and verdict this command uses. Read the Roadmap (`gh issue view 32`) to see where the PR's issue sits.
+2. Read `CLAUDE.md` and `CONTRIBUTING.md`. Their standards are the review criteria, and `.claude/review-protocol.md` sets the tags, answers, and verdict this command uses. Read it too. Read the Roadmap (`gh issue view 32`) to see where the PR's issue sits.
 3. Another session may be working in this checkout, so don't switch branches here. Review in a separate worktree (the first line clears one left by an earlier run):
    ```
    rm -rf ../wind-tunnel-review-$ARGUMENTS; git worktree prune
@@ -34,7 +34,7 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
   ```
   node scripts/review-threads.js list $ARGUMENTS
   ```
-- For each unresolved thread from an earlier round, read the author's reply and act on its answer tag as CONTRIBUTING's "Review comments" says:
+- For each unresolved thread from an earlier round, read the author's reply and act on its answer tag as the review protocol says:
   - **[fixed]:** read the commit it names and trace the code to check that the fix works and has a test where one applies (see "Definition of done" below). If it holds, resolve the thread. If not, reply in the thread with a new tagged finding (`🤖 Claude review: **[should fix] confirmed.** …`) through `gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments/<first-comment-id>/replies --method POST -f body=<finding>`, and leave it open.
   - **[won't fix]:** check that the finding's tag allows it (never for [blocking] or [defect]). If you accept the reason, resolve the thread. If you don't, raise it as **[decision]**. Don't argue it for a second round.
   - **[deferred] #N:** check that issue #N exists and covers the finding, then resolve the thread.
@@ -108,7 +108,7 @@ gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --method POST --input revie
 - `event` must be `COMMENT`. The PR author is the same GitHub account, so APPROVE and REQUEST_CHANGES fail.
 - Start the summary body and every inline comment body with `🤖 Claude review:`. The comments post under the maintainer's account, and follow-up mode finds earlier rounds by that prefix.
 - Anchor inline comments on lines inside the diff. GitHub rejects the whole review if any comment points outside it. Put findings about other lines in the summary, with `path:line`.
-- Tag each finding as CONTRIBUTING's "Review comments" says: **[blocking]**, **[should fix]** or **[nit]**, confirmed or suspected, and **[defect]** when the code is wrong rather than open to improvement. For example: `🤖 Claude review: **[should fix] [defect] confirmed.**`
+- Tag each finding as the review protocol says: **[blocking]**, **[should fix]** or **[nit]**, confirmed or suspected, and **[defect]** when the code is wrong rather than open to improvement. For example: `🤖 Claude review: **[should fix] [defect] confirmed.**`
 - For each finding, say what's wrong, give a way to reproduce it (steps, a command, or a test that fails), and suggest a fix. A [defect]'s reproduction is what the author copies into a `fix` issue if it defers the finding, so make it stand on its own.
 - Report at most 8 findings, the most important first.
 - Write `review.json` outside the repo (for example in the system temp directory) so it isn't left in a checkout.
@@ -117,7 +117,7 @@ gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --method POST --input revie
 
 ### A finding only the maintainer can settle
 
-Tag it **[decision]** when the right answer depends on something the issue and the guides don't settle, or on any of the reasons in CONTRIBUTING's "When a session stops and asks". Post it in the review like any other finding, then, after the review is posted:
+Tag it **[decision]** when the right answer depends on something the issue and the guides don't settle, or on any of the reasons in the review protocol's "When a session stops and asks". Post it in the review like any other finding, then, after the review is posted:
 
 1. Post a question on the PR:
    ```

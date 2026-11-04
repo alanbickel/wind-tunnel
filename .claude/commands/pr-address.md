@@ -3,11 +3,11 @@ description: Answer the latest Claude review of a Wind Tunnel pull request, fixi
 argument-hint: <pr-number>
 ---
 
-You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its latest `🤖 Claude review:`. Answer every open finding with one answer tag, fix what you fix in commits on the PR branch, and push. CONTRIBUTING's "Review comments" section sets the tags and which answers each finding allows. Follow it exactly: the next review round reads your answers by their tags.
+You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its latest `🤖 Claude review:`. Answer every open finding with one answer tag, fix what you fix in commits on the PR branch, and push. [`.claude/review-protocol.md`](../review-protocol.md) sets the tags and which answers each finding allows. Follow it exactly: the next review round reads your answers by their tags.
 
 ## Setup
 
-1. Read `CLAUDE.md` and `CONTRIBUTING.md`, especially "Review comments", "Coding standards", "Tests", and "Documentation". Fixes follow the same standards as any other code.
+1. Read `.claude/review-protocol.md`, then `CLAUDE.md` and `CONTRIBUTING.md`, especially "Coding standards", "Tests", and "Documentation". Fixes follow the same standards as any other code.
 2. Look up the PR, the issue it closes, and the latest Claude review:
    ```
    gh pr view $ARGUMENTS --json title,body,headRefName,headRefOid,closingIssuesReferences,reviews,mergeable
@@ -31,7 +31,7 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
 
 ## Choosing an answer
 
-For each finding, pick an answer that CONTRIBUTING allows for its tag:
+For each finding, pick an answer that the review protocol allows for its tag:
 
 - **[fixed]:** the default for [blocking] and [should fix] findings you agree with. Fix it as the finding suggests, or another way if that's better (say why). Add or change a test where one applies, with its `// Fails if` comment.
 - **[won't fix]:** you disagree, or it's outside the issue's scope and not a defect. Give the reason in a sentence or two. Never for [blocking] or [defect]. For [should fix], only with a reason a reviewer would accept.

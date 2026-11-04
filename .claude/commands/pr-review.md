@@ -17,14 +17,25 @@ This is a reading review. CI runs `npm run check`, and the author proves their t
    ```
    Read each issue it closes (`gh issue view <n>`).
 2. Read `CLAUDE.md` and `CONTRIBUTING.md`. Their standards are the review criteria, and `.claude/review-protocol.md` sets the tags, answers, and verdict this command uses. Read it too. Read the Roadmap (`gh issue view 32`) to see where the PR's issue sits.
-3. Another session may be working in this checkout, so don't switch branches here. Review in a separate worktree (the first line clears one left by an earlier run):
+3. Another session may be working in this checkout, so don't switch branches here. Review in a separate worktree (the first two lines clear one left by an earlier run; the `remove` fails harmlessly if there's none):
    ```
-   rm -rf ../wind-tunnel-review-$ARGUMENTS; git worktree prune
+   git worktree prune
+   git worktree remove ../wind-tunnel-review-$ARGUMENTS
    git fetch origin
    git worktree add ../wind-tunnel-review-$ARGUMENTS <headRefOid>
    ```
-   Use the `headRefOid` from step 1, not the branch, so the worktree and the posted review are at the same commit even if the author pushes meanwhile. The worktree is for reading code outside the diff, so it doesn't need `npm ci`.
-   When you're done, remove it with `rm -rf ../wind-tunnel-review-$ARGUMENTS; git worktree prune`.
+   Use the `headRefOid` from step 1, not the branch, so the worktree and the posted review are at the same commit even if the author pushes meanwhile. The worktree is for reading code outside the diff, so it doesn't need `npm ci`. If `git worktree remove` refuses because the worktree has changes, stop and say so. Never pass `--force` and never delete it with `rm`: the changes may be someone's unsaved work.
+   When you're done, remove it with `git worktree remove ../wind-tunnel-review-$ARGUMENTS`.
+
+Write every file you create (the review JSON, a question's body) in `.review-tmp/` at the root of this checkout, not in the worktree or the system temp directory. It's gitignored, and it's the one place a headless session is allowed to write. Leave the files there; the next run overwrites them.
+
+### Shell commands
+
+A headless session can't approve a prompt, so a command that needs one fails. Write commands that the allow list matches:
+
+- One command per call where you can. Run git from this checkout and don't `cd`: the PR's commit is reachable here as `<headRefOid>`.
+- Write paths out in full. Don't use shell variables (`W=...; $W/src`), `$TEMP`, output redirection to a file, or heredocs.
+- Read code in the worktree with the Read and Grep tools. If they're refused (the session wasn't given the worktree as an extra directory), read through git from this checkout instead: `git show <headRefOid>:<path>` and `git grep -n <pattern> <headRefOid> -- <paths>`. `git -C` on the worktree is refused too, because it's outside the session's folders.
 
 ## Follow-up mode
 
@@ -51,9 +62,9 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
   ```
   Branches sync with main by merging, never by rebasing, so that commit is still on the branch. Review the branch's own commits since then, leaving out what came in from main:
   ```
-  git log -p --first-parent --no-merges <sha>..HEAD
+  git log -p --first-parent --no-merges <sha>..<headRefOid>
   ```
-  For each merge from main in that range (`git log --first-parent --merges <sha>..HEAD`), check only how its conflicts were resolved with `git show --remerge-diff <merge>`. If `git merge-base --is-ancestor <sha> HEAD` fails, the branch was force-pushed: review the whole PR again and say so in the summary.
+  For each merge from main in that range (`git log --first-parent --merges <sha>..<headRefOid>`), check only how its conflicts were resolved with `git show --remerge-diff <merge>`. If `git merge-base --is-ancestor <sha> <headRefOid>` fails, the branch was force-pushed: review the whole PR again and say so in the summary.
 - Don't repeat earlier findings that were fixed.
 
 ## What to check
@@ -91,7 +102,7 @@ The maintainer's approval is the last step, and you can't give it.
 Post a single review with inline comments:
 
 ```
-gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --method POST --input review.json
+gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --method POST --input .review-tmp/review-$ARGUMENTS.json
 ```
 
 ```json
@@ -112,7 +123,7 @@ gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --method POST --input revie
 - Tag each finding as the review protocol says: **[blocking]**, **[should fix]** or **[nit]**, confirmed or suspected, and **[defect]** when the code is wrong rather than open to improvement. For example: `🤖 Claude review: **[should fix] [defect] confirmed.**`
 - For each finding, say what's wrong, give a way to reproduce it (steps, a command, or a test that fails), and suggest a fix. A [defect]'s reproduction is what the author copies into a `fix` issue if it defers the finding, so make it stand on its own.
 - Report at most 8 findings, the most important first.
-- Write `review.json` outside the repo (for example in the system temp directory) so it isn't left in a checkout.
+- Write the review JSON to `.review-tmp/review-$ARGUMENTS.json` (see Setup).
 - **The summary's first line is exactly** `🤖 Claude review: Verdict: <verdict> at <short headRefOid>`, where the verdict is one of `ready to merge`, `merge after fixes`, or `needs rework`. Scripts read it. The protocol's "Verdict" says when it can be "ready to merge".
 - After the verdict line: the definition-of-done status, and anything you couldn't verify by reading.
 
@@ -122,7 +133,7 @@ Tag it **[decision]** when the right answer depends on something the issue and t
 
 1. Post a question on the PR:
    ```
-   gh pr comment $ARGUMENTS --body-file <file>
+   gh pr comment $ARGUMENTS --body-file .review-tmp/question-$ARGUMENTS.md
    ```
    Start the body with `🤖 Claude question:`. Say what needs deciding, the options, and which you recommend and why, and link the finding's comment.
 2. Add the label: `gh pr edit $ARGUMENTS --add-label needs-decision`.

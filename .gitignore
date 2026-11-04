@@ -7,6 +7,9 @@ node_modules/
 dist/
 coverage/
 
+# Scratch files from Claude review sessions (/pr-review, /pr-address)
+.review-tmp/
+
 # Environment and OS/editor files
 .env*
 .DS_Store

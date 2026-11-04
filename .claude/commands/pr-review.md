@@ -36,7 +36,7 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
   ```
 - For each unresolved thread from an earlier round, read the author's reply and act on its answer tag as the review protocol says:
   - **[fixed]:** read the commit it names and trace the code to check that the fix works and has a test where one applies (see "Definition of done" below). If it holds, resolve the thread. If not, reply in the thread with a new tagged finding (`🤖 Claude review: **[should fix] confirmed.** …`) through `gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments/<first-comment-id>/replies --method POST -f body=<finding>`, and leave it open.
-  - **[won't fix]:** check that the finding's tag allows it (never for [blocking] or [defect]). If you accept the reason, resolve the thread. If you don't, raise it as **[decision]**. Don't argue it for a second round.
+  - **[won't fix]:** check that the protocol allows it for the finding's tag. If you accept the reason, resolve the thread. If you don't, raise it as **[decision]**. Don't argue it for a second round.
   - **[deferred] #N:** check that issue #N exists and covers the finding, then resolve the thread.
   - **[decision]:** leave the thread open until the maintainer has answered in it or in the linked question.
   - **No answer tag, or no reply:** the finding is unanswered. Say so in the summary.
@@ -112,7 +112,7 @@ gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --method POST --input revie
 - For each finding, say what's wrong, give a way to reproduce it (steps, a command, or a test that fails), and suggest a fix. A [defect]'s reproduction is what the author copies into a `fix` issue if it defers the finding, so make it stand on its own.
 - Report at most 8 findings, the most important first.
 - Write `review.json` outside the repo (for example in the system temp directory) so it isn't left in a checkout.
-- **The summary's first line is exactly** `🤖 Claude review: Verdict: <verdict> at <short headRefOid>`, where the verdict is one of `ready to merge`, `merge after fixes`, or `needs rework`. Scripts read it. "Ready to merge" means every finding, old and new, has an answer you accepted and no [blocking] or [decision] is open.
+- **The summary's first line is exactly** `🤖 Claude review: Verdict: <verdict> at <short headRefOid>`, where the verdict is one of `ready to merge`, `merge after fixes`, or `needs rework`. Scripts read it. The protocol's "Verdict" says when it can be "ready to merge".
 - After the verdict line: the definition-of-done status, and anything you couldn't verify by reading.
 
 ### A finding only the maintainer can settle
@@ -125,7 +125,5 @@ Tag it **[decision]** when the right answer depends on something the issue and t
    ```
    Start the body with `🤖 Claude question:`. Say what needs deciding, the options, and which you recommend and why, and link the finding's comment.
 2. Add the label: `gh pr edit $ARGUMENTS --add-label needs-decision`.
-
-The verdict can't be "ready to merge" while a [decision] is open.
 
 Don't push commits, edit the branch, or merge. When you're done, tell the user the review URL and the verdict in two or three lines, and the question's URL if you posted one.

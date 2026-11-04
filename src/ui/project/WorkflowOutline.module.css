@@ -15,28 +15,10 @@
   padding-inline-start: var(--space-5);
 }
 
-/* Each step reads as a line of the outline, and is a button to select it.
-   The selected one is bold and underlined, so it shows without color, as
-   in the diagram's text version. */
+/* Each step reads as a line of the outline, and is a button to select it,
+   marked as in the diagram's text version. */
 .step {
-  background: none;
-  border: none;
-  padding: var(--space-1) 0;
-  color: var(--color-accent);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.step:hover {
-  color: var(--color-accent-hover);
-}
-
-.step[aria-current="true"] {
-  color: var(--color-text);
-  font-weight: var(--font-weight-bold);
-  text-decoration: underline;
-  text-decoration-thickness: var(--line-width-thick);
+  composes: item from "../shared/SelectableItem.module.css";
 }
 
 .number {

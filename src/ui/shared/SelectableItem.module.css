@@ -1,0 +1,23 @@
+/* A line of a list that is a button to select it: the diagram's text
+   version, the workflow rows, and a workflow's outline compose it. The
+   selected one is bold and underlined, so it shows without color. */
+.item {
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  color: var(--color-accent);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.item:hover {
+  color: var(--color-accent-hover);
+}
+
+.item[aria-current="true"] {
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+  text-decoration: underline;
+  text-decoration-thickness: var(--line-width-thick);
+}

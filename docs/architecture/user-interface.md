@@ -58,7 +58,7 @@ The folders under `src/ui/`:
 | `diagram/`, `charts/` | Our wrappers around React Flow and Recharts. Only these folders import those libraries ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) |
 | `storage/` | Asks the browser for persistent storage after the first create, and warns if it says no |
 | `theme/` | The design tokens (`tokens.css`), the page's base styles, and the theme control, which saves the choice ([ADR-0012](../adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) |
-| `shared/` | `useLoad` and `LoadableView`, `handleStatus`, `ScreenHeading`, `useFocusOnMount`, `useWideWindow`, and the building blocks every screen styles with: `Button`, `Panel`, `Tabs`, `CardList`, and `Explained` |
+| `shared/` | `useLoad` and `LoadableView`, `handleStatus`, `ScreenHeading`, `useFocusOnMount`, `useWideWindow`, and the building blocks every screen styles with: `Button`, `Panel`, `Tabs`, `CardList`, and `Explained`. `SelectableItem.module.css` is the style of a list line that selects something, which the diagram's text version and the workflow outline `composes` |
 
 ## How a component reaches a use case
 

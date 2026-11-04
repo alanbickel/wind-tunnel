@@ -92,6 +92,8 @@ describe("CreateProjectFromTemplate", () => {
     );
   });
 
+  // Fails if two copies share an ID, or step IDs stop coming from the same
+  // IdGenerator as the project's.
   it("gives each copy of the same template its own ID", async () => {
     const { projects, createProject } = setUp();
 

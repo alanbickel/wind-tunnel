@@ -166,6 +166,8 @@ describe("loadProject", () => {
     ]);
   });
 
+  // Fails if the build reads a version it has no schema for, or the message
+  // stops naming the version it reads.
   it("refuses an unknown schema version, or something that isn't a project", () => {
     const newer = document();
     newer["schemaVersion"] = 3;

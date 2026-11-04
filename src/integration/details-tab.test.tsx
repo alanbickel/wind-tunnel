@@ -317,8 +317,9 @@ describe("the Details tab, for the templates' workflows", () => {
     }
   }
 
-  // Fails if Template B's enqueue loses its async work, or the label that
-  // says when it's done.
+  // Fails if Template B's enqueue loses its async work, or the async list
+  // isn't named by the label that says when it's done (drop its
+  // aria-labelledby).
   it("shows Template B's async work under its enqueue", () => {
     renderProject(projectB);
 
@@ -331,11 +332,14 @@ describe("the Details tab, for the templates' workflows", () => {
       "1.1.1.1 fn-writer · invoke",
       "1.1.1.1.1 orders-db · write",
     ]);
+    const asyncWork = within(detailsTab()).getByRole("list", {
+      name: "Async work, done when a consumer takes the message",
+    });
     expect(
-      within(detailsTab()).getByText(
-        "Async work, done when a consumer takes the message",
-      ),
-    ).toBeTruthy();
+      within(asyncWork)
+        .getAllByRole("button")
+        .map((step) => step.textContent),
+    ).toEqual(["1.1.1.1 fn-writer · invoke", "1.1.1.1.1 orders-db · write"]);
   });
 });
 

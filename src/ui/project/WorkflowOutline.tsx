@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type {
   OutlineStep,
   WorkflowDetails,
@@ -77,14 +78,25 @@ function OutlineItem(props: OutlineItemProps) {
           ))}
         </ol>
       )}
-      {step.async && (
-        <div className={styles.async}>
-          <p className={styles.asyncLabel}>{ASYNC_WORK_HEADING}</p>
-          <ol className={styles.outline}>
-            <OutlineItem {...props} step={step.async} />
-          </ol>
-        </div>
-      )}
+      {step.async && <AsyncWork {...props} step={step.async} />}
     </li>
+  );
+}
+
+/**
+ * An enqueue's async work, its first step as `step`. The label names the
+ * list, so a screen reader that moves by list hears that it runs later.
+ */
+function AsyncWork(props: OutlineItemProps) {
+  const labelId = useId();
+  return (
+    <div className={styles.async}>
+      <p id={labelId} className={styles.asyncLabel}>
+        {ASYNC_WORK_HEADING}
+      </p>
+      <ol aria-labelledby={labelId} className={styles.outline}>
+        <OutlineItem {...props} />
+      </ol>
+    </div>
   );
 }

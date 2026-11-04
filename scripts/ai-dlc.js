@@ -3,6 +3,7 @@
 // run it, resume it, and what to read afterward.
 //   node scripts/ai-dlc.js <issue>... [--merge] [--defer-manual-checks]
 // Exit codes: 0 done, 1 something failed, 2 waiting for the maintainer's answer.
+import { parseArguments } from "./ai-dlc/arguments.js";
 import { collectDeferredChecks } from "./ai-dlc/deferred-checks.js";
 import { openPrFor, readIssue } from "./ai-dlc/github.js";
 import { stopIfWaiting } from "./ai-dlc/questions.js";
@@ -11,34 +12,11 @@ import {
   reviewUntilReady,
   startIssue,
 } from "./ai-dlc/steps.js";
-import { FAILED, NEEDS_DECISION, Stop } from "./ai-dlc/stop.js";
+import { NEEDS_DECISION, Stop } from "./ai-dlc/stop.js";
 
-const USAGE =
-  "Usage: node scripts/ai-dlc.js <issue>... [--merge] [--defer-manual-checks]";
 const BELL = "\u0007";
 
-/** @typedef {import("./ai-dlc/steps.js").Options} Options */
-
-function parseArgs(/** @type {string[]} */ args) {
-  const flags = new Set(args.filter((arg) => arg.startsWith("--")));
-  const issues = args.filter((arg) => !arg.startsWith("--")).map(Number);
-  const unknown = [...flags].filter(
-    (flag) => !["--merge", "--defer-manual-checks"].includes(flag),
-  );
-  if (
-    issues.length === 0 ||
-    issues.some((issue) => !Number.isInteger(issue)) ||
-    unknown.length > 0
-  ) {
-    throw new Stop(FAILED, USAGE);
-  }
-  /** @type {Options} */
-  const options = {
-    merge: flags.has("--merge"),
-    deferManualChecks: flags.has("--defer-manual-checks"),
-  };
-  return { issues, options };
-}
+/** @typedef {import("./ai-dlc/arguments.js").RunFlags} RunFlags */
 
 /**
  * Takes one issue as far as it can go. Returns true when it's finished (closed,
@@ -47,19 +25,19 @@ function parseArgs(/** @type {string[]} */ args) {
  */
 async function driveIssue(
   /** @type {number} */ issue,
-  /** @type {Options} */ options,
+  /** @type {RunFlags} */ flags,
 ) {
   const { state, title } = readIssue(issue);
   console.log(
     `\n${"=".repeat(72)}\n#${issue} ${title} (${state.toLowerCase()})`,
   );
   if (state === "CLOSED") return true;
-  const job = { issue, options };
+  const job = { issue, flags };
   const existing = openPrFor(issue)?.number;
   stopIfWaiting(issue, existing);
   const pr = existing ?? (await startIssue(job));
   await reviewUntilReady(job, pr);
-  if (!options.merge) {
+  if (!flags.merge) {
     console.log(
       `\nPR #${pr} is ready to merge. Merge it, or run again with --merge, to go on.`,
     );
@@ -70,11 +48,11 @@ async function driveIssue(
 }
 
 async function main() {
-  const { issues, options } = parseArgs(process.argv.slice(2));
+  const { issues, flags } = parseArguments(process.argv.slice(2));
   for (const issue of issues) {
-    if (!(await driveIssue(issue, options))) return;
+    if (!(await driveIssue(issue, flags))) return;
   }
-  if (options.deferManualChecks) collectDeferredChecks(issues);
+  if (flags.deferManualChecks) collectDeferredChecks(issues);
   console.log("\nEvery issue in the list is done.");
 }
 

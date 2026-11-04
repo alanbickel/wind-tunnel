@@ -27,9 +27,17 @@ const MAX_REVIEW_ROUNDS = 3;
 const CI_REGISTER_TIMEOUT_MS = 10 * 60 * 1000;
 const CI_POLL_INTERVAL_MS = 15 * 1000;
 
-/** @typedef {{ merge: boolean, deferManualChecks: boolean }} Options */
-/** @typedef {{ issue: number, options: Options }} Job */
+/** @typedef {import("./arguments.js").RunFlags} RunFlags */
+/** @typedef {{ issue: number, flags: RunFlags }} Job */
 /** @typedef {import("./github.js").PullRequest} PullRequest */
+/** @typedef {import("./permissions.js").AddressWorktree} AddressWorktree */
+/** @typedef {{ pr: number, round: number }} RoundInput */
+/** @typedef {{ worktree: AddressWorktree, step: string }} WorktreeCheckInput */
+/**
+ * What the merge check reads from GitHub, gathered first so the rule itself is pure.
+ * @typedef {{ pr: PullRequest, ciGreen: boolean, unresolvedThreads: number, issueNeedsDecision: boolean }} MergeFacts
+ */
+/** @typedef {"review" | "address" | "ready"} NextStep */
 
 /** The step that ran last, so a dirty working tree can be blamed on it. */
 const progress = { lastStep: "an earlier run, or by hand" };
@@ -64,7 +72,7 @@ export async function startIssue(/** @type {Job} */ job) {
   progress.lastStep = name;
   await runSession({
     name,
-    prompt: authorPrompt(job.issue, job.options),
+    prompt: authorPrompt(job.issue, job.flags),
     permissions: startPermissions(),
     systemPromptAddition: undefined,
   });
@@ -101,24 +109,21 @@ function waitForCi(/** @type {number} */ prNumber) {
 }
 
 /** Runs `/pr-review` in a fresh session and returns the review it posted. */
-async function review(
-  /** @type {Job} */ job,
-  /** @type {{ pr: number, round: number }} */ at,
-) {
+async function review(/** @type {Job} */ job, /** @type {RoundInput} */ input) {
   prepareCheckout();
-  const before = latestClaudeReview(readPr(at.pr))?.submittedAt;
-  const name = `${job.issue}-review-${at.pr}-${at.round}`;
+  const before = latestClaudeReview(readPr(input.pr))?.submittedAt;
+  const name = `${job.issue}-review-${input.pr}-${input.round}`;
   progress.lastStep = name;
   await runSession({
     name,
-    prompt: `/pr-review ${at.pr}`,
+    prompt: `/pr-review ${input.pr}`,
     permissions: reviewPermissions(),
-    systemPromptAddition: job.options.deferManualChecks
+    systemPromptAddition: job.flags.deferManualChecks
       ? REVIEWER_DEFERRAL
       : undefined,
   });
-  stopIfWaiting(job.issue, at.pr);
-  const posted = latestClaudeReview(readPr(at.pr));
+  stopIfWaiting(job.issue, input.pr);
+  const posted = latestClaudeReview(readPr(input.pr));
   if (!posted || posted.submittedAt === before)
     throw fail(`${name} posted no review.`);
   if (!posted.verdict)
@@ -129,20 +134,20 @@ async function review(
 /** Runs `/pr-address` in a fresh session, in a worktree the driver creates first. */
 async function address(
   /** @type {Job} */ job,
-  /** @type {{ pr: number, round: number }} */ at,
+  /** @type {RoundInput} */ input,
 ) {
   prepareCheckout();
-  const worktree = addressWorktree(at.pr);
-  const name = `${job.issue}-address-${at.pr}-${at.round}`;
+  const worktree = addressWorktree(input.pr);
+  const name = `${job.issue}-address-${input.pr}-${input.round}`;
   progress.lastStep = name;
   await runSession({
     name,
-    prompt: `/pr-address ${at.pr}`,
+    prompt: `/pr-address ${input.pr}`,
     permissions: addressPermissions(worktree),
     systemPromptAddition: undefined,
   });
   removeWorktreeIfClean({ worktree, step: name });
-  stopIfWaiting(job.issue, at.pr);
+  stopIfWaiting(job.issue, input.pr);
 }
 
 /** A session can be given only a folder that exists when it starts (#126), so create it now. */
@@ -152,29 +157,30 @@ function addressWorktree(/** @type {number} */ prNumber) {
   run("git", ["worktree", "prune"]);
   if (!existsSync(absolute))
     run("git", ["worktree", "add", relative, readPr(prNumber).headRefName]);
-  return { relative, absolute };
+  return /** @type {AddressWorktree} */ ({ relative, absolute });
 }
 
 /** `/pr-address` removes its worktree when it's done. One left with changes is unsaved work. */
-function removeWorktreeIfClean(
-  /** @type {{ worktree: { relative: string, absolute: string }, step: string }} */ after,
-) {
-  if (!existsSync(after.worktree.absolute)) return;
+function removeWorktreeIfClean(/** @type {WorktreeCheckInput} */ input) {
+  if (!existsSync(input.worktree.absolute)) return;
   const changes = read("git", [
     "-C",
-    after.worktree.absolute,
+    input.worktree.absolute,
     "status",
     "--porcelain",
   ]).trim();
   if (changes)
     throw fail(
-      `${after.step} left changes in ${after.worktree.absolute}:\n${changes}`,
+      `${input.step} left changes in ${input.worktree.absolute}:\n${changes}`,
     );
-  run("git", ["worktree", "remove", after.worktree.relative]);
+  run("git", ["worktree", "remove", input.worktree.relative]);
 }
 
-/** Where to pick up: a review at the head commit has been read already, so act on its verdict. */
-function nextStep(/** @type {PullRequest} */ pr) {
+/**
+ * Where to pick up: a review at the head commit has been read already, so act on its verdict.
+ * @returns {NextStep}
+ */
+export function nextStep(/** @type {PullRequest} */ pr) {
   const latest = latestClaudeReview(pr);
   if (latest?.commitId !== pr.headRefOid) return "review";
   if (!latest.verdict)
@@ -230,7 +236,7 @@ export function mergeWhenReady(
   /** @type {number} */ prNumber,
 ) {
   const pr = readPr(prNumber);
-  const unmet = unmetMergeConditions(pr, job.issue);
+  const unmet = unmetMergeConditions(mergeFacts(pr, job.issue));
   if (unmet.length > 0)
     throw fail(
       `PR #${prNumber} isn't ready to merge:\n- ${unmet.join("\n- ")}`,
@@ -248,12 +254,22 @@ export function mergeWhenReady(
   console.log(`\nMerged PR #${prNumber}: ${pr.url}`);
 }
 
-function unmetMergeConditions(
+function mergeFacts(
   /** @type {PullRequest} */ pr,
   /** @type {number} */ issue,
 ) {
+  return /** @type {MergeFacts} */ ({
+    pr,
+    ciGreen: ciGreenAt(pr.headRefOid),
+    unresolvedThreads: unresolvedThreads(pr.number).length,
+    issueNeedsDecision: needsDecision(readIssue(issue)),
+  });
+}
+
+/** The protocol's "ready to merge, for a script" conditions that don't hold, as reasons. */
+export function unmetMergeConditions(/** @type {MergeFacts} */ facts) {
+  const { pr, unresolvedThreads: unresolved } = facts;
   const latest = latestClaudeReview(pr);
-  const unresolved = unresolvedThreads(pr.number).length;
   const conditions = [
     [
       latest?.verdict === "ready to merge",
@@ -263,10 +279,10 @@ function unmetMergeConditions(
       latest?.commitId === pr.headRefOid,
       `the latest review isn't at the head commit ${pr.headRefOid.slice(0, 7)}`,
     ],
-    [ciGreenAt(pr.headRefOid), "CI isn't green at the head commit"],
+    [facts.ciGreen, "CI isn't green at the head commit"],
     [unresolved === 0, `${unresolved} review threads are unresolved`],
     [
-      !needsDecision(pr) && !needsDecision(readIssue(issue)),
+      !needsDecision(pr) && !facts.issueNeedsDecision,
       "the PR or its issue still has needs-decision",
     ],
   ];

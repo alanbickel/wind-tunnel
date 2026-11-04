@@ -14,6 +14,12 @@ const QUESTION_PREFIX = "🤖 Claude question:";
 const CLAUDE_PREFIX = "🤖";
 
 /** @typedef {import("./github.js").Comment} Comment */
+/** @typedef {{ issue: number, pr: number }} QuestionTarget */
+/**
+ * The newest question, and the newest maintainer comment when it came after
+ * that question. `answer` is undefined while the question waits.
+ * @typedef {{ question: Comment | undefined, answer: Comment | undefined }} QuestionState
+ */
 
 /**
  * Stops the run (exit code 2) when the issue or its PR has `needs-decision`
@@ -28,10 +34,8 @@ export function stopIfWaiting(
   const issue = readIssue(issueNumber);
   const pr = prNumber === undefined ? undefined : readPr(prNumber);
   if (!needsDecision(issue) && !(pr && needsDecision(pr))) return;
-  const comments = allComments(issue, pr);
-  const question = newest(comments.filter(isQuestion));
-  const answer = newest(comments.filter(isMaintainers));
-  if (question && answer && answer.createdAt > question.createdAt) {
+  const { question, answer } = questionState(allComments(issue, pr));
+  if (answer) {
     console.log(
       `\nThe maintainer answered at ${answer.createdAt}: ${answer.url}. Resuming.`,
     );
@@ -42,9 +46,23 @@ export function stopIfWaiting(
   throw new Stop(NEEDS_DECISION, questionBanner(where, question));
 }
 
+/** The resume rule: a question is answered by a maintainer comment newer than it. */
+export function questionState(/** @type {Comment[]} */ comments) {
+  const question = newest(comments.filter(isQuestion));
+  const latest = newest(comments.filter(isMaintainers));
+  const answered =
+    question !== undefined &&
+    latest !== undefined &&
+    latest.createdAt > question.createdAt;
+  return /** @type {QuestionState} */ ({
+    question,
+    answer: answered ? latest : undefined,
+  });
+}
+
 /** Posts the driver's own question on the PR, labels it, and stops the run. */
 export function askMaintainer(
-  /** @type {{ issue: number, pr: number }} */ target,
+  /** @type {QuestionTarget} */ target,
   /** @type {string} */ question,
 ) {
   const body = `${QUESTION_PREFIX} ${question}`;
@@ -63,7 +81,8 @@ export function askMaintainer(
   );
 }
 
-function questionBanner(
+/** What the terminal shows when the run stops on a question, or on a label with none. */
+export function questionBanner(
   /** @type {string} */ where,
   /** @type {Comment | undefined} */ question,
 ) {

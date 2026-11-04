@@ -14,9 +14,19 @@ const REVIEW_THREADS_SCRIPT = fileURLToPath(
 /** @typedef {{ body: string, createdAt: string, url: string }} Comment */
 /** @typedef {{ number: number, title: string, state: string, labels: string[], comments: Comment[], parent: number | undefined }} Issue */
 /** @typedef {{ verdict: string | undefined, commitId: string, submittedAt: string }} ClaudeReview */
-/** @typedef {{ body: string, submittedAt: string, commit: { oid: string } }} Review */
+/** @typedef {{ oid: string }} CommitRef */
+/** @typedef {{ body: string, submittedAt: string, commit: CommitRef }} Review */
 /** @typedef {{ number: number, title: string, url: string, headRefName: string, headRefOid: string, labels: string[], comments: Comment[], reviews: Review[] }} PullRequest */
 /** @typedef {{ name: string, status: string, conclusion: string | null }} CheckRun */
+/**
+ * A commit's combined status. GitHub's `state` is "pending" when `total_count` is 0.
+ * @typedef {{ state: string, total_count: number }} CombinedStatus
+ */
+/** @typedef {{ checkRuns: CheckRun[], combinedStatus: CombinedStatus }} CiResults */
+/** @typedef {{ labels: string[] }} Labeled */
+/** @typedef {{ name: string }} Label */
+/** @typedef {{ number: number }} NumberedItem */
+/** @typedef {{ isResolved: boolean }} ReviewThread */
 
 /** Reads an issue with its labels and comments. */
 export function readIssue(/** @type {number} */ number) {
@@ -46,7 +56,7 @@ export function openPrNumbers() {
     "--json",
     "number",
   ]);
-  return prs.map((/** @type {{ number: number }} */ pr) => pr.number);
+  return prs.map((/** @type {NumberedItem} */ pr) => pr.number);
 }
 
 /** The open PR that closes the issue, if there is one. */
@@ -141,17 +151,37 @@ export function checkRunsAt(/** @type {string} */ sha) {
   );
 }
 
-/** True when the commit has checks and every one finished green. */
+/**
+ * The statuses posted on a commit, combined. Some checks, such as Snyk's, post
+ * a commit status rather than a check run, so check runs alone can miss a failure.
+ */
+export function combinedStatusAt(/** @type {string} */ sha) {
+  return /** @type {CombinedStatus} */ (
+    ghJson(["api", `repos/{owner}/{repo}/commits/${sha}/status`])
+  );
+}
+
+/** True when the commit has check runs and every one finished green, and so did every commit status. */
 export function ciGreenAt(/** @type {string} */ sha) {
-  const runs = checkRunsAt(sha);
-  return (
-    runs.length > 0 &&
-    runs.every(
+  return ciGreen({
+    checkRuns: checkRunsAt(sha),
+    combinedStatus: combinedStatusAt(sha),
+  });
+}
+
+/** The CI rule, given what GitHub reported: the same checks `gh pr checks` shows. */
+export function ciGreen(/** @type {CiResults} */ results) {
+  const { checkRuns, combinedStatus } = results;
+  const runsGreen =
+    checkRuns.length > 0 &&
+    checkRuns.every(
       (each) =>
         each.status === "completed" &&
         GREEN_CONCLUSIONS.has(each.conclusion ?? ""),
-    )
-  );
+    );
+  const statusesGreen =
+    combinedStatus.total_count === 0 || combinedStatus.state === "success";
+  return runsGreen && statusesGreen;
 }
 
 /** The PR's review threads that aren't resolved. */
@@ -160,15 +190,15 @@ export function unresolvedThreads(/** @type {number} */ pr) {
     read("node", [REVIEW_THREADS_SCRIPT, "list", String(pr)]),
   );
   return threads.filter(
-    (/** @type {{ isResolved: boolean }} */ thread) => !thread.isResolved,
+    (/** @type {ReviewThread} */ thread) => !thread.isResolved,
   );
 }
 
 /** True when the issue or PR carries `needs-decision`. */
-export function needsDecision(/** @type {{ labels: string[] }} */ item) {
+export function needsDecision(/** @type {Labeled} */ item) {
   return item.labels.includes(NEEDS_DECISION_LABEL);
 }
 
-function labelNames(/** @type {{ name: string }[]} */ labels) {
+function labelNames(/** @type {Label[]} */ labels) {
   return labels.map((label) => label.name);
 }

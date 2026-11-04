@@ -8,15 +8,35 @@ import { fail } from "./stop.js";
 
 const MODEL = "claude-opus-5-5";
 const EFFORT = "medium";
-const MAX_TURNS_PER_STEP = "150";
+/**
+ * Passed as `--max-turns`, and enforced by the driver too: one run went 210
+ * turns past `--max-turns 150` and still ended as a success (#127).
+ */
+export const MAX_TURNS_PER_STEP = 150;
 export const LOG_DIR = "ai-dlc-logs";
 /** One line per step: its cost, turns, time, and the 5-hour usage before and after. */
 const STEPS_LOG = join(LOG_DIR, "steps.jsonl");
 const SHOWN_LENGTH = 200;
 
 /** @typedef {import("./permissions.js").Permissions} Permissions */
+/** @typedef {import("node:child_process").ChildProcessByStdio<null, import("node:stream").Readable, null>} SessionProcess */
 /** @typedef {{ name: string, prompt: string, permissions: Permissions, systemPromptAddition: string | undefined }} SessionRequest */
-/** @typedef {{ result: any, fiveHourUsage: number[] }} Tally */
+/**
+ * What the driver keeps from a session's events. `turnIds` holds the id of each
+ * model response in the main conversation (not a subagent's): the driver's own turn count.
+ * @typedef {{ result: any, fiveHourUsage: number[], turnIds: Set<string>, stoppedAtTurnLimit: boolean }} Tally
+ */
+/** @typedef {{ name: string, tally: Tally, logPath: string }} RecordStepInput */
+
+/** A tally with nothing counted yet. */
+export function emptyTally() {
+  return /** @type {Tally} */ ({
+    result: undefined,
+    fiveHourUsage: [],
+    turnIds: new Set(),
+    stoppedAtTurnLimit: false,
+  });
+}
 
 /** Runs one session to the end and stops the run if it didn't finish cleanly. */
 export async function runSession(/** @type {SessionRequest} */ request) {
@@ -29,9 +49,13 @@ export async function runSession(/** @type {SessionRequest} */ request) {
     stdio: ["ignore", "pipe", "inherit"],
   });
   const exited = new Promise((resolve) => child.on("close", resolve));
-  const tally = await streamOutput(child.stdout, logPath);
+  const tally = await streamOutput(child, logPath);
   const exitCode = await exited;
-  recordStep(request.name, { tally, logPath });
+  recordStep({ name: request.name, tally, logPath });
+  if (tally.stoppedAtTurnLimit)
+    throw fail(
+      `${request.name} went past ${MAX_TURNS_PER_STEP} turns, so the driver ended it. See ${logPath}.`,
+    );
   if (
     exitCode !== 0 ||
     tally.result?.subtype !== "success" ||
@@ -53,7 +77,7 @@ function sessionArgs(/** @type {SessionRequest} */ request) {
     "--effort",
     EFFORT,
     "--max-turns",
-    MAX_TURNS_PER_STEP,
+    String(MAX_TURNS_PER_STEP),
     "--output-format",
     "stream-json",
     "--verbose",
@@ -76,20 +100,41 @@ function optionalFlag(
   return value === undefined ? [] : [flag, value];
 }
 
-/** Writes every event to the log and shows a short form of it in the terminal. */
+/**
+ * Writes every event to the log and shows a short form of it in the terminal.
+ * Ends the session once it goes past the turn limit, and reads on until its output closes.
+ */
 async function streamOutput(
-  /** @type {import("node:stream").Readable} */ output,
+  /** @type {SessionProcess} */ child,
   /** @type {string} */ logPath,
 ) {
   const log = createWriteStream(logPath);
-  /** @type {Tally} */
-  const tally = { result: undefined, fiveHourUsage: [] };
-  for await (const line of createInterface({ input: output })) {
+  const tally = emptyTally();
+  for await (const line of createInterface({ input: child.stdout })) {
     log.write(`${line}\n`);
     showEvent(parse(line), tally);
+    if (tally.stoppedAtTurnLimit || !overTurnLimit(tally)) continue;
+    tally.stoppedAtTurnLimit = true;
+    console.log(`\n✗ Past ${MAX_TURNS_PER_STEP} turns: ending the session.`);
+    child.kill();
   }
   await new Promise((resolve) => log.end(resolve));
   return tally;
+}
+
+/**
+ * Counts a model response in the main conversation once, however many events
+ * carry it. A subagent's responses (`parent_tool_use_id` set) don't count.
+ */
+export function noteTurn(/** @type {any} */ event, /** @type {Tally} */ tally) {
+  const id = event.message?.id;
+  if (event.parent_tool_use_id || typeof id !== "string") return;
+  tally.turnIds.add(id);
+}
+
+/** True once the session has taken more turns than a step may. */
+export function overTurnLimit(/** @type {Tally} */ tally) {
+  return tally.turnIds.size > MAX_TURNS_PER_STEP;
 }
 
 function parse(/** @type {string} */ line) {
@@ -120,7 +165,8 @@ function showSessionStart(/** @type {any} */ event) {
   if (event.subtype === "init") console.log(`  session ${event.session_id}`);
 }
 
-function showAssistant(/** @type {any} */ event) {
+function showAssistant(/** @type {any} */ event, /** @type {Tally} */ tally) {
+  noteTurn(event, tally);
   for (const block of event.message?.content ?? []) {
     if (block.type === "text") console.log(block.text);
     if (block.type === "tool_use")
@@ -166,17 +212,15 @@ function showResult(/** @type {any} */ event, /** @type {Tally} */ tally) {
   );
 }
 
-function recordStep(
-  /** @type {string} */ name,
-  /** @type {{ tally: Tally, logPath: string }} */ step,
-) {
-  const { result, fiveHourUsage } = step.tally;
+function recordStep(/** @type {RecordStepInput} */ step) {
+  const { result, fiveHourUsage, turnIds, stoppedAtTurnLimit } = step.tally;
   const entry = {
     at: new Date().toISOString(),
-    step: name,
+    step: step.name,
     sessionId: result?.session_id,
-    outcome: result?.subtype,
+    outcome: stoppedAtTurnLimit ? "stopped at the turn limit" : result?.subtype,
     turns: result?.num_turns,
+    driverTurns: turnIds.size,
     durationMs: result?.duration_ms,
     costUsd: result?.total_cost_usd,
     fiveHourUsageBefore: fiveHourUsage.at(0),

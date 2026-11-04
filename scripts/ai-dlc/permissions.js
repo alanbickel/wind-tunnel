@@ -32,6 +32,18 @@ const COMMON = [
   "Edit(/.review-tmp/**)",
 ];
 
+/** CONTRIBUTING's branch names start with the issue's type label: `feat/issue-12-...`. */
+const BRANCH_TYPES = ["feat", "fix", "refactor", "test", "docs", "chore"];
+
+/**
+ * The author pushes only branches named for an issue. A bare `git push` would
+ * push `main` if the session forgot to branch, so it isn't allowed.
+ */
+const ISSUE_BRANCH_PUSHES = BRANCH_TYPES.flatMap((type) => [
+  `Bash(git push origin ${type}/issue-*)`,
+  `Bash(git push -u origin ${type}/issue-*)`,
+]);
+
 /** The author works in the driver's checkout: branch, change, check, commit, push, open the PR. */
 const START = [
   ...COMMON,
@@ -42,8 +54,7 @@ const START = [
   "Bash(git rm *)",
   "Bash(git mv *)",
   "Bash(git commit -m *)",
-  "Bash(git push)",
-  "Bash(git push -u origin *)",
+  ...ISSUE_BRANCH_PUSHES,
   "Bash(git merge origin/main)",
   "Bash(gh pr create *)",
   "Bash(gh pr list *)",
@@ -76,19 +87,23 @@ function addressTools(/** @type {string} */ worktree) {
 /**
  * Never: force-push, rebase, amend, push to main, merge a PR, or point gh at
  * another repository. The `git -C` forms are here because a pattern like
- * `git push --force*` doesn't match `git -C <dir> push --force`.
+ * `git push --force*` doesn't match `git -C <dir> push --force`. A merge
+ * through the API (`gh api .../pulls/<n>/merge`) is denied too, because
+ * COMMON allows `gh api` on pull requests.
  */
 const DENY = [
   "Bash(gh repo edit *)",
   "Bash(gh pr merge*)",
+  "Bash(gh api *pulls/*/merge*)",
   "Bash(gh issue* -R*)",
   "Bash(gh issue* --repo*)",
   "Bash(gh pr* -R*)",
   "Bash(gh pr* --repo*)",
   "Bash(GH_REPO=*)",
-  "Bash(git push origin main)",
-  "Bash(git push origin main *)",
-  "Bash(git push * HEAD:main*)",
+  "Bash(git push * main)",
+  "Bash(git push * main *)",
+  "Bash(git push * *:main*)",
+  "Bash(git push * *:refs/heads/main*)",
   "Bash(git push --force*)",
   "Bash(git push * --force*)",
   "Bash(git push -f*)",
@@ -104,6 +119,7 @@ const DENY = [
 ];
 
 /** @typedef {{ allowed: string[], denied: string[], permissionMode: string | undefined, extraDirectory: string | undefined }} Permissions */
+/** @typedef {{ relative: string, absolute: string }} AddressWorktree */
 
 /** The start step's permissions: edits in the checkout are accepted. */
 export function startPermissions() {
@@ -126,9 +142,7 @@ export function reviewPermissions() {
 }
 
 /** `/pr-address` edits in its worktree, which must exist before the session starts. */
-export function addressPermissions(
-  /** @type {{ relative: string, absolute: string }} */ worktree,
-) {
+export function addressPermissions(/** @type {AddressWorktree} */ worktree) {
   return /** @type {Permissions} */ ({
     allowed: addressTools(worktree.relative),
     denied: DENY,

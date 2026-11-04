@@ -41,7 +41,8 @@ function sectionsByParent(/** @type {number[]} */ issues) {
   return byParent;
 }
 
-function deferredItems(/** @type {Issue} */ issue) {
+/** The checklist items in the issue's deferred-checks comments, each reset to unticked. */
+export function deferredItems(/** @type {Issue} */ issue) {
   return issue.comments
     .filter((comment) => comment.body.startsWith(PREFIX))
     .flatMap((comment) => comment.body.split("\n"))

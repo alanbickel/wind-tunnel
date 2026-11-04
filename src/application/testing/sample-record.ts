@@ -68,13 +68,17 @@ export const sampleRecord: ProjectRecord = {
         id: "read",
         name: "Read item",
         root: {
+          id: "api-invoke",
           componentId: "api",
           action: "invoke",
           calls: [
             {
+              id: "fn-invoke",
               componentId: "fn",
               action: "invoke",
-              calls: [{ componentId: "table", action: "read" }],
+              calls: [
+                { id: "table-read", componentId: "table", action: "read" },
+              ],
             },
           ],
         },

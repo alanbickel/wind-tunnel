@@ -3,12 +3,19 @@ CreateProjectFromTemplate.execute("template-a")
   port     projects.list() → []
   port     ids.newId() → project-1
   port     clock.now() → 2026-10-15T12:00:00.000Z
+  port     ids.newId() → project-2
+  port     ids.newId() → project-3
+  port     ids.newId() → project-4
+  port     ids.newId() → project-5
+  port     ids.newId() → project-6
+  port     ids.newId() → project-7
   port     projects.save(record project-1 "Serverless API with RDS" (updatedAt 2026-10-15T12:00:00.000Z))
   result   created, record project-1 "Serverless API with RDS" (updatedAt 2026-10-15T12:00:00.000Z)
   IndexedDB "projects" store, key "project-1":
-    schemaVersion 1
+    schemaVersion 2
     createdAt 2026-10-15T12:00:00.000Z, updatedAt 2026-10-15T12:00:00.000Z
     source {"templateId":"template-a","templateVersion":1}
+    workflows[0].root.id project-4   (a new ID: the template's step IDs aren't copied)
     workloads[0].durationSec 60   (the record has durationMs 60000)
 
 SaveProject.execute(the record, renamed "Rush hour")
@@ -33,7 +40,7 @@ RunSimulation.execute({ project (cut to 3 s), seed: 7, onSnapshot })
   result   finished, workload "lunch-rush" with seed 7
   totals: started 619 = succeeded 613 + failed 0 + unfinished 6
 
-(a newer build stored the document as schemaVersion 2; this build reads only 1)
+(a newer build stored the document as schemaVersion 3; this build reads only 2)
 
 ListProjects.execute()
   port     projects.list() → [project-1 "Rush hour"]
@@ -42,7 +49,7 @@ ListProjects.execute()
 OpenProject.execute("project-1")
   port     projects.get("project-1") → invalid
   result   invalid: "This project was saved in a form this version of Wind Tunnel can't open."
-  issue    schemaVersion: Unsupported schema version 2; this version of Wind Tunnel reads version 1.
+  issue    schemaVersion: Unsupported schema version 3; this version of Wind Tunnel reads version 2.
 
 DeleteProject.execute("project-1")
   port     projects.delete("project-1")

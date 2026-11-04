@@ -84,9 +84,11 @@ describe("migrateDocument", () => {
 });
 
 describe("DOCUMENT_MIGRATIONS", () => {
-  it("reads only version 1, until version 2 exists", () => {
-    expect(issueForBuiltIn({ schemaVersion: 0 }).message).toBe(
-      "Unsupported schema version 0; this version of Wind Tunnel reads version 1.",
+  // Fails if a migration from version 1 is added: version 1 was dropped
+  // rather than migrated (ADR-0020).
+  it("reads only version 2, refusing version 1", () => {
+    expect(issueForBuiltIn({ schemaVersion: 1 }).message).toBe(
+      "Unsupported schema version 1; this version of Wind Tunnel reads version 2.",
     );
   });
 });

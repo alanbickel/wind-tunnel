@@ -168,13 +168,15 @@ function expectRdsLimitsMatchItsWork(db: ComponentSample): void {
 }
 
 const apiFnDb: Step = {
+  id: "api-invoke",
   componentId: "api",
   action: "invoke",
   calls: [
     {
+      id: "fn-invoke",
       componentId: "fn",
       action: "invoke",
-      calls: [{ componentId: "db", action: "read" }],
+      calls: [{ id: "db-read", componentId: "db", action: "read" }],
     },
   ],
 };
@@ -196,11 +198,12 @@ describe("simulate", () => {
 
   it("makes nested calls in order, each after the previous one returns", () => {
     const root: Step = {
+      id: "fn-invoke-2",
       componentId: "fn",
       action: "invoke",
       calls: [
-        { componentId: "db", action: "read" },
-        { componentId: "db", action: "write" },
+        { id: "db-read-2", componentId: "db", action: "read" },
+        { id: "db-write", componentId: "db", action: "write" },
       ],
     };
     const events = run({ root, edges: [edge("fn", "db")] });
@@ -269,20 +272,26 @@ describe("simulate", () => {
   // even an undefined one (e.g. it spreads `{ failure }` unconditionally).
   it("answers the user once the message is sent, and runs async work later", () => {
     const root: Step = {
+      id: "api-invoke-2",
       componentId: "api",
       action: "invoke",
       calls: [
         {
+          id: "fn-invoke-3",
           componentId: "fn",
           action: "invoke",
           calls: [
             {
+              id: "queue-enqueue",
               componentId: "queue",
               action: "enqueue",
               async: {
+                id: "writer-invoke",
                 componentId: "writer",
                 action: "invoke",
-                calls: [{ componentId: "db", action: "write" }],
+                calls: [
+                  { id: "db-write-2", componentId: "db", action: "write" },
+                ],
               },
             },
           ],
@@ -333,9 +342,10 @@ describe("simulate", () => {
   // alone, but it has timed out at the default 5 s in a busy parallel run.
   it("stops a run that loops without advancing time", () => {
     const root: Step = {
+      id: "queue-enqueue-2",
       componentId: "queue",
       action: "enqueue",
-      async: { componentId: "writer", action: "invoke" },
+      async: { id: "writer-invoke-2", componentId: "writer", action: "invoke" },
     };
     expect(() =>
       run({

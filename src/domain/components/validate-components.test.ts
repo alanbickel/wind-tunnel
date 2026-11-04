@@ -50,13 +50,19 @@ function project(root: Step, workers = 4): Project {
 }
 
 const validRoot: Step = {
+  id: "front-invoke",
   componentId: "front",
   action: "invoke",
   calls: [
     {
+      id: "q-enqueue",
       componentId: "q",
       action: "enqueue",
-      async: { componentId: "consumer", action: "invoke" },
+      async: {
+        id: "consumer-invoke",
+        componentId: "consumer",
+        action: "invoke",
+      },
     },
   ],
 };
@@ -137,7 +143,11 @@ describe("validateComponents", () => {
 
   // Fails if validateComponents checks steps again: they're run checks now.
   it("leaves the steps' actions to the run checks", () => {
-    const root: Step = { componentId: "front", action: "enqueue" };
+    const root: Step = {
+      id: "front-enqueue",
+      componentId: "front",
+      action: "enqueue",
+    };
     expect(validateComponents(project(root), registry)).toEqual([]);
   });
 });

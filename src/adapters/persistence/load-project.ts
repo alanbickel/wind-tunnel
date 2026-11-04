@@ -3,7 +3,7 @@ import { findArchitectureIssues } from "../../domain/components/find-architectur
 import type { ProjectRecord } from "../../application/ports/project-record";
 import type { ValidationIssue } from "../../domain/model/validation-issue";
 import { issuesFromZod } from "../../domain/model/zod-issues";
-import { projectDocumentV1Schema } from "./project-document-v1";
+import { projectDocumentV2Schema } from "./project-document-v2";
 import { toDocumentIssue, toProjectRecord } from "./project-document-mapper";
 import { DOCUMENT_MIGRATIONS, migrateDocument } from "./document-migrations";
 
@@ -25,7 +25,7 @@ export interface LoadFailed {
  * refusing one it can't, then checks it in three stages (MVP design §6,
  * "Load-time checks"):
  *
- * 1. The document's shape and number ranges (`projectDocumentV1Schema`).
+ * 1. The document's shape and number ranges (`projectDocumentV2Schema`).
  * 2. The architecture's type-independent rules: unique IDs, and edges
  *    between components that exist (`validateArchitecture`).
  * 3. Its rules for each component type: known types, valid configs, unique
@@ -43,7 +43,7 @@ export function loadProject(
   const migrated = migrateDocument(input, DOCUMENT_MIGRATIONS);
   if (!migrated.ok) return { ok: false, issues: [migrated.issue] };
 
-  const parsed = projectDocumentV1Schema.safeParse(migrated.document);
+  const parsed = projectDocumentV2Schema.safeParse(migrated.document);
   if (!parsed.success) {
     return { ok: false, issues: issuesFromZod(parsed.error) };
   }

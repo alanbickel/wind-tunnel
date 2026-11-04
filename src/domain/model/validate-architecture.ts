@@ -1,5 +1,6 @@
 import { edgeSettingsSchema } from "./edge-settings";
 import type { Edge, Project } from "./project";
+import { stepsOf } from "./step-tree";
 import type { IssuePath, ValidationIssue } from "./validation-issue";
 import { issuesFromZod } from "./zod-issues";
 
@@ -17,9 +18,11 @@ interface Identified {
  * could open again. The document schema checks the rest of the shapes and
  * ranges when a project loads.
  *
- * Workflow and workload IDs are checked here too, though they aren't the
- * architecture: every reference to a workflow is by ID, so the run checks
- * (`findRunIssues`) need them unique.
+ * Workflow, workload, and step IDs are checked here too, though they aren't
+ * the architecture: every reference to a workflow is by ID, so the run
+ * checks (`findRunIssues`) need them unique, and a step is selected and
+ * edited by its ID (ADR-0020). Step IDs are unique across the project, not
+ * only within their workflow.
  *
  * Returns every issue found rather than stopping at the first, so a user can
  * fix them all at once. An empty list means these rules hold.
@@ -60,6 +63,17 @@ function checkAllUniqueIds(project: Project, report: Report): void {
     { items: project.workloads, path: ["workloads"], kind: "workload" },
   ];
   for (const list of lists) checkUniqueIds(list, report);
+  checkUniqueStepIds(project, report);
+}
+
+function checkUniqueStepIds(project: Project, report: Report): void {
+  const seen = new Set<string>();
+  for (const { step, path } of stepsOf(project)) {
+    if (seen.has(step.id)) {
+      report([...path, "id"], `Duplicate step ID "${step.id}".`);
+    }
+    seen.add(step.id);
+  }
 }
 
 function checkUniqueIds(

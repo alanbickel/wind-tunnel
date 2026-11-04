@@ -9,13 +9,13 @@ import type { ValidationIssue } from "../../domain/model/validation-issue";
 import type { ProjectRecord } from "../../application/ports/project-record";
 import type {
   ArchitectureDocument,
-  ProjectDocumentV1,
+  ProjectDocumentV2,
   StepDocument,
   WorkflowDocument,
   WorkloadDocument,
-} from "./project-document-v1";
+} from "./project-document-v2";
 
-// Maps between the stored document (version 1) and the application's
+// Maps between the stored document (version 2) and the application's
 // `ProjectRecord` (ADR-0008). The two have the same structure, so validation
 // paths into the domain point at the same places in the document, with one
 // exception: the document gives workload times in seconds, which people find
@@ -46,7 +46,7 @@ export function toDocumentIssue(issue: ValidationIssue): ValidationIssue {
 }
 
 /** A parsed document as a record: the domain `Project` plus document-only facts. */
-export function toProjectRecord(document: ProjectDocumentV1): ProjectRecord {
+export function toProjectRecord(document: ProjectDocumentV2): ProjectRecord {
   return {
     project: toProject(document),
     createdAt: document.createdAt,
@@ -58,11 +58,11 @@ export function toProjectRecord(document: ProjectDocumentV1): ProjectRecord {
   };
 }
 
-/** A record as a version 1 document, ready to store or export. */
-export function toProjectDocument(record: ProjectRecord): ProjectDocumentV1 {
+/** A record as a version 2 document, ready to store or export. */
+export function toProjectDocument(record: ProjectRecord): ProjectDocumentV2 {
   const { project } = record;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: project.id,
     name: project.name,
     ...(project.description === undefined
@@ -80,7 +80,7 @@ export function toProjectDocument(record: ProjectRecord): ProjectDocumentV1 {
 
 // Document to domain
 
-function toProject(document: ProjectDocumentV1): Project {
+function toProject(document: ProjectDocumentV2): Project {
   return {
     id: document.id,
     name: document.name,
@@ -118,6 +118,7 @@ function toWorkflow(workflow: WorkflowDocument): Workflow {
 
 function toStep(step: StepDocument): Step {
   return {
+    id: step.id,
     componentId: step.componentId,
     action: step.action,
     ...(step.calls === undefined ? {} : { calls: step.calls.map(toStep) }),
@@ -172,6 +173,7 @@ function toWorkflowDocument(workflow: Workflow): WorkflowDocument {
 
 function toStepDocument(step: Step): StepDocument {
   return {
+    id: step.id,
     componentId: step.componentId,
     action: step.action,
     ...(step.calls === undefined

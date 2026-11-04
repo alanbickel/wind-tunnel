@@ -70,21 +70,21 @@ const queued: Project = {
       id: "write",
       name: "Write later",
       root: {
+        id: "api-invoke",
         componentId: "api",
         action: "invoke",
         calls: [
           {
+            id: "queue-enqueue",
             componentId: "queue",
             action: "enqueue",
-            async: { componentId: "fn", action: "invoke" },
+            async: { id: "fn-invoke", componentId: "fn", action: "invoke" },
           },
         ],
       },
     },
   ],
 };
-
-const sampleFn = sample.workflows[0]?.root.calls?.[0];
 
 /** One workflow whose function reads the table twice. */
 const readTwice: Project = {
@@ -94,9 +94,13 @@ const readTwice: Project = {
       id: "twice",
       name: "Read twice",
       root: {
+        id: "fn-invoke-2",
         componentId: "fn",
         action: "invoke",
-        calls: [...(sampleFn?.calls ?? []), ...(sampleFn?.calls ?? [])],
+        calls: [
+          { id: "table-read-1", componentId: "table", action: "read" },
+          { id: "table-read-2", componentId: "table", action: "read" },
+        ],
       },
     },
   ],

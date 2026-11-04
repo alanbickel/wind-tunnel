@@ -222,13 +222,15 @@ describe("traces", () => {
             id: "get",
             name: "Get order",
             root: {
+              id: "api-invoke",
               componentId: "api",
               action: "invoke",
               calls: [
                 {
+                  id: "fn-invoke",
                   componentId: "fn",
                   action: "invoke",
-                  calls: [{ componentId: "db", action: "read" }],
+                  calls: [{ id: "db-read", componentId: "db", action: "read" }],
                 },
               ],
             },

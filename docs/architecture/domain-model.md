@@ -43,6 +43,8 @@ flowchart LR
 
 Thick arrows are this workflow's calls; the dotted one is an edge this workflow doesn't use ("Get order" does). Every thick arrow must sit on an edge, because the edge supplies the call's latency, timeout, and retry policy. The `async` step is different from a nested call: the user's request completes once the message is enqueued, and the queue calls `fn-writer` later.
 
+Each step has an `id`, unique among all the project's steps. It's how the screen selects a step and how an edit names one, since a step's path in the tree shifts when a sibling moves or is removed. It's identity, not content: the engine and metrics never read it, and it's never shown; a step is named by its component and action ([ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)). [`step-tree.ts`](../../src/domain/model/step-tree.ts) walks a project's steps (`stepsOf`, each with its path) and rebuilds a tree (`mapSteps`); use them rather than writing the recursion again.
+
 ## Validation: who checks what
 
 A project's checks come in two groups ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md), decision 2):
@@ -54,8 +56,8 @@ Projects are stored as JSON documents ([ADR-0004](../adr/0004-persist-projects-i
 
 | Stage | Where | Checks |
 |---|---|---|
-| 1. Shape | [`projectDocumentV1Schema`](../../src/adapters/persistence/project-document-v1.ts) in `adapters/` | The schema version is one this build reads; fields exist and have the right types; numbers are in range (e.g. timeouts are positive); no unknown keys. An edge's settings use [`edgeSettingsSchema`](../../src/domain/model/edge-settings.ts) from `domain/model/` |
-| 2. Architecture | [`validateArchitecture`](../../src/domain/model/validate-architecture.ts) in `domain/` | Unique IDs and edges, and each edge's settings in range, listed below |
+| 1. Shape | [`projectDocumentV2Schema`](../../src/adapters/persistence/project-document-v2.ts) in `adapters/` | The schema version is one this build reads (only 2: version 1, whose steps had no IDs, was dropped; [ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)); fields exist and have the right types; numbers are in range (e.g. timeouts are positive); no unknown keys. An edge's settings use [`edgeSettingsSchema`](../../src/domain/model/edge-settings.ts) from `domain/model/` |
+| 2. Architecture | [`validateArchitecture`](../../src/domain/model/validate-architecture.ts) in `domain/` | Unique IDs, step IDs included, and edges, and each edge's settings in range, listed below |
 | 3. Component types | [`validateComponents`](../../src/domain/components/validate-components.ts) in `domain/` | Known types, valid configs, names unique among a type's components |
 
 ```mermaid
@@ -77,7 +79,7 @@ The document's structure mirrors the domain's, so an issue's path, like `["archi
 
 Architecture rules (`validateArchitecture`):
 
-- IDs are unique within components, edges, workflows, and workloads. Workflows and workloads aren't the architecture, but every reference to one is by ID, so the run checks need them unique.
+- IDs are unique within components, edges, workflows, and workloads, and step IDs across all the workflows' steps. Workflows, workloads, and steps aren't the architecture, but every reference to one is by ID, so the run checks and the editor need them unique.
 - Edges connect two different, existing components, and there's at most one edge per direction between a pair.
 - Each edge's latency, timeout, and retry policy pass [`edgeSettingsSchema`](../../src/domain/model/edge-settings.ts), the schema the document's edges build on. The document schema has checked them by the time a project opens, but an edited edge reaches `SaveProject` without it, so the save checks them here.
 

@@ -40,12 +40,16 @@ export interface MigrationRefused {
 }
 
 /** The schema version this build writes, and the one migrations end at. */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /**
  * This build's migrations. To change the document format, add the next
  * version's schema, add a migration here from the previous version, and
  * raise `CURRENT_SCHEMA_VERSION`.
+ *
+ * Empty at version 2: version 1 was dropped without a migration, since no
+ * stored v1 project was worth keeping (ADR-0020). A v1 document is refused
+ * as unsupported.
  */
 export const DOCUMENT_MIGRATIONS: DocumentMigrations = {
   currentVersion: CURRENT_SCHEMA_VERSION,

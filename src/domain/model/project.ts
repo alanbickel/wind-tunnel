@@ -47,7 +47,10 @@ export type StepAction = "invoke" | "read" | "write" | "enqueue";
  * order while this step holds its resources (design §3.3).
  */
 export interface Step {
-  /** Unique within the project; never shown. Identity, not content: the engine ignores it (ADR-0020). */
+  /**
+   * Unique within the project; never shown. Identity, not content: the
+   * engine ignores it (ADR-0020).
+   */
   readonly id: string;
   readonly componentId: string;
   readonly action: StepAction;

@@ -3,12 +3,13 @@ import { edgeSettingsSchema } from "../../domain/model/edge-settings";
 
 // The stored and exported project format, version 2 (MVP design §6,
 // ADR-0004). Version 2 gave each step an `id` (ADR-0020); version 1, which
-// had none, was dropped rather than migrated. This schema checks shapes and number ranges only. Rules that
-// span the architecture (unique IDs, step IDs included; edges' ends) belong to
-// `validateArchitecture`, and each component's `config` to its definition
-// (`validateComponents`); `loadProject` runs all three. Rules for workflows
-// and workloads (steps following edges, mixes naming workflows) are run
-// checks (`findRunIssues`), which stop a run, not loading.
+// had none, was dropped rather than migrated. This schema checks shapes and
+// number ranges only. Rules that span the architecture (unique IDs, step IDs
+// included; edges' ends) belong to `validateArchitecture`, and each
+// component's `config` to its definition (`validateComponents`);
+// `loadProject` runs all three. Rules for workflows and workloads (steps
+// following edges, mixes naming workflows) are run checks (`findRunIssues`),
+// which stop a run, not loading.
 //
 // Objects are strict: an unknown key is an error, so a typo in a template
 // (`latencyMS`) fails loudly instead of being dropped.

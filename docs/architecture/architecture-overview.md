@@ -165,7 +165,7 @@ flowchart TB
 
 ## How the rules are enforced
 
-Tooling checks the layer rules, so a mistake fails `npm run check` (and CI) instead of waiting for code review. The [enforcement table](../../CONTRIBUTING.md#enforcement) lists each rule, the tool that checks it, and what reviewers check instead.
+Tooling checks the layer rules, so a mistake fails `npm run check` (and CI) instead of waiting for code review. The [enforcement table](../contributing/coding-standards.md#enforcement) lists each rule, the tool that checks it, and what reviewers check instead.
 
 ### TypeScript projects
 

@@ -147,7 +147,7 @@ const nondeterminismBans = {
 };
 
 // ---------------------------------------------------------------------------
-// Collaborators come from factories (ADR-0009, CONTRIBUTING rule 10)
+// Collaborators come from factories (ADR-0009, coding standards rule 10)
 //
 // A class may create state in place, but not the objects it delegates to.
 // Factory functions, `ComponentDefinition.build`, and composition roots sit
@@ -196,8 +196,8 @@ const FACTORY_SELECTORS = [
 
 const TEST_FILES = "**/*.test.{ts,tsx}";
 
-// Coding standards (CONTRIBUTING.md). Errors: an exception needs a disable
-// comment with the reason after `--`.
+// Coding standards (docs/contributing/coding-standards.md). Errors: an
+// exception needs a disable comment with the reason after `--`.
 const codingStandards = {
   "max-lines-per-function": [
     "error",

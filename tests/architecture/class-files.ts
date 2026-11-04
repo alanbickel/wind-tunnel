@@ -1,4 +1,4 @@
-// Finds classes whose file isn't named after them (CONTRIBUTING rule 11):
+// Finds classes whose file isn't named after them (coding standards rule 11):
 // `ComponentRegistryMap` belongs in `component-registry-map.ts`.
 import { readFileSync } from "node:fs";
 import { basename, extname, relative } from "node:path";

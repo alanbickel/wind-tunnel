@@ -2,7 +2,7 @@
 
 Each ADR records one significant decision: the context, what was decided, and its consequences. They explain *why* the code is the way it is. Skim the titles, and read an ADR in full when you touch the area it covers.
 
-To write one, or to change a decision, follow [ADRs in the contributing guide](../../CONTRIBUTING.md#adrs). [ADR-0001](0001-record-architecture-decisions.md) explains the format.
+To write one, or to change a decision, follow [ADRs in the documentation guide](../contributing/documentation.md#adrs). [ADR-0001](0001-record-architecture-decisions.md) explains the format.
 
 | ADR | Decision |
 |---|---|

@@ -6,7 +6,7 @@ export interface Statused {
 /**
  * One handler per member of the union `U`, keyed by `status`; each gets its
  * own member's fields. A new status stops every `StatusHandlers<U, R>`
- * compiling until it has a handler (CONTRIBUTING rule 4). The UI's twin of
+ * compiling until it has a handler (coding standards rule 4). The UI's twin of
  * the domain's `KindHandlers`, which `ui/` can't import at run time.
  */
 export type StatusHandlers<U extends Statused, R> = {

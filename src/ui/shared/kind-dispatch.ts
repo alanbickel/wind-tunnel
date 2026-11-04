@@ -4,7 +4,7 @@ import type { KindHandlers, Kinded } from "../../domain/shared/kind-handlers";
  * Calls the handler for `member`'s kind and returns its result. The UI's
  * twin of the domain's `handleKind`, which `ui/` can't import at run time;
  * the handlers are typed with the domain's `KindHandlers`, so a new kind
- * stops them compiling until it has one (CONTRIBUTING rule 4).
+ * stops them compiling until it has one (coding standards rule 4).
  */
 export function dispatchKind<U extends Kinded, R>(
   handlers: KindHandlers<U, R>,

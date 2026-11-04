@@ -22,7 +22,7 @@ The [README](README.md#running-it) lists every script. A few things worth knowin
 
 ## Architecture rules
 
-The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architecture-layering.md)); the [architecture overview](docs/architecture/architecture-overview.md) explains where code goes. Tooling enforces the first two rules below, so a violation fails CI ([Enforcement](#enforcement)).
+The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architecture-layering.md)); the [architecture overview](docs/architecture/architecture-overview.md) explains where code goes. Tooling enforces the first two rules below, so a violation fails CI ([Enforcement](docs/contributing/coding-standards.md#enforcement)).
 
 - **Imports point inward only:** `ui`/`adapters` → `application` → `domain`. `ui/` gets adapters through dependency injection and may import only types from `domain/`.
 - **`domain/` and `application/` are deterministic.** No `Math.random`, `Date.now`, or `new Date`; no React, DOM, Worker, or Node APIs. Randomness comes from a seeded `RandomSource` and time from the `Clock` port, so the same seed always gives the same run. Libraries are allowed there only when an ADR approves them ([ADR-0005](docs/adr/0005-use-zod-for-schema-validation.md)).
@@ -30,181 +30,19 @@ The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architec
 
 ## Coding standards
 
-These heuristics encourage healthy habits and steer away from shapes that invite defects. Be kind to your fellow maintainers: if you wouldn't want to maintain it, don't commit it.
+Every change follows these rules, tests included. [Coding standards](docs/contributing/coding-standards.md) explains each with examples, how to justify an exception, and which rules tooling checks. Read it before you write code.
 
-ESLint and the architecture tests check some of these rules ([Enforcement](#enforcement)), and a violation fails `npm run check` and CI. Reviewers check the rest.
-
-**Exceptions** are allowed but must be justified in writing. If the reason isn't worth writing, the exception isn't worth making. Put the reason after `--` in the disable comment:
-
-```ts
-// eslint-disable-next-line max-params -- mirrors ComponentBehavior.arrive, which the engine calls per request
-```
-
-**Scope:** code we own. Code and signatures we don't control follow their owners: callbacks for the platform (DOM events, `Array.prototype` methods, React, Vitest) take the parameters the platform passes, and generated or vendored code keeps its upstream form.
-
-**Refactor first.** When a change would push a function over a limit, or the function already breaks a rule ESLint can't check, reshape it first in its own `refactor` PR, then make your change. Reviewers can then check that the refactor changed no behavior. Don't fix unrelated code in passing.
-
-### 1. Single-responsibility functions
-
-Orchestrators (use cases, commands, wiring, event dispatch) delegate, so they read like a list of steps; each calculation or transformation lives in a named function of its own.
-
-### 2. Rule of 30
-
-At most 30 lines of logic per function (blank lines and comments don't count). Over that, split it or write down why not.
-
-ESLint counts a nested function's lines toward the function around it. A `build()` that returns an object literal full of methods, as the component definitions do, adds up fast. Move the methods into a named class or into functions of their own.
-
-### 3. Return early (guard clause)
-
-Handle defaults, invalid input, and base cases first and return, then do the main work unindented.
-
-### 4. Look up, don't branch
-
-Choosing between behaviors is a job for a map, not `if/else` or `switch`. `if/else` is a yellow flag; a lone guard clause (rule 3) is fine.
-
-Type the map so that every case must be handled. For a union of string literals, `Record<Union, Handler>` does it: add a member to the union and the map stops compiling until it has a handler.
-
-```ts
-// ✗
-switch (policy.backoff) {
-  case "none": return policy.baseDelayMs;
-  case "exponential": return exponential;
-  case "exponential-jitter": return random.next() * exponential;
-}
-
-// ✓ a new backoff kind without a rule is a compile error
-type BackoffRule = (input: BackoffRuleInput) => number;
-
-const BACKOFF_RULES: Record<RetryPolicy["backoff"], BackoffRule> = {
-  none: ({ policy }) => policy.baseDelayMs,
-  exponential: ({ exponential }) => exponential,
-  "exponential-jitter": ({ exponential, random }) => random.next() * exponential,
-};
-```
-
-For a discriminated union whose members carry different fields (such as `SimulationEvent` or `Effect`), map each `kind` to a handler for its own member:
-
-```ts
-type EventHandlers = {
-  [K in SimulationEvent["kind"]]: (event: Extract<SimulationEvent, { kind: K }>) => void;
-};
-```
-
-Outside `ui/`, don't write these maps from scratch: [`src/domain/shared/kind-handlers.ts`](src/domain/shared/kind-handlers.ts) has `KindHandlers` and `handleKind` for discriminated unions, and `lookup` for `Record` tables. `ui/` may import only the `KindHandlers` type from `domain/`, so it writes its own dispatch. If a second place needs a helper that isn't there, add it to `domain/shared/` rather than writing it again.
-
-### 5. Keep control flow flat
-
-Nested conditionals, `else if` chains, and nested ternaries are red flags. There is always a flatter way: return early, look it up, or extract a function.
-
-### 6. Keep complexity low
-
-Count the decision points: each `if`, `?:`, `&&`/`||`/`??`, loop, `case`, and `catch` counts as one. 5 or fewer is ideal. 6 to 8 is a yellow flag: write down why. 9 or more is a red flag, and ESLint fails.
-
-### 7. At most two parameters
-
-Three or more parameters become one typed input object (`backoffMs({ policy, failedAttempts: 3, random })`), as do two whose meaning isn't obvious from the call, and callbacks that other layers implement, such as observers and `onSnapshot`, always take one object.
-
-### 8. Name your types
-
-No anonymous object types in parameters, return types, properties, generic arguments, or union members. Derived types (`Partial<T>`, `Pick<T, K>`, `Extract<T, U>`, `z.infer<typeof schema>`) are fine.
-
-```ts
-// ✗ each member is anonymous; easy to break one without noticing
-type SimulationEvent =
-  | { kind: "component-arrived"; timeMs: number; componentId: string }
-  | { kind: "component-rejected"; timeMs: number; componentId: string; reason: string };
-
-// ✓
-interface ComponentArrivedEvent { kind: "component-arrived"; timeMs: number; componentId: string }
-interface ComponentRejectedEvent { kind: "component-rejected"; timeMs: number; componentId: string; reason: string }
-type SimulationEvent = ComponentArrivedEvent | ComponentRejectedEvent;
-```
-
-**Parameter objects** take one of three suffixes, so the type name says what kind of thing is being passed:
-
-| Suffix | What it holds | Example |
-|---|---|---|
-| `<Name>Input` | The data a function, method, or constructor works on, in one object (rule 7). `Name` is the function, or the subject when a family of functions takes the same shape. | `RunSimulationInput`; `StepInput` for `checkStep`, `checkTarget`, and `checkAsync` |
-| `<Class>Dependencies` | A constructor's collaborators (rule 10). | `RunSimulationDependencies` |
-| `<Name>Context` | State shared across a family of functions, such as the lookup tables and issue list of a validation walk. It comes second, after the `Input`. | `checkStep(input: StepInput, context: StepContext)` |
-
-Don't use `Options`, `Settings`, `Params`, `Args`, or `At`. A type holding an input with its defaults filled in is named for what it holds. Two names stay as they are: `BuildContext`, which is public component API, and the component `*Config` types, which are part of the project document rather than parameter objects.
-
-### 9. Put the unit in the name
-
-Durations and timestamps end in `Ms` (`timeoutMs`, `nowMs`) and rates say what they count per what (`requestsPerSecond`); a component config field may use its AWS setting's unit instead (`idleTimeoutSec`), and the component converts it, because the engine works in milliseconds.
-
-### 10. Collaborators come from factories
-
-A class never creates the objects it delegates to. They come in through the constructor, typed as interfaces, and a factory function or composition root builds them ([ADR-0009](docs/adr/0009-collaborators-come-from-factories.md)). The constructor's signature then lists everything the class depends on, and a test can pass in a fake.
-
-- **Dependencies** have behavior the class delegates to: `EventQueue`, `RateLimit`, `ServiceTime`, `ConcurrencyLimit`, `SeededRandom`, and the like. They arrive in one `<Class>Dependencies` object, and each property is an interface, not a class. A class with `private` fields only accepts its own instances, so a test can't hand in a fake; an interface accepts any object of the right shape.
-- **Name the interface for the role; let the class name say how it works:** `ComponentRegistry` is implemented by `ComponentRegistryMap`, `RateLimit` by `TokenBucket`. No `I` prefix, and no abstract base classes.
-- **State** may be created in place: `Map`, `Set`, arrays, plain records, and pure accumulators that only store data (`Queue`, `LatencyHistogram`, `Tally`). A new accumulator goes in `STATE_CLASSES` in `eslint.config.js`.
-- **`new` belongs** in factories (`simulate`, `ComponentDefinition.build`, `createAwsComponentRegistry`) and composition roots (the CLI command, `main.tsx`, tests).
-
-```ts
-// ✗ the constructor hides what the behavior depends on, and a test can't swap it
-class ApiGatewayBehavior<T> {
-  constructor(config: ApiGatewayConfig) {
-    this.limit = new TokenBucket({ ratePerSec: config.ratePerSec, burst: config.burst });
-  }
-}
-
-// ✓ the behavior names the role it needs; build() is the factory that fills it
-interface ApiGatewayBehaviorDependencies {
-  readonly limit: RateLimit; // an interface; TokenBucket implements it
-}
-
-build<T>(config: ApiGatewayConfig): ComponentBehavior<T> {
-  const limit = new TokenBucket({ ratePerSec: config.ratePerSec, burst: config.burst });
-  return new ApiGatewayBehavior<T>({ limit });
-}
-```
-
-### 11. One class per file, named after it
-
-Each class gets its own file, named after the class in kebab case: `ComponentRegistryMap` lives in `component-registry-map.ts`, and `IndexedDbProjectRepository` in `indexed-db-project-repository.ts`. A reader who sees a class name knows which file to open.
-
-Interfaces follow what they're for:
-
-- **A role interface gets its own file**, named after the interface, even when it has one implementation: `ComponentRegistry` in `component-registry.ts`, the ports in `application/ports/`. The role often lives in an inner layer and its implementations in an outer one, so they can't share a file anyway.
-- **A class's own shapes stay in the class's file:** its `Input`, `Dependencies`, and result types. They mean nothing apart from the class.
-
-Shared test fakes in `testing/` folders follow the rule. A `*.test.ts` file is exempt: it may keep small test doubles used only by its own tests beside them.
-
-### Enforcement
-
-Tooling checks most of the architecture rules and some of the coding standards, so a mistake fails `npm run check` (and CI) instead of waiting for review. Reviewers check the rest.
-
-| Rule | Checked by | Level |
-|---|---|---|
-| Imports point inward only; `ui` imports only *types* from `domain`; nothing imports `main.tsx` | `@typescript-eslint/no-restricted-imports`, configured per layer in [`eslint.config.js`](eslint.config.js) | error |
-| `domain` and `application` use only approved pure libraries (`zod` in `domain`, [ADR-0005](docs/adr/0005-use-zod-for-schema-validation.md)); tests there may also import `vitest` | The same rule, with an allowlist of packages | error |
-| Only `src/ui/diagram/` imports `@xyflow/react`, and only `src/ui/charts/` imports `recharts` ([ADR-0010](docs/adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](docs/adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) | The same rule, with `WRAPPED_LIBRARIES` | error |
-| No DOM, `Worker`, timers, or Node APIs in `domain` and `application` | TypeScript: [`tsconfig.core.json`](tsconfig.core.json) checks these folders without the DOM lib or Node types | type error |
-| No `Math.random`, `Date.now`, `new Date()`, or `Date()` in `domain` and `application` | `no-restricted-properties` and `no-restricted-syntax` | error |
-| Colors and lengths come from the design tokens, stylesheets live only in `src/ui/`, and nothing hides the focus ring ([ADR-0012](docs/adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) | [`tests/architecture/stylesheets.test.ts`](tests/architecture/stylesheets.test.ts) | test failure |
-| 2. Rule of 30 | `max-lines-per-function` (30, skipping blanks and comments) | error; off in tests |
-| 5. Flat control flow | `max-depth` (2), `no-nested-ternary`, `no-else-return`, `no-lonely-if` | error |
-| 6. Complexity | `complexity` (8) | error |
-| 7. Two parameters | `max-params` (2) | error; off in tests |
-| 10. Collaborators from factories ([ADR-0009](docs/adr/0009-collaborators-come-from-factories.md)) | `no-restricted-syntax`: `new` inside a class body, except built-ins, `STATE_CLASSES`, and `*Factory`/`*Builder` | error; off in tests |
-| 10. Dependencies are interfaces | [`tests/architecture/dependency-types.test.ts`](tests/architecture/dependency-types.test.ts) resolves each `*Dependencies` property's type with the TypeScript compiler and fails on a class | test failure |
-| 11. One class per file | `max-classes-per-file` (1) | error; off in tests |
-| 11. File named after its class | [`tests/architecture/class-files.test.ts`](tests/architecture/class-files.test.ts) fails if a class's file isn't its name in kebab case | test failure; skips tests |
-| File length | `max-lines` (400, skipping blanks and comments) | warning; tests included |
-
-Reviewers check what no tool does:
-
-- Register, don't edit the engine, from the architecture rules.
-- Rules 1, 3, 4, 8, and 9.
-- Rule 10's gaps: a dependency built by a helper function the class calls, which the lint selector can't see, and a `Dependencies` type not named `*Dependencies`.
-- Rule 11's gap: where a role interface lives.
-
-[`tests/architecture/layer-rules.test.ts`](tests/architecture/layer-rules.test.ts) lints sample snippets in each layer and asserts that the layer rules fire; if you change the rules, update it. To approve a new library for `domain` or `application`, write an ADR, then add it to `DOMAIN_PACKAGES` or `APPLICATION_PACKAGES` in `eslint.config.js`.
-
-**File length** is only a warning: it means "consider splitting this file", not "must fix". A file past 400 lines usually holds more than one idea, and a newcomer has to read all of it to find the one they need. Split along those ideas when you can name them; when the file really is one idea, leave it and move on.
+1. [Single-responsibility functions](docs/contributing/coding-standards.md#1-single-responsibility-functions)
+2. [Rule of 30](docs/contributing/coding-standards.md#2-rule-of-30)
+3. [Return early (guard clause)](docs/contributing/coding-standards.md#3-return-early-guard-clause)
+4. [Look up, don't branch](docs/contributing/coding-standards.md#4-look-up-dont-branch)
+5. [Keep control flow flat](docs/contributing/coding-standards.md#5-keep-control-flow-flat)
+6. [Keep complexity low](docs/contributing/coding-standards.md#6-keep-complexity-low)
+7. [At most two parameters](docs/contributing/coding-standards.md#7-at-most-two-parameters)
+8. [Name your types](docs/contributing/coding-standards.md#8-name-your-types)
+9. [Put the unit in the name](docs/contributing/coding-standards.md#9-put-the-unit-in-the-name)
+10. [Collaborators come from factories](docs/contributing/coding-standards.md#10-collaborators-come-from-factories)
+11. [One class per file, named after it](docs/contributing/coding-standards.md#11-one-class-per-file-named-after-it)
 
 ## Adding a component type
 
@@ -217,37 +55,10 @@ A new AWS service (or any other component type) touches these places, all in the
 5. The [component definitions guide](docs/architecture/component-definitions.md), updated to list it.
 6. Field descriptors for its settings, in `src/application/details/fields/`, listed in `createFieldCatalog`, with a `purpose`: the line "Add component" shows on what the type is for. For each setting: what it means to a user, in AWS terms, its default's evidence, and for a number its range, with a row for each in fidelity's [defaults table](docs/design/fidelity.md#default-values-and-their-evidence), and an `edgeEvidence` for its edge defaults, which fidelity's edge rows must back. `field-evidence.test.ts` fails until every setting has one, and `field-ranges.test.ts` until each range agrees with the config schema. The Details tab's fields and "Add component" come from the descriptors, so the type needs no UI code; `component-types.test.ts` fails until a registered type has its descriptors and their `purpose`.
 
-## Tests
+## Tests and documentation
 
-- Unit tests sit next to the code (`foo.ts` → `foo.test.ts`) and run in Node. Architecture tests live in `tests/architecture/`. A test that needs adapters and the UI together, which may not import each other, lives in `src/integration/`: the run panel's findings for real template runs, for example.
-- **UI tests** start with `// @vitest-environment jsdom`, render with [Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and call `cleanup` in `afterEach`. Give components use cases through `UseCasesProvider`: `fakeUseCases()` rejects every call you don't override, and `inMemoryUseCases()` runs the real project use cases over in-memory adapters (both in `src/ui/app/testing/`).
-- **Use jsdom only for a test that needs the browser:** one that renders, or reads `document`, `window`, or `localStorage`. jsdom adds 3 to 5 s of startup to each file in a full run. Everything else runs in Node, where the setup file skips loading Testing Library.
-- **Run whole templates in `beforeAll`,** with `RUN_TIMEOUT_MS` from `src/adapters/templates/testing/run-template.ts`, not in a `describe` body. Vitest starts the files that took longest last time first, but it counts only test and hook time, so a file that does its work while collecting looks fast and starts last. A file's runs are serial, so the slowest file sets how long a full run takes. Split a file that runs many templates, as `scenarios/` does by workload.
-- The coding standards apply to tests too. ESLint skips the length and parameter checks there, because a `describe` block groups many tests; keep each test itself within the rule of 30, and split a long scenario into named steps.
-- Tests should be able to fail. When you write or change one, break the code it covers and watch it go red at least once. Then say how you broke it in a comment above the test, so a reviewer can check it without rerunning it and a later reader knows what the test guards:
-  ```ts
-  // Fails if the queue drops messages that are still in flight when the run ends.
-  it("counts in-flight messages in the totals", () => {
-  ```
-  Write one comment per `it` or `it.each`. For a change to a shared suite (`checkComponentContract` and the other contract checkers), put it on the check you changed. A regression test's comment names the bug it guards against: the change that turns it red is the bug coming back.
-- Use the seed, not luck. Anything random runs from a fixed seed. Scenario tests that assert a template's lesson check several seeds (`src/adapters/templates/scenarios/`) with loose thresholds, so they pin the lesson rather than one run's numbers.
-- **Contract suites** check that an implementation keeps the promises of its interface. Every component type must pass `checkComponentContract`, every `ProjectRepository` adapter must pass `checkProjectRepositoryContract`, and every `SimulationRunner` must pass `checkSimulationRunnerContract`, each with an empty list of violations.
-- **Outputs must reconcile.** Totals in metrics and reports add up: started = succeeded + failed + in progress, and so on. Show work that's still in progress rather than dropping it, and test the remainders (see `src/adapters/cli/report-reconciles.test.ts`). Add a check when you add a column or a counter. To find a workflow or component in a snapshot, use `workflowIn` and `componentIn` (`src/domain/metrics/testing/`) instead of chains of `?.`.
-- Latencies carry floating-point drift (`49.000000000000014`): compare them with `toBeCloseTo`. Percentiles are bucket upper bounds, up to 5% high ([metrics guide](docs/architecture/metrics.md)).
-- Model changes come with before/after numbers from `npm run simulate` in the PR description.
-
-### Docs backed by tests
-
-Some docs quote output that a test generates or checks. Change them together:
-
-| Doc | Test |
-|---|---|
-| Excerpts in the [engine](docs/architecture/simulation-engine.md), [component](docs/architecture/component-definitions.md), [domain model](docs/architecture/domain-model.md), and [metrics](docs/architecture/metrics.md) guides | Snapshot traces in `src/domain/traces/`, one test file per guide; refresh with `npx vitest run -u src/domain/traces`, then update the excerpt in the guide |
-| The sample reports in the [headless runner guide](docs/architecture/headless-runner.md) and the [findings guide](docs/architecture/finding-detectors.md) | Snapshots in `src/adapters/cli/reports/`; refresh with `npx vitest run -u src/adapters/cli` and read the diff |
-| The verdict quoted under each reading in [findings.md §1](docs/design/findings.md#1-hand-written-readings) | `describeFindings` in `src/adapters/templates/findings/`, which compares the CLI's verdict for each run with the doc's quote; change the doc to match what the code prints |
-| The worked example of a finding's long and short forms in the [findings guide](docs/architecture/finding-detectors.md#how-a-finding-is-worded) | Each run's verdict and findings in `src/adapters/cli/reports/findings/`, long (`<run>.txt`) and short (`<run>.short.txt`), which `describeFindings` pins; refresh with `npx vitest run src/adapters/templates/findings --update` and read every changed line |
-| Excerpts in the [user interface guide](docs/architecture/user-interface.md) | The snapshot trace in `src/ui/traces/`; refresh with `npx vitest run src/ui/traces --update`, then update the excerpts in the guide |
-| Each template's lesson in [MVP design §7](docs/design/mvp-design.md) | The scenario tests in `src/adapters/templates/scenarios/` |
+- [Tests](docs/contributing/testing.md): where tests go, what makes a good one, and the docs that quote test output.
+- [Documentation](docs/contributing/documentation.md): what to document and where it goes, and how to write and amend ADRs.
 
 ## Gotchas
 
@@ -260,40 +71,6 @@ Some docs quote output that a test generates or checks. Change them together:
 - **Measuring speed.** Whole-template timings swing ±30% between runs, so compare the million-event engine test instead, alternating runs of the old and new code: `npx vitest run src/domain/engine/simulation.test.ts -t "loops without advancing" --reporter verbose`. It ran in 1.1–1.7 s at R2's close. For the old code, use a `git worktree` with `node_modules` linked as a junction, and remove the junction before removing the worktree.
 - **Measuring the test suite.** The percentages in Vitest's summary are shares of time summed across workers, not of the wall time. For a breakdown by file, write a throwaway reporter whose `onTestRunEnd` prints each module's `diagnostic()`, which gives its environment, setup, collect, and test times. Leave `isolate` on, even though Vitest suggests turning it off: files would share module state, and `Diagram`'s loading test fails whenever another file in the same worker has already loaded React Flow.
 
-## Documentation
-
-Write for a maintainer who is new to the codebase: say what something does and why, not only how. Too many docs, or docs that are hard to find, cost as much as too few. Before adding a page, check whether an existing one should be extended or trimmed instead, and cut stale or duplicated text when you find it.
-
-- **Doc comments.** Exported functions, types, and their fields in `domain/` and `application/` get a doc comment. Say what it's for and when to use it; give units and defaults.
-- **A new subsystem gets a short guide** in `docs/architecture/`, in the same change: what it does, a Mermaid diagram or two, and a worked example, preferably a trace generated by a test so it can't go stale. Aim for a 10-minute read; [How the simulation engine works](docs/architecture/simulation-engine.md) is the model.
-- **Complex behavior gets the same treatment** in its subsystem's guide: a state machine, timing, or a flow across layers gets a Mermaid diagram or a worked example in the same change. The test is whether a maintainer new to it could learn how it works from the docs in about ten minutes.
-- **Check for drift before opening a PR.** Search the docs for the names the change touches (types, functions, file paths, UI labels) and update whatever no longer matches.
-- **Keep the [architecture overview](docs/architecture/architecture-overview.md)** and its Mermaid diagrams current in the same change that alters the structure.
-- **AWS claims** go through the fidelity catalog, as in [Adding a component type](#adding-a-component-type).
-- **New domain terms** go in the [glossary](docs/glossary.md).
-- **Diagrams** are [Mermaid](https://mermaid.js.org/), so they live in the Markdown and show up in diffs. In VS Code, the "Markdown Preview Mermaid Support" extension renders them.
-- **C4 diagrams** show the code at four levels, one diagram per level per place: context and containers (levels 1 and 2) in the architecture overview, one component diagram (level 3) in each guide, and a `classDiagram` (level 4) in the guide for a class whose collaborators a factory wires. Draw levels 1–3 as flowcharts styled like the [legend](docs/architecture/architecture-overview.md#the-system-at-a-glance), copying its `classDef` lines; Mermaid's own C4 diagrams don't lay out legibly.
-
-### Where a document goes, and how it's found
-
-Every document must be reachable from the map in the [root README](README.md#documentation), in one or two clicks.
-
-- **A folder in `docs/` may have one `<folder>-overview.md`** (for example `architecture/architecture-overview.md`). If it does, the root README links to that overview and to nothing else in the folder, and the overview lists the folder's other documents. If it doesn't, the root README links to the folder's documents directly.
-- **Adding a document:** list it in its folder's overview if there is one, or in the root README if not, in the same change.
-- **[Getting started](docs/getting-started.md)** is the path for a new maintainer, not an index. Add a document to its reading order only if every new maintainer should read it.
-- **How a Claude session works** (its routine, its permissions, how review sessions talk to each other) goes in [CLAUDE.md](CLAUDE.md) or under `.claude/`. Everything about the repository, its code, and its standards goes here. Each fact is written once: Claude files link here rather than restate a rule, so you never need to read them.
-- **File names say what the file is.** Don't add `README.md` files inside `docs/`; a tab or search result titled README doesn't tell you which one it is.
-
-### ADRs
-
-Record a significant decision as an ADR in `docs/adr/`, copying [the template](docs/adr/template.md), and list it in the [ADR overview](docs/adr/adr-overview.md). "Significant" is defined in [ADR-0001](docs/adr/0001-record-architecture-decisions.md).
-
-- **Never reword or remove what an accepted ADR records:** its context, decision, rationale, and consequences. That information is what makes ADRs a record you can audit.
-- **To note how a later change affects it** (a signature it quotes has changed, a file it links has moved), append a dated addendum.
-- **To change part of its decision,** append a dated addendum with its own context, decision, and consequences. Mark each point it changes with a line directly after it, and set the status to `Accepted; amended YYYY-MM-DD`. [ADR-0001](docs/adr/0001-record-architecture-decisions.md)'s addendum of 2026-10-22 gives the format.
-- **When its main decision no longer holds** (the one its title states), write a new ADR that supersedes it, and update only the old one's status line.
-- **One exception:** ADRs 0002, 0003, and 0005 were edited in place when the project was renamed from Cloud Builder to Wind Tunnel, as a one-off.
-
 ## Milestones and the roadmap
 
 The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) is the plan: the milestones in order, each with its items in order. A filed item is an issue number. Work not yet filed is a short *unfiled* stub that says what it is and records any decision already made about it. When a milestone becomes the current one, it gets a GitHub milestone, and its filed issues join it; items filed later join as they're filed. Until then, its filed issues have no GitHub milestone.
@@ -305,7 +82,7 @@ The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) 
 ### Finishing a milestone
 
 1. Every item is closed, and the milestone's goal is met. The maintainer checks anything that needs a browser.
-2. The docs are current: the architecture overview, the design docs where reality differs from them, ADRs for significant decisions, a guide for each new subsystem, and every new document reachable from the README map ([Documentation](#documentation)).
+2. The docs are current: the architecture overview, the design docs where reality differs from them, ADRs for significant decisions, a guide for each new subsystem, and every new document reachable from the README map ([Documentation](docs/contributing/documentation.md)).
 3. Anything the next milestone needs to know is in Gotchas or the relevant guide.
 4. The milestone moves to the Roadmap's "Done" list as one line with its PR numbers, and its GitHub milestone is closed.
 5. The next milestone's stubs are revised if what we learned changes them, and its first items are filed.
@@ -333,7 +110,7 @@ The repository allows only squash merges, and a ruleset stops `main` from being 
 
 ### Reviews
 
-[`/pr-review`](.claude/commands/pr-review.md) is a project command for Claude Code. It reads the PR in its own worktree, checks it against this guide, and posts one review. Run it again after the author answers: a follow-up round checks each answer and reviews only the commits pushed since. The reviewer never pushes, approves, or merges. It doesn't run tests either: CI runs `npm run check`, and each test's `// Fails if` comment (see [Tests](#tests)) is the author's record that it can fail.
+[`/pr-review`](.claude/commands/pr-review.md) is a project command for Claude Code. It reads the PR in its own worktree, checks it against this guide, and posts one review. Run it again after the author answers: a follow-up round checks each answer and reviews only the commits pushed since. The reviewer never pushes, approves, or merges. It doesn't run tests either: CI runs `npm run check`, and each test's `// Fails if` comment (see [Tests](docs/contributing/testing.md)) is the author's record that it can fail.
 
 [`/pr-address`](.claude/commands/pr-address.md) is its counterpart for the author. It answers each finding of the latest review in the finding's thread, fixes what it fixes in commits on the branch, and pushes. Use it to answer a review in interactive and scripted sessions alike, so every answer uses the same tags. It can run in the session that wrote the PR; only the reviewer needs a fresh one.
 

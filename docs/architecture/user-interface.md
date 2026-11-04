@@ -85,7 +85,7 @@ To give a component a new use case: add it to `UseCases`, build it in `main.tsx`
 ## Patterns you'll see
 
 - **Loading.** `useLoad(load)` runs a promise when the component mounts and drops a result that arrives after it unmounts; `LoadableView` shows "Loading…", the error, or the value. Wrap `load` in `useCallback`, or it runs on every render.
-- **Results with a `status`.** Use cases return unions keyed by `status` (`found`, `missing`, `invalid`). Render them with `handleStatus` and a `StatusHandlers` map, the UI's twin of the domain's `KindHandlers` (CONTRIBUTING rule 4): a new status stops the map compiling until it has a view.
+- **Results with a `status`.** Use cases return unions keyed by `status` (`found`, `missing`, `invalid`). Render them with `handleStatus` and a `StatusHandlers` map, the UI's twin of the domain's `KindHandlers` ([coding standards rule 4](../contributing/coding-standards.md#4-look-up-dont-branch)): a new status stops the map compiling until it has a view.
 - **Double clicks.** State lags a render behind, so a hook that must run something once (`useCreateFromTemplate`, `useCreateBlank`, `useSimulationRun`, `useStoragePersistence`) guards with a `useRef`, which changes at once.
 - **Keyboard and screen readers.** A button that can't be used now is `aria-disabled` and ignores clicks rather than `disabled`, which would drop the focus: `<Button usable={false}>` does both. A new screen focuses its heading (`ScreenHeading`). Mount a live region (`role="status"`) from the start, empty, as `ProjectBar` and `StorageHint` do, so screen readers announce what appears in it; the older ones that mount with their message are [#14](https://github.com/alanbickel/wind-tunnel/issues/14). The diagram and every chart have a text or table version, and anything the diagram can select, its text version can select too. To explain something on screen, such as what a table's columns mean, use `Explained`: an info button beside its title ("About Limits") that shows and hides the explanation, with `aria-expanded`, and closes on Escape. Not a hover tooltip, which the keyboard can't reach.
 - **Styling.** Each component's styles sit next to it in a CSS Module (`ProjectBar.module.css`), and every color and length in them comes from the tokens in `theme/tokens.css`, through `var()`. `theme/base.css` holds the defaults every screen shares, with element selectors only (pseudo-classes inside `:where()`, so a module's class always wins): headings, form controls, tables, the focus ring, and reduced motion. [`tests/architecture/stylesheets.test.ts`](../../tests/architecture/stylesheets.test.ts) fails on a color literal anywhere in `ui/`, a length literal in a stylesheet (except a breakpoint in a media query; see Layout), or `outline: none`; the charts' colors are its listed exceptions until the charts are themed. Each color token holds both themes with `light-dark()`, and the browser picks one by the `color-scheme` on `<html>`, so changing the theme re-renders nothing. `main.tsx` applies the saved choice before the first render.
@@ -245,7 +245,7 @@ If the flow changes, that test fails and the diff shows the new timeline. If the
 
 ## How it's tested
 
-UI tests start with `// @vitest-environment jsdom`, render with Testing Library, and call `cleanup` in `afterEach` (see [CONTRIBUTING](../../CONTRIBUTING.md#tests)).
+UI tests start with `// @vitest-environment jsdom`, render with Testing Library, and call `cleanup` in `afterEach` (see [Tests](../contributing/testing.md)).
 
 | Helper | Use it for |
 |---|---|

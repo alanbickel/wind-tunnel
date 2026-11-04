@@ -85,8 +85,10 @@ function addressTools(/** @type {string} */ worktree) {
 }
 
 /**
- * Never: force-push, rebase, amend, push to main, merge a PR, or point gh at
- * another repository. The `git -C` forms are here because a pattern like
+ * Never: force-push, rebase, amend, push to main, push every branch, merge a
+ * PR, or point gh at another repository. The issue-branch allow rules end in
+ * `*`, which matches extra refspecs and flags too, so the push rules here
+ * refuse those extras. The `git -C` forms are here because a pattern like
  * `git push --force*` doesn't match `git -C <dir> push --force`. A merge
  * through the API (`gh api .../pulls/<n>/merge`) is denied too, because
  * COMMON allows `gh api` on pull requests.
@@ -104,6 +106,10 @@ const DENY = [
   "Bash(git push * main *)",
   "Bash(git push * *:main*)",
   "Bash(git push * *:refs/heads/main*)",
+  "Bash(git push * refs/heads/main*)",
+  "Bash(git push * +*)",
+  "Bash(git push * --all*)",
+  "Bash(git push * --mirror*)",
   "Bash(git push --force*)",
   "Bash(git push * --force*)",
   "Bash(git push -f*)",

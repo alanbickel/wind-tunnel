@@ -38,7 +38,8 @@ describe("the start step's permissions", () => {
     expect(allows(startPermissions(), command)).toBe(true);
   });
 
-  // Fails if a session that forgot to branch can push `main` straight to origin.
+  // Fails if a session that forgot to branch can push `main` straight to origin,
+  // or an issue-branch push can carry `main` or every branch along with it.
   it.each([
     "git push",
     "git push -u origin main",
@@ -47,6 +48,10 @@ describe("the start step's permissions", () => {
     "git push -u origin feat/issue-12-x:main",
     "git push origin HEAD:main",
     "git push origin feat/issue-12-x:refs/heads/main",
+    "git push origin feat/issue-1-x +main",
+    "git push origin feat/issue-1-x refs/heads/main",
+    "git push origin feat/issue-1-x --all",
+    "git push origin feat/issue-1-x --mirror",
   ])("refuse a push that could reach main: %s", (command) => {
     expect(allows(startPermissions(), command)).toBe(false);
   });

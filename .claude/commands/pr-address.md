@@ -16,18 +16,17 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
    gh pr view $ARGUMENTS --comments
    ```
    Read the issue it closes (`gh issue view <n>`), including its comments.
-3. Another session may be working in this checkout, so don't switch branches here. Fix the PR in its own worktree, `../wind-tunnel-address-$ARGUMENTS`. A headless run's launcher creates it before the session starts, because a session can only be given a folder that already exists (`--add-dir`). Check whether it's there with `git worktree list`.
+3. Another session may be working in this checkout, so don't switch branches here. Fix the PR in its own worktree, `../wind-tunnel-address-$ARGUMENTS`. A headless run's launcher creates it before the session starts, because a session can only be given a folder that already exists (`--add-dir`). First run `git fetch origin`, so a branch this clone hasn't seen yet can be checked out. Then check whether the worktree is there with `git worktree list`.
    - **It's there:** use it if it's on `<headRefName>` and `git -C ../wind-tunnel-address-$ARGUMENTS status --short` shows no changes. If it's on another branch or has changes, stop and say so: the changes may be an earlier session's unsaved work.
    - **It isn't** (an interactive session): create it.
      ```
      git worktree prune
      git worktree add ../wind-tunnel-address-$ARGUMENTS <headRefName>
      ```
-     If `git worktree add` refuses because the branch is checked out somewhere else, stop and say where.
+     If `git worktree add` refuses because the branch is checked out somewhere else, `git worktree list` shows where. If that's the checkout you started in and `git status --short` there shows no changes, the branch is only parked there: ask the maintainer whether you may run `git switch main` in it (the driver does that switch before it launches), then add the worktree. If they say no, or the branch is in another worktree or has changes, stop and say where it is and what would free it.
 
    Then bring it up to date and install:
    ```
-   git fetch origin
    git -C ../wind-tunnel-address-$ARGUMENTS merge --ff-only origin/<headRefName>
    npm --prefix ../wind-tunnel-address-$ARGUMENTS ci
    ```

@@ -14,7 +14,7 @@ import { table } from "./format";
 
 // Worked examples for docs/architecture/component-definitions.md;
 // format.ts explains the snapshots. Accept an intended change with
-// `npx vitest run -u src/domain/traces/component-definitions`,
+// `npx vitest run src/domain/traces/component-definitions --update`,
 // then check the guide still matches.
 
 const EFFECT_TEXT: KindHandlers<Effect<string>, string> = {

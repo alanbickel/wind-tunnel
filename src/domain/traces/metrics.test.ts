@@ -11,7 +11,7 @@ import { table } from "./format";
 
 // Worked examples for docs/architecture/metrics.md;
 // format.ts explains the snapshots. Accept an intended change with
-// `npx vitest run -u src/domain/traces/metrics`,
+// `npx vitest run src/domain/traces/metrics --update`,
 // then check the guide still matches.
 
 describe("traces", () => {

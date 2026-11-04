@@ -2,8 +2,8 @@
 // docs/architecture/. Each test runs a building block through a small scenario
 // and saves a text timeline next to it. The timelines are snapshots: if
 // behavior changes, the test fails and the diff shows exactly what changed.
-// Run `npx vitest run -u src/domain/traces` to accept an intended change, then
-// check the guide still matches.
+// Run `npx vitest run src/domain/traces --update` to accept an intended
+// change, then check the guide still matches.
 
 /** Renders rows as a left-aligned text table with a header. */
 // eslint-disable-next-line max-params -- moved out of a test file, where the rule is off; tests only

@@ -15,7 +15,7 @@ import { table } from "./format";
 
 // Worked examples for docs/architecture/simulation-engine.md;
 // format.ts explains the snapshots. Accept an intended change with
-// `npx vitest run -u src/domain/traces/simulation-engine`,
+// `npx vitest run src/domain/traces/simulation-engine --update`,
 // then check the guide still matches.
 
 /** Every event but ticks: the ones that belong to a request. */

@@ -44,7 +44,7 @@ import { createBundledTemplateCatalog } from "../templates/bundled-template-cata
 // project through the use cases, wired to the real adapters, and records
 // every call a use case makes on a port, plus what IndexedDB holds. The
 // timeline is a snapshot: if the flow changes, this test fails and the diff
-// shows how. Run `npx vitest run -u src/adapters/traces` to accept an
+// shows how. Run `npx vitest run src/adapters/traces --update` to accept an
 // intended change, then check the guide still matches.
 
 const CREATED_AT = "2026-10-15T12:00:00.000Z";

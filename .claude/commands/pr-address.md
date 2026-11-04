@@ -13,6 +13,7 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
    gh pr view $ARGUMENTS --json title,body,headRefName,headRefOid,closingIssuesReferences,reviews,mergeable
    gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments
    node scripts/review-threads.js list $ARGUMENTS
+   gh pr view $ARGUMENTS --comments
    ```
    Read the issue it closes (`gh issue view <n>`), including its comments.
 3. Check out the PR branch and bring it up to date. If the working tree has uncommitted changes, stop and say so. Don't stash or discard them.
@@ -26,7 +27,7 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
 
 - **Inline findings:** each unresolved thread whose first comment starts with `🤖 Claude review:` and has no answer since the reviewer's last comment in it.
 - **Findings in the review summary** (findings on lines outside the diff, given as `path:line`): answer them all in one PR comment that starts with `🤖 Claude (author):`, with one numbered answer per finding, in the summary's order.
-- **A reply from the maintainer** (no `🤖` prefix) settles its thread. Do what it says, and answer with the tag that fits.
+- **A reply from the maintainer** (no `🤖` prefix) settles its thread. Do what it says, and answer with the tag that fits. A maintainer comment after a `🤖 Claude question:`, on the PR or the issue, is a reply in the thread of each finding the question links.
 - Don't answer threads that are resolved. Don't fix a finding the reviewer tagged [decision]: answer it with a link to the reviewer's question (see **[decision]** below).
 
 ## Choosing an answer

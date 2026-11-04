@@ -16,7 +16,7 @@ This is a reading review. CI runs `npm run check`, and the author proves their t
    gh pr diff $ARGUMENTS
    ```
    Read each issue it closes (`gh issue view <n>`).
-2. Read `CLAUDE.md` and `CONTRIBUTING.md`. Their standards are the review criteria. Read the Roadmap (`gh issue view 32`) to see where the PR's issue sits.
+2. Read `CLAUDE.md` and `CONTRIBUTING.md`. Their standards are the review criteria, and CONTRIBUTING's "Review comments" section sets the tags, answers, and verdict this command uses. Read the Roadmap (`gh issue view 32`) to see where the PR's issue sits.
 3. Another session may be working in this checkout, so don't switch branches here. Review in a separate worktree (the first line clears one left by an earlier run):
    ```
    rm -rf ../wind-tunnel-review-$ARGUMENTS; git worktree prune
@@ -30,7 +30,20 @@ This is a reading review. CI runs `npm run check`, and the author proves their t
 
 If the PR already has a review whose body starts with `🤖 Claude review:`, this is a follow-up round:
 
-- For each earlier finding, read the author's reply in its comment thread and the commit the reply names. Trace the code to check that the fix works, and that it has a test where one applies (see "Definition of done" below).
+- List the threads, with their ids and whether they're resolved:
+  ```
+  node scripts/review-threads.js list $ARGUMENTS
+  ```
+- For each unresolved thread from an earlier round, read the author's reply and act on its answer tag as CONTRIBUTING's "Review comments" says:
+  - **[fixed]:** read the commit it names and trace the code to check that the fix works and has a test where one applies (see "Definition of done" below). If it holds, resolve the thread. If not, reply in the thread with a new tagged finding (`🤖 Claude review: **[should fix] confirmed.** …`) through `gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments/<first-comment-id>/replies --method POST -f body=<finding>`, and leave it open.
+  - **[won't fix]:** check that the finding's tag allows it (never for [blocking] or [defect]). If you accept the reason, resolve the thread. If you don't, raise it as **[decision]**. Don't argue it for a second round.
+  - **[deferred] #N:** check that issue #N exists and covers the finding, then resolve the thread.
+  - **[decision]:** leave the thread open until the maintainer has answered in it or in the linked question.
+  - **No answer tag, or no reply:** the finding is unanswered. Say so in the summary.
+  - A reply from the maintainer (no `🤖` prefix) settles the thread, whatever it says. Resolve it if they haven't.
+
+  Resolve a thread with `node scripts/review-threads.js resolve <thread-id>`.
+- Findings from an earlier summary (lines outside the diff) have no thread. The author answers them in one PR comment starting with `🤖 Claude (author):` (`gh pr view $ARGUMENTS --comments`). Judge those answers the same way, and give the outcome for each in your summary.
 - Review only what changed since the latest Claude review. Get the commit it reviewed (a full SHA):
   ```
   gh pr view $ARGUMENTS --json reviews --jq '[.reviews[] | select(.body | startswith("🤖 Claude review:"))] | last | .commit.oid'
@@ -53,6 +66,8 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
    - A doc that quotes test output ("Docs backed by tests") is updated with the snapshot it quotes.
    - Model changes come with before/after numbers from `npm run simulate` in the PR description, and the change in the numbers fits the change in the code. Don't rerun it.
    - AWS claims go through `docs/design/fidelity.md`.
+   - **Docs a maintainer can learn from.** Could a maintainer new to this code learn how the change works from the docs in about ten minutes? Complex behavior (a state machine, timing, a flow across layers) needs a Mermaid diagram or a worked example in its subsystem's guide. A gap is **[should fix]**, or **[blocking]** if a new subsystem has no guide at all. Read the issue's `🤖 Claude decisions:` comment for what the author chose to document, and what it left out and why.
+   - **No drift.** Search `docs/`, the README, and CONTRIBUTING for the names the PR changes or removes (types, functions, file paths, UI labels), and report any text that no longer matches.
    - New subsystems have a guide; the architecture overview and its diagrams match the new structure; every new document is reachable from the root README's map; exported `domain/` and `application/` code has doc comments with units and defaults.
    - If the PR finishes a milestone or files new work, the Roadmap is updated (CONTRIBUTING §Milestones and the roadmap). An ordinary PR doesn't touch it.
    - Code reads like the surrounding code: same naming, comment density and idioms.
@@ -65,7 +80,7 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
 Say in the summary whether the PR meets each of these:
 
 - CI is green (`gh pr checks $ARGUMENTS`).
-- Every finding from earlier rounds is answered.
+- Every finding from earlier rounds has an answer you accepted, and its thread is resolved.
 - Where a test applies, tests assert the success case and the invariants that must hold, and each new or changed test has a `// Fails if` comment naming a change that provably turns it red, traced to the assertion that breaks.
 
 The maintainer's approval is the last step, and you can't give it.
@@ -93,10 +108,24 @@ gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --method POST --input revie
 - `event` must be `COMMENT`. The PR author is the same GitHub account, so APPROVE and REQUEST_CHANGES fail.
 - Start the summary body and every inline comment body with `🤖 Claude review:`. The comments post under the maintainer's account, and follow-up mode finds earlier rounds by that prefix.
 - Anchor inline comments on lines inside the diff. GitHub rejects the whole review if any comment points outside it. Put findings about other lines in the summary, with `path:line`.
-- Tag each finding **[blocking]**, **[should fix]** or **[nit]**, and add confirmed or suspected.
-- For each finding, say what's wrong, give a way to reproduce it (steps, a command, or a test that fails), and suggest a fix.
+- Tag each finding as CONTRIBUTING's "Review comments" says: **[blocking]**, **[should fix]** or **[nit]**, confirmed or suspected, and **[defect]** when the code is wrong rather than open to improvement. For example: `🤖 Claude review: **[should fix] [defect] confirmed.**`
+- For each finding, say what's wrong, give a way to reproduce it (steps, a command, or a test that fails), and suggest a fix. A [defect]'s reproduction is what the author copies into a `fix` issue if it defers the finding, so make it stand on its own.
 - Report at most 8 findings, the most important first.
 - Write `review.json` outside the repo (for example in the system temp directory) so it isn't left in a checkout.
-- Summary body: a verdict (ready to merge / merge after fixes / needs rework), the definition-of-done status, and anything you couldn't verify by reading.
+- **The summary's first line is exactly** `🤖 Claude review: Verdict: <verdict> at <short headRefOid>`, where the verdict is one of `ready to merge`, `merge after fixes`, or `needs rework`. Scripts read it. "Ready to merge" means every finding, old and new, has an answer you accepted and no [blocking] or [decision] is open.
+- After the verdict line: the definition-of-done status, and anything you couldn't verify by reading.
 
-Don't push commits, edit the branch, or merge. When you're done, tell the user the review URL and the verdict in two or three lines.
+### A finding only the maintainer can settle
+
+Tag it **[decision]** when the right answer depends on something the issue and the guides don't settle, or on any of the reasons in CONTRIBUTING's "When a session stops and asks". Post it in the review like any other finding, then, after the review is posted:
+
+1. Post a question on the PR:
+   ```
+   gh pr comment $ARGUMENTS --body-file <file>
+   ```
+   Start the body with `🤖 Claude question:`. Say what needs deciding, the options, and which you recommend and why, and link the finding's comment.
+2. Add the label: `gh pr edit $ARGUMENTS --add-label needs-decision`.
+
+The verdict can't be "ready to merge" while a [decision] is open.
+
+Don't push commits, edit the branch, or merge. When you're done, tell the user the review URL and the verdict in two or three lines, and the question's URL if you posted one.

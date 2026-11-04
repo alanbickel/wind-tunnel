@@ -79,8 +79,7 @@
   color: var(--color-status-warn);
 }
 
-/* Undo and Redo under the project's name, with what the last one did
-   beside them. */
+/* Undo and Redo under the project's name. */
 .undo {
   display: flex;
   flex-wrap: wrap;
@@ -89,6 +88,13 @@
   margin-top: var(--space-2);
 }
 
+/* Heard, not seen: the screen shows the change, and the buttons name the
+   next step. */
 .undone {
-  color: var(--color-text-muted);
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

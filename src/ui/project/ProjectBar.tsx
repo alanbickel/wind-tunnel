@@ -61,7 +61,7 @@ export function ProjectBar(props: ProjectBarProps) {
  * With nothing to do, each says only "Undo" or "Redo" and is unusable,
  * but keeps the focus. What one did is announced from a polite region
  * that's there from the start (UX design §4.4), since the change can be
- * anywhere on the screen.
+ * anywhere on the screen; it's hidden from sight, as the screen shows it.
  */
 function UndoControls(props: UndoRedo) {
   const { undo, redo, nextUndo, nextRedo, announcement } = props;

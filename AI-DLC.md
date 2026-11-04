@@ -14,7 +14,7 @@ git clone https://github.com/alanbickel/wind-tunnel.git
 cd wind-tunnel && npm ci
 ```
 
-It needs `gh` signed in and Claude Code. The driver passes each session's allowed and denied tools itself, so the clone needs no local settings.
+It needs `gh` signed in and Claude Code. The driver passes each session's allowed and denied tools itself, so the clone needs no local settings. No session may merge a PR or push to `main`; the author pushes only branches named for an issue (`feat/issue-<n>-...`).
 
 ## Running it
 
@@ -35,15 +35,21 @@ flowchart TD
   waiting -- no --> hasPr{"Open PR?"}
   hasPr -- no --> author["Author session<br/>opens one PR"]
   author --> ci["Wait for CI"]
-  hasPr -- yes --> ci
+  hasPr -- "yes, its head<br/>not reviewed" --> ci
+  hasPr -- "yes, its head reviewed:<br/>findings" --> address["/pr-address"]
+  hasPr -- "yes, its head reviewed:<br/>ready to merge" --> merge{"--merge?"}
   ci --> review["/pr-review"]
   review --> verdict{"Verdict"}
-  verdict -- "merge after fixes" --> address["/pr-address"]
+  verdict -- "merge after fixes" --> address
   address --> ci
   verdict -- "needs rework, or<br/>a 3rd 'after fixes'" --> askStop
-  verdict -- "ready to merge" --> merged["Squash-merge<br/>(--merge)"]
+  verdict -- "ready to merge" --> merge
+  merge -- no --> doneStop["Stop, exit 0"]
+  merge -- yes --> merged["Squash-merge"]
   merged --> nextIssue
 ```
+
+Each session (author, review, address) can also end by asking the maintainer a question. The driver then stops with exit code 2, as it does at the top.
 
 - **`--merge`** squash-merges a PR once all of the review protocol's "ready to merge" conditions for a script hold, then goes on to the next issue. Without it, the driver stops at the first ready PR, because the next issue may build on it.
 - **`--defer-manual-checks`** is an exception for this experiment. The rule in CONTRIBUTING's [Reviews](CONTRIBUTING.md#reviews) doesn't change. Authors don't do the "Done when" checks that need a person. They list them in a `🤖 Claude deferred checks:` comment on the issue, and the reviewer counts a listed check as met. When the whole list is done, the driver collects the checks into one checklist comment on each issue's parent.
@@ -54,7 +60,8 @@ It stops and leaves the rest to you, and never skips ahead, when:
 
 - the working tree isn't clean before a step. It names the step that left it that way.
 - a session ends with an error
-- CI fails
+- a session goes past 150 turns. The driver counts each model response in the session's main conversation, not a subagent's, and ends the session at the 151st. It passes `--max-turns 150` too, but that didn't stop a session in the first run.
+- CI fails: a check run or a commit status (such as Snyk's) failed
 - the author session opens no PR, or more than one
 - a review says "needs rework", or still says "merge after fixes" after three rounds. The driver posts its own question on the PR.
 - a question is waiting for you
@@ -82,10 +89,10 @@ Read:
 To look into a step, use its session id. The terminal shows it when the session starts and again when it ends, and `claude --resume <id>` reopens that session. The logs are in `ai-dlc-logs/` (gitignored):
 
 - each session's stream, as JSON lines
-- `steps.jsonl`: one line per step, with its session id, cost, turns, time, and the 5-hour usage before and after
+- `steps.jsonl`: one line per step, with its session id, cost, turns (Claude Code's count and the driver's), time, and the 5-hour usage before and after
 
 ## What runs have shown
 
 - **Cost.** The first run took #119 to "ready to merge": start, one review, one address round, and a follow-up review. It cost about $11.40 and 28 points of the 5-hour cap. The start step was two-thirds of that, at $7.44 and 210 turns. [#127](https://github.com/alanbickel/wind-tunnel/issues/127) has the step-by-step numbers.
-- **`--max-turns` isn't a dependable cap.** The driver passes `--max-turns 150`, but the start session above ran 210 turns and still finished as a success.
+- **`--max-turns` isn't a dependable cap.** The start session above ran 210 turns under `--max-turns 150` and still finished as a success, so the driver now counts turns itself. `steps.jsonl` records both counts, `turns` (Claude Code's) and `driverTurns`, so later runs can show what `--max-turns` counts.
 - **CI time varies.** The same checks took 3 minutes on one push and 21 minutes on the next.

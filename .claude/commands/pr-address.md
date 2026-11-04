@@ -35,12 +35,20 @@ For each finding, pick an answer that CONTRIBUTING allows for its tag:
 
 - **[fixed]:** the default for [blocking] and [should fix] findings you agree with. Fix it as the finding suggests, or another way if that's better (say why). Add or change a test where one applies, with its `// Fails if` comment.
 - **[won't fix]:** you disagree, or it's outside the issue's scope and not a defect. Give the reason in a sentence or two. Never for [blocking] or [defect]. For [should fix], only with a reason a reviewer would accept.
-- **[deferred] #N:** a real problem, but not one to fix here. For a **[defect]**, fix it in the PR if it's in code the PR adds or changes, or the PR causes it, and the fix is small. Otherwise look for an issue that already covers it (`gh issue list --search "<words>"`). If none does, file a `fix` issue:
+- **[deferred] #N:** a real problem, but not one to fix here. Look for an issue that already covers it (`gh issue list --search "<words>"`). If none does, and it's a defect, file a `fix` issue:
   - title in the commit style, for example `fix(ui): flush a pending keyboard move before Undo`
   - body: what's wrong, the reviewer's reproduction, a suggested fix, and `Found in the review of #$ARGUMENTS: <link to the finding's comment>`
   - label `fix`
   Don't file feature issues. Something that would be new feature work, not a fix, is [won't fix] with a note that it could be a future item, or a [decision] if you think it matters now.
-- **[decision]:** you can't settle it, or the reviewer tagged it [decision]. Don't try to fix it. Post the question (below), and reply in the thread with a link to it.
+- **[decision]:** you can't settle it, or the reviewer tagged it [decision]. Don't try to fix it. Post the question (below), and reply in the thread with a link to it. Any finding can take this answer, a [defect] included.
+
+### A [defect] has three possible answers
+
+A defect is never [won't fix]. Pick one of these, in this order:
+
+1. **[fixed]** in this PR, when the bug is in code the PR adds or changes, or the PR causes it, and the fix is small.
+2. **[deferred] #N** to an existing issue or a new `fix` issue, when it's outside the PR's code or the fix is big.
+3. **[decision]**, when you can't tell which of the two applies, the fix needs a choice the issue and the guides don't settle, or fixing it would go beyond the issue's scope in a way the maintainer should approve. This stops the session (see "Questions for the maintainer").
 
 ## Making the fixes
 

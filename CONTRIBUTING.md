@@ -418,7 +418,7 @@ Which answers a finding allows:
 - **[blocking]:** fixed or decision.
 - **[should fix]:** fixed, deferred, or decision. Won't fix only with a reason the reviewer accepts.
 - **[nit]:** any answer.
-- **[defect]**, whatever its tag: never won't fix. Fix it in the PR when it's in code the PR adds or changes, or the PR causes it, and the fix is small. Otherwise file a `fix` issue and defer to it.
+- **[defect]**, whatever its tag: never won't fix. Fix it in the PR when it's in code the PR adds or changes, or the PR causes it, and the fix is small. Otherwise defer it to a `fix` issue, filing one if none exists. If the author can't tell which applies, or the fix needs a choice the maintainer should make, it's a [decision].
 
 **Verdict.** "Ready to merge" only when every finding has an answer the reviewer accepted and no [blocking] or [decision] is open. A script treats a PR as ready only when all of these hold:
 

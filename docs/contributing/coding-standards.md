@@ -10,6 +10,8 @@ ESLint and the architecture tests check some of these rules ([Enforcement](#enfo
 // eslint-disable-next-line max-params -- mirrors ComponentBehavior.arrive, which the engine calls per request
 ```
 
+A performance reason needs a measurement. The engine calls component methods (`arrive`, `finish`) many times per run; if you think an input object costs too much there, measure it with `npm run simulate` before claiming the exception.
+
 **Scope:** code we own. Code and signatures we don't control follow their owners: callbacks for the platform (DOM events, `Array.prototype` methods, React, Vitest) take the parameters the platform passes, and generated or vendored code keeps its upstream form.
 
 **Refactor first.** When a change would push a function over a limit, or the function already breaks a rule ESLint can't check, reshape it first in its own `refactor` PR, then make your change. Reviewers can then check that the refactor changed no behavior. Don't fix unrelated code in passing.
@@ -72,7 +74,7 @@ Count the decision points: each `if`, `?:`, `&&`/`||`/`??`, loop, `case`, and `c
 
 ## 7. At most two parameters
 
-Three or more parameters become one typed input object (`backoffMs({ policy, failedAttempts: 3, random })`), as do two whose meaning isn't obvious from the call, and callbacks that other layers implement, such as observers and `onSnapshot`, always take one object.
+Three or more parameters become one typed input object (`backoffMs({ policy, failedAttempts: 3, random })`); prefer one at two when the call doesn't say which is which, and callbacks that other layers implement, such as observers and `onSnapshot`, always take one.
 
 ## 8. Name your types
 
@@ -102,7 +104,7 @@ Don't use `Options`, `Settings`, `Params`, `Args`, or `At`. A type holding an in
 
 ## 9. Put the unit in the name
 
-Durations and timestamps end in `Ms` (`timeoutMs`, `nowMs`) and rates say what they count per what (`requestsPerSecond`); a component config field may use its AWS setting's unit instead (`idleTimeoutSec`), and the component converts it, because the engine works in milliseconds.
+Durations and timestamps end in `Ms` (`timeoutMs`, `nowMs`) and rates say what they count per what (`requestsPerSecond`); a component config field may use its AWS setting's unit instead (`idleTimeoutSec`), and the component converts it, because the engine works in milliseconds; convert to other units only at the edges, such as a report or a chart axis.
 
 ## 10. Collaborators come from factories
 

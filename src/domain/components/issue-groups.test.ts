@@ -86,7 +86,7 @@ const ARCHITECTURE_RULES: readonly (readonly [string, Breakage])[] = [
         {
           id: "get",
           name: "Get again",
-          root: { componentId: "front", action: "read" },
+          root: { id: "front-read", componentId: "front", action: "read" },
         },
       ],
     }),
@@ -122,15 +122,18 @@ const RUN_RULES: readonly (readonly [string, RunIssue["kind"], Breakage])[] = [
   [
     "a step on a component that isn't there",
     "unknown-component",
-    withRoot({ componentId: "ghost", action: "invoke" }),
+    withRoot({ id: "ghost-invoke", componentId: "ghost", action: "invoke" }),
   ],
   [
     "a call that doesn't follow an edge",
     "missing-edge",
     withRoot({
+      id: "front-invoke",
       componentId: "front",
       action: "invoke",
-      calls: [{ componentId: "consumer", action: "invoke" }],
+      calls: [
+        { id: "consumer-invoke", componentId: "consumer", action: "invoke" },
+      ],
     }),
   ],
   [
@@ -140,9 +143,14 @@ const RUN_RULES: readonly (readonly [string, RunIssue["kind"], Breakage])[] = [
       ...createRoot,
       calls: [
         {
+          id: "q-invoke",
           componentId: "q",
           action: "invoke",
-          async: { componentId: "consumer", action: "invoke" },
+          async: {
+            id: "consumer-invoke-2",
+            componentId: "consumer",
+            action: "invoke",
+          },
         },
       ],
     }),
@@ -150,15 +158,16 @@ const RUN_RULES: readonly (readonly [string, RunIssue["kind"], Breakage])[] = [
   [
     "an action the component doesn't accept",
     "action-not-accepted",
-    withRoot({ componentId: "front", action: "write" }),
+    withRoot({ id: "front-write", componentId: "front", action: "write" }),
   ],
   [
     "async work on a component that isn't queue-like",
     "async-not-delivered",
     withRoot({
+      id: "front-invoke-2",
       componentId: "front",
       action: "invoke",
-      async: { componentId: "q", action: "enqueue" },
+      async: { id: "q-enqueue", componentId: "q", action: "enqueue" },
     }),
   ],
   ["an empty mix", "empty-mix", withWorkload({ mix: [] })],

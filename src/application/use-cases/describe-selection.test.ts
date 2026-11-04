@@ -70,13 +70,15 @@ const queued: Project = {
       id: "write",
       name: "Write later",
       root: {
+        id: "api-invoke",
         componentId: "api",
         action: "invoke",
         calls: [
           {
+            id: "queue-enqueue",
             componentId: "queue",
             action: "enqueue",
-            async: { componentId: "fn", action: "invoke" },
+            async: { id: "fn-invoke", componentId: "fn", action: "invoke" },
           },
         ],
       },
@@ -94,6 +96,7 @@ const readTwice: Project = {
       id: "twice",
       name: "Read twice",
       root: {
+        id: "fn-invoke-2",
         componentId: "fn",
         action: "invoke",
         calls: [...(sampleFn?.calls ?? []), ...(sampleFn?.calls ?? [])],

@@ -7,7 +7,7 @@ const registry = createAwsComponentRegistry();
 /** A small valid document: api -> fn -> queue, with async work on fn. */
 function document(): Record<string, unknown> {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: "p1",
     name: "Orders",
     description: "A test project",
@@ -54,17 +54,24 @@ function document(): Record<string, unknown> {
         id: "create",
         name: "Create order",
         root: {
+          id: "api-invoke",
           componentId: "api",
           action: "invoke",
           calls: [
             {
+              id: "fn-invoke",
               componentId: "fn",
               action: "invoke",
               calls: [
                 {
+                  id: "queue-enqueue",
                   componentId: "queue",
                   action: "enqueue",
-                  async: { componentId: "fn", action: "invoke" },
+                  async: {
+                    id: "fn-invoke-2",
+                    componentId: "fn",
+                    action: "invoke",
+                  },
                 },
               ],
             },
@@ -127,9 +134,10 @@ describe("loadProject", () => {
       "workloads",
     ]);
     expect(project.workflows[0]?.root.calls?.[0]?.calls?.[0]).toEqual({
+      id: "queue-enqueue",
       componentId: "queue",
       action: "enqueue",
-      async: { componentId: "fn", action: "invoke" },
+      async: { id: "fn-invoke-2", componentId: "fn", action: "invoke" },
     });
     expect(result.record.layout.nodes["fn"]).toEqual({ x: 200, y: 0 });
     expect(result.record.source).toEqual({
@@ -160,15 +168,48 @@ describe("loadProject", () => {
 
   it("refuses an unknown schema version, or something that isn't a project", () => {
     const newer = document();
-    newer["schemaVersion"] = 2;
+    newer["schemaVersion"] = 3;
     expect(issuesFor(newer)).toEqual([
       {
         path: ["schemaVersion"],
         message:
-          "Unsupported schema version 2; this version of Wind Tunnel reads version 1.",
+          "Unsupported schema version 3; this version of Wind Tunnel reads version 2.",
       },
     ]);
     expect(issuesFor("hello")[0]?.message).toMatch(/no schemaVersion/);
+  });
+
+  // Fails if a migration from version 1 is added, or CURRENT_SCHEMA_VERSION
+  // goes back to 1: version 1 was dropped, not migrated (ADR-0020).
+  it("refuses a version 1 document as unsupported, naming version 2", () => {
+    const v1 = document();
+    v1["schemaVersion"] = 1;
+    expect(issuesFor(v1)).toEqual([
+      {
+        path: ["schemaVersion"],
+        message:
+          "Unsupported schema version 1; this version of Wind Tunnel reads version 2.",
+      },
+    ]);
+  });
+
+  // Fails if the v2 step schema makes `id` optional.
+  it("refuses a step with no ID, at the step", () => {
+    const doc = document();
+    const path = ["workflows", 0, "root", "calls", 0, "calls", 0, "async"];
+    set(doc, [...path, "id"], undefined);
+    expect(issuesFor(doc).map((i) => i.path)).toEqual([[...path, "id"]]);
+  });
+
+  // Fails if loadProject stops checking step IDs are unique: here the
+  // async step takes the root's ID.
+  it("refuses two steps that share an ID, naming it", () => {
+    const doc = document();
+    const path = ["workflows", 0, "root", "calls", 0, "calls", 0, "async"];
+    set(doc, [...path, "id"], "api-invoke");
+    expect(issuesFor(doc)).toEqual([
+      { path: [...path, "id"], message: 'Duplicate step ID "api-invoke".' },
+    ]);
   });
 
   it("reports every shape problem with its path", () => {

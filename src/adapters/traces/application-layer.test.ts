@@ -36,7 +36,7 @@ import {
   openProjectDatabase,
   type ProjectDatabase,
 } from "../persistence/project-database";
-import { projectDocumentV1Schema } from "../persistence/project-document-v1";
+import { projectDocumentV2Schema } from "../persistence/project-document-v2";
 import { InProcessSimulationRunner } from "../simulation/in-process-simulation-runner";
 import { createBundledTemplateCatalog } from "../templates/bundled-template-catalog";
 
@@ -245,7 +245,7 @@ function wireUseCases(trace: Trace) {
 /** What the `projects` store holds for a project: the document, not the record. */
 async function traceStoredDocument(trace: Trace, record: ProjectRecord) {
   const stored = await database.get("projects", record.project.id);
-  const document = projectDocumentV1Schema.parse(stored);
+  const document = projectDocumentV2Schema.parse(stored);
   const workload = document.workloads[0];
   const recordWorkload = record.project.workloads[0];
   trace.note(`IndexedDB "projects" store, key "${document.id}":`);
@@ -254,6 +254,9 @@ async function traceStoredDocument(trace: Trace, record: ProjectRecord) {
     `  createdAt ${document.createdAt}, updatedAt ${document.updatedAt}`,
   );
   trace.note(`  source ${JSON.stringify(document.source)}`);
+  trace.note(
+    `  workflows[0].root.id ${String(document.workflows[0]?.root.id)}   (a new ID: the template's step IDs aren't copied)`,
+  );
   trace.note(
     `  workloads[0].durationSec ${String(workload?.durationSec)}   (the record has durationMs ${String(recordWorkload?.durationMs)})`,
   );
@@ -337,10 +340,10 @@ async function openAndRun({ app, trace }: Scenario, id: string) {
 /** Rewrites the stored document as a newer build would, then tries to open it. */
 async function openFromNewerBuild({ app, trace }: Scenario, id: string) {
   trace.useCase(
-    "(a newer build stored the document as schemaVersion 2; this build reads only 1)",
+    "(a newer build stored the document as schemaVersion 3; this build reads only 2)",
   );
   const stored = await database.get("projects", id);
-  await database.put("projects", { ...stored, schemaVersion: 2 });
+  await database.put("projects", { ...stored, schemaVersion: 3 });
 
   trace.useCase("ListProjects.execute()");
   await app.listProjects.execute();

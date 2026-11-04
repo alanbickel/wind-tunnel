@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
 import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
 import type { Project } from "../../domain/model/project";
+import { stepsOf } from "../../domain/model/step-tree";
 import { FixedClock } from "../../application/testing/fixed-clock";
 import { SequentialIds } from "../../application/testing/sequential-ids";
 import { CreateBlankProject } from "../../application/use-cases/create-blank-project";
@@ -108,6 +109,28 @@ describe("MVP use cases over IndexedDB, the bundled templates, and the in-proces
       expect(await app.openProject.execute(id)).toEqual({ status: "missing" });
       app.clock.set(CREATED_AT);
     }
+  });
+
+  // Fails if the document mapper drops or rewrites a step's ID on the way
+  // to or from the store, or a copy keeps the template's step IDs.
+  it("opens a template copy again with the step IDs it was given", async () => {
+    const app = useCases();
+
+    const created = await app.createProject.execute("template-b");
+    if (created.status !== "created") throw new Error(created.status);
+    const opened = await app.openProject.execute(created.record.project.id);
+    if (opened.status !== "found") throw new Error(opened.status);
+
+    const stepIds = (project: Project) =>
+      stepsOf(project).map(({ step }) => step.id);
+    expect(stepIds(opened.record.project)).toEqual(
+      stepIds(created.record.project),
+    );
+    expect(stepIds(opened.record.project)).toHaveLength(8);
+    expect(stepIds(opened.record.project)).not.toContain("get-order-api");
+    expect(
+      stepIds(opened.record.project).every((id) => id.startsWith("project-")),
+    ).toBe(true);
   });
 
   // Fails if the document mapper or the checks refuse a project with

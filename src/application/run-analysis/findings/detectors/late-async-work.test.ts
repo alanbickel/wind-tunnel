@@ -28,17 +28,20 @@ function withRoot(root: Step): Project {
 
 // api calls fn, which queues work in `table`; the api->fn edge waits 29 s.
 const queued = withRoot({
+  id: "api-invoke",
   componentId: "api",
   action: "invoke",
   calls: [
     {
+      id: "fn-invoke",
       componentId: "fn",
       action: "invoke",
       calls: [
         {
+          id: "table-enqueue",
           componentId: "table",
           action: "enqueue",
-          async: { componentId: "fn", action: "invoke" },
+          async: { id: "fn-invoke-2", componentId: "fn", action: "invoke" },
         },
       ],
     },
@@ -130,9 +133,10 @@ describe("late-async-work", () => {
   // synchronous caller waits on through an edge, is compared with a timeout.
   it("skips a workflow whose entry point calls nothing", () => {
     const direct = withRoot({
+      id: "table-enqueue-2",
       componentId: "table",
       action: "enqueue",
-      async: { componentId: "fn", action: "invoke" },
+      async: { id: "fn-invoke-3", componentId: "fn", action: "invoke" },
     });
     expect(detector.detect(run(direct, late))).toEqual([]);
   });

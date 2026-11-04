@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { edgeSettingsSchema } from "../../domain/model/edge-settings";
 
-// The stored and exported project format, version 1 (MVP design §6,
-// ADR-0004). This schema checks shapes and number ranges only. Rules that
-// span the architecture (unique IDs, edges' ends) belong to
+// The stored and exported project format, version 2 (MVP design §6,
+// ADR-0004). Version 2 gave each step an `id` (ADR-0020); version 1, which
+// had none, was dropped rather than migrated. This schema checks shapes and number ranges only. Rules that
+// span the architecture (unique IDs, step IDs included; edges' ends) belong to
 // `validateArchitecture`, and each component's `config` to its definition
 // (`validateComponents`); `loadProject` runs all three. Rules for workflows
 // and workloads (steps following edges, mixes naming workflows) are run
@@ -33,6 +34,8 @@ const edgeSchema = z.strictObject({
 });
 
 const stepSchema = z.strictObject({
+  /** Unique across the project's steps; `validateArchitecture` checks that. */
+  id,
   componentId: id,
   action: z.enum(["invoke", "read", "write", "enqueue"]),
   get calls() {
@@ -68,8 +71,8 @@ const workloadSchema = z.strictObject({
 
 const pointSchema = z.strictObject({ x: z.number(), y: z.number() });
 
-export const projectDocumentV1Schema = z.strictObject({
-  schemaVersion: z.literal(1),
+export const projectDocumentV2Schema = z.strictObject({
+  schemaVersion: z.literal(2),
   id,
   name,
   description: z.string().optional(),
@@ -92,8 +95,8 @@ export const projectDocumentV1Schema = z.strictObject({
   layout: z.strictObject({ nodes: z.record(z.string(), pointSchema) }),
 });
 
-export type ProjectDocumentV1 = z.infer<typeof projectDocumentV1Schema>;
+export type ProjectDocumentV2 = z.infer<typeof projectDocumentV2Schema>;
 export type StepDocument = z.infer<typeof stepSchema>;
-export type ArchitectureDocument = ProjectDocumentV1["architecture"];
+export type ArchitectureDocument = ProjectDocumentV2["architecture"];
 export type WorkflowDocument = z.infer<typeof workflowSchema>;
 export type WorkloadDocument = z.infer<typeof workloadSchema>;

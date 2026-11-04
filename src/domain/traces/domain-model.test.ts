@@ -38,9 +38,10 @@ describe("traces", () => {
           id: "get",
           name: "Get",
           root: {
+            id: "api-invoke",
             componentId: "api",
             action: "invoke",
-            calls: [{ componentId: "db", action: "read" }],
+            calls: [{ id: "db-read", componentId: "db", action: "read" }],
           },
         },
       ],

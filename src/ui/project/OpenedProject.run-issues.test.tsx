@@ -20,9 +20,16 @@ function withReadOfMissingTable(): Project {
   const [read] = sampleRecord.project.workflows;
   if (read === undefined) throw new Error("The sample has a workflow");
   const root = {
+    id: "api-invoke",
     componentId: "api",
     action: "invoke" as const,
-    calls: [{ componentId: "orders-db", action: "read" as const }],
+    calls: [
+      {
+        id: "orders-db-read",
+        componentId: "orders-db",
+        action: "read" as const,
+      },
+    ],
   };
   return { ...sampleRecord.project, workflows: [{ ...read, root }] };
 }

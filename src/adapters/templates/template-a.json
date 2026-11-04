@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "template-a",
   "name": "Serverless API with RDS",
   "description": "API Gateway in front of one Lambda function that reads and writes a relational database. Run the lunch rush and watch what happens to the database's connections when the traffic spikes. The steady day shows the same database coping with calm traffic, and the long rush holds the spike for two minutes.",
@@ -63,13 +63,21 @@
       "id": "get-order",
       "name": "Get order",
       "root": {
+        "id": "get-order-api",
         "componentId": "api",
         "action": "invoke",
         "calls": [
           {
+            "id": "get-order-fn-orders",
             "componentId": "fn-orders",
             "action": "invoke",
-            "calls": [{ "componentId": "orders-db", "action": "read" }]
+            "calls": [
+              {
+                "id": "get-order-orders-db",
+                "componentId": "orders-db",
+                "action": "read"
+              }
+            ]
           }
         ]
       }
@@ -78,13 +86,21 @@
       "id": "create-order",
       "name": "Create order",
       "root": {
+        "id": "create-order-api",
         "componentId": "api",
         "action": "invoke",
         "calls": [
           {
+            "id": "create-order-fn-orders",
             "componentId": "fn-orders",
             "action": "invoke",
-            "calls": [{ "componentId": "orders-db", "action": "write" }]
+            "calls": [
+              {
+                "id": "create-order-orders-db",
+                "componentId": "orders-db",
+                "action": "write"
+              }
+            ]
           }
         ]
       }

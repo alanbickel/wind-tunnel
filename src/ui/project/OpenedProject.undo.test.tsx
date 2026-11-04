@@ -201,8 +201,8 @@ describe("OpenedProject's undo and redo", () => {
   });
 
   // Fails if undoing back to what ran doesn't make the run current again,
-  // as comparing the project by identity rather than content would not
-  // (ADR-0018).
+  // as undo going to the record after the edit rather than the one before
+  // it would not.
   it("leaves the run current after undoing a change made since it", async () => {
     const { runner } = renderOpenedProject();
     clickRun();

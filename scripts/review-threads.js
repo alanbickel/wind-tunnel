@@ -78,7 +78,9 @@ function resolveThread(/** @type {string} */ threadId) {
 
 const COMMANDS = { list: listThreads, resolve: resolveThread };
 const [commandName, argument] = process.argv.slice(2);
-const command = COMMANDS[/** @type {keyof typeof COMMANDS} */ (commandName)];
+const command = Object.hasOwn(COMMANDS, commandName)
+  ? COMMANDS[/** @type {keyof typeof COMMANDS} */ (commandName)]
+  : undefined;
 if (!command || !argument) {
   process.stderr.write(
     "Usage: node scripts/review-threads.js list <pr-number> | resolve <thread-id>\n",

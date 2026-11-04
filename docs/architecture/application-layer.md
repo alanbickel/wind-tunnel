@@ -198,7 +198,7 @@ OpenProject.execute("project-1")
   issue    schemaVersion: Unsupported schema version 3; this version of Wind Tunnel reads version 2.
 ```
 
-If the flow changes, that test fails and the diff shows the new timeline. If the change is intended, run `npx vitest run -u src/adapters/traces`, then update the excerpts on this page.
+If the flow changes, that test fails and the diff shows the new timeline. If the change is intended, run `npx vitest run src/adapters/traces --update`, then update the excerpts on this page.
 
 ## How it's tested
 

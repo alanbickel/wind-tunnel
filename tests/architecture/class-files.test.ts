@@ -1,5 +1,5 @@
-// Checks CONTRIBUTING rule 11: each class in src/ lives in a file named after
-// it. ESLint's `max-classes-per-file` checks the "one class per file" half.
+// Checks coding standards rule 11: each class in src/ lives in a file named
+// after it. ESLint's `max-classes-per-file` checks the "one class per file" half.
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { findMisnamedClassFiles, kebabCase } from "./class-files";

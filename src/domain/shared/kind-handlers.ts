@@ -7,7 +7,7 @@ export interface Kinded {
  * One handler per member of the union `U`, keyed by `kind`. Each handler gets
  * its own member, with that member's fields. Adding a member to `U` makes
  * every `KindHandlers<U, R>` stop compiling until it has a handler, so no case
- * can be forgotten (CONTRIBUTING, rule 4).
+ * can be forgotten (coding standards rule 4).
  */
 export type KindHandlers<U extends Kinded, R> = {
   readonly [K in U["kind"]]: (member: Extract<U, { readonly kind: K }>) => R;

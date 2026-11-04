@@ -25,7 +25,7 @@ Other scripts:
 | Script | What it does |
 |---|---|
 | `npm run build` | Production build into `dist/` |
-| `npm run check:changed` | The same checks, limited to what changed since `main`: for use while you work (see [CONTRIBUTING](CONTRIBUTING.md#setup)) |
+| `npm run check:changed` | The same checks, limited to what changed since `main`: quicker while you work, but can miss what the full check catches |
 | `npm run test` / `npm run test:watch` | Run the Vitest tests once / in watch mode |
 | `npm run lint` | ESLint, including the architecture layer rules and the coding standards |
 | `npm run format` | Format code with Prettier |
@@ -40,7 +40,7 @@ This is the map of every document. New to the code? Start with [Getting started]
 |---|---|
 | [Getting started](docs/getting-started.md) | From a fresh clone to your first change: what to read, in what order |
 | [Glossary](docs/glossary.md) | Every domain term, with the type that holds it |
-| [Architecture overview](docs/architecture/architecture-overview.md) | Layers, where code goes, how the rules are enforced, and the guide to each subsystem |
+| [Architecture overview](docs/architecture/architecture-overview.md) | Layers, where code goes, and the guide to each subsystem |
 | [Decisions (ADRs)](docs/adr/adr-overview.md) | Why things are the way they are, one decision per record |
 | [MVP design](docs/design/mvp-design.md) | The detailed reference: domain model, engine, document format, templates, and testing strategy |
 | [Findings](docs/design/findings.md) | What a run should tell you: hand-written readings of the template runs, the detectors that would write them, and the shape of a finding and the verdict |

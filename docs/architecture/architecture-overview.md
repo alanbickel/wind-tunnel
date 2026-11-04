@@ -155,7 +155,7 @@ flowchart TB
 | A new field on `Project`, the model a run runs | `src/domain/model/project.ts`, plus the document schema and mapper in `src/adapters/persistence/` | Place it in the table in `runIsCurrent` (`src/application/run-analysis/run-freshness.ts`), which doesn't compile until you do: does changing it make a run on screen out of date ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md))? |
 | A new field about a project that the engine doesn't use (like `layout`) | `ProjectRecord` in `src/application/ports/`, plus the document schema and mapper in `src/adapters/persistence/` | Add it to `sampleRecord` so the repository contract checks it round-trips ([ADR-0008](../adr/0008-ports-exchange-project-records.md)). |
 | Something that needs randomness | Use the `RandomSource` passed in from `src/domain/random/` | Never call `Math.random`; runs must stay reproducible from a seed. |
-| A new template, or a change to one | `src/adapters/templates/` | List a new template in `BUNDLED_TEMPLATES` (`bundled-template-catalog.ts`); raise a template's `version` when a change alters what users see in a run. Record each non-default setting and its reason in [MVP design §7](../design/mvp-design.md#template-files-and-their-settings). Keep the scenario tests in `scenarios/` asserting the template's lesson, and refresh the report snapshots (`npx vitest run -u src/adapters/cli`). |
+| A new template, or a change to one | `src/adapters/templates/` | List a new template in `BUNDLED_TEMPLATES` (`bundled-template-catalog.ts`); raise a template's `version` when a change alters what users see in a run. Record each non-default setting and its reason in [MVP design §7](../design/mvp-design.md#template-files-and-their-settings). Keep the scenario tests in `scenarios/` asserting the template's lesson, and refresh the report snapshots (`npx vitest run src/adapters/cli --update`). |
 | A new IndexedDB store or index (e.g. `runs`) | `project-database.ts` in `src/adapters/persistence/` | Raise `PROJECT_DATABASE_VERSION` and add an upgrade step for it; keep the old steps, so a database at any older version catches up. This is separate from a document's `schemaVersion` ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). |
 | A CloudFormation/CDK/Terraform importer or exporter | `src/adapters/iac/` | Converts between file formats and domain objects. |
 | A React component | `src/ui/` | Ordinary React patterns are fine here. Get use cases via context, not by importing adapters. |
@@ -165,22 +165,7 @@ flowchart TB
 
 ## How the rules are enforced
 
-The layer rules are checked by tooling, so a mistake fails `npm run check` (and CI) instead of waiting for code review.
-
-| Rule | Enforced by | Where |
-|---|---|---|
-| Imports point inward only; `ui` imports only *types* from `domain`; nothing imports `main.tsx` | `@typescript-eslint/no-restricted-imports`, configured per layer | [`eslint.config.js`](../../eslint.config.js) |
-| `domain` and `application` use only approved pure libraries (currently `zod` in `domain`, [ADR-0005](../adr/0005-use-zod-for-schema-validation.md)); tests there may also import `vitest` | Same rule, with an allowlist of packages | [`eslint.config.js`](../../eslint.config.js) |
-| Only `src/ui/diagram/` imports `@xyflow/react`, and only `src/ui/charts/` imports `recharts` ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) | Same rule, with `WRAPPED_LIBRARIES` | [`eslint.config.js`](../../eslint.config.js) |
-| No DOM, `Worker`, timers, or Node APIs in `domain` and `application` | TypeScript: these folders are checked without the DOM lib or Node types | [`tsconfig.core.json`](../../tsconfig.core.json) |
-| No `Math.random`, `Date.now`, `new Date()`, or `Date()` in `domain` and `application` | `no-restricted-properties` and `no-restricted-syntax` | [`eslint.config.js`](../../eslint.config.js) |
-| A class doesn't build its own collaborators ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | `no-restricted-syntax`: `new` inside a class body, except built-ins and `STATE_CLASSES` | [`eslint.config.js`](../../eslint.config.js) |
-| Constructor collaborators (`*Dependencies` properties) are interfaces, not classes ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | An architecture test that resolves each property's type with the TypeScript compiler | [`dependency-types.test.ts`](../../tests/architecture/dependency-types.test.ts) |
-| Colors and lengths come from the design tokens, stylesheets live only in `src/ui/`, and nothing hides the focus ring ([ADR-0012](../adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) | An architecture test that scans `src/` for literals, stray stylesheets, and `outline: none` | [`stylesheets.test.ts`](../../tests/architecture/stylesheets.test.ts) |
-
-[`tests/architecture/layer-rules.test.ts`](../../tests/architecture/layer-rules.test.ts) lints sample snippets in each layer and asserts that the lint rules above fire. If you change the rules, update that test.
-
-To approve a new library for `domain` or `application`, write an ADR, then add it to `DOMAIN_PACKAGES` or `APPLICATION_PACKAGES` in `eslint.config.js`.
+Tooling checks the layer rules, so a mistake fails `npm run check` (and CI) instead of waiting for code review. The [enforcement table](../contributing/coding-standards.md#enforcement) lists each rule, the tool that checks it, and what reviewers check instead.
 
 ### TypeScript projects
 

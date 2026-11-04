@@ -7,7 +7,7 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
 
 ## Setup
 
-1. Read `.claude/review-protocol.md`, then `CLAUDE.md` and `CONTRIBUTING.md`, especially "Coding standards", "Tests", and "Documentation". Fixes follow the same standards as any other code.
+1. Read `.claude/review-protocol.md`, then `CONTRIBUTING.md` and the pages in `docs/contributing/` your fixes need: `coding-standards.md` for code, `testing.md` for tests, and `documentation.md` for docs. Fixes follow the same standards as any other code.
 2. Look up the PR, the issue it closes, and the latest Claude review:
    ```
    gh pr view $ARGUMENTS --json title,body,headRefName,headRefOid,closingIssuesReferences,reviews,mergeable
@@ -71,7 +71,7 @@ The protocol's [defect] rule says when each answer applies. Try them in this ord
 ## Making the fixes
 
 1. Fix, test, and commit on the branch. One commit per finding, or one for a few related ones, in the commit style (`fix(ui): ...`).
-2. Run the docs drift check from CONTRIBUTING's "Documentation" for whatever your fixes rename or change.
+2. Run the docs drift check from `docs/contributing/documentation.md` for whatever your fixes rename or change.
 3. Sync with `main` only if the PR conflicts (`mergeable` is `CONFLICTING`) or CI needs a change from `main`: `git -C ../wind-tunnel-address-$ARGUMENTS merge origin/main`. Never rebase, amend, or force-push.
 4. Run `npm --prefix ../wind-tunnel-address-$ARGUMENTS run check`. It must pass before you push.
 5. `git -C ../wind-tunnel-address-$ARGUMENTS push`.

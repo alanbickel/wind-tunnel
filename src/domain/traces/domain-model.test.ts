@@ -7,7 +7,7 @@ import { table } from "./format";
 
 // Worked examples for docs/architecture/domain-model.md;
 // format.ts explains the snapshots. Accept an intended change with
-// `npx vitest run -u src/domain/traces/domain-model`,
+// `npx vitest run src/domain/traces/domain-model --update`,
 // then check the guide still matches.
 
 describe("traces", () => {

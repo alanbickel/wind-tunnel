@@ -11,7 +11,7 @@ Every comment a Claude session posts goes out under the maintainer's account, so
 | `🤖 Claude review:` | PR: the review and its inline comments | `/pr-review` | Findings. The summary's first line is `🤖 Claude review: Verdict: <ready to merge \| merge after fixes \| needs rework> at <short sha>`, naming the commit reviewed. |
 | `🤖 Claude (author):` | PR: a reply in a finding's thread | the author session and `/pr-address` | An answer to a finding, starting with its answer tag. |
 | `🤖 Claude question:` | the issue, the PR, or a finding's thread, wherever it came up | any session | A decision for the maintainer: what needs deciding, the options, and a recommendation. The session adds the `needs-decision` label and stops. The label is the signal; whoever needs the questions finds the comments with this prefix. The maintainer answers in a comment after the question, or in the finding's thread. The label comes off only when every question on that PR or issue has an answer (see "The maintainer's comments"). |
-| `🤖 Claude decisions:` | issue | the author session and `/pr-address` | Choices made without asking, so the maintainer can review several sessions' choices in one place: every deferral, and what the session chose to document. |
+| `🤖 Claude decisions:` | issue | the author session and `/pr-address` | Choices made without asking, so the maintainer can review several sessions' choices in one place: every deferral, and what the session chose to document, what it left out, and why. |
 
 ## The maintainer's comments
 

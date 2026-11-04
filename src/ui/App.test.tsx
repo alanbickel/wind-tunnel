@@ -179,8 +179,8 @@ describe("App's blank project", () => {
     expect(components.textContent).toBe("lambda-1 (lambda)");
   });
 
-  // Fails if the new project isn't saved, or the list doesn't reload, so
-  // going back doesn't list it first.
+  // Fails if the new project isn't saved, or is saved without a later
+  // `updatedAt` than the sample, so going back doesn't list it first.
   it("lists the new project first on going back", async () => {
     await renderApp();
     await createOrdersService();

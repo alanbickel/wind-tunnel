@@ -19,11 +19,13 @@ export interface CreateBlankProps {
 export function CreateBlank({ onCreated }: CreateBlankProps) {
   const creating = useCreateBlank(onCreated);
   const messageId = useId();
+  const headingId = useId();
   return (
-    <div className={styles.blank}>
+    <section aria-labelledby={headingId} className={styles.blank}>
+      <h3 id={headingId}>Create blank</h3>
       <NameEntry creating={creating} messageId={messageId} />
       <Messages creating={creating} messageId={messageId} />
-    </div>
+    </section>
   );
 }
 
@@ -111,7 +113,7 @@ function Messages({ creating, messageId }: CreatingProps) {
           {message}
         </p>
       )}
-      {pending && <p role="status">Creating the project…</p>}
+      <p role="status">{pending ? "Creating the project…" : ""}</p>
       {problem && <p role="alert">{problem}</p>}
     </>
   );

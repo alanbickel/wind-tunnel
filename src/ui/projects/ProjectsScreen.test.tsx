@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sampleRecord } from "../../application/testing/sample-record";
@@ -156,7 +157,10 @@ describe("ProjectsScreen", () => {
     fireEvent.click(create);
     fireEvent.click(create);
 
-    expect(screen.getByRole("status").textContent).toBe(
+    const templates = screen.getByRole("region", {
+      name: "Create from template",
+    });
+    expect(within(templates).getByRole("status").textContent).toBe(
       "Creating the project…",
     );
     expect(create.getAttribute("aria-disabled")).toBe("true");
@@ -255,6 +259,26 @@ describe("ProjectsScreen's Create blank", () => {
       );
     });
     expect(await projects.list()).toHaveLength(1);
+  });
+
+  // Fails if the status region mounts with its message, which many screen
+  // readers don't announce, instead of being there, empty, from the start.
+  it("announces the create in a status region that was already there", async () => {
+    const { useCases } = inMemoryUseCases([]);
+    renderScreen({
+      ...useCases,
+      createBlankProject: { execute: () => new Promise(() => undefined) },
+    });
+    const blank = await screen.findByRole("region", { name: "Create blank" });
+    const status = within(blank).getByRole("status");
+    expect(status.textContent).toBe("");
+
+    await createBlank("Orders service");
+
+    await waitFor(() => {
+      expect(status.textContent).toBe("Creating the project…");
+    });
+    expect(within(blank).getByRole("status")).toBe(status);
   });
 
   // Fails if typing leaves a stale message, and aria-invalid, on the field.

@@ -165,22 +165,7 @@ flowchart TB
 
 ## How the rules are enforced
 
-The layer rules are checked by tooling, so a mistake fails `npm run check` (and CI) instead of waiting for code review.
-
-| Rule | Enforced by | Where |
-|---|---|---|
-| Imports point inward only; `ui` imports only *types* from `domain`; nothing imports `main.tsx` | `@typescript-eslint/no-restricted-imports`, configured per layer | [`eslint.config.js`](../../eslint.config.js) |
-| `domain` and `application` use only approved pure libraries (currently `zod` in `domain`, [ADR-0005](../adr/0005-use-zod-for-schema-validation.md)); tests there may also import `vitest` | Same rule, with an allowlist of packages | [`eslint.config.js`](../../eslint.config.js) |
-| Only `src/ui/diagram/` imports `@xyflow/react`, and only `src/ui/charts/` imports `recharts` ([ADR-0010](../adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](../adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) | Same rule, with `WRAPPED_LIBRARIES` | [`eslint.config.js`](../../eslint.config.js) |
-| No DOM, `Worker`, timers, or Node APIs in `domain` and `application` | TypeScript: these folders are checked without the DOM lib or Node types | [`tsconfig.core.json`](../../tsconfig.core.json) |
-| No `Math.random`, `Date.now`, `new Date()`, or `Date()` in `domain` and `application` | `no-restricted-properties` and `no-restricted-syntax` | [`eslint.config.js`](../../eslint.config.js) |
-| A class doesn't build its own collaborators ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | `no-restricted-syntax`: `new` inside a class body, except built-ins and `STATE_CLASSES` | [`eslint.config.js`](../../eslint.config.js) |
-| Constructor collaborators (`*Dependencies` properties) are interfaces, not classes ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)) | An architecture test that resolves each property's type with the TypeScript compiler | [`dependency-types.test.ts`](../../tests/architecture/dependency-types.test.ts) |
-| Colors and lengths come from the design tokens, stylesheets live only in `src/ui/`, and nothing hides the focus ring ([ADR-0012](../adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) | An architecture test that scans `src/` for literals, stray stylesheets, and `outline: none` | [`stylesheets.test.ts`](../../tests/architecture/stylesheets.test.ts) |
-
-[`tests/architecture/layer-rules.test.ts`](../../tests/architecture/layer-rules.test.ts) lints sample snippets in each layer and asserts that the lint rules above fire. If you change the rules, update that test.
-
-To approve a new library for `domain` or `application`, write an ADR, then add it to `DOMAIN_PACKAGES` or `APPLICATION_PACKAGES` in `eslint.config.js`.
+Tooling checks the layer rules, so a mistake fails `npm run check` (and CI) instead of waiting for code review. The [enforcement table](../../CONTRIBUTING.md#enforcement) lists each rule, the tool that checks it, and what reviewers check instead.
 
 ### TypeScript projects
 

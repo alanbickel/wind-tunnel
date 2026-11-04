@@ -22,7 +22,7 @@ The [README](README.md#running-it) lists every script. A few things worth knowin
 
 ## Architecture rules
 
-The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architecture-layering.md)); the [architecture overview](docs/architecture/architecture-overview.md) explains where code goes. ESLint enforces the first two rules below, so a violation fails CI.
+The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architecture-layering.md)); the [architecture overview](docs/architecture/architecture-overview.md) explains where code goes. Tooling enforces the first two rules below, so a violation fails CI ([Enforcement](#enforcement)).
 
 - **Imports point inward only:** `ui`/`adapters` → `application` → `domain`. `ui/` gets adapters through dependency injection and may import only types from `domain/`.
 - **`domain/` and `application/` are deterministic.** No `Math.random`, `Date.now`, or `new Date`; no React, DOM, Worker, or Node APIs. Randomness comes from a seeded `RandomSource` and time from the `Clock` port, so the same seed always gives the same run. Libraries are allowed there only when an ADR approves them ([ADR-0005](docs/adr/0005-use-zod-for-schema-validation.md)).
@@ -46,27 +46,7 @@ ESLint and the architecture tests check some of these rules ([Enforcement](#enfo
 
 ### 1. Single-responsibility functions
 
-Orchestrators (use cases, commands, wiring, event dispatch) delegate. Calculations and transformations live in their own named functions.
-
-```ts
-// ✗ orchestration and arithmetic in one place
-function summarize(snapshot: MetricsSnapshot): Summary {
-  const total = snapshot.succeeded + snapshot.failed;
-  const errorRate = total === 0 ? 0 : snapshot.failed / total;
-  // …
-  return { total, errorRate /* … */ };
-}
-
-// ✓ the orchestrator reads like a list of steps; each calculation has a name
-function summarize(snapshot: MetricsSnapshot): Summary {
-  return { total: totalCalls(snapshot), errorRate: errorRate(snapshot) /* … */ };
-}
-
-function errorRate(snapshot: MetricsSnapshot): number {
-  const total = totalCalls(snapshot);
-  return total === 0 ? 0 : snapshot.failed / total;
-}
-```
+Orchestrators (use cases, commands, wiring, event dispatch) delegate, so they read like a list of steps; each calculation or transformation lives in a named function of its own.
 
 ### 2. Rule of 30
 
@@ -76,29 +56,7 @@ ESLint counts a nested function's lines toward the function around it. A `build(
 
 ### 3. Return early (guard clause)
 
-Handle defaults, invalid input, and base cases first, then do the main work unindented.
-
-```ts
-// ✗
-private continueVisit(visit: Visit): void {
-  const child = visit.attempt.call.step.calls?.[visit.nextCall];
-  if (child !== undefined) {
-    // … make the next call
-  } else {
-    this.completeVisit(visit, undefined);
-  }
-}
-
-// ✓
-private continueVisit(visit: Visit): void {
-  const child = visit.attempt.call.step.calls?.[visit.nextCall];
-  if (child === undefined) {
-    this.completeVisit(visit, undefined);
-    return;
-  }
-  // … make the next call
-}
-```
+Handle defaults, invalid input, and base cases first and return, then do the main work unindented.
 
 ### 4. Look up, don't branch
 
@@ -144,19 +102,7 @@ Count the decision points: each `if`, `?:`, `&&`/`||`/`??`, loop, `case`, and `c
 
 ### 7. At most two parameters
 
-Three or more becomes one typed input object. Prefer an object even at two when the meaning isn't obvious from the call. Adding an input later then doesn't break existing call sites.
-
-```ts
-// ✗ which number is which?
-backoffMs(policy, 3, random);
-
-// ✓
-backoffMs({ policy, failedAttempts: 3, random });
-```
-
-Callbacks that other layers implement, such as observers and `onSnapshot`, always take one object.
-
-The engine calls component methods (`arrive`, `finish`) many times per run. If you think an input object costs too much there, measure it with `npm run simulate` before claiming the exception.
+Three or more parameters become one typed input object (`backoffMs({ policy, failedAttempts: 3, random })`), as do two whose meaning isn't obvious from the call, and callbacks that other layers implement, such as observers and `onSnapshot`, always take one object.
 
 ### 8. Name your types
 
@@ -186,17 +132,7 @@ Don't use `Options`, `Settings`, `Params`, `Args`, or `At`. A type holding an in
 
 ### 9. Put the unit in the name
 
-A simulator is full of numbers that mean time, rates, and counts. A name without a unit invites mixing milliseconds with seconds. Durations and timestamps end in `Ms` (`timeoutMs`, `nowMs`, `retryAtMs`); rates say what they count per what (`requestsPerSecond`). Keep the engine in milliseconds and convert only at the edges, such as a report or a chart axis.
-
-```ts
-// ✗ 30 what?
-const timeout = 30;
-
-// ✓
-const timeoutMs = 30_000;
-```
-
-Component config fields may use the unit their AWS setting uses, with the unit in the name (`idleTimeoutSec`, `burstSec`). Each component converts its own to milliseconds.
+Durations and timestamps end in `Ms` (`timeoutMs`, `nowMs`) and rates say what they count per what (`requestsPerSecond`); a component config field may use its AWS setting's unit instead (`idleTimeoutSec`), and the component converts it, because the engine works in milliseconds.
 
 ### 10. Collaborators come from factories
 
@@ -239,18 +175,34 @@ Shared test fakes in `testing/` folders follow the rule. A `*.test.ts` file is e
 
 ### Enforcement
 
-| Rule | ESLint rule | Level |
+Tooling checks most of the architecture rules and some of the coding standards, so a mistake fails `npm run check` (and CI) instead of waiting for review. Reviewers check the rest.
+
+| Rule | Checked by | Level |
 |---|---|---|
+| Imports point inward only; `ui` imports only *types* from `domain`; nothing imports `main.tsx` | `@typescript-eslint/no-restricted-imports`, configured per layer in [`eslint.config.js`](eslint.config.js) | error |
+| `domain` and `application` use only approved pure libraries (`zod` in `domain`, [ADR-0005](docs/adr/0005-use-zod-for-schema-validation.md)); tests there may also import `vitest` | The same rule, with an allowlist of packages | error |
+| Only `src/ui/diagram/` imports `@xyflow/react`, and only `src/ui/charts/` imports `recharts` ([ADR-0010](docs/adr/0010-draw-diagrams-with-react-flow-behind-our-own-component.md), [ADR-0011](docs/adr/0011-draw-charts-with-recharts-behind-our-own-components.md)) | The same rule, with `WRAPPED_LIBRARIES` | error |
+| No DOM, `Worker`, timers, or Node APIs in `domain` and `application` | TypeScript: [`tsconfig.core.json`](tsconfig.core.json) checks these folders without the DOM lib or Node types | type error |
+| No `Math.random`, `Date.now`, `new Date()`, or `Date()` in `domain` and `application` | `no-restricted-properties` and `no-restricted-syntax` | error |
+| Colors and lengths come from the design tokens, stylesheets live only in `src/ui/`, and nothing hides the focus ring ([ADR-0012](docs/adr/0012-style-the-ui-with-css-tokens-and-css-modules.md)) | [`tests/architecture/stylesheets.test.ts`](tests/architecture/stylesheets.test.ts) | test failure |
 | 2. Rule of 30 | `max-lines-per-function` (30, skipping blanks and comments) | error; off in tests |
 | 5. Flat control flow | `max-depth` (2), `no-nested-ternary`, `no-else-return`, `no-lonely-if` | error |
 | 6. Complexity | `complexity` (8) | error |
 | 7. Two parameters | `max-params` (2) | error; off in tests |
-| 10. Collaborators from factories | `no-restricted-syntax` (`new` inside a class body, except built-ins, `STATE_CLASSES`, and `*Factory`/`*Builder`) | error; off in tests. Misses dependencies built by a helper function the class calls, so reviewers check those |
-| 10. Dependencies are interfaces | Not ESLint: `tests/architecture/dependency-types.test.ts` fails if a `*Dependencies` property is typed as a class | test failure. Only sees types named `*Dependencies` |
+| 10. Collaborators from factories ([ADR-0009](docs/adr/0009-collaborators-come-from-factories.md)) | `no-restricted-syntax`: `new` inside a class body, except built-ins, `STATE_CLASSES`, and `*Factory`/`*Builder` | error; off in tests |
+| 10. Dependencies are interfaces | [`tests/architecture/dependency-types.test.ts`](tests/architecture/dependency-types.test.ts) resolves each `*Dependencies` property's type with the TypeScript compiler and fails on a class | test failure |
 | 11. One class per file | `max-classes-per-file` (1) | error; off in tests |
-| 11. File named after its class | Not ESLint: `tests/architecture/class-files.test.ts` fails if a class's file isn't its name in kebab case | test failure; skips tests. Where a role interface lives is for reviewers |
-| 1, 3, 4, 8, 9 | None; reviewers check | |
+| 11. File named after its class | [`tests/architecture/class-files.test.ts`](tests/architecture/class-files.test.ts) fails if a class's file isn't its name in kebab case | test failure; skips tests |
 | File length | `max-lines` (400, skipping blanks and comments) | warning; tests included |
+
+Reviewers check what no tool does:
+
+- Register, don't edit the engine, from the architecture rules.
+- Rules 1, 3, 4, 8, and 9.
+- Rule 10's gaps: a dependency built by a helper function the class calls, which the lint selector can't see, and a `Dependencies` type not named `*Dependencies`.
+- Rule 11's gap: where a role interface lives.
+
+[`tests/architecture/layer-rules.test.ts`](tests/architecture/layer-rules.test.ts) lints sample snippets in each layer and asserts that the layer rules fire; if you change the rules, update it. To approve a new library for `domain` or `application`, write an ADR, then add it to `DOMAIN_PACKAGES` or `APPLICATION_PACKAGES` in `eslint.config.js`.
 
 **File length** is only a warning: it means "consider splitting this file", not "must fix". A file past 400 lines usually holds more than one idea, and a newcomer has to read all of it to find the one they need. Split along those ideas when you can name them; when the file really is one idea, leave it and move on.
 

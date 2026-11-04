@@ -40,7 +40,7 @@ This is the map of every document. New to the code? Start with [Getting started]
 |---|---|
 | [Getting started](docs/getting-started.md) | From a fresh clone to your first change: what to read, in what order |
 | [Glossary](docs/glossary.md) | Every domain term, with the type that holds it |
-| [Architecture overview](docs/architecture/architecture-overview.md) | Layers, where code goes, how the rules are enforced, and the guide to each subsystem |
+| [Architecture overview](docs/architecture/architecture-overview.md) | Layers, where code goes, and the guide to each subsystem |
 | [Decisions (ADRs)](docs/adr/adr-overview.md) | Why things are the way they are, one decision per record |
 | [MVP design](docs/design/mvp-design.md) | The detailed reference: domain model, engine, document format, templates, and testing strategy |
 | [Findings](docs/design/findings.md) | What a run should tell you: hand-written readings of the template runs, the detectors that would write them, and the shape of a finding and the verdict |

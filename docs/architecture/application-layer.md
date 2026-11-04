@@ -117,13 +117,13 @@ The application works with **`ProjectRecord`s**: a domain `Project` plus the fac
 
 ```mermaid
 flowchart LR
-    R["ProjectRecord<br/>(application)"] -->|toProjectDocument| D["Document v1<br/>schemaVersion, durationSec, ..."]
+    R["ProjectRecord<br/>(application)"] -->|toProjectDocument| D["Document v2<br/>schemaVersion, durationSec, ..."]
     D -->|put| DB[("IndexedDB<br/>wind-tunnel / projects")]
     DB -->|get| U["Unchecked JSON<br/>(any schema version)"]
     U --> L
     subgraph L["loadProject"]
         direction TB
-        M["migrateDocument<br/>older version → current"] --> S["v1 Zod schema"]
+        M["migrateDocument<br/>older version → current"] --> S["v2 Zod schema"]
         S --> TR["toProjectRecord"]
         TR --> V["findArchitectureIssues<br/>(IDs, edges, component configs)"]
     end
@@ -136,14 +136,14 @@ Things to know:
 - **Units differ.** The document gives workload times in seconds (`durationSec`, `atSec`), which people find easier to write. The domain keeps every time in milliseconds (`durationMs`, `atMs`). The mapper converts both ways, and `toDocumentIssue` renames those fields in validation paths, so users see document paths.
 - **Every read is checked again.** The repository reads through `loadProject`, the same function that loads templates and (later) imports. A project saved by an older build is migrated first; one that no longer passes a stricter rule comes back `invalid` with the reason.
 - **An unreadable project is still listed.** `list` reads only the summary fields (`id`, `name`, `description`, `updatedAt`), so the user can see the project and open it to learn why it fails.
-- **Two version numbers, two jobs.** The database version (`PROJECT_DATABASE_VERSION` in `project-database.ts`) covers stores and indexes; raise it to add a store. A document's `schemaVersion` covers the document's shape; raise `CURRENT_SCHEMA_VERSION` and add a migration in `document-migrations.ts` to change it ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)).
+- **Two version numbers, two jobs.** The database version (`PROJECT_DATABASE_VERSION` in `project-database.ts`) covers stores and indexes; raise it to add a store. A document's `schemaVersion` covers the document's shape; raise `CURRENT_SCHEMA_VERSION` and add a migration in `document-migrations.ts` to change it ([ADR-0004](../adr/0004-persist-projects-in-indexeddb.md)). The current version is 2, and there are no migrations yet: version 1 was dropped rather than migrated ([ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)), so a v1 project is listed but can't be opened.
 - **Templates are records too.** `BundledTemplateCatalog` loads each bundled JSON through `loadProject` at startup and throws if one is broken, so a bad template fails before a user picks it.
 
 ## Worked example: one project, end to end
 
 [`src/adapters/traces/application-layer.test.ts`](../../src/adapters/traces/application-layer.test.ts) wires the use cases to the real adapters (IndexedDB through `fake-indexeddb`), wraps each port so it records every call, and saves the timeline to [`application-layer.txt`](../../src/adapters/traces/application-layer.txt). `port` lines are calls a use case made; `result` is what it returned.
 
-Creating a project from a template takes the template, the saved projects (to keep its name free), a new ID, and the time from the ports, then saves. IndexedDB holds the document, not the record: note `schemaVersion` and the workload's duration in seconds.
+Creating a project from a template takes the template, the saved projects (to keep its name free), a new ID, and the time from the ports, then a new ID for each of the template's steps, so nothing depends on a template's step IDs ([ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)), and saves. IndexedDB holds the document, not the record: note `schemaVersion` and the workload's duration in seconds.
 
 ```text
 CreateProjectFromTemplate.execute("template-a")
@@ -151,12 +151,19 @@ CreateProjectFromTemplate.execute("template-a")
   port     projects.list() → []
   port     ids.newId() → project-1
   port     clock.now() → 2026-10-15T12:00:00.000Z
+  port     ids.newId() → project-2
+  port     ids.newId() → project-3
+  port     ids.newId() → project-4
+  port     ids.newId() → project-5
+  port     ids.newId() → project-6
+  port     ids.newId() → project-7
   port     projects.save(record project-1 "Serverless API with RDS" (updatedAt 2026-10-15T12:00:00.000Z))
   result   created, record project-1 "Serverless API with RDS" (updatedAt 2026-10-15T12:00:00.000Z)
   IndexedDB "projects" store, key "project-1":
-    schemaVersion 1
+    schemaVersion 2
     createdAt 2026-10-15T12:00:00.000Z, updatedAt 2026-10-15T12:00:00.000Z
     source {"templateId":"template-a","templateVersion":1}
+    workflows[0].root.id project-4   (a new ID: the template's step IDs aren't copied)
     workloads[0].durationSec 60   (the record has durationMs 60000)
 
 SaveProject.execute(the record, renamed "Rush hour")
@@ -178,7 +185,7 @@ RunSimulation.execute({ project (cut to 3 s), seed: 7, onSnapshot })
   totals: started 619 = succeeded 613 + failed 0 + unfinished 6
 ```
 
-Then the test rewrites the stored document as a newer build might (`schemaVersion: 2`). The project is still listed, but opening it explains why it can't be read:
+Then the test rewrites the stored document as a newer build might (`schemaVersion: 3`). The project is still listed, but opening it explains why it can't be read:
 
 ```text
 ListProjects.execute()
@@ -188,7 +195,7 @@ ListProjects.execute()
 OpenProject.execute("project-1")
   port     projects.get("project-1") → invalid
   result   invalid: "This project was saved in a form this version of Wind Tunnel can't open."
-  issue    schemaVersion: Unsupported schema version 2; this version of Wind Tunnel reads version 1.
+  issue    schemaVersion: Unsupported schema version 3; this version of Wind Tunnel reads version 2.
 ```
 
 If the flow changes, that test fails and the diff shows the new timeline. If the change is intended, run `npx vitest run -u src/adapters/traces`, then update the excerpts on this page.

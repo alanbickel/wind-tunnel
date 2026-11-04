@@ -1,3 +1,5 @@
+import type { Workflow } from "../../domain/model/project";
+import { mapSteps } from "../../domain/model/step-tree";
 import { freeProjectName } from "../details/project-name";
 import type { Clock } from "../ports/clock";
 import type { IdGenerator } from "../ports/id-generator";
@@ -26,7 +28,9 @@ export interface TemplateMissing {
 
 /**
  * Copies a template into a new saved project (ADR-0004). The copy gets a new
- * ID and fresh timestamps. It keeps the template's model, layout, and
+ * ID, fresh timestamps, and a new ID for every step, so a copy's steps are
+ * like a blank project's and nothing can depend on a template's step IDs
+ * (ADR-0020). It keeps the rest of the template's model, its layout, and
  * `source`, which names the template and version it came from, and its
  * name, numbered if another project uses it: "Serverless API with RDS (2)".
  */
@@ -53,11 +57,23 @@ export class CreateProjectFromTemplate {
     const id = this.deps.ids.newId();
     const name = freeProjectName(template.project.name, projects);
     const now = this.deps.clock.now();
+    const workflows = withNewStepIds(template.project.workflows, this.deps.ids);
     return {
       ...template,
-      project: { ...template.project, id, name },
+      project: { ...template.project, id, name, workflows },
       createdAt: now,
       updatedAt: now,
     };
   }
+}
+
+/** The workflows with a new ID for every step, async work included. */
+function withNewStepIds(
+  workflows: readonly Workflow[],
+  ids: IdGenerator,
+): Workflow[] {
+  return workflows.map((workflow) => ({
+    ...workflow,
+    root: mapSteps(workflow.root, (step) => ({ ...step, id: ids.newId() })),
+  }));
 }

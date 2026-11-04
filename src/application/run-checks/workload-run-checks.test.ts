@@ -90,11 +90,12 @@ describe("workloadRunChecks", () => {
     const twoGone: Workflow = {
       ...write,
       root: {
+        id: "api-invoke",
         componentId: "api",
         action: "invoke",
         calls: [
-          { componentId: "gone-1", action: "invoke" },
-          { componentId: "gone-2", action: "invoke" },
+          { id: "gone-1-invoke", componentId: "gone-1", action: "invoke" },
+          { id: "gone-2-invoke", componentId: "gone-2", action: "invoke" },
         ],
       },
     };
@@ -117,9 +118,11 @@ describe("workloadRunChecks", () => {
       id,
       name,
       root: {
+        id: `${id}-api`,
         componentId: "api",
         action: "invoke" as const,
         calls: componentIds.map((componentId) => ({
+          id: `${id}-${componentId}`,
           componentId,
           action: "invoke" as const,
         })),
@@ -158,9 +161,10 @@ describe("workloadRunChecks", () => {
     const skipsFn: Workflow = {
       ...read,
       root: {
+        id: "api-invoke-3",
         componentId: "api",
         action: "invoke",
-        calls: [{ componentId: "table", action: "read" }],
+        calls: [{ id: "table-read", componentId: "table", action: "read" }],
       },
     };
     const project = { ...sampleRecord.project, workflows: [skipsFn] };

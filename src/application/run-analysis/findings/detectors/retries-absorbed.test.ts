@@ -268,13 +268,19 @@ describe("retries-absorbed", () => {
         {
           ...read,
           root: {
+            id: "api-invoke",
             componentId: "api",
             action: "invoke",
             calls: [
               {
+                id: "fn-invoke",
                 componentId: "fn",
                 action: "invoke",
-                async: { componentId: "table", action: "read" },
+                async: {
+                  id: "table-read",
+                  componentId: "table",
+                  action: "read",
+                },
               },
             ],
           },

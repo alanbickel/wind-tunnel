@@ -15,13 +15,21 @@ export const projectWithRunIssue: Project = {
       id: "write",
       name: "Write item",
       root: {
+        id: "write-api-invoke",
         componentId: "api",
         action: "invoke",
         calls: [
           {
+            id: "write-fn-invoke",
             componentId: "fn",
             action: "invoke",
-            calls: [{ componentId: "orders-db", action: "write" }],
+            calls: [
+              {
+                id: "write-orders-db-write",
+                componentId: "orders-db",
+                action: "write",
+              },
+            ],
           },
         ],
       },

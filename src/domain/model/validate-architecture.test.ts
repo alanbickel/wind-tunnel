@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Edge, Project, Step, Workload } from "./project";
+import type { Edge, Project, Step, Workflow, Workload } from "./project";
+import { mapSteps } from "./step-tree";
 import { validateArchitecture } from "./validate-architecture";
 
 const edge = (from: string, to: string): Edge => ({
@@ -44,20 +45,31 @@ function validProject(): Project {
       {
         id: "get-order",
         name: "Get order",
-        root: step("api", [
-          step("fn-api", [{ componentId: "orders-read", action: "read" }]),
+        root: step("get-api", "api", [
+          step("get-fn-api", "fn-api", [
+            {
+              id: "orders-read-read",
+              componentId: "orders-read",
+              action: "read",
+            },
+          ]),
         ]),
       },
       {
         id: "create-order",
         name: "Create order",
-        root: step("api", [
-          step("fn-api", [
+        root: step("create-api", "api", [
+          step("create-fn-api", "fn-api", [
             {
+              id: "orders-queue-enqueue",
               componentId: "orders-queue",
               action: "enqueue",
-              async: step("fn-writer", [
-                { componentId: "orders-db", action: "write" },
+              async: step("fn-writer-invoke", "fn-writer", [
+                {
+                  id: "orders-db-write",
+                  componentId: "orders-db",
+                  action: "write",
+                },
               ]),
             },
           ]),
@@ -68,8 +80,16 @@ function validProject(): Project {
   };
 }
 
-function step(componentId: string, calls: Step[] = []): Step {
-  return { componentId, action: "invoke", calls };
+function step(id: string, componentId: string, calls: Step[] = []): Step {
+  return { id, componentId, action: "invoke", calls };
+}
+
+/** The workflow with the step whose ID is `from` given the ID `to`. */
+function renameStep(workflow: Workflow, from: string, to: string): Workflow {
+  const root = mapSteps(workflow.root, (s) =>
+    s.id === from ? { ...s, id: to } : s,
+  );
+  return { ...workflow, root };
 }
 
 function workload(overrides: Partial<Workload> = {}): Workload {
@@ -126,12 +146,58 @@ describe("validateArchitecture", () => {
       if (first === undefined) throw new Error("fixture has workflows");
       const project = {
         ...p,
-        workflows: [...p.workflows, first],
+        workflows: [...p.workflows, { ...first, root: step("again", "api") }],
         workloads: [workload(), workload()],
       };
       expect(messages(project)).toEqual([
         'Duplicate workflow ID "get-order".',
         'Duplicate workload ID "lunch-rush".',
+      ]);
+    });
+
+    // Fails if checkUniqueStepIds stops comparing steps across workflows, or
+    // reports the first of the pair rather than the second.
+    it("rejects a step ID another workflow's step uses, at the second", () => {
+      const p = validProject();
+      const [get, create] = p.workflows;
+      if (get === undefined || create === undefined) {
+        throw new Error("fixture has two workflows");
+      }
+      const project = {
+        ...p,
+        workflows: [
+          get,
+          { ...create, root: { ...create.root, id: "get-api" } },
+        ],
+      };
+      expect(validateArchitecture(project)).toEqual([
+        {
+          path: ["workflows", 1, "root", "id"],
+          message: 'Duplicate step ID "get-api".',
+        },
+      ]);
+    });
+
+    // Fails if stepsOf skips async work: the duplicate is under the queue's
+    // async step.
+    it("rejects a duplicate step ID in async work", () => {
+      const p = validProject();
+      const [get, create] = p.workflows;
+      if (get === undefined || create === undefined) {
+        throw new Error("fixture has two workflows");
+      }
+      const project = {
+        ...p,
+        workflows: [get, renameStep(create, "fn-writer-invoke", "get-fn-api")],
+      };
+      expect(validateArchitecture(project)).toEqual([
+        {
+          path: [
+            ...["workflows", 1, "root", "calls", 0, "calls", 0, "async"],
+            "id",
+          ],
+          message: 'Duplicate step ID "get-fn-api".',
+        },
       ]);
     });
   });
@@ -211,7 +277,7 @@ describe("validateArchitecture", () => {
     const p = validProject();
     const project: Project = {
       ...p,
-      workflows: [{ id: "w", name: "w", root: step("ghost") }],
+      workflows: [{ id: "w", name: "w", root: step("ghost-invoke", "ghost") }],
       workloads: [workload({ mix: [] })],
     };
     expect(validateArchitecture(project)).toEqual([]);

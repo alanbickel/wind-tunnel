@@ -1,6 +1,6 @@
 # ADR-0004: Persist projects in IndexedDB as versioned documents; ship templates as bundled data
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-11-04
 - **Date:** 2026-10-13
 
 ## Context
@@ -30,6 +30,8 @@ We also want to ship a few starter projects ("templates") so new users have some
 - **IndexedDB database version** covers object stores and indexes. It's upgraded in the `idb` `upgrade` callback.
 - **`schemaVersion` field in each document** covers the document's shape. Migrations are pure functions (`v1 → v2 → …`) applied on load. They run for both IndexedDB reads and JSON imports, since an exported file from an older version must still open.
 
+> **Changed by the [addendum of 2026-11-04](#addendum-2026-11-04).**
+
 ### Templates are bundled, not seeded
 
 - Templates ship as static JSON files in the app bundle (`src/adapters/templates/`), using the same document format.
@@ -42,3 +44,17 @@ We also want to ship a few starter projects ("templates") so new users have some
 - Templates double as fixtures for engine tests and as examples of the document format.
 - Data lives in one browser on one device. Users who want backups or to move projects must use export. Browsers may evict IndexedDB data under storage pressure, so we should call `navigator.storage.persist()` and make export easy to find.
 - The exact document schema is defined in the design doc once the domain model is settled, and is linked from here.
+
+## Addendum, 2026-11-04
+
+**Context.** [ADR-0020](0020-give-workflow-steps-stable-ids.md) gives every workflow step a required `id`, which moves the document to `schemaVersion` 2. The decision above says an older document must still open, which would mean a migration from version 1 that makes up an ID for every step. But every version 1 document is a copy of a bundled template, kept only in the browser that made it, and nothing could export one yet. No one has a version 1 document worth keeping.
+
+**Decision.**
+
+- Version 1 is dropped without a migration. A stored version 1 project is still listed, and opening it says "Unsupported schema version 1; this version of Wind Tunnel reads version 2."
+- Every format change from here on keeps the decision above: a new version comes with a migration from the one before it, and documents from any older version still open.
+
+**Consequences.**
+
+- The first migration is written for a format change made once there are documents worth keeping, such as exported files after export arrives ([#21](https://github.com/alanbickel/wind-tunnel/issues/21)).
+- A browser that holds version 1 projects keeps them, unopenable, until the site's storage is cleared.

@@ -40,13 +40,19 @@ export function loadWorkload(overrides: Partial<Workload> = {}): Workload {
 
 /** Create's call tree: front enqueues on q, whose consumer does the work. */
 export const createRoot: Step = {
+  id: "front-invoke",
   componentId: "front",
   action: "invoke",
   calls: [
     {
+      id: "q-enqueue",
       componentId: "q",
       action: "enqueue",
-      async: { componentId: "consumer", action: "invoke" },
+      async: {
+        id: "consumer-invoke",
+        componentId: "consumer",
+        action: "invoke",
+      },
     },
   ],
 };
@@ -69,7 +75,7 @@ export function queuedProject(): Project {
       {
         id: "get",
         name: "Get",
-        root: { componentId: "front", action: "read" },
+        root: { id: "front-read", componentId: "front", action: "read" },
       },
     ],
     workloads: [loadWorkload()],

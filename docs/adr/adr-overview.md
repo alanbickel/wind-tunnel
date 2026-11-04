@@ -9,7 +9,7 @@ To write one, or to change a decision, follow [ADRs in the contributing guide](.
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions; an accepted ADR's text is never reworded, and a dated addendum may change part of its decision |
 | [0002](0002-use-clean-architecture-layering.md) | Use Clean Architecture layering with an enforced dependency rule |
 | [0003](0003-browser-only-react-typescript-app.md) | Build a browser-only app with TypeScript, React, and Vite |
-| [0004](0004-persist-projects-in-indexeddb.md) | Persist projects in IndexedDB as versioned documents; ship templates as bundled data |
+| [0004](0004-persist-projects-in-indexeddb.md) | Persist projects in IndexedDB as versioned documents, migrating older ones on load (version 1 was dropped instead, by ADR-0020); ship templates as bundled data |
 | [0005](0005-use-zod-for-schema-validation.md) | Use Zod for schema validation, including in the domain layer |
 | [0006](0006-components-return-effects-to-the-engine.md) | Components return effects to the engine; they never schedule events |
 | [0007](0007-metrics-observe-the-engine.md) | Metrics observe the engine through events and ticks; components expose named gauges and counters |
@@ -25,3 +25,4 @@ To write one, or to change a decision, follow [ADRs in the contributing guide](.
 | [0017](0017-count-failed-async-deliveries-by-cause.md) | The engine reports the cause of a failed async delivery, and metrics count failed deliveries by cause, as they count failed requests; where the engine counts a request's or a delivery's outcome, a failure carries its cause |
 | [0018](0018-tie-a-run-to-the-model-it-ran.md) | A run keeps a copy of the project it ran, and everything shown about it reads the copy; it's current while its architecture, workflows, and workload match the project's by content; runs aren't stored |
 | [0019](0019-edit-projects-with-commands-and-save-each-change.md) | Each edit is a command in `application/`, validated and saved at once; the architecture must always be valid, while workflow and workload issues are saved, shown, and stop only a run; a remove takes only what it owns; edges belong to the architecture; undo is in memory |
+| [0020](0020-give-workflow-steps-stable-ids.md) | Each workflow step has an ID, unique in the project and never shown, so it can be selected and edited across changes; the document moves to schema version 2, and version 1 is dropped rather than migrated; a template copy gets new step IDs |

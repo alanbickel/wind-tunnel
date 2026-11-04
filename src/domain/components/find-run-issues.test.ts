@@ -30,7 +30,9 @@ const workloadIssues = (overrides: Partial<Workload>) =>
     registry,
   ).workloads.get("load");
 
+/** IDs needn't be unique here: the run checks don't look at them. */
 const invoke = (componentId: string, calls: Step[] = []): Step => ({
+  id: `${componentId}-invoke`,
   componentId,
   action: "invoke",
   calls,
@@ -105,7 +107,12 @@ describe("findRunIssues", () => {
     // Fails if the queue's delivery to its consumer isn't checked as a call.
     it("requires async work to follow an edge from the queue", () => {
       const root = invoke("front", [
-        { componentId: "q", action: "enqueue", async: invoke("front") },
+        {
+          id: "q-enqueue",
+          componentId: "q",
+          action: "enqueue",
+          async: invoke("front"),
+        },
       ]);
       expect(stepIssues(root)).toEqual([
         {
@@ -120,6 +127,7 @@ describe("findRunIssues", () => {
     // Fails if checkAsync stops checking the step's action.
     it("allows async work only on enqueue steps", () => {
       const root: Step = {
+        id: "q-invoke",
         componentId: "q",
         action: "invoke",
         async: invoke("consumer"),
@@ -134,13 +142,19 @@ describe("findRunIssues", () => {
     // Fails if checkType is skipped for nested or async steps.
     it("reports actions the component doesn't accept, including in async steps", () => {
       const root: Step = {
+        id: "front-write",
         componentId: "front",
         action: "write",
         calls: [
           {
+            id: "q-enqueue-2",
             componentId: "q",
             action: "enqueue",
-            async: { componentId: "consumer", action: "enqueue" },
+            async: {
+              id: "consumer-enqueue",
+              componentId: "consumer",
+              action: "enqueue",
+            },
           },
         ],
       };
@@ -165,9 +179,10 @@ describe("findRunIssues", () => {
     // Fails if checkType stops checking deliversAsync.
     it("reports async work on a component that isn't queue-like", () => {
       const root: Step = {
+        id: "front-invoke",
         componentId: "front",
         action: "invoke",
-        async: { componentId: "q", action: "enqueue" },
+        async: { id: "q-enqueue-3", componentId: "q", action: "enqueue" },
       };
       expect(stepIssues(root)).toContainEqual({
         kind: "async-not-delivered",

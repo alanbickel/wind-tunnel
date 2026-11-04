@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "template-b",
   "name": "Serverless API with DynamoDB + SQS",
   "description": "The same API as \"Serverless API with RDS\", reworked for spikes: reads go to DynamoDB, and writes go through an SQS queue to a worker function with a capped concurrency. Run the same lunch rush and compare. The steady day shows it with calm traffic, where every limit has room to spare. In the long rush nothing fails, but writes arrive faster than the queue's consumers take them, so they land later and later.",
@@ -126,13 +126,21 @@
       "id": "get-order",
       "name": "Get order",
       "root": {
+        "id": "get-order-api",
         "componentId": "api",
         "action": "invoke",
         "calls": [
           {
+            "id": "get-order-fn-api",
             "componentId": "fn-api",
             "action": "invoke",
-            "calls": [{ "componentId": "orders-read", "action": "read" }]
+            "calls": [
+              {
+                "id": "get-order-orders-read",
+                "componentId": "orders-read",
+                "action": "read"
+              }
+            ]
           }
         ]
       }
@@ -141,20 +149,30 @@
       "id": "create-order",
       "name": "Create order",
       "root": {
+        "id": "create-order-api",
         "componentId": "api",
         "action": "invoke",
         "calls": [
           {
+            "id": "create-order-fn-api",
             "componentId": "fn-api",
             "action": "invoke",
             "calls": [
               {
+                "id": "create-order-orders-queue",
                 "componentId": "orders-queue",
                 "action": "enqueue",
                 "async": {
+                  "id": "create-order-fn-writer",
                   "componentId": "fn-writer",
                   "action": "invoke",
-                  "calls": [{ "componentId": "orders-db", "action": "write" }]
+                  "calls": [
+                    {
+                      "id": "create-order-orders-db",
+                      "componentId": "orders-db",
+                      "action": "write"
+                    }
+                  ]
                 }
               }
             ]

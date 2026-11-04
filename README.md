@@ -49,6 +49,7 @@ This is the map of every document. New to the code? Start with [Getting started]
 | [AWS: Did you know?](docs/learning/aws-did-you-know.md) | AWS limits and at-scale behaviors the simulation models, with sources |
 | [React: Mental model and pitfalls](docs/learning/react-mental-model.md) | React behaviors that surprise newcomers, why React works that way, and where each shows up here |
 | [Contributing](CONTRIBUTING.md) | Setup, coding standards, tests, docs, milestones, and the branch, PR, and review workflow |
+| [AI-DLC](AI-DLC.md) | Experimental: development automation, where headless Claude sessions take a list of issues through PR, review, and merge |
 
 ## License
 

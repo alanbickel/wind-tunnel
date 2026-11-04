@@ -1,6 +1,6 @@
 # Review protocol
 
-How Claude sessions talk to each other through GitHub: `/pr-review`, `/pr-address`, an author session, and the issue loop driver (`scripts/sdlc-loop.js`). Each of them reads this file; it is the only place these rules are written. People need only CONTRIBUTING's [Reviews](../CONTRIBUTING.md#reviews).
+How Claude sessions talk to each other through GitHub: `/pr-review`, `/pr-address`, an author session, and the development automation driver (`scripts/ai-dlc.js`, described in [AI-DLC.md](../AI-DLC.md)). Each of them reads this file; it is the only place these rules are written. People need only CONTRIBUTING's [Reviews](../CONTRIBUTING.md#reviews).
 
 Every comment a Claude session posts goes out under the maintainer's account, so it starts with a prefix that says who wrote it and lets later sessions find it. A comment from the maintainer has no `🤖` prefix.
 

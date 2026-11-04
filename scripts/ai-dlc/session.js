@@ -9,7 +9,7 @@ import { fail } from "./stop.js";
 const MODEL = "claude-opus-5-5";
 const EFFORT = "medium";
 const MAX_TURNS_PER_STEP = "150";
-export const LOG_DIR = "sdlc-logs";
+export const LOG_DIR = "ai-dlc-logs";
 /** One line per step: its cost, turns, time, and the 5-hour usage before and after. */
 const STEPS_LOG = join(LOG_DIR, "steps.jsonl");
 const SHOWN_LENGTH = 200;
@@ -101,6 +101,7 @@ function parse(/** @type {string} */ line) {
 }
 
 const EVENT_HANDLERS = {
+  system: showSessionStart,
   assistant: showAssistant,
   user: showToolErrors,
   rate_limit_event: noteUsage,
@@ -112,6 +113,11 @@ function showEvent(/** @type {any} */ event, /** @type {Tally} */ tally) {
   const handler =
     EVENT_HANDLERS[/** @type {keyof typeof EVENT_HANDLERS} */ (event.type)];
   handler?.(event, tally);
+}
+
+/** Shown first, so a step that's still running can be looked into: `claude --resume <id>`. */
+function showSessionStart(/** @type {any} */ event) {
+  if (event.subtype === "init") console.log(`  session ${event.session_id}`);
 }
 
 function showAssistant(/** @type {any} */ event) {
@@ -156,7 +162,7 @@ function showResult(/** @type {any} */ event, /** @type {Tally} */ tally) {
   tally.result = event;
   const cost = event.total_cost_usd?.toFixed(2) ?? "?";
   console.log(
-    `\n■ ${event.subtype}: ${event.num_turns} turns, ${Math.round(event.duration_ms / 1000)} s, $${cost}`,
+    `\n■ ${event.subtype}: ${event.num_turns} turns, ${Math.round(event.duration_ms / 1000)} s, $${cost}, session ${event.session_id}`,
   );
 }
 

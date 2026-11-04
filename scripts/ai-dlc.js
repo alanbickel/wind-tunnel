@@ -1,23 +1,23 @@
 // Drives a list of issues through PR, review, and merge, each step in its own
-// fresh headless Claude session. CONTRIBUTING's "The issue loop" says how to
+// fresh headless Claude session. AI-DLC.md says how to
 // run it, resume it, and what to read afterward.
-//   node scripts/sdlc-loop.js <issue>... [--merge] [--defer-manual-checks]
+//   node scripts/ai-dlc.js <issue>... [--merge] [--defer-manual-checks]
 // Exit codes: 0 done, 1 something failed, 2 waiting for the maintainer's answer.
-import { collectDeferredChecks } from "./sdlc-loop/deferred-checks.js";
-import { openPrFor, readIssue } from "./sdlc-loop/github.js";
-import { stopIfWaiting } from "./sdlc-loop/questions.js";
+import { collectDeferredChecks } from "./ai-dlc/deferred-checks.js";
+import { openPrFor, readIssue } from "./ai-dlc/github.js";
+import { stopIfWaiting } from "./ai-dlc/questions.js";
 import {
   mergeWhenReady,
   reviewUntilReady,
   startIssue,
-} from "./sdlc-loop/steps.js";
-import { FAILED, NEEDS_DECISION, Stop } from "./sdlc-loop/stop.js";
+} from "./ai-dlc/steps.js";
+import { FAILED, NEEDS_DECISION, Stop } from "./ai-dlc/stop.js";
 
 const USAGE =
-  "Usage: node scripts/sdlc-loop.js <issue>... [--merge] [--defer-manual-checks]";
+  "Usage: node scripts/ai-dlc.js <issue>... [--merge] [--defer-manual-checks]";
 const BELL = "\u0007";
 
-/** @typedef {import("./sdlc-loop/steps.js").Options} Options */
+/** @typedef {import("./ai-dlc/steps.js").Options} Options */
 
 function parseArgs(/** @type {string[]} */ args) {
   const flags = new Set(args.filter((arg) => arg.startsWith("--")));

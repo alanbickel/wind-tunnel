@@ -2,6 +2,7 @@ import type { Project } from "../../domain/model/project";
 import { stepsOfWorkflow } from "../../domain/model/step-tree";
 import {
   handleKind,
+  lookup,
   type KindHandlers,
 } from "../../domain/shared/kind-handlers";
 import type { Selection } from "./selection";
@@ -36,8 +37,10 @@ export interface KeepChange {
 }
 
 /**
- * The selection after an undo or a redo (UX design §4.1). One that brings
- * back a component, as undoing its remove does, selects it; one that brings
+ * The selection after an undo or a redo (UX design §4.1). A selected
+ * workflow or step that's still there stays selected, so its outline shows
+ * what the undo did to its steps' issues. Otherwise, one that brings back
+ * a component, as undoing its remove does, selects it; one that brings
  * back only an edge selects the edge. One that takes away the selected
  * component, edge, workflow, or step clears the selection: a step goes
  * when it leaves its workflow, or its workflow goes. Anything else keeps it.
@@ -47,11 +50,27 @@ export function selectionAfterUndo({
   to,
   selection,
 }: SelectionAfterUndoInput): SelectionChange {
+  const stays = selection !== undefined && isIn(to, selection);
+  if (stays && lookup(OUTLASTS_BRINGING_BACK, selection.kind)) {
+    return { kind: "keep" };
+  }
   const brought = broughtBack({ from, to });
   if (brought !== undefined) return { kind: "select", selection: brought };
-  if (selection === undefined || isIn(to, selection)) return { kind: "keep" };
+  if (selection === undefined || stays) return { kind: "keep" };
   return { kind: "clear" };
 }
+
+/**
+ * Whether a selection of each kind stays, while it's there, through an
+ * undo that brings something back: a workflow's or a step's outline is
+ * where the undo's effect on the steps shows.
+ */
+const OUTLASTS_BRINGING_BACK: Record<Selection["kind"], boolean> = {
+  component: false,
+  edge: false,
+  workflow: true,
+  step: true,
+};
 
 /** The projects either side of an undo or a redo. */
 type ProjectsInput = Pick<SelectionAfterUndoInput, "from" | "to">;

@@ -11,9 +11,10 @@ import { edgeDetails } from "../details/edge-details";
 import type { FieldCatalog } from "../details/field-descriptor";
 import type { Selection } from "../details/selection";
 import { workflowDetails } from "../details/workflow-details";
+import { workflowRunChecks } from "../run-checks/workflow-run-checks";
 
 export interface DescribeSelectionDependencies {
-  /** Each type's display name and default config. */
+  /** Each type's display name and default config, and what a step's issues are checked against. */
   readonly registry: ComponentRegistry;
   /** Each type's setting descriptors. */
   readonly fields: FieldCatalog;
@@ -30,8 +31,8 @@ export interface DescribeSelectionInput {
  * component or an edge, its settings, with their labels, units, help, and
  * defaults, what an editor needs, and what calls it; an edge's defaults are
  * its caller type's. For a workflow, or a step in one, the workflow's
- * outline and the workloads that use it. Undefined if the project has no
- * such item.
+ * outline, each step with its run issues, and the workloads that use it.
+ * Undefined if the project has no such item.
  */
 export class DescribeSelection {
   private readonly deps: DescribeSelectionDependencies;
@@ -47,14 +48,20 @@ export class DescribeSelection {
   private describers(
     project: Project,
   ): KindHandlers<Selection, Details | undefined> {
+    const { registry } = this.deps;
     return {
       component: ({ componentId }) =>
         this.describeComponent({ project, id: componentId }),
       edge: ({ edgeId }) => this.describeEdge({ project, id: edgeId }),
       workflow: ({ workflowId }) =>
-        describeWorkflow({ project, id: workflowId, stepId: undefined }),
+        describeWorkflow({
+          project,
+          registry,
+          id: workflowId,
+          stepId: undefined,
+        }),
       step: ({ workflowId, stepId }) =>
-        describeWorkflow({ project, id: workflowId, stepId }),
+        describeWorkflow({ project, registry, id: workflowId, stepId }),
     };
   }
 
@@ -98,22 +105,24 @@ interface ItemInput {
 interface WorkflowItemInput extends ItemInput {
   /** The selected step's id; undefined for the workflow itself. */
   readonly stepId: string | undefined;
+  /** What the steps' issues are checked against. */
+  readonly registry: ComponentRegistry;
 }
 
 /**
- * The workflow's outline, with the step marked if one is selected;
- * undefined if the project has no such workflow, or it has no such step.
+ * The workflow's outline, with each step's run issues, and the step marked
+ * if one is selected; undefined if the project has no such workflow, or it
+ * has no such step.
  */
-function describeWorkflow({
-  project,
-  id,
-  stepId,
-}: WorkflowItemInput): Details | undefined {
+function describeWorkflow(input: WorkflowItemInput): Details | undefined {
+  const { project, registry, id, stepId } = input;
   const workflow = project.workflows.find((w) => w.id === id);
   if (workflow === undefined) return undefined;
   const steps = stepsOfWorkflow(workflow);
   if (stepId !== undefined && !steps.some((s) => s.id === stepId)) {
     return undefined;
   }
-  return workflowDetails({ project, workflow, currentStepId: stepId });
+  const check = workflowRunChecks({ project, registry }).get(id);
+  const onSteps = check?.onSteps ?? new Map<string, readonly string[]>();
+  return workflowDetails({ project, workflow, onSteps, currentStepId: stepId });
 }

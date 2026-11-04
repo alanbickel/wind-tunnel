@@ -29,6 +29,26 @@ function outlineSteps(): HTMLElement[] {
   return within(outline).getAllByRole("button");
 }
 
+/** Each step's line, and the issues that describe its button, if any. */
+function stepsWithIssues(): (string | null)[][] {
+  return outlineSteps().map((step) => {
+    const id = step.getAttribute("aria-describedby");
+    const issues =
+      id === null ? [] : [document.getElementById(id)?.textContent ?? null];
+    return [step.textContent, ...issues];
+  });
+}
+
+/** Removes the selected component, confirming it. */
+function removeSelected(): void {
+  fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+  const asking = screen.getByRole("group", { name: /^Remove / });
+  fireEvent.click(within(asking).getByRole("button", { name: "Remove" }));
+}
+
+const REMOVED =
+  "This step calls a component that isn't in the architecture any more.";
+
 describe("OpenedProject's workflows", () => {
   beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
@@ -105,6 +125,42 @@ describe("OpenedProject's workflows", () => {
     selectFromText("Read item");
 
     expect(screen.getByText("Used by: no workload yet")).toBeTruthy();
+  });
+
+  // Fails if removing a component doesn't put its issue on the step that
+  // calls it, puts it on another step too, names the component by its ID,
+  // or doesn't count it on the workflow's row.
+  it("shows a removed component's issue on its step, and counts it on the row", () => {
+    renderProject();
+    expect(screen.getByRole("button", { name: "Read item" })).toBeTruthy();
+    selectFromText("Table (dynamodb)");
+
+    removeSelected();
+    selectFromText("Read item · 1 problem");
+
+    expect(stepsWithIssues()).toEqual([
+      ["1 API · invoke"],
+      ["1.1 Function · invoke"],
+      ["1.1.1 a removed component · read", REMOVED],
+    ]);
+    expect(screen.getByText(REMOVED)).toBeTruthy();
+  });
+
+  // Fails if a project that opens with a step on a missing component
+  // can't show its outline, or doesn't show the step's issue (#94).
+  it("shows the issue of a step a project opened with", () => {
+    const [read] = sampleRecord.project.workflows;
+    if (read === undefined) throw new Error("The sample has a workflow");
+    const root = { id: "only", componentId: "gone", action: "invoke" as const };
+    renderProject({
+      project: { ...sampleRecord.project, workflows: [{ ...read, root }] },
+    });
+
+    selectFromText("Read item · 1 problem");
+
+    expect(stepsWithIssues()).toEqual([
+      ["1 a removed component · invoke", REMOVED],
+    ]);
   });
 
   // Fails if the narrow layout doesn't show a workflow's outline in its

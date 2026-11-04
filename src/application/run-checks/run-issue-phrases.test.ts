@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StepIssue, WorkloadIssue } from "../../domain/model/run-issue";
 import {
+  stepIssueOnStep,
   stepIssueText,
   workloadIssueText,
   type RunIssueNames,
@@ -74,6 +75,29 @@ describe("run issue phrases", () => {
   // Fails if a step issue's phrase changes, or names a component by ID.
   it.each(STEP_ISSUES)("words %o", (issue, text) => {
     expect(stepIssueText({ issue, workflowIds: ["a"] }, names)).toBe(text);
+  });
+
+  // Fails if a step's own outline line words an issue with a workflow, an
+  // ID, or a plural verb, rather than as UX §2.4 step 5 has it.
+  it("words an issue on its step with the step as the subject", () => {
+    const removed: StepIssue = {
+      kind: "unknown-component",
+      path: [],
+      componentId: "db",
+    };
+    const noEdge: StepIssue = {
+      kind: "missing-edge",
+      path: [],
+      fromId: "api",
+      toId: "db",
+    };
+
+    expect(stepIssueOnStep(removed, names)).toBe(
+      "This step calls a component that isn't in the architecture any more.",
+    );
+    expect(stepIssueOnStep(noEdge, names)).toBe(
+      "This step calls <db> from <api>, which has no edge to it.",
+    );
   });
 
   // Fails if a workload issue's phrase changes.

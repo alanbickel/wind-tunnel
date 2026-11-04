@@ -1,3 +1,4 @@
+import { awsCheckWorkflows } from "../../../application/testing/aws-check-workflows";
 import { awsCheckWorkloads } from "../../../application/testing/aws-check-workloads";
 import { awsListComponentTypes } from "../../../application/testing/aws-component-types";
 import { awsNameComponents } from "../../../application/testing/aws-name-components";
@@ -15,9 +16,9 @@ const throwsUnexpected = (name: string) => (): never => {
  * `UseCases` whose every call rejects (or throws, for the synchronous
  * `describeSelection`, `newComponent`, and `newEdge`), for UI tests. Override the ones a test
  * expects: `fakeUseCases({ listProjects: { execute: () => ... } })`.
- * `nameComponents`, `checkWorkloads`, and `listComponentTypes` are the
- * real ones over the AWS types: they're pure, and every test that shows a
- * project uses them.
+ * `nameComponents`, `checkWorkloads`, `checkWorkflows`, and
+ * `listComponentTypes` are the real ones over the AWS types: they're pure,
+ * and every test that shows a project uses them.
  */
 export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
   return {
@@ -34,6 +35,7 @@ export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
     describeSelection: { execute: throwsUnexpected("describeSelection") },
     nameComponents: awsNameComponents(),
     checkWorkloads: awsCheckWorkloads(),
+    checkWorkflows: awsCheckWorkflows(),
     listComponentTypes: awsListComponentTypes(),
     newComponent: { execute: throwsUnexpected("newComponent") },
     newEdge: { execute: throwsUnexpected("newEdge") },

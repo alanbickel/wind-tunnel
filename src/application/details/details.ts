@@ -127,6 +127,11 @@ export interface OutlineStep {
   readonly number: string;
   /** E.g. "orders-db · read". */
   readonly label: string;
+  /**
+   * Its run issues, as sentences: "This step calls a component that isn't
+   * in the architecture any more." Empty for a step that can run.
+   */
+  readonly issues: readonly string[];
   /** The steps it calls, in order. */
   readonly calls: readonly OutlineStep[];
   /**

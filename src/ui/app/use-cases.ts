@@ -1,4 +1,5 @@
 import type { StoragePersistence } from "../../application/ports/storage-persistence";
+import type { CheckWorkflows } from "../../application/use-cases/check-workflows";
 import type { CheckWorkloads } from "../../application/use-cases/check-workloads";
 import type { CreateBlankProject } from "../../application/use-cases/create-blank-project";
 import type { CreateProjectFromTemplate } from "../../application/use-cases/create-project-from-template";
@@ -41,6 +42,7 @@ export interface UseCases {
   readonly describeSelection: UseCase<DescribeSelection>;
   readonly nameComponents: UseCase<NameComponents>;
   readonly checkWorkloads: UseCase<CheckWorkloads>;
+  readonly checkWorkflows: UseCase<CheckWorkflows>;
   readonly listComponentTypes: UseCase<ListComponentTypes>;
   readonly newComponent: UseCase<NewComponent>;
   readonly newEdge: UseCase<NewEdge>;

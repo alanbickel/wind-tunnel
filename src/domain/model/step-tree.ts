@@ -22,6 +22,30 @@ export function stepsOfWorkflow(workflow: Workflow): Step[] {
   return stepsUnder({ step: workflow.root, path: [] }).map(({ step }) => step);
 }
 
+/**
+ * The step a path into the project names, e.g. `["workflows", 0, "root",
+ * "calls", 1]`, following `calls` and `async` as far as the path goes; a
+ * path that goes on into one of the step's fields, such as `componentId`,
+ * names that step. Undefined if the path doesn't lead to a step.
+ */
+export function stepAt(project: Project, path: IssuePath): Step | undefined {
+  const [workflows, index, root, ...rest] = path;
+  if (workflows !== "workflows" || root !== "root") return undefined;
+  const workflow = typeof index === "number" && project.workflows[index];
+  return workflow ? stepAlong(workflow.root, rest) : undefined;
+}
+
+/** The step `path` leads to from `step`, or undefined for a call it doesn't have. */
+function stepAlong(step: Step, path: IssuePath): Step | undefined {
+  const [key, index] = path;
+  if (key === "async" && step.async !== undefined) {
+    return stepAlong(step.async, path.slice(1));
+  }
+  if (key !== "calls") return step;
+  const child = typeof index === "number" ? step.calls?.[index] : undefined;
+  return child && stepAlong(child, path.slice(2));
+}
+
 /** The step and every step under it, in tree order. */
 function stepsUnder(at: LocatedStep): LocatedStep[] {
   const { step, path } = at;

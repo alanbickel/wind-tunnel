@@ -19,8 +19,8 @@ export interface WorkflowOutlineProps {
 /**
  * A workflow's Details: the workloads that use it, then its steps as a
  * numbered outline, each a button that selects it, marked current while
- * it's the selection (UX design §2.5 step 3). An `enqueue` step's async
- * work is under it, read-only for now.
+ * it's the selection (UX design §2.5 step 3), with its run issues under
+ * it. An `enqueue` step's async work is under it, read-only for now.
  */
 export function WorkflowOutline({ details, onSelect }: WorkflowOutlineProps) {
   const { workflowId, usedBy, outline, currentStepId } = details;
@@ -41,15 +41,48 @@ export function WorkflowOutline({ details, onSelect }: WorkflowOutlineProps) {
 }
 
 /**
+ * A step's line, and its run issues under it, if it has any: set off by a
+ * line down their side, so the mark doesn't rely on color, and describing
+ * the step's button, so a screen reader hears them on it (UX design §2.5
+ * step 7).
+ */
+function StepLine(props: OutlineItemProps) {
+  const issuesId = useId();
+  const { issues } = props.step;
+  if (issues.length === 0) {
+    return <StepButton {...props} describedBy={undefined} />;
+  }
+  return (
+    <div className={styles.cantRun}>
+      <StepButton {...props} describedBy={issuesId} />
+      <div id={issuesId}>
+        {issues.map((issue) => (
+          <p key={issue} className={styles.issue}>
+            {issue}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface StepButtonProps extends OutlineItemProps {
+  /** The ID of what says the step's issues; undefined for none. */
+  readonly describedBy: string | undefined;
+}
+
+/**
  * A step's line, marked current while it's the selection. Not
  * `aria-pressed`: pressing it again selects it again, so it isn't a toggle.
  */
-function StepButton({ step, currentStepId, onSelect }: OutlineItemProps) {
+function StepButton(props: StepButtonProps) {
+  const { step, currentStepId, onSelect, describedBy } = props;
   return (
     <button
       type="button"
       className={styles.step}
       aria-current={step.stepId === currentStepId || undefined}
+      aria-describedby={describedBy}
       onClick={() => {
         onSelect(step.stepId);
       }}
@@ -70,7 +103,7 @@ function OutlineItem(props: OutlineItemProps) {
   const { step } = props;
   return (
     <li>
-      <StepButton {...props} />
+      <StepLine {...props} />
       {step.calls.length > 0 && (
         <ol className={styles.outline}>
           {step.calls.map((call) => (

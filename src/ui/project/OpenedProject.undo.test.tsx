@@ -236,6 +236,33 @@ describe("OpenedProject's undo and redo", () => {
     );
   });
 
+  // Fails if undoing a component's removal while one of its steps is
+  // selected moves the selection to the component, or leaves the step's
+  // issue or the row's count showing once the component is back.
+  it("keeps a selected step through undoing its component's removal, and its issue goes", () => {
+    renderOpenedProject();
+    select("Table (dynamodb)");
+    removeSelected();
+    select("Read item · 1 problem");
+    select("1.1.1 a removed component · read");
+    expect(
+      screen.getByText(
+        "This step calls a component that isn't in the architecture any more.",
+      ),
+    ).toBeTruthy();
+
+    // A click focuses the button in a browser, but not in jsdom.
+    historyButton("Undo").focus();
+    fireEvent.click(historyButton("Undo"));
+
+    expect(queryDetailsHeading()?.textContent).toBe("Read item · Workflow");
+    const step = screen.getByRole("button", { name: "1.1.1 Table · read" });
+    expect(step.getAttribute("aria-current")).toBe("true");
+    expect(step.getAttribute("aria-describedby")).toBeNull();
+    expect(screen.queryByText(/isn't in the architecture any more/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Read item" })).toBeTruthy();
+  });
+
   // Fails if undoing the add of the selected component leaves it
   // selected, or moves the focus off Undo.
   it("clears the selection when undoing the add of the selected component", () => {

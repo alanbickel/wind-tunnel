@@ -10,6 +10,7 @@ Write for a maintainer who is new to the codebase: say what something does and w
 - **AWS claims** go through the fidelity catalog, as in [Adding a component type](../../CONTRIBUTING.md#adding-a-component-type).
 - **New domain terms** go in the [glossary](../glossary.md).
 - **Diagrams** are [Mermaid](https://mermaid.js.org/), so they live in the Markdown and show up in diffs. In VS Code, the "Markdown Preview Mermaid Support" extension renders them.
+- **Mermaid node ids** are descriptive camelCase (`askModel`, `runTool`); the quoted label can say anything. Some words are Mermaid keywords and break a flowchart when used as an id: `call` starts a `click` callback, so `call --> kind{...}` fails with a parse error ending in `got 'CALLBACKNAME'`, and GitHub shows "Unable to render rich display" instead of the diagram. `end` closes a `subgraph`, and `click`, `style`, `class`, `classDef`, `linkStyle`, `subgraph`, `direction`, and `default` are reserved too.
 - **C4 diagrams** show the code at four levels, one diagram per level per place: context and containers (levels 1 and 2) in the architecture overview, one component diagram (level 3) in each guide, and a `classDiagram` (level 4) in the guide for a class whose collaborators a factory wires. Draw levels 1–3 as flowcharts styled like the [legend](../architecture/architecture-overview.md#the-system-at-a-glance), copying its `classDef` lines; Mermaid's own C4 diagrams don't lay out legibly.
 
 ## Where a document goes, and how it's found

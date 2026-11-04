@@ -40,7 +40,8 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
   - **[deferred] #N:** check that issue #N exists and covers the finding, then resolve the thread.
   - **[decision]:** leave the thread open until the maintainer has answered in it or in the linked question.
   - **No answer tag, or no reply:** the finding is unanswered. Say so in the summary.
-  - A reply from the maintainer (no `🤖` prefix) outranks your finding. Accept it and resolve the thread, or push back if you disagree or aren't sure what it means, as the protocol's "The maintainer's comments" describes. Remove `needs-decision` once you've acted on an answer.
+  - **Newest comment is a `🤖 Claude question:`:** it's waiting for the maintainer. Leave the thread open and don't reply.
+  - A reply from the maintainer (no `🤖` prefix) outranks your finding. Accept it and resolve the thread, or push back if you disagree or aren't sure what it means, as the protocol's "The maintainer's comments" describes. Remove `needs-decision` only as the protocol's "Removing `needs-decision`" says.
 
   Resolve a thread with `node scripts/review-threads.js resolve <thread-id>`.
 - Findings from an earlier summary (lines outside the diff) have no thread. The author answers them in one PR comment starting with `🤖 Claude (author):` (`gh pr view $ARGUMENTS --comments`). Judge those answers the same way, and give the outcome for each in your summary.

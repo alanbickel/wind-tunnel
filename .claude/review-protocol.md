@@ -10,7 +10,7 @@ Every comment a Claude session posts goes out under the maintainer's account, so
 |---|---|---|---|
 | `🤖 Claude review:` | PR: the review and its inline comments | `/pr-review` | Findings. The summary's first line is `🤖 Claude review: Verdict: <ready to merge \| merge after fixes \| needs rework> at <short sha>`, naming the commit reviewed. |
 | `🤖 Claude (author):` | PR: a reply in a finding's thread | the author session and `/pr-address` | An answer to a finding, starting with its answer tag. |
-| `🤖 Claude question:` | the issue or the PR, wherever it came up | any session | A decision for the maintainer: what needs deciding, the options, and a recommendation. The session adds the `needs-decision` label and stops. The label is the signal; whoever needs the question finds the newest comment with this prefix. The maintainer answers in a comment after the question, or in the finding's thread. The session that acts on the answer removes the label (see "The maintainer's comments"). |
+| `🤖 Claude question:` | the issue, the PR, or a finding's thread, wherever it came up | any session | A decision for the maintainer: what needs deciding, the options, and a recommendation. The session adds the `needs-decision` label and stops. The label is the signal; whoever needs the questions finds the comments with this prefix. The maintainer answers in a comment after the question, or in the finding's thread. The label comes off only when every question on that PR or issue has an answer (see "The maintainer's comments"). |
 | `🤖 Claude decisions:` | issue | the author session and `/pr-address` | Choices made without asking, so the maintainer can review several sessions' choices in one place: every deferral, and what the session chose to document. |
 
 ## The maintainer's comments
@@ -19,7 +19,8 @@ A comment from the maintainer outranks any session's, but it isn't beyond questi
 
 - **Push back** with a `🤖 Claude question:` where the comment was (its thread, or the PR or issue), and add `needs-decision`. Hold only that point: finish the rest of the work, then stop.
 - **As many rounds as it takes.** The exchange ends when the maintainer states the same position in two comments in a row, with only the session's pushback between them. Then the session does what it says, without another question.
-- **Waiting for an answer** means waiting for a maintainer comment after the newest `🤖 Claude question:`. The first session that finds one acts on it (or pushes back), and removes `needs-decision` from the PR or issue: `gh pr edit <n> --remove-label needs-decision`, or `gh issue edit`.
+- **Waiting for an answer** means waiting for a maintainer comment that answers a `🤖 Claude question:`: after it on the PR or issue, or after it in its thread. One comment can come after several questions and answer only some of them, so judge each question by what the comment says. The first session that finds an answer acts on it (or pushes back).
+- **Removing `needs-decision`:** only when every `🤖 Claude question:` on that PR or issue, including those in threads, has a maintainer answer: `gh pr edit <n> --remove-label needs-decision`, or `gh issue edit`. Otherwise leave the label, and name the questions still open in the session's summary or reply.
 
 ## Findings
 

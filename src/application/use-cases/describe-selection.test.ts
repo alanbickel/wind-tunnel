@@ -86,8 +86,6 @@ const queued: Project = {
   ],
 };
 
-const sampleFn = sample.workflows[0]?.root.calls?.[0];
-
 /** One workflow whose function reads the table twice. */
 const readTwice: Project = {
   ...sample,
@@ -99,7 +97,10 @@ const readTwice: Project = {
         id: "fn-invoke-2",
         componentId: "fn",
         action: "invoke",
-        calls: [...(sampleFn?.calls ?? []), ...(sampleFn?.calls ?? [])],
+        calls: [
+          { id: "table-read-1", componentId: "table", action: "read" },
+          { id: "table-read-2", componentId: "table", action: "read" },
+        ],
       },
     },
   ],

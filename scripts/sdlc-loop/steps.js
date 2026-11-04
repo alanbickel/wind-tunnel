@@ -19,7 +19,7 @@ import {
 } from "./permissions.js";
 import { REVIEWER_DEFERRAL, authorPrompt } from "./prompts.js";
 import { askMaintainer, stopIfWaiting } from "./questions.js";
-import { runSession } from "./session.js";
+import { LOG_DIR, runSession } from "./session.js";
 import { pause, read, run, watch } from "./shell.js";
 import { fail } from "./stop.js";
 
@@ -34,9 +34,18 @@ const CI_POLL_INTERVAL_MS = 15 * 1000;
 /** The step that ran last, so a dirty working tree can be blamed on it. */
 const progress = { lastStep: "an earlier run, or by hand" };
 
-/** Stops unless the working tree is clean, then puts the checkout on an up-to-date `main`. */
+/**
+ * Stops unless the working tree is clean, then puts the checkout on an up-to-date `main`.
+ * The driver's own logs don't count, even where `main`'s .gitignore doesn't list them yet.
+ */
 function prepareCheckout() {
-  const changes = read("git", ["status", "--porcelain"]).trim();
+  const changes = read("git", [
+    "status",
+    "--porcelain",
+    "--",
+    ".",
+    `:(exclude)${LOG_DIR}`,
+  ]).trim();
   if (changes) {
     throw fail(
       `The working tree isn't clean. It was left that way by ${progress.lastStep}:\n${changes}`,

@@ -16,6 +16,8 @@ import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 import {
   bar,
   clickRun,
+  detailsHeading,
+  queryDetailsHeading,
   renderOpenedProject as renderProject,
   status,
   statusRegions,
@@ -63,11 +65,6 @@ function selectFromText(name: string): HTMLElement {
   button.focus();
   fireEvent.click(button);
   return button;
-}
-
-/** The Details heading: the selected item's name and what kind it is. */
-function detailsHeading(): HTMLElement {
-  return screen.getByRole("heading", { level: 4 });
 }
 
 /** The diagram's box for a component, once React Flow has drawn it. */
@@ -405,7 +402,7 @@ describe("OpenedProject's selection in a wide window", () => {
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
     expect(selectedTab()).toBe("Run");
     expect(document.activeElement).toBe(button);
-    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
   });
 
   // Fails if Details takes the focus when it mounts again without a new
@@ -437,7 +434,7 @@ describe("OpenedProject's selection in a wide window", () => {
     const pane = document.querySelector(".react-flow__pane");
     fireEvent.click(pane as Element);
 
-    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
     expect(selectedTab()).toBe("Run");
     expect((await drawnNode("table")).classList.contains("selected")).toBe(
       false,

@@ -1,4 +1,4 @@
-import type { Project, Step } from "./project";
+import type { Project, Step, Workflow } from "./project";
 import type { IssuePath } from "./validation-issue";
 
 // Walks and rebuilds workflows' call trees: a step's `calls` in order, then
@@ -15,6 +15,11 @@ export function stepsOf(project: Project): LocatedStep[] {
   return project.workflows.flatMap((workflow, index) =>
     stepsUnder({ step: workflow.root, path: ["workflows", index, "root"] }),
   );
+}
+
+/** Every step of one workflow, async work included, in tree order. */
+export function stepsOfWorkflow(workflow: Workflow): Step[] {
+  return stepsUnder({ step: workflow.root, path: [] }).map(({ step }) => step);
 }
 
 /** The step and every step under it, in tree order. */

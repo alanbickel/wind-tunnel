@@ -1,0 +1,60 @@
+.usedBy {
+  max-width: var(--prose-max-width);
+  margin: 0 0 var(--space-3);
+}
+
+/* Each list of steps; the numbers say the order, so no markers. A step's
+   calls and async work sit indented under it, as a tree. */
+.outline {
+  list-style: none;
+  margin: 0;
+  padding-inline-start: 0;
+}
+
+.outline .outline {
+  padding-inline-start: var(--space-5);
+}
+
+/* Each step reads as a line of the outline, and is a button to select it.
+   The selected one is bold and underlined, so it shows without color, as
+   in the diagram's text version. */
+.step {
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  color: var(--color-accent);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.step:hover {
+  color: var(--color-accent-hover);
+}
+
+.step[aria-current="true"] {
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+  text-decoration: underline;
+  text-decoration-thickness: var(--line-width-thick);
+}
+
+.number {
+  font-variant-numeric: tabular-nums;
+}
+
+/* An enqueue's async work: a second tree, set off by a line at its start. */
+.async {
+  margin-inline-start: var(--space-5);
+  border-inline-start: var(--line-width) solid var(--color-border);
+  padding-inline-start: var(--space-2);
+}
+
+.async > .outline {
+  padding-inline-start: 0;
+}
+
+.asyncLabel {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}

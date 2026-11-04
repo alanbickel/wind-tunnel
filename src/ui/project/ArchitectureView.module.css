@@ -2,6 +2,11 @@
   margin-top: var(--space-3);
 }
 
+/* "Workflows", under the diagram's text version. */
+.listHeading {
+  margin: var(--space-4) 0 0;
+}
+
 .items {
   list-style: none;
   padding-inline-start: 0;

@@ -90,6 +90,25 @@ export function renderOpenedProject({
   return { runner, resize, change, projects, ...view };
 }
 
+/**
+ * The Details heading, the selected item's name and what kind it is: in
+ * the Details tab of a wide window, or the Details panel of a narrow one.
+ * Null while Details shows nothing.
+ */
+export function queryDetailsHeading(): HTMLElement | null {
+  const details =
+    screen.queryByRole("tabpanel", { name: "Details" }) ??
+    screen.queryByRole("region", { name: "Details" });
+  return details && within(details).queryByRole("heading", { level: 4 });
+}
+
+/** The Details heading, which must be there. */
+export function detailsHeading(): HTMLElement {
+  const heading = queryDetailsHeading();
+  if (heading === null) throw new Error("Details should have a heading");
+  return heading;
+}
+
 /** The project bar, named by the sample project. */
 export function bar(): HTMLElement {
   return screen.getByRole("region", { name: "Sample project" });

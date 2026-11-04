@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Edge, Project } from "../../domain/model/project";
-import type { ComponentDetails, EdgeDetails } from "../details/details";
+import type {
+  ComponentDetails,
+  EdgeDetails,
+  WorkflowDetails,
+} from "../details/details";
 import { awsDescribeSelection } from "../testing/aws-describe-selection";
 import { sampleRecord } from "../testing/sample-record";
 
@@ -22,6 +26,15 @@ function edgeIn(project: Project, edgeId: string): EdgeDetails {
     selection: { kind: "edge", edgeId },
   });
   if (details?.kind !== "edge") throw new Error(`No ${edgeId}`);
+  return details;
+}
+
+function workflowIn(project: Project, workflowId: string): WorkflowDetails {
+  const details = describeSelection.execute({
+    project,
+    selection: { kind: "workflow", workflowId },
+  });
+  if (details?.kind !== "workflow") throw new Error(`No ${workflowId}`);
   return details;
 }
 
@@ -291,12 +304,119 @@ describe("DescribeSelection", () => {
     ]);
   });
 
+  // Fails if the outline loses a step, numbers one wrongly, names a step by
+  // its id or its component's id rather than its component's name, or
+  // drops an enqueue's async work or numbers it before the calls.
+  it("outlines a workflow's steps, numbered, async work after the calls", () => {
+    const withCall: Project = {
+      ...queued,
+      workflows: queued.workflows.map((workflow) => ({
+        ...workflow,
+        root: {
+          ...workflow.root,
+          calls: [
+            {
+              id: "queue-enqueue",
+              componentId: "queue",
+              action: "enqueue",
+              calls: [
+                { id: "table-write", componentId: "table", action: "write" },
+              ],
+              async: { id: "fn-invoke", componentId: "fn", action: "invoke" },
+            },
+          ],
+        },
+      })),
+    };
+
+    const { outline } = workflowIn(withCall, "write");
+
+    expect(outline).toEqual({
+      stepId: "api-invoke",
+      number: "1",
+      label: "API · invoke",
+      async: undefined,
+      calls: [
+        {
+          stepId: "queue-enqueue",
+          number: "1.1",
+          label: "Queue · enqueue",
+          calls: [
+            {
+              stepId: "table-write",
+              number: "1.1.1",
+              label: "Table · write",
+              calls: [],
+              async: undefined,
+            },
+          ],
+          async: {
+            stepId: "fn-invoke",
+            number: "1.1.2",
+            label: "Function · invoke",
+            calls: [],
+            async: undefined,
+          },
+        },
+      ],
+    });
+  });
+
+  // Fails if "Used by" misses a workload whose mix has the workflow, lists
+  // one whose mix doesn't, or loses the project's order.
+  it("names the workloads that use a workflow, in project order", () => {
+    const [steady] = sample.workloads;
+    if (steady === undefined) throw new Error("sample has no workload");
+    const project: Project = {
+      ...sample,
+      workloads: [
+        { ...steady, id: "spike", name: "Spike" },
+        { ...steady, id: "other", name: "Other", mix: [] },
+        steady,
+      ],
+    };
+
+    expect(workflowIn(project, "read").usedBy).toEqual(["Spike", "Steady"]);
+    expect(workflowIn({ ...project, workloads: [] }, "read").usedBy).toEqual(
+      [],
+    );
+  });
+
+  // Fails if a selected step doesn't show its workflow's outline, or isn't
+  // the one marked, or a workflow selected on its own marks a step.
+  it("marks the selected step in its workflow's outline", () => {
+    const step = describeSelection.execute({
+      project: sample,
+      selection: { kind: "step", workflowId: "read", stepId: "fn-invoke" },
+    });
+
+    expect(step?.kind === "workflow" && step.name).toBe("Read item");
+    expect(step?.kind === "workflow" && step.currentStepId).toBe("fn-invoke");
+    expect(workflowIn(sample, "read").currentStepId).toBeUndefined();
+  });
+
+  // Fails if a step whose component is gone is named by the component's
+  // id, which is never shown.
+  it("names a step whose component was removed without its id", () => {
+    const project = {
+      ...sample,
+      architecture: { components: [], edges: [] },
+    };
+
+    expect(workflowIn(project, "read").outline.label).toBe(
+      "a removed component · invoke",
+    );
+  });
+
   // Fails if a selection of something the project doesn't have throws, or
   // describes something else.
   it("describes nothing for an item the project doesn't have", () => {
     for (const selection of [
       { kind: "component", componentId: "gone" },
       { kind: "edge", edgeId: "gone" },
+      { kind: "workflow", workflowId: "gone" },
+      { kind: "step", workflowId: "gone", stepId: "fn-invoke" },
+      { kind: "step", workflowId: "read", stepId: "gone" },
     ] as const) {
       expect(describeSelection.execute({ project: sample, selection })).toBe(
         undefined,

@@ -15,6 +15,7 @@ import type { UseCases } from "../app/use-cases";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
   clickRun,
+  queryDetailsHeading,
   renderOpenedProject,
   savedRecord,
   statusRegions,
@@ -38,10 +39,6 @@ function removeSelected(): void {
 /** The Undo or Redo button, whatever it names. */
 function historyButton(verb: "Undo" | "Redo"): HTMLElement {
   return screen.getByRole("button", { name: new RegExp(`^${verb}\\b`) });
-}
-
-function detailsHeading(): HTMLElement | null {
-  return screen.queryByRole("heading", { level: 4 });
 }
 
 /** A text field in Details, by its label. */
@@ -121,7 +118,7 @@ describe("OpenedProject's undo and redo", () => {
       sampleRecord.project.architecture,
     );
     expect(saved.layout).toEqual(sampleRecord.layout);
-    expect(detailsHeading()?.textContent).toBe("Table · DynamoDB");
+    expect(queryDetailsHeading()?.textContent).toBe("Table · DynamoDB");
   });
 
   // Fails if the buttons don't name what they'd do, can be used with
@@ -217,6 +214,28 @@ describe("OpenedProject's undo and redo", () => {
     expect(screen.queryByText(/earlier version of the project/)).toBeNull();
   });
 
+  // Fails if an undo that leaves the selected step in the project clears
+  // the selection or moves it, or the outline isn't redrawn from the
+  // project the undo went to.
+  it("keeps a selected step through an undo that leaves it there", () => {
+    renderOpenedProject();
+    select("Function (lambda)");
+    typeAndLeave(field("Name"), "Orders");
+    select("Read item");
+    select("1.1 Orders · invoke");
+
+    // A click focuses the button in a browser, but not in jsdom.
+    historyButton("Undo").focus();
+    fireEvent.click(historyButton("Undo"));
+
+    expect(queryDetailsHeading()?.textContent).toBe("Read item · Workflow");
+    const step = screen.getByRole("button", { name: "1.1 Function · invoke" });
+    expect(step.getAttribute("aria-current")).toBe("true");
+    expect(undoneRegion().textContent).toBe(
+      "Undid: rename Function to Orders.",
+    );
+  });
+
   // Fails if undoing the add of the selected component leaves it
   // selected, or moves the focus off Undo.
   it("clears the selection when undoing the add of the selected component", () => {
@@ -228,7 +247,7 @@ describe("OpenedProject's undo and redo", () => {
       .find((button) => button.textContent.startsWith("SQS:"));
     if (sqs === undefined) throw new Error("No SQS type");
     fireEvent.click(sqs);
-    expect(detailsHeading()?.textContent).toBe("sqs-1 · SQS");
+    expect(queryDetailsHeading()?.textContent).toBe("sqs-1 · SQS");
 
     // A click focuses the button in a browser, but not in jsdom.
     historyButton("Undo").focus();
@@ -236,7 +255,7 @@ describe("OpenedProject's undo and redo", () => {
 
     // Details says "Nothing selected" for a selection that's gone, so the
     // Run tab, which clearing shows, is what says the selection cleared.
-    expect(detailsHeading()).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
     const runTab = screen.getByRole("tab", { name: "Run" });
     expect(runTab.getAttribute("aria-selected")).toBe("true");
     expect(undoneRegion().textContent).toBe("Undid: add sqs-1.");

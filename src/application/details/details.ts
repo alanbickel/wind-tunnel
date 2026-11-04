@@ -6,7 +6,7 @@ import type { SettingFieldDescriptor } from "./field-descriptor";
  * What the Details tab shows for a selection, worded here so every screen
  * that shows it says the same thing.
  */
-export type Details = ComponentDetails | EdgeDetails;
+export type Details = ComponentDetails | EdgeDetails | WorkflowDetails;
 
 /** One setting, read-only. */
 export interface SettingDetails {
@@ -98,6 +98,42 @@ export interface EdgeDetails {
   readonly defaults: EdgeSettings | undefined;
   /** What Remove's confirmation says. */
   readonly removal: RemovalText;
+}
+
+/**
+ * A workflow, or a step in it: its name, the workloads that use it, and
+ * its steps as a numbered outline (UX design §2.5 step 3). A selected step
+ * shows its workflow's details, with the step named by `currentStepId`.
+ */
+export interface WorkflowDetails {
+  readonly kind: "workflow";
+  readonly workflowId: string;
+  readonly name: string;
+  /** The names of the workloads whose mix has it, in project order. */
+  readonly usedBy: readonly string[];
+  /** The workflow's first step, with every step under it. */
+  readonly outline: OutlineStep;
+  /** The selected step's id; undefined when the workflow itself is selected. */
+  readonly currentStepId: string | undefined;
+}
+
+/**
+ * One step of a workflow's outline, named by its component and its action;
+ * its id is for selecting it, never for showing.
+ */
+export interface OutlineStep {
+  readonly stepId: string;
+  /** Its place in the outline, e.g. "1.1.1": its caller's number, then its own. */
+  readonly number: string;
+  /** E.g. "orders-db · read". */
+  readonly label: string;
+  /** The steps it calls, in order. */
+  readonly calls: readonly OutlineStep[];
+  /**
+   * An `enqueue`'s async work, numbered after its calls, as the work the
+   * step leads to; undefined for a step without any.
+   */
+  readonly async: OutlineStep | undefined;
 }
 
 /** A workflow step that calls along an edge: its workflow, and what it does. */

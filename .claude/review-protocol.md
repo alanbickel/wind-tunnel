@@ -19,7 +19,7 @@ A comment from the maintainer outranks any session's, but it isn't beyond questi
 
 - **Push back** with a `🤖 Claude question:` where the comment was (its thread, or the PR or issue), and add `needs-decision`. Hold only that point: finish the rest of the work, then stop.
 - **As many rounds as it takes.** The exchange ends when the maintainer states the same position in two comments in a row, with only the session's pushback between them. Then the session does what it says, without another question.
-- **Waiting for an answer** means waiting for a maintainer comment that answers a `🤖 Claude question:`: after it on the PR or issue, or after it in its thread. One comment can come after several questions and answer only some of them, so judge each question by what the comment says. The first session that finds an answer acts on it (or pushes back).
+- **Waiting for an answer** means waiting for a maintainer comment that answers a `🤖 Claude question:`: after it on the PR or issue, after it in its thread, or in the thread of a finding it links. One comment can come after several questions and answer only some of them, so judge each question by what the comment says. The first session that finds an answer acts on it (or pushes back).
 - **Removing `needs-decision`:** only when every `🤖 Claude question:` on that PR or issue, including those in threads, has a maintainer answer: `gh pr edit <n> --remove-label needs-decision`, or `gh issue edit`. Otherwise leave the label, and name the questions still open in the session's summary or reply.
 
 ## Findings

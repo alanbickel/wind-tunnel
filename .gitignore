@@ -14,3 +14,6 @@ coverage/
 .env*
 .DS_Store
 Thumbs.db
+
+# Session logs from the development automation driver (scripts/ai-dlc.js, AI-DLC.md)
+ai-dlc-logs/

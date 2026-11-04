@@ -33,7 +33,7 @@ Skip the [MVP design](design/mvp-design.md) for now. It's the detailed reference
 
 1. Find the current task in the pinned [Roadmap](https://github.com/alanbickel/wind-tunnel/issues/32) ([how to pick it](../CONTRIBUTING.md#milestones-and-the-roadmap)).
 2. Find where the code goes in the overview's ["Where does my code go?"](architecture/architecture-overview.md#where-does-my-code-go) table, and read the guide it names.
-3. Read the [contributing guide](../CONTRIBUTING.md) before writing code. The coding standards are strict, and lint fails on a violation. (~12 min)
+3. Read the [contributing guide](../CONTRIBUTING.md) (~5 min) and its [coding standards](contributing/coding-standards.md) (~8 min) before writing code. The standards are strict, and lint fails on a violation. Read [Tests](contributing/testing.md) and [Documentation](contributing/documentation.md) before your first test or doc change.
 4. Run `npm run check` before you open a PR.
 
 ## Learn by running traces

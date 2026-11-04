@@ -28,13 +28,12 @@ The code follows Clean Architecture ([ADR-0002](docs/adr/0002-use-clean-architec
 - **Imports point inward only:** `ui`/`adapters` → `application` → `domain`. `ui/` gets adapters through dependency injection and may import only types from `domain/`.
 - **`domain/` and `application/` are deterministic.** No `Math.random`, `Date.now`, or `new Date`; no React, DOM, Worker, or Node APIs. Randomness comes from a seeded `RandomSource` and time from the `Clock` port, so the same seed always gives the same run. Libraries are allowed there only when an ADR approves them ([ADR-0005](docs/adr/0005-use-zod-for-schema-validation.md)).
 - **Register, don't edit the engine (Open/Closed).** A new component type is a new `ComponentDefinition` added to the registry. It returns effects to the engine and never schedules events itself ([ADR-0006](docs/adr/0006-components-return-effects-to-the-engine.md)). See [Adding a component type](#adding-a-component-type).
-- **Significant decisions get an ADR** in `docs/adr/` (copy [the template](docs/adr/template.md)). An accepted ADR's text is never reworded or removed. A later change that affects it, or changes part of its decision, gets a dated addendum at the end; when its main decision no longer holds, a new ADR supersedes it ([ADR-0001](docs/adr/0001-record-architecture-decisions.md)).
 
 ## Coding standards
 
 These heuristics encourage healthy habits and steer away from shapes that invite defects. Be kind to your fellow maintainers: if you wouldn't want to maintain it, don't commit it.
 
-ESLint and the architecture tests check rules 2, 5, 6, 7, 10, and 11 (see [Enforcement](#enforcement)), and a violation fails `npm run check` and CI. Reviewers check the rest.
+ESLint and the architecture tests check some of these rules ([Enforcement](#enforcement)), and a violation fails `npm run check` and CI. Reviewers check the rest.
 
 **Exceptions** are allowed but must be justified in writing. If the reason isn't worth writing, the exception isn't worth making. Put the reason after `--` in the disable comment:
 
@@ -393,7 +392,6 @@ A PR is done when CI is green, every finding has an answer the reviewer accepted
 ### Claude sessions
 
 - On an issue branch, Claude commits, pushes, and opens or updates the PR without asking first. The PR is where the maintainer reviews the work. Claude never commits to `main` directly.
-- Use `/pr-review` from a different session than the one that wrote the PR, so the review starts from a clean context.
 
 ## Commits
 
@@ -402,4 +400,3 @@ A PR is done when CI is green, every finding has an answer the reviewer accepted
   - **type:** `feat`, `fix`, `refactor`, `test`, `docs`, or `chore`.
   - **scope:** the layer or area: `domain`, `application`, `adapters`, `ui`. Leave it out when a change spans several.
   - For example: `feat(domain): add SQS visibility timeout`.
-- Refactors go in their own PR, merged before the behavior change (see [Refactor first](#coding-standards)), so `main` shows the refactor on its own.

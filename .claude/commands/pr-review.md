@@ -71,8 +71,8 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
 
 1. **Does it do what the issue asks?** Check each point and each out-of-scope item. Check that the claims in the PR description are true.
 2. **Correctness.** Look for edge cases: empty, zero, infinite, removed items, a run that ends with work still in progress. Check that the same seed still gives the same run.
-3. **Architecture rules** (CONTRIBUTING §Architecture rules): imports point inward only; `domain/` and `application/` stay free of React, DOM, Worker, Node APIs, `Math.random`, `Date.now` and `new Date`; a new component type is registered, not added to the engine; a significant decision has an ADR, and no accepted ADR's body or decision was edited.
-4. **Coding standards that ESLint can't check:** single-responsibility functions (1), guard clauses (3), lookup maps instead of branching (4), named types and parameter-object names (8), units in names (9), collaborators built by helper functions that rule 10's lint selector can't see, and where role interfaces live (11). Exceptions need a reason after `--` in the disable comment. A refactor of existing code belongs in its own PR, not mixed with a behavior change. Leave out what ESLint and Prettier already enforce.
+3. **Architecture rules** (CONTRIBUTING §Architecture rules), and ADRs (CONTRIBUTING §ADRs): a significant decision has one, and no accepted ADR's body or decision was edited.
+4. **Coding standards that ESLint can't check:** the ones CONTRIBUTING's Enforcement table leaves to reviewers. Exceptions need a reason after `--` in the disable comment. A refactor of existing code belongs in its own PR, not mixed with a behavior change. Leave out what ESLint and Prettier already enforce.
 5. **Tests and docs** (CONTRIBUTING §Tests and §Documentation):
    - Outputs reconcile: any new counter or column has a check that the totals add up.
    - A doc that quotes test output ("Docs backed by tests") is updated with the snapshot it quotes.

@@ -1,6 +1,6 @@
 # Review protocol
 
-How Claude sessions talk to each other through GitHub: `/pr-review`, `/pr-address`, an author session, and the issue loop driver (#127). Each of them reads this file; it is the only place these rules are written. People need only CONTRIBUTING's [Reviews](../CONTRIBUTING.md#reviews).
+How Claude sessions talk to each other through GitHub: `/pr-review`, `/pr-address`, an author session, and the issue loop driver (`scripts/sdlc-loop.js`). Each of them reads this file; it is the only place these rules are written. People need only CONTRIBUTING's [Reviews](../CONTRIBUTING.md#reviews).
 
 Every comment a Claude session posts goes out under the maintainer's account, so it starts with a prefix that says who wrote it and lets later sessions find it. A comment from the maintainer has no `🤖` prefix.
 
@@ -12,6 +12,7 @@ Every comment a Claude session posts goes out under the maintainer's account, so
 | `🤖 Claude (author):` | PR: a reply in a finding's thread | the author session and `/pr-address` | An answer to a finding, starting with its answer tag. |
 | `🤖 Claude question:` | the issue, the PR, or a finding's thread, wherever it came up | any session | A decision for the maintainer: what needs deciding, the options, and a recommendation. The session adds the `needs-decision` label and stops. The label is the signal; whoever needs the questions finds the comments with this prefix. The maintainer answers in a comment after the question, or in the finding's thread. The label comes off only when every question on that PR or issue has an answer (see "The maintainer's comments"). |
 | `🤖 Claude decisions:` | issue | the author session and `/pr-address` | Choices made without asking, so the maintainer can review several sessions' choices in one place: every deferral, and what the session chose to document, what it left out, and why. |
+| `🤖 Claude deferred checks:` | issue | the author session, only in a driver run with `--defer-manual-checks` | The issue's "Done when" checks that need a person, as a Markdown checklist, left for the maintainer. The reviewer counts a listed check as met. The driver collects them onto the parent issue at the end of the run. |
 
 ## The maintainer's comments
 

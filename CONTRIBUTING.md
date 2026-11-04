@@ -112,6 +112,61 @@ A comment from the maintainer outranks both commands. A session can still disagr
 
 A PR is done when CI is green, every finding has an answer the reviewer accepted, where a test applies the tests check the success case and the invariants and each new or changed test has a `// Fails if` comment naming a change that provably turns it red, and the maintainer has merged it.
 
+### The issue loop
+
+[`scripts/sdlc-loop.js`](scripts/sdlc-loop.js) takes a list of issues through the steps above unattended. Each step (start, review, address) is its own fresh headless `claude -p` session (Opus 5.5 at medium effort, at most 150 turns), and GitHub is the only state the steps share. The sessions talk to each other and to the maintainer as [the review protocol](.claude/review-protocol.md) says.
+
+**Set it up in a separate clone**, in a folder of its own. The driver switches branches in its checkout, and its sessions create worktrees beside it (`../wind-tunnel-review-<n>`, `../wind-tunnel-address-<n>`), so in the folder that holds your own checkout they could collide with your interactive work.
+
+```sh
+mkdir wind-tunnel-loop && cd wind-tunnel-loop
+git clone https://github.com/alanbickel/wind-tunnel.git
+cd wind-tunnel && npm ci
+```
+
+It needs `gh` signed in and Claude Code. The driver passes each session's allowed and denied tools itself, so the clone needs no local settings.
+
+**Run it** from the clone, on a clean `main`:
+
+```sh
+node scripts/sdlc-loop.js 119 120 121 122 --merge --defer-manual-checks
+```
+
+It works through the issues in the order given, not the Roadmap's:
+
+```mermaid
+flowchart TD
+  nextIssue["Next issue"] --> closed{"Closed?"}
+  closed -- yes --> nextIssue
+  closed -- no --> waiting{"A question<br/>waiting?"}
+  waiting -- yes --> askStop["Stop, exit 2"]
+  waiting -- no --> hasPr{"Open PR?"}
+  hasPr -- no --> author["Author session<br/>opens one PR"]
+  author --> ci["Wait for CI"]
+  hasPr -- yes --> ci
+  ci --> review["/pr-review"]
+  review --> verdict{"Verdict"}
+  verdict -- "merge after fixes" --> address["/pr-address"]
+  address --> ci
+  verdict -- "needs rework, or<br/>a 3rd 'after fixes'" --> askStop
+  verdict -- "ready to merge" --> merged["Squash-merge<br/>(--merge)"]
+  merged --> nextIssue
+```
+
+- **`--merge`** squash-merges a PR once every one of the review protocol's "ready to merge" conditions for a script holds, then goes on to the next issue. Without it, the driver stops at the first ready PR, because the next issue may build on it.
+- **`--defer-manual-checks`** is an exception for experiments; the rule in [Reviews](#reviews) doesn't change. Authors list the "Done when" checks that need a person in a `🤖 Claude deferred checks:` comment on the issue instead of doing them, and the reviewer counts a listed check as met. When the whole list is done, the driver collects the checks into one checklist comment on each issue's parent.
+
+**It stops** and leaves the rest to you, never skipping ahead, when the working tree isn't clean before a step (it names the step that left it so), a session ends with an error or reaches its turn limit, CI fails, the author session opens no PR or more than one, a review says "needs rework" or still says "merge after fixes" after three rounds (the driver posts its own question on the PR), or a question is waiting for you. Exit code 1 means something failed. Exit code 2 means a question is waiting: the driver prints it with its link and rings the terminal bell.
+
+**To resume,** answer the question on GitHub, after it or in its thread, and run the same command again. The driver goes on once a maintainer comment is newer than the newest question, and the session that acts on your answer removes `needs-decision`. A rerun skips closed issues, starts any issue that has no open PR, and takes an open PR to review, or to `/pr-address` if the latest review is of its head commit.
+
+**Afterward, read:**
+
+- each issue's `🤖 Claude decisions:` comments, the choices sessions made without asking
+- the PRs' review threads
+- with `--defer-manual-checks`, the checklist on the parent issue
+- `sdlc-logs/` (gitignored), when a step needs looking into: each session's stream as JSON lines, and `steps.jsonl`, one line per step with its cost, turns, time, and the 5-hour usage before and after. `claude --resume <sessionId>` reopens a step's session.
+
 ## Commits
 
 - One logical change per PR, with its tests and docs. Each PR becomes one commit on `main`, and `npm run check` passes on every PR.

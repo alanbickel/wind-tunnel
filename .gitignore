@@ -14,3 +14,6 @@ coverage/
 .env*
 .DS_Store
 Thumbs.db
+
+# Session logs from the issue loop driver (scripts/sdlc-loop.js)
+sdlc-logs/

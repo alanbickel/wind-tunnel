@@ -7,6 +7,7 @@ import type { Edge } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
   cantRunRegion,
+  detailsHeading,
   renderOpenedProject,
   savedRecord,
 } from "./testing/render-opened-project";
@@ -30,7 +31,7 @@ function edgeOf(
 
 /** Details' polite region, which says what a field or Connect did. */
 function detailsRegion(): HTMLElement {
-  const heading = screen.getByRole("heading", { level: 4 });
+  const heading = detailsHeading();
   const region = heading
     .closest("div[class]")
     ?.parentElement?.querySelector(':scope > [role="status"]');

@@ -201,7 +201,7 @@ function SideTabs(props: ColumnProps) {
 
 /** The Details tab's content: the selection's details, or that there's none. */
 function DetailsTab({ project, selecting, onEdit, onRemove }: ColumnProps) {
-  const { selection, close, takeFocus } = selecting;
+  const { selection, selectWithin, close, takeFocus } = selecting;
   if (selection === undefined) return <NothingSelected />;
   return (
     <SelectionDetails
@@ -209,6 +209,7 @@ function DetailsTab({ project, selecting, onEdit, onRemove }: ColumnProps) {
       selection={selection}
       onEdit={onEdit}
       onRemove={onRemove}
+      onSelect={selectWithin}
       onClose={close}
       takeFocus={takeFocus}
     />
@@ -218,7 +219,7 @@ function DetailsTab({ project, selecting, onEdit, onRemove }: ColumnProps) {
 /** Under the architecture: Details while something is selected, then Run. */
 function Stacked(props: ColumnProps) {
   const { project, projectRun, selecting, onEdit, onRemove } = props;
-  const { selection, close, takeFocus } = selecting;
+  const { selection, selectWithin, close, takeFocus } = selecting;
   return (
     <>
       {selection !== undefined && (
@@ -228,6 +229,7 @@ function Stacked(props: ColumnProps) {
             selection={selection}
             onEdit={onEdit}
             onRemove={onRemove}
+            onSelect={selectWithin}
             onClose={close}
             takeFocus={takeFocus}
             closable

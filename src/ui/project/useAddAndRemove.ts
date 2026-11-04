@@ -119,7 +119,10 @@ interface Removal {
   readonly message: string;
 }
 
-/** Each kind's remove, or undefined if the record has no such item. */
+/**
+ * Each kind's remove, or undefined if the record has no such item, or the
+ * kind can't be removed.
+ */
 const REMOVALS: KindHandlers<
   Selection,
   (record: ProjectRecord) => Removal | undefined
@@ -155,4 +158,7 @@ const REMOVALS: KindHandlers<
         message: `Removed ${edge}.`,
       };
     },
+  // Nothing removes a workflow or a step yet (issues 116 and 117).
+  workflow: () => () => undefined,
+  step: () => () => undefined,
 };

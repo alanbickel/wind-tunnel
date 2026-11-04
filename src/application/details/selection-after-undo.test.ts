@@ -58,6 +58,72 @@ describe("selectionAfterUndo", () => {
     expect(changes).toEqual([{ kind: "clear" }, { kind: "clear" }]);
   });
 
+  // Fails if a step or a workflow is kept once the undo or redo takes it
+  // away, or a step is looked for in another workflow than its own. No
+  // edit removes a step yet (#117), so the projects are built here.
+  it("clears a selected step or workflow the undo or redo takes away", () => {
+    const [read] = sample.workflows;
+    if (read === undefined) throw new Error("sample has no workflow");
+    const withoutWorkflow = { ...sample, workflows: [] };
+    const withoutStep = {
+      ...sample,
+      workflows: [{ ...read, root: { ...read.root, calls: [] } }],
+    };
+    const step = {
+      kind: "step",
+      workflowId: "read",
+      stepId: "table-read",
+    } as const;
+    const elsewhere = { ...step, workflowId: "other" };
+    const workflow = { kind: "workflow", workflowId: "read" } as const;
+
+    const changes = [
+      selectionAfterUndo({ from: sample, to: withoutStep, selection: step }),
+      selectionAfterUndo({
+        from: sample,
+        to: withoutWorkflow,
+        selection: step,
+      }),
+      selectionAfterUndo({ from: sample, to: sample, selection: elsewhere }),
+      selectionAfterUndo({
+        from: sample,
+        to: withoutWorkflow,
+        selection: workflow,
+      }),
+    ];
+
+    expect(changes).toEqual([
+      { kind: "clear" },
+      { kind: "clear" },
+      { kind: "clear" },
+      { kind: "clear" },
+    ]);
+  });
+
+  // Fails if an edit that leaves a selected step or workflow in the
+  // project clears it, as Undo after a rename would.
+  it("keeps a selected step or workflow that's still there", () => {
+    const renamed = renameComponent(sampleRecord, {
+      componentId: "table",
+      name: "Orders",
+    }).project;
+
+    const changes = [
+      selectionAfterUndo({
+        from: renamed,
+        to: sample,
+        selection: { kind: "step", workflowId: "read", stepId: "table-read" },
+      }),
+      selectionAfterUndo({
+        from: renamed,
+        to: sample,
+        selection: { kind: "workflow", workflowId: "read" },
+      }),
+    ];
+
+    expect(changes).toEqual([{ kind: "keep" }, { kind: "keep" }]);
+  });
+
   // Fails if a change that leaves the selected thing in the project, or a
   // remove of something else, clears or changes the selection.
   it("keeps a selection that's still there", () => {

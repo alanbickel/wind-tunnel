@@ -43,7 +43,7 @@ flowchart LR
 
 Thick arrows are this workflow's calls; the dotted one is an edge this workflow doesn't use ("Get order" does). Every thick arrow must sit on an edge, because the edge supplies the call's latency, timeout, and retry policy. The `async` step is different from a nested call: the user's request completes once the message is enqueued, and the queue calls `fn-writer` later.
 
-Each step has an `id`, unique among all the project's steps. It's how the screen selects a step and how an edit names one, since a step's path in the tree shifts when a sibling moves or is removed. It's identity, not content: the engine and metrics never read it, and it's never shown; a step is named by its component and action ([ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)). [`step-tree.ts`](../../src/domain/model/step-tree.ts) walks a project's steps (`stepsOf`, each with its path) and rebuilds a tree (`mapSteps`); use them rather than writing the recursion again.
+Each step has an `id`, unique among all the project's steps. It's how the screen selects a step and how an edit names one, since a step's path in the tree shifts when a sibling moves or is removed. It's identity, not content: the engine and metrics never read it, and it's never shown; a step is named by its component and action ([ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)). [`step-tree.ts`](../../src/domain/model/step-tree.ts) walks a project's steps (`stepsOf`, each with its path) or one workflow's (`stepsOfWorkflow`), and rebuilds a tree (`mapSteps`); use them rather than writing the recursion again.
 
 ## Validation: who checks what
 

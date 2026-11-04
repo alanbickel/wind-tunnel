@@ -1,5 +1,6 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
 import type { Project } from "../../domain/model/project";
+import { stepsOfWorkflow } from "../../domain/model/step-tree";
 import {
   handleKind,
   type KindHandlers,
@@ -9,6 +10,7 @@ import type { Details } from "../details/details";
 import { edgeDetails } from "../details/edge-details";
 import type { FieldCatalog } from "../details/field-descriptor";
 import type { Selection } from "../details/selection";
+import { workflowDetails } from "../details/workflow-details";
 
 export interface DescribeSelectionDependencies {
   /** Each type's display name and default config. */
@@ -24,10 +26,12 @@ export interface DescribeSelectionInput {
 }
 
 /**
- * What the Details tab shows for a selected component or edge (UX design
- * §4.1): its settings, with their labels, units, help, and defaults, what
- * an editor needs, and what calls it. An edge's defaults are its caller
- * type's. Undefined if the project has no such item.
+ * What the Details tab shows for a selection (UX design §4.1): for a
+ * component or an edge, its settings, with their labels, units, help, and
+ * defaults, what an editor needs, and what calls it; an edge's defaults are
+ * its caller type's. For a workflow, or a step in one, the workflow's
+ * outline and the workloads that use it. Undefined if the project has no
+ * such item.
  */
 export class DescribeSelection {
   private readonly deps: DescribeSelectionDependencies;
@@ -47,6 +51,10 @@ export class DescribeSelection {
       component: ({ componentId }) =>
         this.describeComponent({ project, id: componentId }),
       edge: ({ edgeId }) => this.describeEdge({ project, id: edgeId }),
+      workflow: ({ workflowId }) =>
+        describeWorkflow({ project, id: workflowId, stepId: undefined }),
+      step: ({ workflowId, stepId }) =>
+        describeWorkflow({ project, id: workflowId, stepId }),
     };
   }
 
@@ -84,4 +92,28 @@ export class DescribeSelection {
 interface ItemInput {
   readonly project: Project;
   readonly id: string;
+}
+
+/** A selected workflow, or the step selected in it. */
+interface WorkflowItemInput extends ItemInput {
+  /** The selected step's id; undefined for the workflow itself. */
+  readonly stepId: string | undefined;
+}
+
+/**
+ * The workflow's outline, with the step marked if one is selected;
+ * undefined if the project has no such workflow, or it has no such step.
+ */
+function describeWorkflow({
+  project,
+  id,
+  stepId,
+}: WorkflowItemInput): Details | undefined {
+  const workflow = project.workflows.find((w) => w.id === id);
+  if (workflow === undefined) return undefined;
+  const steps = stepsOfWorkflow(workflow);
+  if (stepId !== undefined && !steps.some((s) => s.id === stepId)) {
+    return undefined;
+  }
+  return workflowDetails({ project, workflow, currentStepId: stepId });
 }

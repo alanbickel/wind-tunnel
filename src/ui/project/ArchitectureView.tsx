@@ -4,6 +4,7 @@ import type {
   ProjectRecord,
 } from "../../application/ports/project-record";
 import type { Selection } from "../../application/details/selection";
+import type { Workflow } from "../../domain/model/project";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { Diagram } from "../diagram/Diagram";
 import {
@@ -42,7 +43,8 @@ export interface ArchitectureViewProps {
  * moves by dragging it, or with the arrow keys once it has the focus; its
  * place is only visual, so the text version doesn't change. With no
  * components, a line under "Add component" says what to do instead (UX
- * design §2.1 step 1).
+ * design §2.1 step 1). Under them all, the workflows, each a button that
+ * selects it.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
   const content = useMemo(() => diagramOf(props.record), [props.record]);
@@ -54,9 +56,72 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       ) : (
         <Drawing {...props} content={content} />
       )}
+      <WorkflowList
+        workflows={props.record.project.workflows}
+        selection={props.selection}
+        onSelect={props.onSelect}
+      />
     </Panel>
   );
 }
+
+interface WorkflowListProps {
+  readonly workflows: readonly Workflow[];
+  readonly selection: Selection | undefined;
+  readonly onSelect: (selection: Selection) => void;
+}
+
+/**
+ * "Workflows", and a button for each, in project order, marked current
+ * while its workflow, or a step in it, is selected; or a line on what a
+ * workflow is, while there are none (UX design §2.5 step 1).
+ */
+function WorkflowList(props: WorkflowListProps) {
+  return (
+    <>
+      <h4 className={styles.listHeading}>Workflows</h4>
+      {props.workflows.length === 0 ? (
+        <p>
+          No workflows yet. A workflow is the path one kind of request takes
+          through your architecture.
+        </p>
+      ) : (
+        <WorkflowRows {...props} />
+      )}
+    </>
+  );
+}
+
+/** The list's rows, one button per workflow. */
+function WorkflowRows({ workflows, selection, onSelect }: WorkflowListProps) {
+  const shown = selection && dispatchKind(SHOWN_WORKFLOW, selection);
+  return (
+    <ul aria-label="Workflows" className={styles.items}>
+      {workflows.map(({ id, name }) => (
+        <li key={id}>
+          <button
+            type="button"
+            className={styles.item}
+            aria-current={id === shown || undefined}
+            onClick={() => {
+              onSelect({ kind: "workflow", workflowId: id });
+            }}
+          >
+            {name}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The workflow whose outline Details shows for each kind of selection. */
+const SHOWN_WORKFLOW: KindHandlers<Selection, string | undefined> = {
+  component: () => undefined,
+  edge: () => undefined,
+  workflow: ({ workflowId }) => workflowId,
+  step: ({ workflowId }) => workflowId,
+};
 
 interface DrawingProps extends ArchitectureViewProps {
   readonly content: DiagramContent;
@@ -112,10 +177,15 @@ function useDiagramSelection({
   return { selected, onItem };
 }
 
-/** The diagram's item for each kind of selection it can show. */
-const DIAGRAM_ITEMS: KindHandlers<Selection, DiagramItem> = {
+/**
+ * The diagram's item for each kind of selection, or undefined for one it
+ * doesn't show yet: a workflow's path, and a step's, are issue 121's.
+ */
+const DIAGRAM_ITEMS: KindHandlers<Selection, DiagramItem | undefined> = {
   component: ({ componentId }) => ({ kind: "node", id: componentId }),
   edge: ({ edgeId }) => ({ kind: "edge", id: edgeId }),
+  workflow: () => undefined,
+  step: () => undefined,
 };
 
 /** The selection each kind of diagram item stands for. */

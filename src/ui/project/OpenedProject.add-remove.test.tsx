@@ -6,6 +6,8 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
   cantRunRegion,
+  detailsHeading,
+  queryDetailsHeading,
   renderOpenedProject,
   savedRecord,
 } from "./testing/render-opened-project";
@@ -34,10 +36,6 @@ function select(name: string): void {
   const button = screen.getByRole("button", { name });
   button.focus();
   fireEvent.click(button);
-}
-
-function detailsHeading(): HTMLElement {
-  return screen.getByRole("heading", { level: 4 });
 }
 
 /** The polite region beside "Add component", which says what a remove took. */
@@ -112,7 +110,7 @@ describe("OpenedProject's adding and removing components", () => {
       "api-fn",
     ]);
     expect(saved.project.workflows).toEqual(sampleRecord.project.workflows);
-    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
     expect(document.activeElement).toBe(addButton());
     expect(cantRunRegion().textContent).toBe(
       "Steady can't run yet: Read item calls a component that isn't in the architecture any more.",

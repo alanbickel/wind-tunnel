@@ -1,4 +1,5 @@
 import type { Project } from "../../domain/model/project";
+import { stepsOfWorkflow } from "../../domain/model/step-tree";
 import {
   handleKind,
   type KindHandlers,
@@ -21,7 +22,10 @@ export interface SelectChange {
   readonly selection: Selection;
 }
 
-/** Clears the selection, whose component or edge the undo or redo took away. */
+/**
+ * Clears the selection, whose component, edge, workflow, or step the undo
+ * or redo took away.
+ */
 export interface ClearChange {
   readonly kind: "clear";
 }
@@ -35,7 +39,8 @@ export interface KeepChange {
  * The selection after an undo or a redo (UX design §4.1). One that brings
  * back a component, as undoing its remove does, selects it; one that brings
  * back only an edge selects the edge. One that takes away the selected
- * component or edge clears the selection. Anything else keeps it.
+ * component, edge, workflow, or step clears the selection: a step goes
+ * when it leaves its workflow, or its workflow goes. Anything else keeps it.
  */
 export function selectionAfterUndo({
   from,
@@ -78,7 +83,7 @@ function firstNew<T extends Identified>(
   return items.find((item) => !ids.has(item.id));
 }
 
-/** Whether the project has the selected component or edge. */
+/** Whether the project has the selected component, edge, workflow, or step. */
 function isIn(project: Project, selection: Selection): boolean {
   return handleKind(PRESENCE, selection)(project);
 }
@@ -92,4 +97,17 @@ const PRESENCE: KindHandlers<Selection, (project: Project) => boolean> = {
     ({ edgeId }) =>
     ({ architecture }) =>
       architecture.edges.some((e) => e.id === edgeId),
+  workflow:
+    ({ workflowId }) =>
+    ({ workflows }) =>
+      workflows.some((w) => w.id === workflowId),
+  step:
+    ({ workflowId, stepId }) =>
+    ({ workflows }) => {
+      const workflow = workflows.find((w) => w.id === workflowId);
+      return (
+        workflow !== undefined &&
+        stepsOfWorkflow(workflow).some((s) => s.id === stepId)
+      );
+    },
 };

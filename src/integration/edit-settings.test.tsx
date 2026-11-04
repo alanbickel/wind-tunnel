@@ -24,7 +24,10 @@ import { createAwsComponentRegistry } from "../domain/components/aws";
 import type { Component, Project } from "../domain/model/project";
 import type { UseCases } from "../ui/app/use-cases";
 import { stubDiagramBrowserApis } from "../ui/diagram/testing/stub-diagram-browser-apis";
-import { renderOpenedProject } from "../ui/project/testing/render-opened-project";
+import {
+  queryDetailsHeading,
+  renderOpenedProject,
+} from "../ui/project/testing/render-opened-project";
 
 /** Renders the project, and selects a component from the diagram's text version. */
 function openAndSelect(
@@ -171,7 +174,7 @@ describe("editing a component's settings", () => {
 
     fireEvent.keyDown(field("Query workers"), { key: "Escape" });
 
-    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
   });
 
   // Fails if the p99 rule is unchecked or worded on the wrong field, or a
@@ -221,7 +224,7 @@ describe("editing a component's settings", () => {
     expect(field("p99", queryTime).value).toBe("60");
     expect(await projects.list()).toEqual([]);
     fireEvent.keyDown(kind, { key: "Escape" });
-    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
   });
 
   // Fails if Escape on the kind picker doesn't put back the saved kind and

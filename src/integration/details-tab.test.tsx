@@ -159,7 +159,7 @@ describe("the Details tab, for the templates", () => {
 
     expect(selectedTab()).toBe("Run");
     expect(document.activeElement).toBe(button);
-    expect(screen.queryByRole("heading", { level: 4 })).toBeNull();
+    expect(screen.queryByRole("tabpanel", { name: "Details" })).toBeNull();
     expect(
       screen
         .getByRole("button", { name: "orders-db (rds)" })
@@ -257,6 +257,90 @@ describe("the Details tab, for the templates", () => {
     },
     EVERY_COMPONENT_TIMEOUT_MS,
   );
+});
+
+describe("the Details tab, for the templates' workflows", () => {
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  /** The outline's steps, as their buttons read. */
+  function outlineSteps(): HTMLElement[] {
+    const outline = within(detailsTab()).getByRole("list", { name: "Steps" });
+    return within(outline).getAllByRole("button");
+  }
+
+  // Fails if Template A's outlines lose a step, number one wrongly, name a
+  // step by an id, or "Used by" misses a workload or loses their order.
+  it("outlines Template A's workflows, numbered, with the workloads that use them", () => {
+    renderProject(projectA);
+    const usedBy =
+      "Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s";
+
+    selectFromText("Get order");
+    expect(detailsHeading().textContent).toBe("Get order · Workflow");
+    expect(within(detailsTab()).getByText(usedBy)).toBeTruthy();
+    expect(outlineSteps().map((step) => step.textContent)).toEqual([
+      "1 API Gateway · invoke",
+      "1.1 fn-orders · invoke",
+      "1.1.1 orders-db · read",
+    ]);
+    selectFromText("Create order");
+    expect(outlineSteps().at(-1)?.textContent).toBe("1.1.1 orders-db · write");
+  });
+
+  // Fails if any workflow of either template can't be selected from the
+  // list, or any of its steps, async work included, can't be selected
+  // from the outline and marked current.
+  it.each([
+    ["Template A", projectA],
+    ["Template B", projectB],
+  ])("selects every workflow and step of %s", (_name, project) => {
+    renderProject(project);
+
+    for (const workflow of project.workflows) {
+      selectFromText(workflow.name);
+      expect(detailsHeading().textContent).toBe(`${workflow.name} · Workflow`);
+      selectEachStep();
+    }
+  });
+
+  /** Selects each step of the outline in turn, checking it's marked. */
+  function selectEachStep(): void {
+    const names = outlineSteps().map((step) => step.textContent);
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      const step = selectFromText(name);
+      expect(step.getAttribute("aria-current"), name).toBe("true");
+    }
+  }
+
+  // Fails if Template B's enqueue loses its async work, or the async list
+  // isn't named by the label that says when it's done (drop its
+  // aria-labelledby).
+  it("shows Template B's async work under its enqueue", () => {
+    renderProject(projectB);
+
+    selectFromText("Create order");
+
+    expect(outlineSteps().map((step) => step.textContent)).toEqual([
+      "1 API Gateway · invoke",
+      "1.1 fn-api · invoke",
+      "1.1.1 orders-queue · enqueue",
+      "1.1.1.1 fn-writer · invoke",
+      "1.1.1.1.1 orders-db · write",
+    ]);
+    const asyncWork = within(detailsTab()).getByRole("list", {
+      name: "Async work, done when a consumer takes the message",
+    });
+    expect(
+      within(asyncWork)
+        .getAllByRole("button")
+        .map((step) => step.textContent),
+    ).toEqual(["1.1.1.1 fn-writer · invoke", "1.1.1.1.1 orders-db · write"]);
+  });
 });
 
 /**

@@ -25,6 +25,12 @@ export interface ProjectSelection {
    * button that made the selection, so `close` can return it.
    */
   readonly select: (selection: Selection, focus?: FocusTarget) => void;
+  /**
+   * Selects something Details shows, such as a step in a workflow's
+   * outline, as `select` does, but keeps the element `close` returns the
+   * focus to: the one that has it now is in Details, and goes with it.
+   */
+  readonly selectWithin: (selection: Selection, focus?: FocusTarget) => void;
   /** Clears the selection and shows Run, leaving the focus where it is. */
   readonly clear: () => void;
   /**
@@ -49,12 +55,10 @@ export interface ProjectSelection {
 export function useSelection(): ProjectSelection {
   const [selection, setSelection] = useState<Selection>();
   const [tab, showTab] = useState<SideTab>("run");
-  const opener = useRef<HTMLElement | null>(null);
   const { request, takeFocus } = useFocusRequest();
 
-  const select = useCallback(
+  const selectWithin = useCallback(
     (next: Selection, focus: FocusTarget = "heading") => {
-      opener.current = focusedElement();
       request(focus);
       setSelection(next);
       showTab("details");
@@ -66,14 +70,38 @@ export function useSelection(): ProjectSelection {
     setSelection(undefined);
     showTab("run");
   }, [request]);
+  const { select, close } = useOpener({ selectWithin, clear });
+
+  const changes = { select, selectWithin, clear, close };
+  return { selection, tab, showTab, ...changes, takeFocus };
+}
+
+/** The changes the opener is remembered and returned around. */
+type OpenerInput = Pick<ProjectSelection, "selectWithin" | "clear">;
+
+/**
+ * `select`, which remembers the element that had the focus, and `close`,
+ * which returns the focus to it.
+ */
+function useOpener({
+  selectWithin,
+  clear,
+}: OpenerInput): Pick<ProjectSelection, "select" | "close"> {
+  const opener = useRef<HTMLElement | null>(null);
+  const select = useCallback(
+    (next: Selection, focus?: FocusTarget) => {
+      opener.current = focusedElement();
+      selectWithin(next, focus);
+    },
+    [selectWithin],
+  );
   const close = useCallback(() => {
     const element = opener.current;
     opener.current = null;
     clear();
     if (element?.isConnected) element.focus();
   }, [clear]);
-
-  return { selection, tab, showTab, select, clear, close, takeFocus };
+  return { select, close };
 }
 
 /** Which part of Details should take the focus next, if any. */

@@ -386,7 +386,7 @@ The repository allows only squash merges, and a ruleset stops `main` from being 
 
 [`/pr-address`](.claude/commands/pr-address.md) is its counterpart for the author. It answers each finding of the latest review in the finding's thread, fixes what it fixes in commits on the branch, and pushes. Use it to answer a review in interactive and scripted sessions alike, so every answer uses the same tags. It can run in the session that wrote the PR; only the reviewer needs a fresh one.
 
-A comment from the maintainer overrides both commands. How the two commands tag their comments and answer each other is in [the review protocol](.claude/review-protocol.md), which only Claude sessions need to read.
+A comment from the maintainer outranks both commands. A session can still disagree, offer an alternative, or ask what the maintainer meant, for as many rounds as it takes. The maintainer stating the same position twice in a row ends it. How the two commands tag their comments and answer each other is in [the review protocol](.claude/review-protocol.md), which only Claude sessions need to read.
 
 A PR is done when CI is green, every finding has an answer the reviewer accepted, where a test applies the tests check the success case and the invariants and each new or changed test has a `// Fails if` comment naming a change that provably turns it red, and the maintainer has merged it.
 

@@ -27,7 +27,7 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
 
 - **Inline findings:** each unresolved thread whose first comment starts with `🤖 Claude review:` and has no answer since the reviewer's last comment in it.
 - **Findings in the review summary** (findings on lines outside the diff, given as `path:line`): answer them all in one PR comment that starts with `🤖 Claude (author):`, with one numbered answer per finding, in the summary's order.
-- **A reply from the maintainer** (no `🤖` prefix) settles its thread. Do what it says, and answer with the tag that fits. A maintainer comment after a `🤖 Claude question:`, on the PR or the issue, is a reply in the thread of each finding the question links.
+- **A reply from the maintainer** (no `🤖` prefix) outranks the finding. Do what it says and answer with the tag that fits, or push back if you disagree or aren't sure what it means, as the protocol's "The maintainer's comments" describes. A maintainer comment after a `🤖 Claude question:`, on the PR or the issue, is a reply in the thread of each finding the question links. Once you've acted on it, remove `needs-decision`.
 - Don't answer threads that are resolved. Don't fix a finding the reviewer tagged [decision]: answer it with a link to the reviewer's question (see **[decision]** below).
 
 ## Choosing an answer

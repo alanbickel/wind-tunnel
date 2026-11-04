@@ -97,7 +97,7 @@ export function bar(): HTMLElement {
 
 /** The bar's status regions: the run's status, then whether it's out of date. */
 export function statusRegions(): [HTMLElement, HTMLElement] {
-  const [runStatus, outOfDate] = within(bar()).getAllByRole("status");
+  const [, runStatus, outOfDate] = within(bar()).getAllByRole("status");
   if (runStatus === undefined || outOfDate === undefined) {
     throw new Error("the bar should have two status regions");
   }
@@ -105,12 +105,22 @@ export function statusRegions(): [HTMLElement, HTMLElement] {
 }
 
 /**
- * The bar's region that says why the picked workload can't run, after the
- * run's status and whether it's out of date.
+ * The bar's region that says why the picked workload can't run, after
+ * what Undo did, the run's status, and whether it's out of date.
  */
 export function cantRunRegion(): HTMLElement {
-  const region = within(bar()).getAllByRole("status")[2];
+  const region = within(bar()).getAllByRole("status")[3];
   if (region === undefined) throw new Error("the bar should say why");
+  return region;
+}
+
+/**
+ * The bar's region that says what Undo or Redo did, under the project's
+ * name, before the run's regions.
+ */
+export function undoneRegion(): HTMLElement {
+  const region = within(bar()).getAllByRole("status")[0];
+  if (region === undefined) throw new Error("the bar should say what Undo did");
   return region;
 }
 

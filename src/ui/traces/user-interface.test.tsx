@@ -199,10 +199,10 @@ function tracedUseCases(trace: Trace, runner: SimulationRunner): UseCases {
 }
 
 function status(): string {
-  // The project bar's first status region is the run's; the storage hint
-  // and the bar's other regions are status regions too.
+  // The project bar's second status region is the run's, after what Undo
+  // did; the storage hint and the bar's other regions are status regions too.
   const bar = screen.getByRole("region", { name: "Sample project" });
-  return within(bar).getAllByRole("status")[0]?.textContent ?? "";
+  return within(bar).getAllByRole("status")[1]?.textContent ?? "";
 }
 
 /** The footer of "Requests (run totals)": the totals across workflows. */

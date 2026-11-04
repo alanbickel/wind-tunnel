@@ -4,12 +4,15 @@ import { RunControls } from "../run/RunControls";
 import { RunProgress } from "../run/RunProgress";
 import { Button } from "../shared/Button";
 import type { ProjectRun } from "../run/useProjectRun";
+import { inSentence } from "../shared/in-sentence";
 import { ScreenHeading } from "../shared/ScreenHeading";
 import styles from "./ProjectBar.module.css";
+import type { UndoRedo } from "./useUndoRedo";
 
 export interface ProjectBarProps {
   readonly project: Project;
   readonly projectRun: ProjectRun;
+  readonly undoRedo: UndoRedo;
   /** True once the last change failed to save, until a save works. */
   readonly saveFailed: boolean;
   /** Saves the change that failed again. */
@@ -18,12 +21,12 @@ export interface ProjectBarProps {
 
 /**
  * The top of a project screen, above both columns: the project's name and
- * description, then what runs it, how far the run has got, its status, and
+ * description, Undo and Redo, then what runs it, how far the run has got, its status, and
  * whether it's out of date, and whether the last change saved.
  * A region named by the project, so a screen reader can jump to it.
  */
 export function ProjectBar(props: ProjectBarProps) {
-  const { project, projectRun, saveFailed, onRetry } = props;
+  const { project, projectRun, undoRedo, saveFailed, onRetry } = props;
   const { run, ran, status, outOfDate } = projectRun;
   const headingId = useId();
   const cantRunReasonId = useId();
@@ -34,6 +37,7 @@ export function ProjectBar(props: ProjectBarProps) {
         {project.description && (
           <p className={styles.description}>{project.description}</p>
         )}
+        <UndoControls {...undoRedo} />
       </div>
       <div className={styles.run}>
         <WorkloadControls
@@ -50,6 +54,36 @@ export function ProjectBar(props: ProjectBarProps) {
       </div>
     </section>
   );
+}
+
+/**
+ * Undo and Redo, each naming what it would do: "Undo remove orders-db".
+ * With nothing to do, each says only "Undo" or "Redo" and is unusable,
+ * but keeps the focus. What one did is announced from a polite region
+ * that's there from the start (UX design §4.4), since the change can be
+ * anywhere on the screen; it's hidden from sight, as the screen shows it.
+ */
+function UndoControls(props: UndoRedo) {
+  const { undo, redo, nextUndo, nextRedo, announcement } = props;
+  return (
+    <div className={styles.undo}>
+      <Button onClick={undo} usable={nextUndo !== undefined}>
+        {buttonText("Undo", nextUndo)}
+      </Button>
+      <Button onClick={redo} usable={nextRedo !== undefined}>
+        {buttonText("Redo", nextRedo)}
+      </Button>
+      <span role="status" className={styles.undone}>
+        {announcement}
+      </span>
+    </div>
+  );
+}
+
+/** "Undo remove orders-db", or "Undo" with nothing to undo. */
+function buttonText(verb: string, description: string | undefined): string {
+  if (description === undefined) return verb;
+  return `${verb} ${inSentence(description)}`;
 }
 
 type RunStatusProps = Pick<ProjectRun, "status" | "outOfDate">;

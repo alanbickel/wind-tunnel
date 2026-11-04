@@ -25,14 +25,14 @@ import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
 import styles from "./SelectionDetails.module.css";
 import { useConnect, type Connect } from "./useConnect";
-import type { EditCommand } from "./useProjectEdits";
+import type { Edit } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
 
 export interface SelectionDetailsProps {
   readonly project: Project;
   readonly selection: Selection;
   /** Saves a change made in Details. */
-  readonly onEdit: (command: EditCommand) => void;
+  readonly onEdit: (edit: Edit) => void;
   /** Clears the selection and returns the focus: on Escape, and on Close. */
   readonly onClose: () => void;
   /** Removes the selected component or edge, once the user confirms it. */
@@ -197,7 +197,7 @@ const HEADINGS: KindHandlers<Details, ReactNode> = {
  */
 interface BodyContext {
   readonly project: Project;
-  readonly onEdit: (command: EditCommand) => void;
+  readonly onEdit: (edit: Edit) => void;
   readonly announce: (message: string) => void;
   readonly takeFocus: ProjectSelection["takeFocus"];
   readonly connect: Connect;

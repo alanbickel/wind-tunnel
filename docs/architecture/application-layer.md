@@ -103,6 +103,12 @@ The browser and the CLI show the same counts from a run, so they compute them in
 
 [`run-analysis-reconciles.test.ts`](../../src/adapters/templates/run-analysis-reconciles.test.ts) checks these sums against the collector's own totals for every template. The findings and the verdict live in `run-analysis/findings/`, with [their own guide](finding-detectors.md).
 
+## Edits and their history
+
+The edit commands live in [`src/application/edits/`](../../src/application/edits/) ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)): each is a plain function that takes the `ProjectRecord` and returns the next one, doing the whole change, so a remove takes the component's edges and layout position with it. The [UI guide](user-interface.md#editing-and-saving) lists them.
+
+[`edit-history.ts`](../../src/application/edits/edit-history.ts) is the **edit history** that Undo and Redo move through: a plain value, never stored, whose steps each hold a command's description and the records before and after it. `recordEdit` adds a step and drops what could be redone; `undoEdit` and `redoEdit` return the history after the move with the records it leaves and goes to, or undefined with nothing to do. [`selectionAfterUndo`](../../src/application/details/selection-after-undo.ts) says what the screen's selection does after one: it selects what came back, or clears what went.
+
 ## Records and documents
 
 The application works with **`ProjectRecord`s**: a domain `Project` plus the facts the engine doesn't use (`createdAt`, `updatedAt`, `source`, `layout`). What's stored and exported is a **project document**: versioned JSON with a `schemaVersion`, checked by a Zod schema. Only the persistence adapter knows about documents ([ADR-0008](../adr/0008-ports-exchange-project-records.md)).

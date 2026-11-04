@@ -10,7 +10,8 @@ import {
   resetEdgeSetting,
   setEdgeSetting,
 } from "../../../application/edits/edge-edits";
-import type { EditCommand } from "../useProjectEdits";
+import type { Edit } from "../useProjectEdits";
+import { inSentence } from "../../shared/in-sentence";
 import type { FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
 import { Setting, type SettingProps } from "./Setting";
@@ -18,7 +19,7 @@ import { Setting, type SettingProps } from "./Setting";
 export interface EdgeSettingsProps {
   readonly details: EdgeDetails;
   /** Saves a change: a setting, or a reset to its default. */
-  readonly onEdit: (command: EditCommand) => void;
+  readonly onEdit: (edit: Edit) => void;
   readonly announce: FieldProps["announce"];
 }
 
@@ -46,7 +47,7 @@ export function EdgeSettings({ details, onEdit, announce }: EdgeSettingsProps) {
 interface SettingCommandsInput {
   readonly details: EdgeDetails;
   readonly setting: SettingDetails;
-  readonly onEdit: (command: EditCommand) => void;
+  readonly onEdit: (edit: Edit) => void;
 }
 
 /** What a setting's field and its Reset save: commands on this edge. */
@@ -55,15 +56,23 @@ function settingCommands({
   setting,
   onEdit,
 }: SettingCommandsInput): Pick<SettingProps, "save" | "reset"> {
-  const { edgeId, defaults } = details;
+  const { edgeId, defaults, sourceName, targetName } = details;
   const key = edgeKeyOf(setting);
+  const what = `the ${inSentence(setting.label)} from ${sourceName} to ${targetName}`;
   return {
     save: (value) => {
-      onEdit((record) => setEdgeSetting(record, { edgeId, key, value }));
+      onEdit({
+        command: (record) => setEdgeSetting(record, { edgeId, key, value }),
+        describe: () => `Change ${what}`,
+      });
     },
     reset: () => {
       if (defaults === undefined) return;
-      onEdit((record) => resetEdgeSetting(record, { edgeId, key, defaults }));
+      onEdit({
+        command: (record) =>
+          resetEdgeSetting(record, { edgeId, key, defaults }),
+        describe: () => `Reset ${what}`,
+      });
     },
   };
 }

@@ -142,9 +142,9 @@ function cliReading(run: Parameters<typeof findRun>[0]): PanelRun {
   };
 }
 
-/** The run's status line: the first status region; whether it's out of date is the second. */
+/** The run's status line: the second status region, after what Undo did. */
 function runStatus(): string | null | undefined {
-  return screen.getAllByRole("status")[0]?.textContent;
+  return screen.getAllByRole("status")[1]?.textContent;
 }
 
 /** The section the verdict's title names. */

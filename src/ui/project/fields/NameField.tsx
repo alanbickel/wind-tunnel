@@ -5,7 +5,7 @@ import type { DraftCheck } from "../../../application/details/number-draft";
 import { renameComponent } from "../../../application/edits/component-edits";
 import type { Project } from "../../../domain/model/project";
 import type { ProjectSelection } from "../useSelection";
-import type { EditCommand } from "../useProjectEdits";
+import type { Edit } from "../useProjectEdits";
 import type { FieldProps } from "./field-parts";
 import { TextField } from "./TextField";
 import { useDraft } from "./useDraft";
@@ -14,7 +14,7 @@ export interface NameFieldProps {
   readonly project: Project;
   readonly details: ComponentDetails;
   /** Saves the rename, once the draft passes. */
-  readonly onEdit: (command: EditCommand) => void;
+  readonly onEdit: (edit: Edit) => void;
   readonly announce: FieldProps["announce"];
   /** Whether to take the focus, with the name selected: just after an add. */
   readonly takeFocus: ProjectSelection["takeFocus"];
@@ -76,10 +76,10 @@ function commitName(input: CommitNameInput): void {
     reset();
     return;
   }
-  onEdit((record) =>
-    renameComponent(record, {
-      componentId: details.componentId,
-      name: check.value,
-    }),
-  );
+  const name = check.value;
+  onEdit({
+    command: (record) =>
+      renameComponent(record, { componentId: details.componentId, name }),
+    describe: () => `Rename ${details.name} to ${name}`,
+  });
 }

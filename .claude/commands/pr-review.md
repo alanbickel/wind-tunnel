@@ -29,6 +29,14 @@ This is a reading review. CI runs `npm run check`, and the author proves their t
 
 Write every file you create (the review JSON, a question's body) in `.review-tmp/` at the root of this checkout, not in the worktree or the system temp directory. It's gitignored, and it's the one place a headless session is allowed to write. Leave the files there; the next run overwrites them.
 
+### Shell commands
+
+A headless session can't approve a prompt, so a command that needs one fails. Write commands that the allow list matches:
+
+- One command per call where you can. Don't `cd` before a `git` command; use `git -C ../wind-tunnel-review-$ARGUMENTS`.
+- Write paths out in full. Don't use shell variables (`W=...; $W/src`), `$TEMP`, output redirection to a file, or heredocs.
+- Read code in the worktree with the Read and Grep tools. If they're refused (the session wasn't given the worktree as an extra directory), fall back to `git -C ../wind-tunnel-review-$ARGUMENTS show HEAD:<path>`.
+
 ## Follow-up mode
 
 If the PR already has a review whose body starts with `🤖 Claude review:`, this is a follow-up round:
@@ -54,9 +62,9 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
   ```
   Branches sync with main by merging, never by rebasing, so that commit is still on the branch. Review the branch's own commits since then, leaving out what came in from main:
   ```
-  git log -p --first-parent --no-merges <sha>..HEAD
+  git log -p --first-parent --no-merges <sha>..<headRefOid>
   ```
-  For each merge from main in that range (`git log --first-parent --merges <sha>..HEAD`), check only how its conflicts were resolved with `git show --remerge-diff <merge>`. If `git merge-base --is-ancestor <sha> HEAD` fails, the branch was force-pushed: review the whole PR again and say so in the summary.
+  For each merge from main in that range (`git log --first-parent --merges <sha>..<headRefOid>`), check only how its conflicts were resolved with `git show --remerge-diff <merge>`. If `git merge-base --is-ancestor <sha> <headRefOid>` fails, the branch was force-pushed: review the whole PR again and say so in the summary.
 - Don't repeat earlier findings that were fixed.
 
 ## What to check

@@ -16,14 +16,26 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
    gh pr view $ARGUMENTS --comments
    ```
    Read the issue it closes (`gh issue view <n>`), including its comments.
-3. Check out the PR branch and bring it up to date. If the working tree has uncommitted changes, stop and say so. Don't stash or discard them.
+3. Another session may be working in this checkout, so don't switch branches here. Fix the PR in its own worktree, `../wind-tunnel-address-$ARGUMENTS`:
    ```
+   git worktree prune
    git fetch origin
-   git switch <headRefName>
-   git merge --ff-only origin/<headRefName>
+   git worktree add ../wind-tunnel-address-$ARGUMENTS <headRefName>
+   git -C ../wind-tunnel-address-$ARGUMENTS merge --ff-only origin/<headRefName>
+   npm --prefix ../wind-tunnel-address-$ARGUMENTS ci
    ```
+   If the worktree is already there from an earlier run, remove it with `git worktree remove ../wind-tunnel-address-$ARGUMENTS` and add it again. If git refuses because it has changes, stop and say so: they may be an earlier session's unsaved work. Never pass `--force`, delete it with `rm`, stash, or discard. If `git worktree add` refuses because the branch is checked out somewhere else, stop and say where.
+   Make every fix, commit, and push in the worktree. When you're done and have pushed, remove it with `git worktree remove ../wind-tunnel-address-$ARGUMENTS`.
 
-Write every file you create that isn't part of a fix (a comment's body) in `.review-tmp/` at the root of the checkout, not in the system temp directory. It's gitignored, and it's the one place outside the code a headless session is allowed to write. Leave the files there; the next run overwrites them.
+Write every file you create that isn't part of a fix (a comment's body) in `.review-tmp/` at the root of the checkout you started in, not in the worktree or the system temp directory. It's gitignored, and it's where a headless session is allowed to write outside the worktree. Leave the files there; the next run overwrites them.
+
+### Shell commands
+
+A headless session can't approve a prompt, so a command that needs one fails. Write commands that the allow list matches:
+
+- One command per call where you can. Don't `cd` before a `git` command; use `git -C ../wind-tunnel-address-$ARGUMENTS`.
+- Run npm in the worktree with `npm --prefix ../wind-tunnel-address-$ARGUMENTS run <script>`.
+- Write paths out in full. Don't use shell variables (`W=...; $W/src`), `$TEMP`, output redirection to a file, or heredocs.
 
 ## What to answer
 
@@ -53,9 +65,9 @@ The protocol's [defect] rule says when each answer applies. Try them in this ord
 
 1. Fix, test, and commit on the branch. One commit per finding, or one for a few related ones, in the commit style (`fix(ui): ...`).
 2. Run the docs drift check from CONTRIBUTING's "Documentation" for whatever your fixes rename or change.
-3. Sync with `main` only if the PR conflicts (`mergeable` is `CONFLICTING`) or CI needs a change from `main`: `git merge origin/main`. Never rebase, amend, or force-push.
-4. Run `npm run check`. It must pass before you push.
-5. `git push`.
+3. Sync with `main` only if the PR conflicts (`mergeable` is `CONFLICTING`) or CI needs a change from `main`: `git -C ../wind-tunnel-address-$ARGUMENTS merge origin/main`. Never rebase, amend, or force-push.
+4. Run `npm --prefix ../wind-tunnel-address-$ARGUMENTS run check`. It must pass before you push.
+5. `git -C ../wind-tunnel-address-$ARGUMENTS push`.
 
 ## Posting the answers
 

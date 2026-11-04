@@ -33,9 +33,9 @@ Write every file you create (the review JSON, a question's body) in `.review-tmp
 
 A headless session can't approve a prompt, so a command that needs one fails. Write commands that the allow list matches:
 
-- One command per call where you can. Don't `cd` before a `git` command; use `git -C ../wind-tunnel-review-$ARGUMENTS`.
+- One command per call where you can. Run git from this checkout and don't `cd`: the PR's commit is reachable here as `<headRefOid>`.
 - Write paths out in full. Don't use shell variables (`W=...; $W/src`), `$TEMP`, output redirection to a file, or heredocs.
-- Read code in the worktree with the Read and Grep tools. If they're refused (the session wasn't given the worktree as an extra directory), fall back to `git -C ../wind-tunnel-review-$ARGUMENTS show HEAD:<path>`.
+- Read code in the worktree with the Read and Grep tools. If they're refused (the session wasn't given the worktree as an extra directory), read through git from this checkout instead: `git show <headRefOid>:<path>` and `git grep -n <pattern> <headRefOid> -- <paths>`. `git -C` on the worktree is refused too, because it's outside the session's folders.
 
 ## Follow-up mode
 

@@ -1,5 +1,6 @@
 import type { StoragePersistence } from "../../application/ports/storage-persistence";
 import type { CheckWorkloads } from "../../application/use-cases/check-workloads";
+import type { CreateBlankProject } from "../../application/use-cases/create-blank-project";
 import type { CreateProjectFromTemplate } from "../../application/use-cases/create-project-from-template";
 import type { DescribeSelection } from "../../application/use-cases/describe-selection";
 import type { DeleteProject } from "../../application/use-cases/delete-project";
@@ -32,6 +33,7 @@ export interface UseCases {
   readonly listProjects: UseCase<ListProjects>;
   readonly listTemplates: UseCase<ListTemplates>;
   readonly createProjectFromTemplate: UseCase<CreateProjectFromTemplate>;
+  readonly createBlankProject: UseCase<CreateBlankProject>;
   readonly openProject: UseCase<OpenProject>;
   readonly saveProject: UseCase<SaveProject>;
   readonly deleteProject: UseCase<DeleteProject>;

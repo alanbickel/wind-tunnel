@@ -3,19 +3,26 @@ import type { ProjectSummary } from "../../application/ports/project-record";
 import { useUseCases } from "../app/useUseCases";
 import { LoadableView } from "../shared/LoadableView";
 import { useLoad } from "../shared/useLoad";
-import { NewFromTemplate } from "./NewFromTemplate";
+import { NewProject } from "./NewProject";
 import { ProjectList } from "./ProjectList";
 import styles from "./ProjectsScreen.module.css";
 
 export interface ProjectsScreenProps {
   readonly onOpen: (project: ProjectSummary) => void;
-  /** Called after each project is created and saved. */
+  /**
+   * Called after each project is created and saved, before a blank one
+   * opens.
+   */
   readonly onCreated?: () => void;
   /** The project whose button gets focus once the list loads, if any. */
   readonly focusId?: string;
 }
 
-/** The first screen: the user's projects, and new ones from templates. */
+/**
+ * The first screen: the user's projects, and new ones, blank or from a
+ * template. A blank project opens once it's created; a template copy joins
+ * the list.
+ */
 export function ProjectsScreen({
   onOpen,
   onCreated,
@@ -43,7 +50,7 @@ export function ProjectsScreen({
           )}
         </LoadableView>
       </section>
-      <NewFromTemplate onCreated={created} />
+      <NewProject onCreated={created} onOpen={onOpen} />
     </div>
   );
 }

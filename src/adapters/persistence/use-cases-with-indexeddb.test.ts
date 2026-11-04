@@ -6,6 +6,7 @@ import type { MetricsSnapshot } from "../../domain/metrics/metrics-collector";
 import type { Project } from "../../domain/model/project";
 import { FixedClock } from "../../application/testing/fixed-clock";
 import { SequentialIds } from "../../application/testing/sequential-ids";
+import { CreateBlankProject } from "../../application/use-cases/create-blank-project";
 import { CreateProjectFromTemplate } from "../../application/use-cases/create-project-from-template";
 import { DeleteProject } from "../../application/use-cases/delete-project";
 import { ListProjects } from "../../application/use-cases/list-projects";
@@ -53,6 +54,7 @@ function useCases() {
       clock,
       ids,
     }),
+    createBlank: new CreateBlankProject({ projects, clock, ids }),
     listProjects: new ListProjects({ projects }),
     openProject: new OpenProject({ projects }),
     saveProject: new SaveProject({ projects, clock, registry }),
@@ -106,6 +108,21 @@ describe("MVP use cases over IndexedDB, the bundled templates, and the in-proces
       expect(await app.openProject.execute(id)).toEqual({ status: "missing" });
       app.clock.set(CREATED_AT);
     }
+  });
+
+  // Fails if the document mapper or the checks refuse a project with
+  // nothing in it, or drop or add a field on the way through (a `source`,
+  // a layout entry), so it opens as invalid or not as saved.
+  it("opens a blank project again as it was saved", async () => {
+    const app = useCases();
+
+    const created = await app.createBlank.execute("Orders service");
+    if (created.status !== "created") throw new Error(created.status);
+
+    expect(await app.openProject.execute(created.record.project.id)).toEqual({
+      status: "found",
+      record: created.record,
+    });
   });
 
   it("lists projects from several templates, most recently updated first", async () => {

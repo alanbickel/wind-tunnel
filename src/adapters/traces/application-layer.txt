@@ -1,5 +1,6 @@
 CreateProjectFromTemplate.execute("template-a")
   port     templates.get("template-a") → record template-a "Serverless API with RDS" (updatedAt 2026-10-14T00:00:00Z)
+  port     projects.list() → []
   port     ids.newId() → project-1
   port     clock.now() → 2026-10-15T12:00:00.000Z
   port     projects.save(record project-1 "Serverless API with RDS" (updatedAt 2026-10-15T12:00:00.000Z))

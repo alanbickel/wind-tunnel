@@ -58,12 +58,14 @@ const project: Project = {
     components: ["api", "fn", "queue", "writer", "db", "cache", "spare"].map(
       component,
     ),
+    // fn-db comes before writer-db, so an edge found by its callee alone
+    // is the wrong one.
     edges: [
       edge("api", "fn"),
       edge("fn", "queue"),
+      edge("fn", "db"),
       edge("queue", "writer"),
       edge("writer", "db"),
-      edge("fn", "db"),
     ],
   },
   workflows: [{ id: "create", name: "Create order", root: createOrder }],
@@ -124,8 +126,8 @@ describe("selectionOnArchitecture", () => {
     expect(shown.ringed).toEqual({ componentIds: ["api"], edgeIds: [] });
   });
 
-  // Fails if a call with no edge to it rings some other edge into its
-  // component (fn-db, which a write uses, not this read).
+  // Fails if a call with no edge to it rings some other edge out of its
+  // caller's component (fn-queue, which the enqueue uses, not this read).
   it("rings no edge for a call that has none", () => {
     const shown = selectionOnArchitecture(project, {
       kind: "step",

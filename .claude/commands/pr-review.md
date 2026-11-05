@@ -1,6 +1,7 @@
 ---
 description: Review a Wind Tunnel pull request as an independent reviewer and post the findings as PR comments
 argument-hint: <pr-number>
+model: sonnet
 ---
 
 You're reviewing pull request #$ARGUMENTS on Wind Tunnel as an independent reviewer. Another Claude session or a human wrote it. Review it with fresh eyes, and don't assume the author's checks were complete.
@@ -16,7 +17,7 @@ This is a reading review. CI runs `npm run check`, and the author proves their t
    gh pr diff $ARGUMENTS
    ```
    Read each issue it closes (`gh issue view <n>`).
-2. Read `CONTRIBUTING.md` and `docs/contributing/documentation.md`, then the other pages in `docs/contributing/` that the PR's changes need: `coding-standards.md` if it changes code, and `testing.md` if it changes tests. Their standards are the review criteria, and `.claude/review-protocol.md` sets the tags, answers, and verdict this command uses. Read it too. Read the Roadmap (`gh issue view 32`) to see where the PR's issue sits.
+2. Read `CONTRIBUTING.md` and `docs/contributing/documentation.md`, then the other pages in `docs/contributing/` that the PR's changes need: `coding-standards.md` if it changes code, and `testing.md` if it changes tests. Their standards are the review criteria, and `.claude/review-protocol.md` sets the tags, answers, and verdict this command uses. Read it too. If the PR finishes a milestone or files new work, read the Roadmap (`gh issue view 32`) to check that it's updated (see "What to check").
 3. Another session may be working in this checkout, so don't switch branches here. Review in a separate worktree (the first two lines clear one left by an earlier run; the `remove` fails harmlessly if there's none):
    ```
    git worktree prune

@@ -4,6 +4,11 @@ import type {
   ProjectRecord,
 } from "../../application/ports/project-record";
 import type { Selection } from "../../application/details/selection";
+import {
+  selectionOnArchitecture,
+  type ArchitectureParts,
+  type SelectionOnArchitecture,
+} from "../../application/details/selection-on-architecture";
 import type { Project } from "../../domain/model/project";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
@@ -13,6 +18,7 @@ import {
   type DiagramContent,
   type DiagramItem,
   type DiagramItemKind,
+  type DiagramMarks,
 } from "../diagram/diagram-model";
 import { Panel } from "../shared/Panel";
 import { dispatchKind } from "../shared/kind-dispatch";
@@ -39,7 +45,9 @@ export interface ArchitectureViewProps {
  * diagram, with the same facts as a list for anyone who can't see the
  * canvas. Either selects a component or a connection: a click on the
  * diagram, or a button in the list, which is the way every user can rely
- * on. A drag from one box to another on the diagram connects them;
+ * on. The diagram marks the selection, and a selected workflow's path, or
+ * a selected step's and its workflow's. A drag from one box to another on
+ * the diagram connects them;
  * "Connect to…" in a component's Details is the keyboard's way. A box
  * moves by dragging it, or with the arrow keys once it has the focus; its
  * place is only visual, so the text version doesn't change. With no
@@ -166,13 +174,13 @@ interface DrawingProps extends ArchitectureViewProps {
 /** The diagram, and its text version, of a project with components. */
 function Drawing(props: DrawingProps) {
   const { record, content, onConnect, onMove } = props;
-  const { selected, onItem } = useDiagramSelection(props);
+  const { marks, selected, onItem } = useDiagramSelection(props);
   return (
     <>
       <Diagram
         content={content}
         label={`Architecture diagram of ${record.project.name}`}
-        selected={selected}
+        marks={marks}
         onSelect={onItem}
         onConnect={({ source, target }) => {
           onConnect(source, target);
@@ -186,8 +194,11 @@ function Drawing(props: DrawingProps) {
   );
 }
 
-/** The screen's selection as the diagram's item, and what an item selects. */
+/** The screen's selection in the diagram's terms, and what an item selects. */
 interface DiagramSelection {
+  /** What the diagram marks: the selection, and a workflow's path. */
+  readonly marks: DiagramMarks;
+  /** The text version's selected item: a component or a connection. */
   readonly selected: DiagramItem | undefined;
   /** Selects the item's component or connection, or clears for none. */
   readonly onItem: (item: DiagramItem | undefined) => void;
@@ -195,11 +206,17 @@ interface DiagramSelection {
 
 /** The screen's selection in the diagram's terms, both ways. */
 function useDiagramSelection({
+  record,
   selection,
   onSelect,
   onClear,
 }: ArchitectureViewProps): DiagramSelection {
-  const selected = selection && dispatchKind(DIAGRAM_ITEMS, selection);
+  const { project } = record;
+  const marks = useMemo(
+    () => marksOf(selectionOnArchitecture(project, selection)),
+    [project, selection],
+  );
+  const selected = selection && dispatchKind(TEXT_ITEMS, selection);
   const onItem = useCallback(
     (item: DiagramItem | undefined) => {
       if (item === undefined) {
@@ -210,14 +227,27 @@ function useDiagramSelection({
     },
     [onSelect, onClear],
   );
-  return { selected, onItem };
+  return { marks, selected, onItem };
+}
+
+/** A selection's ringed parts and path as the diagram's marks. */
+function marksOf({ ringed, path }: SelectionOnArchitecture): DiagramMarks {
+  return { selected: itemsOf(ringed), path: itemsOf(path) };
+}
+
+/** Components as nodes, and edges as edges. */
+function itemsOf({ componentIds, edgeIds }: ArchitectureParts): DiagramItem[] {
+  return [
+    ...componentIds.map((id) => ({ kind: "node", id }) as const),
+    ...edgeIds.map((id) => ({ kind: "edge", id }) as const),
+  ];
 }
 
 /**
- * The diagram's item for each kind of selection, or undefined for one it
- * doesn't show yet: a workflow's path, and a step's, are issue 121's.
+ * The text version's item for each kind of selection, or undefined for one
+ * it doesn't show yet: a workflow's path, and a step's, are issue 122's.
  */
-const DIAGRAM_ITEMS: KindHandlers<Selection, DiagramItem | undefined> = {
+const TEXT_ITEMS: KindHandlers<Selection, DiagramItem | undefined> = {
   component: ({ componentId }) => ({ kind: "node", id: componentId }),
   edge: ({ edgeId }) => ({ kind: "edge", id: edgeId }),
   workflow: () => undefined,

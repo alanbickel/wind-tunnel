@@ -51,12 +51,33 @@
   color: var(--color-text-muted);
 }
 
+/* A path, such as a workflow's, marked by width as well as color, and
+   apart from the selection: a thick border inside each box's own, so it
+   never moves the box, and each arrow drawn at the thick line's width.
+   to-react-flow.tsx puts the `on-path` class on each. */
+.diagram :global(.react-flow__node.on-path) {
+  box-shadow: inset 0 0 0 var(--line-width-thick) var(--color-accent);
+}
+
+.diagram :global(.react-flow__edge.on-path .react-flow__edge-path) {
+  stroke: var(--color-accent);
+  stroke-width: var(--line-width-thick);
+}
+
 /* The selection, marked by shape and width as well as color: a ring
-   around the selected box, outside its border, and the selected arrow
-   drawn at twice the thick line's width. React Flow puts its `selected`
-   class on each. */
+   around the selected box, outside its border and apart from it, and the
+   selected arrow drawn at twice the thick line's width. React Flow puts
+   its `selected` class on each. A selected box on the path keeps the
+   path's border inside the ring. */
 .diagram :global(.react-flow__node.selected) {
   box-shadow:
+    0 0 0 var(--line-width-thick) var(--color-surface),
+    0 0 0 calc(2 * var(--line-width-thick)) var(--color-accent);
+}
+
+.diagram :global(.react-flow__node.selected.on-path) {
+  box-shadow:
+    inset 0 0 0 var(--line-width-thick) var(--color-accent),
     0 0 0 var(--line-width-thick) var(--color-surface),
     0 0 0 calc(2 * var(--line-width-thick)) var(--color-accent);
 }

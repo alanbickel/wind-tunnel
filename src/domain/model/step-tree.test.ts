@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Project, Step } from "./project";
-import { stepAt } from "./step-tree";
+import { stepAt, stepLinksOf } from "./step-tree";
 
 const write: Step = { id: "write", componentId: "db", action: "write" };
 const enqueue: Step = {
@@ -57,5 +57,20 @@ describe("stepAt", () => {
     [["workflows", 1]],
   ])("finds no step at %o", (path) => {
     expect(stepAt(project, path)).toBeUndefined();
+  });
+});
+
+describe("stepLinksOf", () => {
+  // Fails if the walk skips async work, a call's own calls, or a sibling,
+  // or gives the root step a caller.
+  it("pairs each step with the step that calls it, async work included", () => {
+    const links = stepLinksOf({ id: "w", name: "W", root });
+
+    expect(links.map(({ caller, callee }) => [caller.id, callee.id])).toEqual([
+      ["invoke", "read"],
+      ["invoke", "enqueue"],
+      ["enqueue", "consume"],
+      ["consume", "write"],
+    ]);
   });
 });

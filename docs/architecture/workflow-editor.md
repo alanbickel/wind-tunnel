@@ -1,6 +1,6 @@
 # The Workflow Editor
 
-How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it. The path on the diagram ([#121](https://github.com/alanbickel/wind-tunnel/issues/121)) and in its text version ([#122](https://github.com/alanbickel/wind-tunnel/issues/122)), and editing ([#116](https://github.com/alanbickel/wind-tunnel/issues/116), [#117](https://github.com/alanbickel/wind-tunnel/issues/117)) add to this guide as they land. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it, and draws its path on the diagram. The path in the diagram's text version ([#122](https://github.com/alanbickel/wind-tunnel/issues/122)), and editing ([#116](https://github.com/alanbickel/wind-tunnel/issues/116), [#117](https://github.com/alanbickel/wind-tunnel/issues/117)) add to this guide as they land. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workflow, three ways
 
@@ -32,7 +32,7 @@ flowchart TB
                         1.1.1.1.1  orders-db · write
 ```
 
-**3. The path on the diagram.** A selected workflow highlights the components and edges its steps use, and a selected step rings its component and the edge its call arrives on ([UX design §4.1](../design/user-experience.md#41-selection)). That's #121's; until then the diagram shows nothing for either.
+**3. The path on the diagram.** Selecting the workflow highlights its path: every component a step calls, and every edge a call follows, async work included. Here that's the five components above, and the four edges `api → fn-api`, `fn-api → orders-queue`, `orders-queue → fn-writer`, and `fn-writer → orders-db`; orders-read and `fn-api → orders-read`, which only "Get order" uses, aren't on it. Selecting the step `1.1.1.1  fn-writer · invoke` keeps the path and rings fn-writer and `orders-queue → fn-writer`, the edge the queue delivers its message along. [The path on the diagram](#the-path-on-the-diagram) says how.
 
 ## How a step is addressed
 
@@ -48,7 +48,7 @@ How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-gl
 %%{init: {"flowchart": {"wrappingWidth": 320}}}%%
 flowchart TB
     subgraph ui["ui/project/"]
-        list["<b>ArchitectureView</b><br/>[Component]<br/>The Workflows list, a row per workflow, with its problems"]:::component
+        list["<b>ArchitectureView</b><br/>[Component]<br/>The Workflows list, a row per workflow, with its problems; the diagram's marks"]:::component
         details["<b>SelectionDetails, WorkflowOutline</b><br/>[Component]<br/>The heading, Used by, and the outline with its issues"]:::component
         selecting["<b>useSelection</b><br/>[Component]<br/>The selection, the tab, and where the focus returns"]:::component
         undo["<b>useUndoRedo</b><br/>[Component]<br/>Moves the selection after an undo"]:::component
@@ -59,8 +59,10 @@ flowchart TB
         outline["<b>workflowDetails, usedByLine</b><br/>[Component: details/]<br/>The numbered outline, and its words"]:::component
         checks["<b>workflowRunChecks</b><br/>[Component: run-checks/]<br/>Each issue on its step, worded; the count"]:::component
         afterUndo["<b>selectionAfterUndo</b><br/>[Component: details/]<br/>Keeps a step while it's there"]:::component
+        onDiagram["<b>selectionOnArchitecture</b><br/>[Component: details/]<br/>The path, and what a step rings"]:::component
     end
-    stepTree["<b>stepsOfWorkflow, stepAt</b><br/>[domain/model/step-tree.ts]"]:::external
+    diagram["<b>Diagram</b><br/>[ui/diagram/]"]:::external
+    stepTree["<b>stepsOfWorkflow, stepAt, stepLinksOf</b><br/>[domain/model/step-tree.ts]"]:::external
     findIssues["<b>findRunIssues</b><br/>[domain/components/]"]:::external
     list -->|"select(workflow)"| selecting
     list -->|"execute({ project })"| checkUc
@@ -69,8 +71,10 @@ flowchart TB
     describeUc --> outline
     describeUc & checkUc --> checks
     checks --> findIssues
-    describeUc & afterUndo & checks --> stepTree
+    describeUc & afterUndo & checks & onDiagram --> stepTree
     undo --> afterUndo
+    list --> onDiagram
+    list -->|"marks"| diagram
     style ui fill:none,stroke:#666,stroke-dasharray:5 5
     style app fill:none,stroke:#666,stroke-dasharray:5 5
     classDef person fill:#08427b,stroke:#052e56,color:#fff
@@ -86,6 +90,15 @@ flowchart TB
 - **Details.** `DescribeSelection` answers both kinds with one `WorkflowDetails`: the name, the names of the workloads whose mix has it (`usedBy`), the outline, and `currentStepId`, the selected step's or undefined. It describes nothing for a workflow the project doesn't have, or a step that isn't in that workflow. The heading is the workflow's name, "· Workflow"; then "Used by: Lunch rush, Steady day", or "Used by: no workload yet", joined with semicolons when a name has a comma of its own, as the templates' do; then the outline, the selected step marked `aria-current`. A step whose component is gone reads "a removed component · read", since a component's ID is never shown. There's no Remove yet.
 - **Focus.** As for a component: selecting a workflow or a step moves the focus to the Details heading, and Escape, or Close in a narrow window, clears the selection and returns the focus to whatever made it. A step is selected from inside Details, so the outline selects it with `selectWithin`, which keeps the element remembered before, the workflow's row; the step's own button goes when Details closes.
 - **Undo and redo.** `selectionAfterUndo` keeps a selected workflow while the project still has it, and a selected step while its workflow still has a step with its ID, async work included; otherwise it clears the selection. Either stays even through an undo that brings a component or an edge back, which would otherwise select what came back: undoing a component's removal while one of its steps is selected leaves the step selected, and its issue goes from the outline. Nothing removes a step or a workflow yet, so today an undo only redraws the outline, with any renamed component's new name and the issues as they now are.
+
+## The path on the diagram
+
+A selected workflow's path, or a selected step's, is drawn on the diagram as the [UX design §4.1](../design/user-experience.md#41-selection) table says. [`selectionOnArchitecture`](../../src/application/details/selection-on-architecture.ts) works out which parts, and `ArchitectureView` hands them to `Diagram` as its `marks`:
+
+- **The path** is every component the workflow's steps call, and the edge each call follows, from its caller's component to its own; async work's edge runs from the queue to its consumer. `stepLinksOf` (in `step-tree.ts`) pairs each step with its caller. A step selection keeps its workflow's path, as the list keeps its row marked.
+- **A step** rings its component and the edge its call arrives on. The root step has no caller, since the user calls it, so it rings only its component.
+- **Only what the architecture has.** A step whose component was removed rings nothing, and a call with no edge arrives on none; the outline says why ([How an issue finds its step](#how-an-issue-finds-its-step)). A workflow or step the project doesn't have shows nothing.
+- **How it looks.** A path's boxes get a thick accent border inside their own, and its arrows are drawn at the thick line's width, in the accent color. The selection's ring sits outside the box, apart from it, and a selected arrow is twice as thick again, so a step's ring reads apart from its workflow's path by shape and width, not color alone. `Diagram.module.css` draws both, from the `on-path` class and React Flow's `selected` class.
 
 ## How an issue finds its step
 

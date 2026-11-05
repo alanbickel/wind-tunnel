@@ -216,6 +216,15 @@ describe("ArchitectureView", () => {
     ]);
   });
 
+  // Fails if the text version stops listing each workflow's path.
+  it("lists each workflow's path as text", () => {
+    renderView();
+
+    expect(itemsOf("Workflow paths")).toEqual([
+      "Read item: API → Function → Table (read).",
+    ]);
+  });
+
   // Fails if a text-version button selects the wrong kind of item or the
   // wrong one, or the list doesn't mark the selection as current.
   it("selects from the text version, and marks the selection there", () => {

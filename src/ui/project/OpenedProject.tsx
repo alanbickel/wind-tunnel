@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { nameOf } from "../../application/details/name-of";
 import { moveComponent } from "../../application/edits/layout-edits";
 import type {
@@ -24,6 +24,8 @@ import { useUndoShortcuts } from "./useUndoShortcuts";
 
 export interface OpenedProjectProps {
   readonly record: ProjectRecord;
+  /** Follows the saved record's name, including after Undo and Redo. */
+  readonly onProjectNameChange?: (name: string) => void;
 }
 
 /**
@@ -34,10 +36,14 @@ export interface OpenedProjectProps {
  * every part of the screen reads the same ones, and a tab or layout change
  * doesn't stop the run.
  */
-export function OpenedProject({ record: loaded }: OpenedProjectProps) {
+export function OpenedProject({
+  record: loaded,
+  onProjectNameChange,
+}: OpenedProjectProps) {
   const screen = useProjectScreen(loaded);
-  const { edits, projectRun, selecting, changes, undoRedo } = screen;
+  const { edits, projectRun, undoRedo } = screen;
   const { project } = edits.record;
+  useProjectTitleSync(project.name, onProjectNameChange);
   const Column = useWideWindow() ? SideTabs : Stacked;
 
   return (
@@ -48,19 +54,43 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
         undoRedo={undoRedo}
         saveFailed={edits.saveFailed}
         onRetry={edits.retry}
+        onEdit={edits.edit}
       />
-      <div className={styles.columns}>
-        {screen.architecture}
-        <Column
-          project={project}
-          projectRun={projectRun}
-          selecting={selecting}
-          onEdit={edits.edit}
-          onRemove={changes.remove}
-        />
-      </div>
+      <ProjectColumns screen={screen} Column={Column} />
     </div>
   );
+}
+
+interface ProjectColumnsProps {
+  readonly screen: ProjectScreen;
+  readonly Column: typeof SideTabs | typeof Stacked;
+}
+
+/** The architecture diagram beside or above the secondary column. */
+function ProjectColumns({ screen, Column }: ProjectColumnsProps) {
+  const { edits, projectRun, selecting, changes } = screen;
+  return (
+    <div className={styles.columns}>
+      {screen.architecture}
+      <Column
+        project={edits.record.project}
+        projectRun={projectRun}
+        selecting={selecting}
+        onEdit={edits.edit}
+        onRemove={changes.remove}
+      />
+    </div>
+  );
+}
+
+/** Tells the shell the project's name as its saved record changes. */
+function useProjectTitleSync(
+  name: string,
+  onProjectNameChange?: (name: string) => void,
+): void {
+  useEffect(() => {
+    onProjectNameChange?.(name);
+  }, [onProjectNameChange, name]);
 }
 
 /** What a project screen holds, and the architecture it draws from them. */

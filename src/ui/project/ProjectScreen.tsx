@@ -11,10 +11,12 @@ import styles from "./ProjectScreen.module.css";
 
 export interface ProjectScreenProps {
   readonly id: string;
+  /** Follows the saved record's name, including after Undo and Redo. */
+  readonly onProjectNameChange?: (name: string) => void;
 }
 
 /** One saved project, or why it can't be opened. */
-export function ProjectScreen({ id }: ProjectScreenProps) {
+export function ProjectScreen({ id, onProjectNameChange }: ProjectScreenProps) {
   const { openProject } = useUseCases();
   const load = useCallback(() => openProject.execute(id), [openProject, id]);
   const { loadable } = useLoad(load);
@@ -23,20 +25,32 @@ export function ProjectScreen({ id }: ProjectScreenProps) {
     <section className={styles.screen}>
       <LoadableView loadable={loadable} what="the project">
         {(lookup) =>
-          handleStatus<ProjectLookup, ReactNode>(LOOKUP_VIEWS, lookup)
+          handleStatus<ProjectLookup, ReactNode>(
+            lookupViews(onProjectNameChange),
+            lookup,
+          )
         }
       </LoadableView>
     </section>
   );
 }
 
-const LOOKUP_VIEWS: StatusHandlers<ProjectLookup, ReactNode> = {
-  found: ({ record }) => <OpenedProject record={record} />,
-  missing: () => (
-    <>
-      <ScreenHeading>Project not found</ScreenHeading>
-      <p role="alert">This project no longer exists.</p>
-    </>
-  ),
-  invalid: (lookup) => <InvalidProject lookup={lookup} />,
-};
+function lookupViews(
+  onProjectNameChange?: (name: string) => void,
+): StatusHandlers<ProjectLookup, ReactNode> {
+  return {
+    found: ({ record }) => (
+      <OpenedProject
+        record={record}
+        onProjectNameChange={onProjectNameChange}
+      />
+    ),
+    missing: () => (
+      <>
+        <ScreenHeading>Project not found</ScreenHeading>
+        <p role="alert">This project no longer exists.</p>
+      </>
+    ),
+    invalid: (lookup) => <InvalidProject lookup={lookup} />,
+  };
+}

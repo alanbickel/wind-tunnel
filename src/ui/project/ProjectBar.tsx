@@ -5,8 +5,9 @@ import { RunProgress } from "../run/RunProgress";
 import { Button } from "../shared/Button";
 import type { ProjectRun } from "../run/useProjectRun";
 import { inSentence } from "../shared/in-sentence";
-import { ScreenHeading } from "../shared/ScreenHeading";
 import styles from "./ProjectBar.module.css";
+import { ProjectName } from "./ProjectName";
+import type { Edit } from "./useProjectEdits";
 import type { UndoRedo } from "./useUndoRedo";
 
 export interface ProjectBarProps {
@@ -17,6 +18,8 @@ export interface ProjectBarProps {
   readonly saveFailed: boolean;
   /** Saves the change that failed again. */
   readonly onRetry: () => void;
+  /** Saves an edit made in the bar, such as a rename. */
+  readonly onEdit: (edit: Edit) => void;
 }
 
 /**
@@ -26,33 +29,78 @@ export interface ProjectBarProps {
  * A region named by the project, so a screen reader can jump to it.
  */
 export function ProjectBar(props: ProjectBarProps) {
-  const { project, projectRun, undoRedo, saveFailed, onRetry } = props;
-  const { run, ran, status, outOfDate } = projectRun;
+  const { project, projectRun, undoRedo, saveFailed, onRetry, onEdit } = props;
   const headingId = useId();
   const cantRunReasonId = useId();
   return (
     <section aria-labelledby={headingId} className={styles.bar}>
-      <div className={styles.intro}>
-        <ScreenHeading id={headingId}>{project.name}</ScreenHeading>
-        {project.description && (
-          <p className={styles.description}>{project.description}</p>
-        )}
-        <UndoControls {...undoRedo} />
-      </div>
-      <div className={styles.run}>
-        <WorkloadControls
-          project={project}
-          projectRun={projectRun}
-          cantRunReasonId={cantRunReasonId}
-        />
-        {ran !== undefined && (
-          <RunProgress workload={ran} snapshots={run.snapshots} />
-        )}
-        <RunStatus status={status} outOfDate={outOfDate} />
-        <CantRunReason id={cantRunReasonId} projectRun={projectRun} />
-        <SaveStatus saveFailed={saveFailed} onRetry={onRetry} />
-      </div>
+      <ProjectIntro
+        project={project}
+        headingId={headingId}
+        onEdit={onEdit}
+        undoRedo={undoRedo}
+      />
+      <ProjectRunSection
+        project={project}
+        projectRun={projectRun}
+        cantRunReasonId={cantRunReasonId}
+        saveFailed={saveFailed}
+        onRetry={onRetry}
+      />
     </section>
+  );
+}
+
+interface ProjectIntroProps extends Pick<
+  ProjectBarProps,
+  "project" | "onEdit" | "undoRedo"
+> {
+  readonly headingId: string;
+}
+
+/** The project heading, description, and undo controls. */
+function ProjectIntro({
+  project,
+  headingId,
+  onEdit,
+  undoRedo,
+}: ProjectIntroProps) {
+  return (
+    <div className={styles.intro}>
+      <ProjectName project={project} headingId={headingId} onEdit={onEdit} />
+      {project.description && (
+        <p className={styles.description}>{project.description}</p>
+      )}
+      <UndoControls {...undoRedo} />
+    </div>
+  );
+}
+
+interface ProjectRunSectionProps extends Pick<
+  ProjectBarProps,
+  "project" | "projectRun" | "saveFailed" | "onRetry"
+> {
+  readonly cantRunReasonId: string;
+}
+
+/** The workload controls, progress, run status, and save failure message. */
+function ProjectRunSection(props: ProjectRunSectionProps) {
+  const { project, projectRun, cantRunReasonId, saveFailed, onRetry } = props;
+  const { run, ran, status, outOfDate } = projectRun;
+  return (
+    <div className={styles.run}>
+      <WorkloadControls
+        project={project}
+        projectRun={projectRun}
+        cantRunReasonId={cantRunReasonId}
+      />
+      {ran !== undefined && (
+        <RunProgress workload={ran} snapshots={run.snapshots} />
+      )}
+      <RunStatus status={status} outOfDate={outOfDate} />
+      <CantRunReason id={cantRunReasonId} projectRun={projectRun} />
+      <SaveStatus saveFailed={saveFailed} onRetry={onRetry} />
+    </div>
   );
 }
 

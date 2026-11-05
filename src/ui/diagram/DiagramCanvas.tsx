@@ -12,9 +12,11 @@ import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo, type KeyboardEvent } from "react";
 import {
   canConnect,
+  NO_MARKS,
   type DiagramConnection,
   type DiagramContent,
   type DiagramItem,
+  type DiagramMarks,
   type DiagramMove,
   type DiagramNode,
 } from "./diagram-model";
@@ -59,7 +61,7 @@ function FitViewOnResize() {
 
 export interface DiagramCanvasProps {
   readonly content: DiagramContent;
-  readonly selected?: DiagramItem | undefined;
+  readonly marks?: DiagramMarks | undefined;
   readonly onSelect?: ((item: DiagramItem | undefined) => void) | undefined;
   readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
   readonly onMove?: ((move: DiagramMove) => void) | undefined;
@@ -71,12 +73,12 @@ export interface DiagramCanvasProps {
  */
 export function DiagramCanvas({
   content,
-  selected,
+  marks = NO_MARKS,
   onSelect,
   onConnect,
   onMove,
 }: DiagramCanvasProps) {
-  const items = useFlowItems({ content, selected, onMove });
+  const items = useFlowItems({ content, marks, onMove });
   return (
     <ReactFlow
       nodes={items.nodes}
@@ -100,10 +102,10 @@ export function DiagramCanvas({
   );
 }
 
-/** What the canvas draws: its content and the selection, and what a move is reported to. */
+/** What the canvas draws: its content and its marks, and what a move is reported to. */
 interface FlowItemsInput {
   readonly content: DiagramContent;
-  readonly selected: DiagramItem | undefined;
+  readonly marks: DiagramMarks;
   readonly onMove: DiagramCanvasProps["onMove"];
 }
 
@@ -118,27 +120,23 @@ interface FlowItems {
 }
 
 /**
- * The boxes and arrows as React Flow takes them, marking the selected one,
- * drawing each box being moved where it was put, and giving each box the
- * size React Flow measured, so it stays shown when its node is new.
+ * The boxes and arrows as React Flow takes them, marking the selection and
+ * the path, drawing each box being moved where it was put, and giving each
+ * box the size React Flow measured, so it stays shown when its node is new.
  */
-function useFlowItems({
-  content,
-  selected,
-  onMove,
-}: FlowItemsInput): FlowItems {
+function useFlowItems({ content, marks, onMove }: FlowItemsInput): FlowItems {
   const { positions, props } = useNodeMoves({ nodes: content.nodes, onMove });
   const { sizes, remember } = useMeasuredSizes();
   const nodes = useMemo(
     () =>
       content.nodes.map((node) =>
-        sized(toFlowNode(placed(node, positions), selected), sizes),
+        sized(toFlowNode(placed(node, positions), marks), sizes),
       ),
-    [content.nodes, selected, positions, sizes],
+    [content.nodes, marks, positions, sizes],
   );
   const edges = useMemo(
-    () => content.edges.map((edge) => toFlowEdge(edge, selected)),
-    [content.edges, selected],
+    () => content.edges.map((edge) => toFlowEdge(edge, marks)),
+    [content.edges, marks],
   );
   const onNodesChange: NodeMoves["props"]["onNodesChange"] = (changes) => {
     remember(changes);

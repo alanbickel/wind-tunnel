@@ -9,12 +9,16 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Selection } from "../../application/details/selection";
-import type { Point } from "../../application/ports/project-record";
+import type {
+  Point,
+  ProjectRecord,
+} from "../../application/ports/project-record";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import { ArchitectureView } from "./ArchitectureView";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
+import { ON_PATH_CLASS } from "../diagram/to-react-flow";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 
 /** The diagram's boxes, once React Flow has loaded and drawn them. */
@@ -27,10 +31,36 @@ async function drawnNodes(diagram: HTMLElement): Promise<Element[]> {
 
 interface RenderViewInput {
   readonly selection?: Selection;
+  readonly record?: ProjectRecord;
+}
+
+/** The sample, with a component no workflow uses. */
+const withSpare: ProjectRecord = {
+  ...sampleRecord,
+  project: {
+    ...sampleRecord.project,
+    architecture: {
+      ...sampleRecord.project.architecture,
+      components: [
+        ...sampleRecord.project.architecture.components,
+        { id: "spare", type: "lambda", name: "Spare", config: {} },
+      ],
+    },
+  },
+};
+
+/** Which of the boxes, by id, have the class. */
+function boxesWith(nodes: Element[], className: string): (string | null)[] {
+  return nodes
+    .filter((node) => node.classList.contains(className))
+    .map((node) => node.getAttribute("data-id"));
 }
 
 /** The view, with spies for what it reports. */
-function renderView({ selection }: RenderViewInput = {}) {
+function renderView({
+  selection,
+  record = sampleRecord,
+}: RenderViewInput = {}) {
   const onSelect = vi.fn<(selection: Selection) => void>();
   const onClear = vi.fn<() => void>();
   const onAdd = vi.fn<(type: string) => void>();
@@ -38,7 +68,7 @@ function renderView({ selection }: RenderViewInput = {}) {
   render(
     <UseCasesProvider useCases={fakeUseCases()}>
       <ArchitectureView
-        record={sampleRecord}
+        record={record}
         selection={selection}
         onSelect={onSelect}
         onClear={onClear}
@@ -139,6 +169,37 @@ describe("ArchitectureView", () => {
       false,
       true,
     ]);
+  });
+
+  // Fails if the view stops passing a workflow's path to the diagram, or
+  // the path takes in a component no step calls, or rings one. The path's
+  // arrows are tested in selection-on-architecture.test.ts and
+  // to-react-flow.test.tsx, since jsdom draws none.
+  it("highlights the boxes of a selected workflow's path, and rings none", async () => {
+    renderView({
+      record: withSpare,
+      selection: { kind: "workflow", workflowId: "read" },
+    });
+    const nodes = await drawnNodes(diagram());
+
+    expect(boxesWith(nodes, ON_PATH_CLASS)).toEqual(["api", "fn", "table"]);
+    expect(boxesWith(nodes, "selected")).toEqual([]);
+  });
+
+  // Fails if a selected step rings its caller's box, or another, or drops
+  // its workflow's path.
+  it.each([
+    ["fn-invoke", "fn"],
+    ["api-invoke", "api"],
+  ])("rings step %s's box, on its workflow's path", async (stepId, id) => {
+    renderView({
+      record: withSpare,
+      selection: { kind: "step", workflowId: "read", stepId },
+    });
+    const nodes = await drawnNodes(diagram());
+
+    expect(boxesWith(nodes, "selected")).toEqual([id]);
+    expect(boxesWith(nodes, ON_PATH_CLASS)).toEqual(["api", "fn", "table"]);
   });
 
   it("lists the components and connections as text", () => {

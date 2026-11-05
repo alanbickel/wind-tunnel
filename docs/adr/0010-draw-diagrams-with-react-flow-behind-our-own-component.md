@@ -45,3 +45,9 @@ ESLint enforces the boundary: importing `@xyflow/react` in `src/ui/` or `src/ada
 **Context.** M6 lets a user move the diagram's boxes, by mouse and by keyboard, and saves where they go ([#106](https://github.com/alanbickel/wind-tunnel/issues/106), [UX design §2.4](../design/user-experience.md#24-add-a-component-and-remove-one) step 1). The 2026-10-30 addendum said nothing on the canvas could be moved.
 
 **What changed.** Moving fits the decision as written, as selecting and connecting did: `Diagram` gained an `onMove` callback in our own types (`DiagramMove`: a node, by id, and its new position), and React Flow's drag events and node changes stay inside `src/ui/diagram/` (`useNodeMoves`). The canvas draws a box being moved where it was put and reports the move once, when the drag ends or a run of arrow key presses pauses. The project screen saves it in the layout, and the box then stays where the content it's given puts it. React Flow moves only its own selected box with the arrow keys, and its selection is off here, so the canvas moves the focused box itself and keeps the keys from React Flow. Nothing can be deleted on the canvas yet; without `onMove`, nothing can be moved.
+
+## Addendum, 2026-11-05
+
+**Context.** M6 shows a selected workflow's path on the diagram, and a selected step's component and the edge its call arrives on ([#121](https://github.com/alanbickel/wind-tunnel/issues/121), [UX design §4.1](../design/user-experience.md#41-selection)). A step marks a box and an arrow at once, which the single `selected` item the 2026-10-25 addendum quotes can't say.
+
+**What changed.** The `selected` prop is now `marks`, in our own types (`DiagramMarks`: the `selected` items, and the items on a `path`), and the classes that draw them stay inside `src/ui/diagram/`. The decision is unchanged: the diagram still marks only what it's given, and React Flow's own selection stays off.

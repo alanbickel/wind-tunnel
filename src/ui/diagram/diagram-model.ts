@@ -47,6 +47,27 @@ export function isSelected(
   return selected?.kind === item.kind && selected.id === item.id;
 }
 
+/**
+ * What the diagram marks: the selection, ringed boxes and thickened
+ * arrows, and a path, such as a workflow's, drawn so it reads apart from
+ * the selection.
+ */
+export interface DiagramMarks {
+  readonly selected: readonly DiagramItem[];
+  readonly path: readonly DiagramItem[];
+}
+
+/** No selection, and no path. */
+export const NO_MARKS: DiagramMarks = { selected: [], path: [] };
+
+/** Whether `item` is among `items`: the same kind, and the same id. */
+export function isAmong(
+  items: readonly DiagramItem[],
+  item: DiagramItem,
+): boolean {
+  return items.some((marked) => isSelected(marked, item));
+}
+
 /** An arrow the user draws, from one node to another. */
 export interface DiagramConnection {
   readonly source: string;

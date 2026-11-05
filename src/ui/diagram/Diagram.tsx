@@ -5,6 +5,7 @@ import type {
   DiagramConnection,
   DiagramContent,
   DiagramItem,
+  DiagramMarks,
   DiagramMove,
 } from "./diagram-model";
 
@@ -20,8 +21,11 @@ export interface DiagramProps {
   readonly content: DiagramContent;
   /** Names the diagram for screen readers, e.g. "Architecture of Checkout". */
   readonly label: string;
-  /** The node or edge to mark as selected, if any. */
-  readonly selected?: DiagramItem | undefined;
+  /**
+   * The nodes and edges to mark as selected, and those on a path, such as
+   * a workflow's; none if not given.
+   */
+  readonly marks?: DiagramMarks | undefined;
   /**
    * Called with the node or edge the user clicks, or a node they press
    * Enter on, and with undefined when they click the empty canvas. Without
@@ -51,16 +55,18 @@ export interface DiagramProps {
  * keys once it has the focus. Given `onConnect`, a drag from one box's
  * handle to another draws an arrow. Given `onSelect`, a click
  * selects a box or an arrow, and the boxes take tab stops so Enter can
- * select them; the diagram rings the selected box and thickens the
- * selected arrow. It isn't readable by screen readers, so pair it with a
- * text version that can select the same things. Place it in
+ * select them; the diagram rings the selected boxes and thickens the
+ * selected arrows. A path's boxes get a thick border inside their edge, and
+ * its arrows a thick line, so a path reads apart from the selection. It
+ * isn't readable by screen readers, so pair it with a text version that
+ * can select the same things. Place it in
  * a flex column, such as a `Panel`: it's `--diagram-height` tall, or it
  * fills the room a fixed-height column leaves it, and refits when that
  * room changes. While React Flow loads, or if it can't, the box holds its
  * place.
  */
 export function Diagram(props: DiagramProps) {
-  const { content, label, selected, onSelect, onConnect, onMove } = props;
+  const { content, label, marks, onSelect, onConnect, onMove } = props;
   return (
     <div role="group" aria-label={label} className={styles.diagram}>
       <div className={styles.canvas}>
@@ -76,7 +82,7 @@ export function Diagram(props: DiagramProps) {
           >
             <DiagramCanvas
               content={content}
-              selected={selected}
+              marks={marks}
               onSelect={onSelect}
               onConnect={onConnect}
               onMove={onMove}

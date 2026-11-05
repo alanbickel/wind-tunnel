@@ -46,6 +46,29 @@ function stepAlong(step: Step, path: IssuePath): Step | undefined {
   return child && stepAlong(child, path.slice(2));
 }
 
+/** One step calling another: a nested call, or a queue delivering its async work. */
+export interface StepLink {
+  readonly caller: Step;
+  readonly callee: Step;
+}
+
+/**
+ * Every call one of the workflow's steps makes to another, async work
+ * included, in tree order. The root step has no caller: the user calls it.
+ */
+export function stepLinksOf(workflow: Workflow): StepLink[] {
+  return linksUnder(workflow.root);
+}
+
+/** Every caller and callee pair under the step. */
+function linksUnder(step: Step): StepLink[] {
+  const callees = [...(step.calls ?? []), ...(step.async ? [step.async] : [])];
+  return callees.flatMap((callee) => [
+    { caller: step, callee },
+    ...linksUnder(callee),
+  ]);
+}
+
 /** The step and every step under it, in tree order. */
 function stepsUnder(at: LocatedStep): LocatedStep[] {
   const { step, path } = at;

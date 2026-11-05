@@ -16,3 +16,9 @@
 .item {
   composes: item from "../shared/SelectableItem.module.css";
 }
+
+/* A workflow's problem count, after its name: said in words, the color
+   only adds to it. */
+.problems {
+  color: var(--color-status-warn);
+}

@@ -17,6 +17,7 @@ import { createBundledTemplateCatalog } from "./adapters/templates/bundled-templ
 import { createFieldCatalog } from "./application/details/create-field-catalog";
 import { CreateBlankProject } from "./application/use-cases/create-blank-project";
 import { CreateProjectFromTemplate } from "./application/use-cases/create-project-from-template";
+import { CheckWorkflows } from "./application/use-cases/check-workflows";
 import { CheckWorkloads } from "./application/use-cases/check-workloads";
 import { NameComponents } from "./application/use-cases/name-components";
 import { NewComponent } from "./application/use-cases/new-component";
@@ -105,6 +106,7 @@ function createProjectReaders(
   | "describeSelection"
   | "nameComponents"
   | "checkWorkloads"
+  | "checkWorkflows"
   | "listComponentTypes"
 > {
   const fields = createFieldCatalog();
@@ -112,6 +114,7 @@ function createProjectReaders(
     describeSelection: new DescribeSelection({ registry, fields }),
     nameComponents: new NameComponents({ registry }),
     checkWorkloads: new CheckWorkloads({ registry }),
+    checkWorkflows: new CheckWorkflows({ registry }),
     listComponentTypes: new ListComponentTypes({ registry, fields }),
   };
 }

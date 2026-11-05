@@ -1,9 +1,14 @@
+import type { ComponentRegistry } from "../../domain/components/component-registry";
+import type { Project } from "../../domain/model/project";
 import type { StepIssue, WorkloadIssue } from "../../domain/model/run-issue";
 import {
   handleKind,
   type KindHandlers,
 } from "../../domain/shared/kind-handlers";
-import type { ComponentNames } from "../run-analysis/component-names";
+import {
+  componentNames,
+  type ComponentNames,
+} from "../run-analysis/component-names";
 import { listOf } from "../shared/list-of";
 
 /** How the phrases name what an issue is about: by name, never by ID (UX §5). */
@@ -11,6 +16,18 @@ export interface RunIssueNames {
   readonly component: ComponentNames;
   /** A workflow's name, by ID; an ID the project doesn't have reads as itself. */
   readonly workflow: (workflowId: string) => string;
+}
+
+/** How a project's components and workflows are named in messages. */
+export function runIssueNames(
+  project: Project,
+  registry: ComponentRegistry,
+): RunIssueNames {
+  const byId = new Map(project.workflows.map((w) => [w.id, w.name]));
+  return {
+    component: componentNames(project, registry),
+    workflow: (workflowId) => byId.get(workflowId) ?? workflowId,
+  };
 }
 
 /**
@@ -31,7 +48,25 @@ export function stepIssueText(
   group: StepIssueGroup,
   names: RunIssueNames,
 ): string {
-  return handleKind(stepPhrases(group, names), group.issue);
+  const { issue, workflowIds } = group;
+  const subject = {
+    who: listOf(workflowIds.map(names.workflow)),
+    plural: workflowIds.length > 1,
+  };
+  return handleKind(stepPhrases(subject, names), issue);
+}
+
+/**
+ * A step issue as the step's outline says it, under the step: "This step
+ * calls a component that isn't in the architecture any more." (UX design
+ * §2.4 step 5).
+ */
+export function stepIssueOnStep(
+  issue: StepIssue,
+  names: RunIssueNames,
+): string {
+  const subject = { who: "This step", plural: false };
+  return handleKind(stepPhrases(subject, names), issue);
 }
 
 /**
@@ -51,15 +86,22 @@ export function workloadIssueText(
   return handleKind(workloadPhrases(names), issue);
 }
 
-/** Each step issue's sentence, with its workflows as the subject. */
+/** What a step issue's sentence starts with: its workflows, or the step. */
+interface Subject {
+  /** E.g. "Get order and Create order", or "This step". */
+  readonly who: string;
+  /** Whether the verb is plural: "call" rather than "calls". */
+  readonly plural: boolean;
+}
+
+/** Each step issue's sentence, with `subject` doing what the step does. */
 function stepPhrases(
-  { workflowIds }: StepIssueGroup,
+  { who, plural }: Subject,
   names: RunIssueNames,
 ): KindHandlers<StepIssue, string> {
-  const who = listOf(workflowIds.map(names.workflow));
   // "Get order calls", "Get order and Create order call".
   const verb = (singular: string) =>
-    workflowIds.length > 1 ? singular.slice(0, -1) : singular;
+    plural ? singular.slice(0, -1) : singular;
   const name = names.component;
   return {
     // Once removed, a component has no name to give: the step keeps only

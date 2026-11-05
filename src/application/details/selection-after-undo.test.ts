@@ -124,6 +124,29 @@ describe("selectionAfterUndo", () => {
     expect(changes).toEqual([{ kind: "keep" }, { kind: "keep" }]);
   });
 
+  // Fails if undoing a remove takes the selection off a step or workflow
+  // that's still there, to the component it brought back, so the outline
+  // that shows the step's issue going would close.
+  it("keeps a selected step or workflow through an undo that brings a component back", () => {
+    const step = {
+      kind: "step",
+      workflowId: "read",
+      stepId: "table-read",
+    } as const;
+    const workflow = { kind: "workflow", workflowId: "read" } as const;
+
+    const changes = [
+      selectionAfterUndo({ from: withoutTable, to: sample, selection: step }),
+      selectionAfterUndo({
+        from: withoutTable,
+        to: sample,
+        selection: workflow,
+      }),
+    ];
+
+    expect(changes).toEqual([{ kind: "keep" }, { kind: "keep" }]);
+  });
+
   // Fails if a change that leaves the selected thing in the project, or a
   // remove of something else, clears or changes the selection.
   it("keeps a selection that's still there", () => {

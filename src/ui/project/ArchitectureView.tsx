@@ -4,8 +4,9 @@ import type {
   ProjectRecord,
 } from "../../application/ports/project-record";
 import type { Selection } from "../../application/details/selection";
-import type { Workflow } from "../../domain/model/project";
+import type { Project } from "../../domain/model/project";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
+import { useUseCases } from "../app/useUseCases";
 import { Diagram } from "../diagram/Diagram";
 import {
   isSelected,
@@ -57,7 +58,7 @@ export function ArchitectureView(props: ArchitectureViewProps) {
         <Drawing {...props} content={content} />
       )}
       <WorkflowList
-        workflows={props.record.project.workflows}
+        project={props.record.project}
         selection={props.selection}
         onSelect={props.onSelect}
       />
@@ -66,21 +67,22 @@ export function ArchitectureView(props: ArchitectureViewProps) {
 }
 
 interface WorkflowListProps {
-  readonly workflows: readonly Workflow[];
+  readonly project: Project;
   readonly selection: Selection | undefined;
   readonly onSelect: (selection: Selection) => void;
 }
 
 /**
  * "Workflows", and a button for each, in project order, marked current
- * while its workflow, or a step in it, is selected; or a line on what a
- * workflow is, while there are none (UX design §2.5 step 1).
+ * while its workflow, or a step in it, is selected, and saying how many
+ * problems it has, if any; or a line on what a workflow is, while there
+ * are none (UX design §2.5 step 1).
  */
 function WorkflowList(props: WorkflowListProps) {
   return (
     <>
       <h4 className={styles.listHeading}>Workflows</h4>
-      {props.workflows.length === 0 ? (
+      {props.project.workflows.length === 0 ? (
         <p>
           No workflows yet. A workflow is the path one kind of request takes
           through your architecture.
@@ -92,26 +94,60 @@ function WorkflowList(props: WorkflowListProps) {
   );
 }
 
-/** The list's rows, one button per workflow. */
-function WorkflowRows({ workflows, selection, onSelect }: WorkflowListProps) {
+/** The list's rows, one per workflow. */
+function WorkflowRows({ project, selection, onSelect }: WorkflowListProps) {
+  const { checkWorkflows } = useUseCases();
+  const checks = useMemo(
+    () => checkWorkflows.execute({ project }),
+    [checkWorkflows, project],
+  );
   const shown = selection && dispatchKind(SHOWN_WORKFLOW, selection);
   return (
     <ul aria-label="Workflows" className={styles.items}>
-      {workflows.map(({ id, name }) => (
+      {project.workflows.map(({ id, name }) => (
         <li key={id}>
-          <button
-            type="button"
-            className={styles.item}
-            aria-current={id === shown || undefined}
-            onClick={() => {
+          <WorkflowRow
+            name={name}
+            problems={checks.get(id)?.problems}
+            current={id === shown}
+            onSelect={() => {
               onSelect({ kind: "workflow", workflowId: id });
             }}
-          >
-            {name}
-          </button>
+          />
         </li>
       ))}
     </ul>
+  );
+}
+
+interface WorkflowRowProps {
+  readonly name: string;
+  /** "1 problem", "2 problems"; undefined for none. */
+  readonly problems: string | undefined;
+  readonly current: boolean;
+  readonly onSelect: () => void;
+}
+
+/**
+ * A workflow's button, with its problem count, if any, after its name in
+ * words, so it doesn't rely on color.
+ */
+function WorkflowRow({ name, problems, current, onSelect }: WorkflowRowProps) {
+  return (
+    <button
+      type="button"
+      className={styles.item}
+      aria-current={current || undefined}
+      onClick={onSelect}
+    >
+      {name}
+      {problems !== undefined && (
+        <>
+          {" · "}
+          <span className={styles.problems}>{problems}</span>
+        </>
+      )}
+    </button>
   );
 }
 

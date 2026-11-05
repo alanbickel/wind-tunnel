@@ -6,8 +6,8 @@ import {
 import type { Project, Workload } from "../../domain/model/project";
 import type { StepIssue, WorkloadIssue } from "../../domain/model/run-issue";
 import type { ValidationIssue } from "../../domain/model/validation-issue";
-import { componentNames } from "../run-analysis/component-names";
 import {
+  runIssueNames,
   stepIssueKey,
   stepIssueText,
   workloadIssueText,
@@ -57,7 +57,7 @@ export function workloadRunChecks({
   registry,
 }: WorkloadRunChecksInput): WorkloadRunChecks {
   const runIssues = findRunIssues(project, registry);
-  const names = namesOf({ project, registry });
+  const names = runIssueNames(project, registry);
   return new Map(
     project.workloads.map((workload) => [
       workload.id,
@@ -76,22 +76,10 @@ export interface WorkloadRunCheckInput extends WorkloadRunChecksInput {
 export function workloadRunCheck(
   input: WorkloadRunCheckInput,
 ): WorkloadRunCheck {
-  const runIssues = findRunIssues(input.project, input.registry);
-  return checkOf({ workload: input.workload, runIssues }, namesOf(input));
-}
-
-/** How the project's components and workflows are named in messages. */
-function namesOf({ project, registry }: WorkloadRunChecksInput): RunIssueNames {
-  return {
-    component: componentNames(project, registry),
-    workflow: workflowNames(project),
-  };
-}
-
-/** The workflow names of a project, by ID. */
-function workflowNames(project: Project): RunIssueNames["workflow"] {
-  const byId = new Map(project.workflows.map((w) => [w.id, w.name]));
-  return (workflowId) => byId.get(workflowId) ?? workflowId;
+  const { project, registry, workload } = input;
+  const runIssues = findRunIssues(project, registry);
+  const names = runIssueNames(project, registry);
+  return checkOf({ workload, runIssues }, names);
 }
 
 interface CheckInput {

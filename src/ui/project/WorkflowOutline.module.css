@@ -25,6 +25,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A step that can't run, and its issues: marked by a thick line down
+   their side and said in words, not by color alone. */
+.cantRun {
+  border-inline-start: var(--line-width-thick) solid var(--color-status-warn);
+  padding-inline-start: var(--space-2);
+}
+
+.issue {
+  max-width: var(--prose-max-width);
+  margin: 0 0 var(--space-1);
+}
+
 /* An enqueue's async work: a second tree, set off by a line at its start. */
 .async {
   margin-inline-start: var(--space-5);

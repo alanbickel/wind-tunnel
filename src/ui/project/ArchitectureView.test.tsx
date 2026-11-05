@@ -236,9 +236,7 @@ describe("ArchitectureView", () => {
     });
 
     expect(itemsOf("Components")).toHaveLength(3);
-    expect(
-      screen.queryByRole("list", { name: "Workflow paths" }),
-    ).toBeNull();
+    expect(screen.queryByRole("list", { name: "Workflow paths" })).toBeNull();
   });
 
   // Fails if a text-version button selects the wrong kind of item or the

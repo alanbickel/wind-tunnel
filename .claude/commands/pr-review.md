@@ -12,10 +12,11 @@ This is a reading review. CI runs `npm run check`, and the author proves their t
 1. Look up the PR, its head branch, the issues it closes, and earlier reviews, then the inline comment threads (author replies appear only there):
    ```
    gh pr view $ARGUMENTS --json title,body,headRefName,headRefOid,closingIssuesReferences,reviews
-   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments
-   gh pr diff $ARGUMENTS
+   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments --jq '.[] | {id, in_reply_to_id, path, line, original_line, user: .user.login, body}'
+   gh pr diff $ARGUMENTS --name-only
    ```
-   Read each issue it closes (`gh issue view <n>`).
+   The `--jq` filter keeps what the review uses and drops the diff hunks and URLs each comment carries. Read each issue it closes (`gh issue view <n>`).
+   Don't read the whole diff at once: a large one doesn't fit in a tool result and has to be read again from a file. Once step 3 has fetched the head, read it one file at a time, with `git diff origin/main...<headRefOid> -- <path>`. Generated files, such as snapshots and the lockfile, need reading only when a doc quotes them or the change to them is the point.
 2. Read `CONTRIBUTING.md` and `docs/contributing/documentation.md`, then the other pages in `docs/contributing/` that the PR's changes need: `coding-standards.md` if it changes code, and `testing.md` if it changes tests. Their standards are the review criteria, and `.claude/review-protocol.md` sets the tags, answers, and verdict this command uses. Read it too. Read the Roadmap (`gh issue view 32`) to see where the PR's issue sits.
 3. Another session may be working in this checkout, so don't switch branches here. Review in a separate worktree (the first two lines clear one left by an earlier run; the `remove` fails harmlessly if there's none):
    ```

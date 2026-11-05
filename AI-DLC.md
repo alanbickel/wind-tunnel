@@ -2,7 +2,7 @@
 
 **Experimental.** This is a trial of auto-implementation: Claude sessions take issues through the whole [pull request workflow](CONTRIBUTING.md#branches-and-pull-requests) while nobody watches, from opening the PR through review and fixes to the merge. It may change a lot or be dropped, so it's kept out of CONTRIBUTING. [#124](https://github.com/alanbickel/wind-tunnel/issues/124) tracks the experiment.
 
-[`scripts/ai-dlc.js`](scripts/ai-dlc.js) is the driver. It takes a list of issues, and runs each step (start, review, address) as its own fresh headless `claude -p` session, with Opus 5.5 at medium effort. No session's transcript carries over to the next step; GitHub is the only state the steps share. The sessions talk to each other and to the maintainer as [the review protocol](.claude/review-protocol.md) says.
+[`scripts/ai-dlc.js`](scripts/ai-dlc.js) is the driver. It takes a list of issues, and runs each step (start, review, address) as its own fresh headless `claude -p` session, at medium effort. An issue's sessions run on Sonnet 5.5, or on Opus 5.5 if the issue has the `opus` label: add it to an issue whose design needs the stronger model. No session's transcript carries over to the next step; GitHub is the only state the steps share. The sessions talk to each other and to the maintainer as [the review protocol](.claude/review-protocol.md) says.
 
 ## Setup
 
@@ -94,5 +94,7 @@ To look into a step, use its session id. The terminal shows it when the session 
 ## What runs have shown
 
 - **Cost.** The first run took #119 to "ready to merge": start, one review, one address round, and a follow-up review. It cost about $11.40 and 28 points of the 5-hour cap. The start step was two-thirds of that, at $7.44 and 210 turns. [#127](https://github.com/alanbickel/wind-tunnel/issues/127) has the step-by-step numbers.
+- **What the cost is made of.** The run of #120–#122, all on Opus, cost about $18 and a whole 5-hour window for three issues. The start steps were 59% of it, the first reviews 22%, the address rounds 13%, and the follow-up reviews 6%. Most of a session's cost is cache reads: every call re-reads the whole conversation, so cost grows with the number of calls times the context's size. The start sessions reached 70–120k tokens of docs and source files before their first edit, then made 35–71 edits, one call each. [#142](https://github.com/alanbickel/wind-tunnel/issues/142) has the breakdown and the changes it led to: Sonnet by default, an author told to survey code through a subagent and batch its edits, and a reviewer that reads the diff a file at a time.
+- **Small issues are cheaper per change**, not just faster to review. #120's start step alone took 31 minutes and a quarter of a 5-hour window, because a long session pays for its growing context on every call. Split an issue whose start step would make dozens of edits.
 - **`--max-turns` isn't a dependable cap.** The start session above ran 210 turns under `--max-turns 150` and still finished as a success, so the driver now counts turns itself. `steps.jsonl` records both counts, `turns` (Claude Code's) and `driverTurns`, so later runs can show what `--max-turns` counts.
 - **CI time varies.** The same checks took 3 minutes on one push and 21 minutes on the next.

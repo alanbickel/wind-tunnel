@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_MODEL,
   MAX_TURNS_PER_STEP,
+  OPUS_LABEL,
   emptyTally,
+  modelFor,
   noteTurn,
   overTurnLimit,
 } from "../../../scripts/ai-dlc/session.js";
+
+describe("an issue's model", () => {
+  // Fails if the default becomes Opus, or if any label, not just `opus`, switches models.
+  it("is the default for an issue without the opus label", () => {
+    expect(modelFor(["feat", "needs-decision"])).toBe(DEFAULT_MODEL);
+    expect(DEFAULT_MODEL).toContain("sonnet");
+  });
+
+  // Fails if `modelFor` ignores the label and always returns the default.
+  it("is Opus for an issue with the opus label", () => {
+    expect(modelFor(["feat", OPUS_LABEL])).toContain("opus");
+  });
+});
 
 const assistantEvent = (id: string, parentToolUseId: string | null = null) => ({
   type: "assistant",

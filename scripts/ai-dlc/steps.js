@@ -28,7 +28,7 @@ const CI_REGISTER_TIMEOUT_MS = 10 * 60 * 1000;
 const CI_POLL_INTERVAL_MS = 15 * 1000;
 
 /** @typedef {import("./arguments.js").RunFlags} RunFlags */
-/** @typedef {{ issue: number, flags: RunFlags }} Job */
+/** @typedef {{ issue: number, flags: RunFlags, model: string }} Job */
 /** @typedef {import("./github.js").PullRequest} PullRequest */
 /** @typedef {import("./permissions.js").AddressWorktree} AddressWorktree */
 /** @typedef {{ pr: number, round: number }} RoundInput */
@@ -73,6 +73,7 @@ export async function startIssue(/** @type {Job} */ job) {
   await runSession({
     name,
     prompt: authorPrompt(job.issue, job.flags),
+    model: job.model,
     permissions: startPermissions(),
     systemPromptAddition: undefined,
   });
@@ -117,6 +118,7 @@ async function review(/** @type {Job} */ job, /** @type {RoundInput} */ input) {
   await runSession({
     name,
     prompt: `/pr-review ${input.pr}`,
+    model: job.model,
     permissions: reviewPermissions(),
     systemPromptAddition: job.flags.deferManualChecks
       ? REVIEWER_DEFERRAL
@@ -143,6 +145,7 @@ async function address(
   await runSession({
     name,
     prompt: `/pr-address ${input.pr}`,
+    model: job.model,
     permissions: addressPermissions(worktree),
     systemPromptAddition: undefined,
   });

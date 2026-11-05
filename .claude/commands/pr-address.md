@@ -11,7 +11,7 @@ You're the author of pull request #$ARGUMENTS on Wind Tunnel, answering its late
 2. Look up the PR, the issue it closes, and the latest Claude review:
    ```
    gh pr view $ARGUMENTS --json title,body,headRefName,headRefOid,closingIssuesReferences,reviews,mergeable
-   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments
+   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments --jq '.[] | {id, in_reply_to_id, path, line, original_line, user: .user.login, body}'
    node scripts/review-threads.js list $ARGUMENTS
    gh pr view $ARGUMENTS --comments
    ```

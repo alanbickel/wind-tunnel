@@ -1,10 +1,10 @@
 # The Workflow Editor
 
-How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it, and draws its path on the diagram. The path in the diagram's text version ([#122](https://github.com/alanbickel/wind-tunnel/issues/122)), and editing ([#116](https://github.com/alanbickel/wind-tunnel/issues/116), [#117](https://github.com/alanbickel/wind-tunnel/issues/117)) add to this guide as they land. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Editing ([#116](https://github.com/alanbickel/wind-tunnel/issues/116), [#117](https://github.com/alanbickel/wind-tunnel/issues/117)) adds to this guide as it lands. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
-## A workflow, three ways
+## A workflow, four ways
 
-The same workflow appears three ways, and this section answers "how does the tree on disk become what I see?" The example is Template B's "Create order", because it has both kinds of child: `calls`, made in order while the step holds its component, and `async` work, done later, when a queue's consumer takes the message. (Template A's "Create order" has the same shape without the queue.)
+The same workflow appears four ways, and this section answers "how does the tree on disk become what I see?" The example is Template B's "Create order", because it has both kinds of child: `calls`, made in order while the step holds its component, and `async` work, done later, when a queue's consumer takes the message. (Template A's "Create order" has the same shape without the queue.)
 
 **1. The stored call tree.** What `Workflow.root` holds, and the template's JSON: each step has an ID, a component's ID, and an action. A step's `calls` are its children; an `enqueue` may have one `async` child.
 
@@ -34,6 +34,14 @@ flowchart TB
 
 **3. The path on the diagram.** Selecting the workflow highlights its path: every component a step calls, and every edge a call follows, async work included. Here that's the five components above, and the four edges `api → fn-api`, `fn-api → orders-queue`, `orders-queue → fn-writer`, and `fn-writer → orders-db`; orders-read and `fn-api → orders-read`, which only "Get order" uses, aren't on it. Selecting the step `1.1.1.1  fn-writer · invoke` keeps the path and rings fn-writer and `orders-queue → fn-writer`, the edge the queue delivers its message along. [The path on the diagram](#the-path-on-the-diagram) says how.
 
+**4. The path in the text version.** Under the diagram's components and connections, its text version gives each workflow's path as one line, for a reader who can't see the diagram. [`workflowPathText`](../../src/application/details/workflow-path-text.ts) names each step by its component, and the last step of a path by its action too; a workflow that branches gets a path per leaf, joined by semicolons, and async work follows its queue after "then":
+
+```text
+Create order: API Gateway → fn-api → orders-queue (enqueue), then fn-writer → orders-db (write).
+```
+
+Template A's "Create order" branches nowhere, so it reads "Create order: API Gateway → fn-orders → orders-db (write)."; had fn-orders first read the customer's record, it would read "… → orders-db (read); API Gateway → fn-orders → orders-db (write)." The lines aren't buttons, since the Workflows list under the text version selects a workflow, and they mark no selection.
+
 ## How a step is addressed
 
 A step is named by its `id`, not by where it is in the tree ([ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)). A path such as `["workflows", 1, "root", "calls", 0]` shifts when an earlier sibling moves or goes, so a selection held as a path would jump to another step after an edit or an undo; an ID doesn't change. So a selected step is `{ kind: "step", workflowId, stepId }`, and the outline keeps each step's ID beside its number for selecting it, never for showing it. Run issues still carry paths, because they're worked out afresh from the project each time; [How an issue finds its step](#how-an-issue-finds-its-step) turns one into the step's ID.
@@ -48,7 +56,7 @@ How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-gl
 %%{init: {"flowchart": {"wrappingWidth": 320}}}%%
 flowchart TB
     subgraph ui["ui/project/"]
-        list["<b>ArchitectureView</b><br/>[Component]<br/>The Workflows list, a row per workflow, with its problems; the diagram's marks"]:::component
+        list["<b>ArchitectureView</b><br/>[Component]<br/>The Workflows list, a row per workflow, with its problems; the diagram's marks; the text version's path lines"]:::component
         details["<b>SelectionDetails, WorkflowOutline</b><br/>[Component]<br/>The heading, Used by, and the outline with its issues"]:::component
         selecting["<b>useSelection</b><br/>[Component]<br/>The selection, the tab, and where the focus returns"]:::component
         undo["<b>useUndoRedo</b><br/>[Component]<br/>Moves the selection after an undo"]:::component
@@ -57,7 +65,9 @@ flowchart TB
         describeUc["<b>DescribeSelection</b><br/>[Component: use-cases/]<br/>Finds the workflow and the step"]:::component
         checkUc["<b>CheckWorkflows</b><br/>[Component: use-cases/]<br/>Each workflow's check, for the list"]:::component
         outline["<b>workflowDetails, usedByLine</b><br/>[Component: details/]<br/>The numbered outline, and its words"]:::component
-        checks["<b>workflowRunChecks</b><br/>[Component: run-checks/]<br/>Each issue on its step, worded; the count"]:::component
+        checks["<b>workflowRunChecks</b><br/>[Component: run-checks/]<br/>Each issue on its step; the count"]:::component
+        phrases["<b>run-issue-phrases</b><br/>[Component: run-checks/]<br/>An issue's words, with the step as the subject"]:::component
+        pathText["<b>workflowPathText</b><br/>[Component: details/]<br/>A workflow's path line, for the text version"]:::component
         afterUndo["<b>selectionAfterUndo</b><br/>[Component: details/]<br/>Keeps a step while it's there"]:::component
         onDiagram["<b>selectionOnArchitecture</b><br/>[Component: details/]<br/>The path, and what a step rings"]:::component
     end
@@ -71,9 +81,11 @@ flowchart TB
     describeUc --> outline
     describeUc & checkUc --> checks
     checks --> findIssues
+    checks --> phrases
     describeUc & afterUndo & checks & onDiagram --> stepTree
     undo --> afterUndo
     list --> onDiagram
+    list --> pathText
     list -->|"marks"| diagram
     style ui fill:none,stroke:#666,stroke-dasharray:5 5
     style app fill:none,stroke:#666,stroke-dasharray:5 5
@@ -127,7 +139,7 @@ flowchart TB
 
 ## Worked example
 
-[`workflow-outlines.test.ts`](../../src/adapters/templates/details/workflow-outlines.test.ts) describes each template's workflows with `DescribeSelection` and lays them out as Details does, in [`workflow-outlines.txt`](../../src/adapters/templates/details/workflow-outlines.txt). It lives beside the templates, since `application/` can't import them. Template A's:
+[`workflow-outlines.test.ts`](../../src/adapters/templates/details/workflow-outlines.test.ts) describes each template's workflows with `DescribeSelection` and lays them out as Details does, each followed by its line in the diagram's text version, in [`workflow-outlines.txt`](../../src/adapters/templates/details/workflow-outlines.txt). It lives beside the templates, since `application/` can't import them. Template A's:
 
 ```text
 Template A: Serverless API with RDS
@@ -137,12 +149,14 @@ Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long 
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · read
+Text version: Get order: API Gateway → fn-orders → orders-db (read).
 
 Create order
 Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
+Text version: Create order: API Gateway → fn-orders → orders-db (write).
 ```
 
-Template B's "Create order" is the outline in [A workflow, three ways](#a-workflow-three-ways). If an outline changes, the test fails and the diff shows how. If the change is intended, run `npx vitest run src/adapters/templates/details --update`, then update the excerpts on this page.
+Template B's "Create order" is the outline, and its path line, in [A workflow, four ways](#a-workflow-four-ways). If an outline or a path line changes, the test fails and the diff shows how. If the change is intended, run `npx vitest run src/adapters/templates/details --update`, then update the excerpts on this page.

@@ -9,6 +9,7 @@ import {
   type ArchitectureParts,
   type SelectionOnArchitecture,
 } from "../../application/details/selection-on-architecture";
+import { workflowPathText } from "../../application/details/workflow-path-text";
 import type { Project } from "../../domain/model/project";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
@@ -42,11 +43,12 @@ export interface ArchitectureViewProps {
 
 /**
  * "Add component", then the project's components and connections as a
- * diagram, with the same facts as a list for anyone who can't see the
+ * diagram, with the same facts as lists for anyone who can't see the
  * canvas. Either selects a component or a connection: a click on the
  * diagram, or a button in the list, which is the way every user can rely
- * on. The diagram marks the selection, and a selected workflow's path, or
- * a selected step's and its workflow's. A drag from one box to another on
+ * on. The text version also gives a line for each workflow's path. The
+ * diagram marks the selection, and a selected workflow's path, or a
+ * selected step's and its workflow's. A drag from one box to another on
  * the diagram connects them;
  * "Connect to…" in a component's Details is the keyboard's way. A box
  * moves by dragging it, or with the arrow keys once it has the focus; its
@@ -189,9 +191,28 @@ function Drawing(props: DrawingProps) {
           onMove(id, position);
         }}
       />
-      <TextVersion content={content} selected={selected} onSelect={onItem} />
+      <TextVersion
+        content={content}
+        paths={pathsOf(record.project)}
+        selected={selected}
+        onSelect={onItem}
+      />
     </>
   );
+}
+
+/** A workflow's path line in the text version. */
+interface PathLine {
+  readonly workflowId: string;
+  readonly text: string;
+}
+
+/** Each workflow's path line, in project order. */
+function pathsOf(project: Project): PathLine[] {
+  return project.workflows.map((workflow) => ({
+    workflowId: workflow.id,
+    text: workflowPathText(project, workflow),
+  }));
 }
 
 /** The screen's selection in the diagram's terms, and what an item selects. */
@@ -244,8 +265,8 @@ function itemsOf({ componentIds, edgeIds }: ArchitectureParts): DiagramItem[] {
 }
 
 /**
- * The text version's item for each kind of selection, or undefined for one
- * it doesn't show yet: a workflow's path, and a step's, are issue 122's.
+ * The text version's item for each kind of selection, or undefined for a
+ * workflow or a step: their paths are lines of text, not items to select.
  */
 const TEXT_ITEMS: KindHandlers<Selection, DiagramItem | undefined> = {
   component: ({ componentId }) => ({ kind: "node", id: componentId }),
@@ -263,12 +284,16 @@ const SELECTIONS: Readonly<Record<DiagramItemKind, (id: string) => Selection>> =
 
 interface TextVersionProps {
   readonly content: DiagramContent;
+  readonly paths: readonly PathLine[];
   readonly selected: DiagramItem | undefined;
   readonly onSelect: (item: DiagramItem) => void;
 }
 
-/** The diagram's boxes and arrows as two lists of buttons, behind a disclosure. */
-function TextVersion({ content, selected, onSelect }: TextVersionProps) {
+/**
+ * The diagram's boxes and arrows as two lists of buttons, then the path
+ * each workflow takes along them, one line each, behind a disclosure.
+ */
+function TextVersion({ content, paths, selected, onSelect }: TextVersionProps) {
   const names = new Map(content.nodes.map((node) => [node.id, node.label]));
   const nameOf = (id: string) => names.get(id) ?? id;
   const components = content.nodes.map(({ id, label, caption }) => ({
@@ -282,10 +307,31 @@ function TextVersion({ content, selected, onSelect }: TextVersionProps) {
   const lists = { selected, onSelect };
   return (
     <details className={styles.text}>
-      <summary>Components and connections as text</summary>
+      <summary>Components, connections, and paths as text</summary>
       <ItemList label="Components" entries={components} {...lists} />
       <ItemList label="Connections" entries={connections} {...lists} />
+      {paths.length > 0 && <PathList paths={paths} />}
     </details>
+  );
+}
+
+interface PathListProps {
+  readonly paths: readonly PathLine[];
+}
+
+/**
+ * Each workflow's path as a line of text. Not buttons: the Workflows list
+ * under the text version selects a workflow.
+ */
+function PathList({ paths }: PathListProps) {
+  return (
+    <ul aria-label="Workflow paths" className={styles.items}>
+      {paths.map(({ workflowId, text }) => (
+        <li key={workflowId} className={styles.path}>
+          {text}
+        </li>
+      ))}
+    </ul>
   );
 }
 

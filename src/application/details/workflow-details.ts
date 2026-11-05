@@ -99,7 +99,7 @@ function outlineOf(
  * The component's name, or "a removed component" if the project has none
  * by that id: a component's id is never shown (UX design §5).
  */
-function componentName(project: Project, componentId: string): string {
+export function componentName(project: Project, componentId: string): string {
   return (
     project.architecture.components.find((c) => c.id === componentId)?.name ??
     "a removed component"

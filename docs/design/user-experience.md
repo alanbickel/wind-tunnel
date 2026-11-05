@@ -133,10 +133,11 @@ The loop needs three things in reach at once: the picture (the diagram), the thi
 │ │                                     │ │ Max connections  [90            ]   │
 │ │                                     │ │   The database's max_connections…   │
 │ └─────────────────────────────────────┘ │ Query workers    [64            ]   │
-│ ▸ Components and connections as text    │ Query time  [lognormal ▾]           │
-│ Workflows                [Add workflow] │   median [15] ms   p99 [60] ms      │
-│   Get order   Create order              │ Called by: Get order, Create order  │
-│ Workloads                [Add workload] │ [Connect to… ▾]                     │
+│ ▸ Components, connections, and paths as │ Query time  [lognormal ▾]           │
+│   text                                  │   median [15] ms   p99 [60] ms      │
+│ Workflows                [Add workflow] │ Called by: Get order, Create order  │
+│   Get order   Create order              │ [Connect to… ▾]                     │
+│ Workloads                [Add workload] │                                     │
 │   Lunch rush   Steady day   Long rush   │                                     │
 └─────────────────────────────────────────┴─────────────────────────────────────┘
 ```

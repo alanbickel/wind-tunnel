@@ -49,8 +49,8 @@ describe("workflowRunChecks", () => {
   });
 
   // Fails if a removed component's issue isn't on the step that calls it,
-  // the count isn't one per issue, or the step after a removed caller gets
-  // a second issue that its caller's already explains.
+  // or the step after a removed caller gets a second issue that its
+  // caller's already explains.
   it("puts a removed component's issue on the step that calls it", () => {
     const withoutTable = removeComponent(sampleRecord, {
       componentId: "table",
@@ -68,7 +68,8 @@ describe("workflowRunChecks", () => {
 
   // Fails if an issue about a step's own async work lands on the async
   // work's first step, or the async step's missing edge lands on the step
-  // that holds it: both their paths end in "async".
+  // that holds it (both their paths end in "async"), or the count is one
+  // per step instead of one per issue: two of the three issues share a step.
   it("tells a step's async issues from its async work's", () => {
     const check = checkOf(withAsyncOnRead());
 

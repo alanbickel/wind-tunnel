@@ -19,7 +19,7 @@ import {
 } from "./permissions.js";
 import { REVIEWER_DEFERRAL, authorPrompt } from "./prompts.js";
 import { askMaintainer, stopIfWaiting } from "./questions.js";
-import { LOG_DIR, runSession } from "./session.js";
+import { DEFAULT_MODEL, LOG_DIR, runSession } from "./session.js";
 import { pause, read, run, watch } from "./shell.js";
 import { fail } from "./stop.js";
 
@@ -38,6 +38,7 @@ const CI_POLL_INTERVAL_MS = 15 * 1000;
  * @typedef {{ pr: PullRequest, ciGreen: boolean, unresolvedThreads: number, issueNeedsDecision: boolean }} MergeFacts
  */
 /** @typedef {"review" | "address" | "ready"} NextStep */
+/** @typedef {"start" | "review" | "address"} SessionStep */
 
 /** The step that ran last, so a dirty working tree can be blamed on it. */
 const progress = { lastStep: "an earlier run, or by hand" };
@@ -64,6 +65,17 @@ function prepareCheckout() {
   run("git", ["merge", "--ff-only", "origin/main"]);
 }
 
+/**
+ * The model a step's session runs on. Reviews stay on Sonnet whatever the issue's
+ * labels: in a `claude -p` session, `--model` overrides `/pr-review`'s `model:` frontmatter.
+ */
+export function stepModel(
+  /** @type {Job} */ job,
+  /** @type {SessionStep} */ step,
+) {
+  return step === "review" ? DEFAULT_MODEL : job.model;
+}
+
 /** Runs the author session, which opens the issue's one PR, and returns its number. */
 export async function startIssue(/** @type {Job} */ job) {
   prepareCheckout();
@@ -73,7 +85,7 @@ export async function startIssue(/** @type {Job} */ job) {
   await runSession({
     name,
     prompt: authorPrompt(job.issue, job.flags),
-    model: job.model,
+    model: stepModel(job, "start"),
     permissions: startPermissions(),
     systemPromptAddition: undefined,
   });
@@ -118,7 +130,7 @@ async function review(/** @type {Job} */ job, /** @type {RoundInput} */ input) {
   await runSession({
     name,
     prompt: `/pr-review ${input.pr}`,
-    model: job.model,
+    model: stepModel(job, "review"),
     permissions: reviewPermissions(),
     systemPromptAddition: job.flags.deferManualChecks
       ? REVIEWER_DEFERRAL
@@ -145,7 +157,7 @@ async function address(
   await runSession({
     name,
     prompt: `/pr-address ${input.pr}`,
-    model: job.model,
+    model: stepModel(job, "address"),
     permissions: addressPermissions(worktree),
     systemPromptAddition: undefined,
   });

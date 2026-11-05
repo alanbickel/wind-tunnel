@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { PullRequest, Review } from "../../../scripts/ai-dlc/github.js";
-import type { MergeFacts } from "../../../scripts/ai-dlc/steps.js";
+import {
+  DEFAULT_MODEL,
+  OPUS_LABEL,
+  modelFor,
+} from "../../../scripts/ai-dlc/session.js";
+import type { Job, MergeFacts } from "../../../scripts/ai-dlc/steps.js";
 import {
   nextStep,
+  stepModel,
   unmetMergeConditions,
 } from "../../../scripts/ai-dlc/steps.js";
 
@@ -27,6 +33,26 @@ const pullRequest = (
   labels,
   comments: [],
   reviews,
+});
+
+describe("stepModel", () => {
+  const opusJob: Job = {
+    issue: 4,
+    flags: { merge: false, deferManualChecks: false },
+    model: modelFor([OPUS_LABEL]),
+  };
+
+  // Fails if the author or address session drops the issue's model, or reviews get it.
+  it("runs an opus issue's author and address sessions on Opus", () => {
+    expect(stepModel(opusJob, "start")).toBe(opusJob.model);
+    expect(stepModel(opusJob, "address")).toBe(opusJob.model);
+    expect(opusJob.model).not.toBe(DEFAULT_MODEL);
+  });
+
+  // Fails if the review passes the issue's model: `--model` overrides `/pr-review`'s frontmatter.
+  it("runs the review on Sonnet even for an opus issue", () => {
+    expect(stepModel(opusJob, "review")).toBe(DEFAULT_MODEL);
+  });
 });
 
 describe("nextStep", () => {

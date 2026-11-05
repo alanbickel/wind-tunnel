@@ -2,7 +2,7 @@
 
 **Experimental.** This is a trial of auto-implementation: Claude sessions take issues through the whole [pull request workflow](CONTRIBUTING.md#branches-and-pull-requests) while nobody watches, from opening the PR through review and fixes to the merge. It may change a lot or be dropped, so it's kept out of CONTRIBUTING. [#124](https://github.com/alanbickel/wind-tunnel/issues/124) tracks the experiment.
 
-[`scripts/ai-dlc.js`](scripts/ai-dlc.js) is the driver. It takes a list of issues, and runs each step (start, review, address) as its own fresh headless `claude -p` session, at medium effort. An issue's sessions run on Sonnet 5.5, or on Opus 5.5 if the issue has the `opus` label: add it to an issue whose design needs the stronger model. No session's transcript carries over to the next step; GitHub is the only state the steps share. The sessions talk to each other and to the maintainer as [the review protocol](.claude/review-protocol.md) says.
+[`scripts/ai-dlc.js`](scripts/ai-dlc.js) is the driver. It takes a list of issues, and runs each step (start, review, address) as its own fresh headless `claude -p` session, at medium effort. An issue's sessions run on Sonnet 5.5, or on Opus 5.5 if the issue has the `opus` label: add it to an issue whose design needs the stronger model. The label doesn't cover reviews, which always run on Sonnet. No session's transcript carries over to the next step; GitHub is the only state the steps share. The sessions talk to each other and to the maintainer as [the review protocol](.claude/review-protocol.md) says.
 
 ## Setup
 

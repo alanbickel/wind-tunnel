@@ -44,10 +44,11 @@ export interface ArchitectureViewProps {
 /**
  * "Add component", then the project's components and connections as a
  * diagram, with the same facts as lists for anyone who can't see the
- * canvas, and a line for each workflow's path. Either selects a component or a connection: a click on the
+ * canvas. Either selects a component or a connection: a click on the
  * diagram, or a button in the list, which is the way every user can rely
- * on. The diagram marks the selection, and a selected workflow's path, or
- * a selected step's and its workflow's. A drag from one box to another on
+ * on. The text version also gives a line for each workflow's path. The
+ * diagram marks the selection, and a selected workflow's path, or a
+ * selected step's and its workflow's. A drag from one box to another on
  * the diagram connects them;
  * "Connect to…" in a component's Details is the keyboard's way. A box
  * moves by dragging it, or with the arrow keys once it has the focus; its
@@ -306,7 +307,7 @@ function TextVersion({ content, paths, selected, onSelect }: TextVersionProps) {
   const lists = { selected, onSelect };
   return (
     <details className={styles.text}>
-      <summary>Components and connections as text</summary>
+      <summary>Components, connections, and paths as text</summary>
       <ItemList label="Components" entries={components} {...lists} />
       <ItemList label="Connections" entries={connections} {...lists} />
       {paths.length > 0 && <PathList paths={paths} />}

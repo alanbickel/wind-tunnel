@@ -70,15 +70,26 @@ interface HeldRecord {
  * command that changes the record is an undo step; Undo and Redo save the
  * record they go to through the same queue. A new `loaded` record, such as
  * the project opened again, replaces the record and starts a new history.
+ * `onNameChange` hears the project's name whenever an edit, Undo, or Redo
+ * changes it, so the shell's breadcrumb follows the held record.
  */
-export function useProjectEdits(loaded: ProjectRecord): ProjectEdits {
-  const { current, latestRef, hold, saveFailed, retry } = useHeldRecord(loaded);
+export function useProjectEdits(
+  loaded: ProjectRecord,
+  onNameChange?: NameChange,
+): ProjectEdits {
+  const { current, latestRef, hold, saveFailed, retry } = useHeldRecord(
+    loaded,
+    onNameChange,
+  );
   const edit = useEdit({ latestRef, hold });
   const undo = useHistoryStep({ latestRef, hold, move: undoEdit });
   const redo = useHistoryStep({ latestRef, hold, move: redoEdit });
   const { record, history } = current;
   return { record, history, edit, undo, redo, saveFailed, retry };
 }
+
+/** Hears the project's new name. */
+type NameChange = (name: string) => void;
 
 /** The held record, the latest one, and how a change holds and saves the next. */
 interface HeldRecordState {
@@ -96,7 +107,10 @@ interface HeldRecordState {
  * The record the screen holds, starting again from a new `loaded` one, and
  * a save queue that each change it holds goes through.
  */
-function useHeldRecord(loaded: ProjectRecord): HeldRecordState {
+function useHeldRecord(
+  loaded: ProjectRecord,
+  onNameChange?: NameChange,
+): HeldRecordState {
   const [held, setHeld] = useState<HeldRecord>(() => opened(loaded));
   // Starting again from a new loaded record, during render, as React's
   // "adjusting state when a prop changes" pattern does.
@@ -111,11 +125,17 @@ function useHeldRecord(loaded: ProjectRecord): HeldRecordState {
   const { queue, saveFailed } = useSaveQueue();
   const hold = useCallback(
     (next: HeldRecord) => {
+      const { name } = next.record.project;
+      const renamed = name !== latestRef.current.record.project.name;
       latestRef.current = next;
       setHeld(next);
       queue.save(next.record);
+      // Told here, in the event that changed it, as the parent can't see
+      // the held record. A newly loaded record isn't told: the parent
+      // opened it, so it knows the name.
+      if (renamed) onNameChange?.(name);
     },
-    [queue],
+    [queue, onNameChange],
   );
   return { current, latestRef, hold, saveFailed, retry: queue.retry };
 }

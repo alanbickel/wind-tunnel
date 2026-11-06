@@ -93,6 +93,93 @@ describe("App", () => {
 
     expect(breadcrumb.textContent).toBe("Projects›Sample project");
   });
+
+  // Fails if the breadcrumb doesn't update to the new name on rename or doesn't restore on undo.
+  it("updates the breadcrumb on rename and puts back the old name on undo", async () => {
+    const { useCases, projects } = inMemoryUseCases([]);
+    await projects.save(sampleRecord);
+    render(
+      <UseCasesProvider
+        useCases={{
+          ...useCases,
+          saveProject: awsSaveProject(projects),
+        }}
+      >
+        <App />
+      </UseCasesProvider>,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Sample project" }),
+    );
+    await screen.findByRole("heading", { name: "Sample project" });
+
+    const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(breadcrumb.textContent).toBe("Projects›Sample project");
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "Orders API" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await screen.findByRole("heading", { name: "Orders API" });
+    await waitFor(() => {
+      expect(breadcrumb.textContent).toBe("Projects›Orders API");
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Undo rename Sample project to Orders API",
+      }),
+    );
+    await screen.findByRole("heading", { name: "Sample project" });
+    await waitFor(() => {
+      expect(breadcrumb.textContent).toBe("Projects›Sample project");
+    });
+  });
+
+  // Fails if going back to the projects list doesn't list the renamed project first under its new name.
+  it("lists the renamed project first on going back to the projects screen", async () => {
+    const { useCases, projects } = inMemoryUseCases([]);
+    await projects.save(sampleRecord);
+    await projects.save({
+      ...sampleRecord,
+      project: { ...sampleRecord.project, id: "other", name: "Other project" },
+      updatedAt: "2026-10-17T12:05:00.000Z",
+    });
+    render(
+      <UseCasesProvider
+        useCases={{
+          ...useCases,
+          saveProject: awsSaveProject(projects),
+        }}
+      >
+        <App />
+      </UseCasesProvider>,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Sample project" }),
+    );
+    await screen.findByRole("heading", { name: "Sample project" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "Orders API" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await screen.findByRole("heading", { name: "Orders API" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
+
+    await screen.findByRole("button", { name: "Orders API" });
+    const listed = within(
+      screen.getByRole("region", { name: "Your projects" }),
+    ).getAllByRole("button");
+    expect(listed.map((button) => button.textContent)).toEqual([
+      "Orders API",
+      "Other project",
+    ]);
+  });
 });
 
 describe("App's blank project", () => {

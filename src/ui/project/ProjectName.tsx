@@ -199,11 +199,9 @@ function commitRename(input: CommitRenameInput): void {
   const { project, check, onEdit, close } = input;
   if (check.status === "fails") return;
   const name = check.value;
-  if (name !== project.name) {
-    onEdit({
-      command: (record) => renameProject(record, { name }),
-      describe: () => `Rename ${project.name} to ${name}`,
-    });
-  }
+  onEdit({
+    command: (record) => renameProject(record, { name }),
+    describe: () => `Rename ${project.name} to ${name}`,
+  });
   close();
 }

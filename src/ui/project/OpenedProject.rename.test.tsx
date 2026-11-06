@@ -263,6 +263,7 @@ describe("OpenedProject rename", () => {
       "Undid: rename Sample project to Orders API.",
     );
   });
+
   // Fails if leaving the field doesn't save the new name exactly once, or
   // doesn't send the focus to "Rename".
   it("saves the new name once when the field is left, and focuses Rename", async () => {
@@ -304,8 +305,8 @@ describe("OpenedProject rename", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  // Fails if renaming to the name the project has, spaces aside, saves or
-  // adds an undo step (the command's own guard is tested apart).
+  // Fails if the name isn't trimmed before the command, so "  Sample project "
+  // is saved as a new name.
   it("saves nothing when the name is unchanged", async () => {
     const { projects, saveProject, execute } = countedSaves();
     await projects.save(sampleRecord);

@@ -6,7 +6,12 @@ export interface ScreenHeadingProps {
   /** For a section the heading names. */
   readonly id?: string;
   readonly children: ReactNode;
-  /** Hidden from sight and accessibility while replaced by an editor. */
+  /**
+   * Hidden from sight and accessibility while an editor replaces it. Hidden
+   * rather than unmounted: the heading takes the focus when it mounts, which
+   * would pull it off "Rename" as the editor closes. Hidden, it also keeps
+   * naming the section it labels.
+   */
   readonly hidden?: boolean;
 }
 

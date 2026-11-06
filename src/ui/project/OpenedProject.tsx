@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { nameOf } from "../../application/details/name-of";
 import { moveComponent } from "../../application/edits/layout-edits";
 import type {
@@ -40,10 +40,9 @@ export function OpenedProject({
   record: loaded,
   onProjectNameChange,
 }: OpenedProjectProps) {
-  const screen = useProjectScreen(loaded);
+  const screen = useProjectScreen({ loaded, onProjectNameChange });
   const { edits, projectRun, undoRedo } = screen;
   const { project } = edits.record;
-  useProjectTitleSync(project.name, onProjectNameChange);
   const Column = useWideWindow() ? SideTabs : Stacked;
 
   return (
@@ -83,16 +82,6 @@ function ProjectColumns({ screen, Column }: ProjectColumnsProps) {
   );
 }
 
-/** Tells the shell the project's name as its saved record changes. */
-function useProjectTitleSync(
-  name: string,
-  onProjectNameChange?: (name: string) => void,
-): void {
-  useEffect(() => {
-    onProjectNameChange?.(name);
-  }, [onProjectNameChange, name]);
-}
-
 /** What a project screen holds, and the architecture it draws from them. */
 interface ProjectScreen {
   readonly edits: ProjectEdits;
@@ -103,12 +92,18 @@ interface ProjectScreen {
   readonly architecture: ReactNode;
 }
 
+/** The record a project screen opens, and who follows its name. */
+interface ProjectScreenInput {
+  readonly loaded: ProjectRecord;
+  readonly onProjectNameChange: OpenedProjectProps["onProjectNameChange"];
+}
+
 /**
  * The record with its edits and their history, the run, and the
  * selection, and Undo's shortcuts while the screen is open.
  */
-function useProjectScreen(loaded: ProjectRecord): ProjectScreen {
-  const edits = useProjectEdits(loaded);
+function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
+  const edits = useProjectEdits(input.loaded, input.onProjectNameChange);
   const projectRun = useProjectRun(edits.record.project);
   const selecting = useSelection();
   const changes = useAddAndRemove(edits, selecting);

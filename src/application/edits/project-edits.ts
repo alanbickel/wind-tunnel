@@ -1,6 +1,11 @@
 import type { ProjectRecord } from "../ports/project-record";
 
-/** A project, and its new name. */
+// Edit commands (ADR-0019): each takes the project record and returns the
+// next one, doing the whole change, so it's one undo step. They don't
+// check the change: a field checks its draft first, and `SaveProject`
+// checks the record it saves.
+
+/** A project's new name. */
 export interface RenameProjectInput {
   readonly name: string;
 }

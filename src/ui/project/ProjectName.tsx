@@ -1,20 +1,20 @@
 import {
-  useCallback,
   useId,
   useLayoutEffect,
   useRef,
   useState,
-  type KeyboardEvent,
   type RefObject,
 } from "react";
+import type { DraftCheck } from "../../application/details/number-draft";
 import { checkProjectName } from "../../application/details/project-name";
 import { renameProject } from "../../application/edits/project-edits";
 import type { ProjectSummary } from "../../application/ports/project-record";
 import type { Project } from "../../domain/model/project";
-import type { UseCases } from "../app/use-cases";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
 import { ScreenHeading } from "../shared/ScreenHeading";
+import { describedBy, fieldKeys } from "./fields/field-parts";
+import { useDraft, type Draft } from "./fields/useDraft";
 import styles from "./ProjectBar.module.css";
 import type { Edit } from "./useProjectEdits";
 
@@ -26,197 +26,156 @@ export interface ProjectNameProps {
 
 /**
  * The project's heading and "Rename", or the rename field while renaming.
- * Choosing Rename turns the heading into a text field holding the name,
- * selected; Enter or leaving saves the new name through the queue, and
- * Escape puts back the saved name (UX design §2.3).
+ * Choosing Rename reads the other projects' names, then turns the heading
+ * into a text field holding the name, selected; Enter or leaving saves the
+ * new name through the queue, and Escape puts back the saved name (UX
+ * design §2.3). The field opens once the list arrives.
  */
 export function ProjectName({ project, headingId, onEdit }: ProjectNameProps) {
-  const renameButtonRef = useRef<HTMLButtonElement>(null);
+  const { projects, openField, closeField } = useOpenField();
+  const renameRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const shouldFocusRenameRef = useRef(false);
-  const actions = useRenameActions({ project, onEdit, shouldFocusRenameRef });
-
-  useRenameFocus({
-    renaming: actions.renaming,
-    inputRef,
-    renameButtonRef,
-    shouldFocusRenameRef,
-  });
-
-  return (
-    <ProjectNameLayout
-      project={project}
-      headingId={headingId}
-      actions={actions}
-      inputRef={inputRef}
-      renameButtonRef={renameButtonRef}
-    />
-  );
-}
-
-interface ProjectNameLayoutProps {
-  readonly project: Project;
-  readonly headingId: string;
-  readonly actions: RenameActions;
-  readonly inputRef: RefObject<HTMLInputElement | null>;
-  readonly renameButtonRef: RefObject<HTMLButtonElement | null>;
-}
-
-function ProjectNameLayout(props: ProjectNameLayoutProps) {
-  const { project, headingId, actions, inputRef, renameButtonRef } = props;
-  const messageId = useId();
+  useRenameFocus({ open: projects !== undefined, inputRef, renameRef });
   return (
     <div className={styles.titleRow}>
-      <ScreenHeading id={headingId} hidden={actions.renaming}>
+      <ScreenHeading id={headingId} hidden={projects !== undefined}>
         {project.name}
       </ScreenHeading>
-      {actions.renaming ? (
-        <RenameField
-          draft={actions.draft}
-          message={actions.message}
-          messageId={messageId}
-          inputRef={inputRef}
-          onChange={actions.onChange}
-          onCommit={actions.commit}
-          onCancel={actions.cancel}
-        />
-      ) : (
-        <Button ref={renameButtonRef} onClick={actions.startRename}>
+      {projects === undefined ? (
+        <Button ref={renameRef} onClick={openField}>
           Rename
         </Button>
+      ) : (
+        <RenameField
+          project={project}
+          projects={projects}
+          inputRef={inputRef}
+          onEdit={onEdit}
+          onClose={closeField}
+        />
       )}
     </div>
   );
 }
 
-interface RenameDraftState {
-  readonly draft: string;
-  readonly message: string | undefined;
-  readonly setDraft: (text: string) => void;
-  readonly setMessage: (message: string | undefined) => void;
-  readonly onChange: (text: string) => void;
+/** The names to check a rename against while it's open, and how it opens and closes. */
+interface OpenField {
+  /** Undefined while the heading shows; the projects' names while renaming. */
+  readonly projects: readonly ProjectSummary[] | undefined;
+  /** Reads the projects, then opens the field. */
+  readonly openField: () => void;
+  readonly closeField: () => void;
 }
 
-function useRenameDraft(initial: string): RenameDraftState {
-  const [draft, setDraft] = useState(initial);
-  const [message, setMessage] = useState<string>();
-  const onChange = useCallback((text: string) => {
-    setDraft(text);
-    setMessage(undefined);
-  }, []);
-  return { draft, setDraft, message, setMessage, onChange };
-}
-
-interface RenameActionsInput {
-  readonly project: Project;
-  readonly onEdit: (edit: Edit) => void;
-  readonly shouldFocusRenameRef: RefObject<boolean>;
-}
-
-interface RenameActions {
-  readonly renaming: boolean;
-  readonly draft: string;
-  readonly message: string | undefined;
-  readonly onChange: (text: string) => void;
-  readonly startRename: () => void;
-  readonly cancel: () => void;
-  readonly commit: () => void;
-}
-
-function useRenameActions(input: RenameActionsInput): RenameActions {
-  const { project, onEdit, shouldFocusRenameRef } = input;
-  const draftState = useRenameDraft(project.name);
-  const toggle = useRenameToggle({ project, draftState, shouldFocusRenameRef });
-
-  const commit = useCommitRename({
-    draft: draftState.draft,
-    project,
-    projectsRef: toggle.projectsRef,
-    listProjects: toggle.listProjects,
-    onEdit,
-    onSuccess: toggle.close,
-    onError: draftState.setMessage,
-  });
-
-  return { ...toggle, ...draftState, commit };
-}
-
-interface RenameToggleInput {
-  readonly project: Project;
-  readonly draftState: RenameDraftState;
-  readonly shouldFocusRenameRef: RefObject<boolean>;
-}
-
-function useRenameToggle(input: RenameToggleInput) {
-  const { project, draftState, shouldFocusRenameRef } = input;
-  const [renaming, setRenaming] = useState(false);
-  const projectsRef = useRef<Promise<readonly ProjectSummary[]> | null>(null);
+function useOpenField(): OpenField {
   const { listProjects } = useUseCases();
-
-  const startRename = useCallback(() => {
-    projectsRef.current = listProjects.execute();
-    draftState.setDraft(project.name);
-    draftState.setMessage(undefined);
-    shouldFocusRenameRef.current = true;
-    setRenaming(true);
-  }, [listProjects, project.name, draftState, shouldFocusRenameRef]);
-
-  const cancel = useCallback(() => {
-    draftState.setDraft(project.name);
-    draftState.setMessage(undefined);
-    setRenaming(false);
-  }, [project.name, draftState]);
-
-  const close = useCallback(() => {
-    draftState.setMessage(undefined);
-    setRenaming(false);
-  }, [draftState]);
-
-  return { renaming, startRename, cancel, close, projectsRef, listProjects };
+  const [projects, setProjects] = useState<readonly ProjectSummary[]>();
+  const openField = () => {
+    void listProjects.execute().then(setProjects);
+  };
+  const closeField = () => {
+    setProjects(undefined);
+  };
+  return { projects, openField, closeField };
 }
 
 interface RenameFocusInput {
-  readonly renaming: boolean;
+  readonly open: boolean;
   readonly inputRef: RefObject<HTMLInputElement | null>;
-  readonly renameButtonRef: RefObject<HTMLButtonElement | null>;
-  readonly shouldFocusRenameRef: RefObject<boolean>;
+  readonly renameRef: RefObject<HTMLButtonElement | null>;
 }
 
-function useRenameFocus({
-  renaming,
-  inputRef,
-  renameButtonRef,
-  shouldFocusRenameRef,
-}: RenameFocusInput): void {
+/**
+ * Opening focuses the field, with its text selected; closing, by Enter,
+ * leaving, or Escape, focuses "Rename". A layout effect, as the heading
+ * takes the focus when it mounts.
+ */
+function useRenameFocus({ open, inputRef, renameRef }: RenameFocusInput) {
+  const wasOpenRef = useRef(false);
   useLayoutEffect(() => {
-    if (renaming) {
+    if (open) {
       inputRef.current?.focus();
       inputRef.current?.select();
-      return;
+    } else if (wasOpenRef.current) {
+      renameRef.current?.focus();
     }
-    if (!shouldFocusRenameRef.current) return;
-    renameButtonRef.current?.focus();
-    shouldFocusRenameRef.current = false;
-  }, [renaming, inputRef, renameButtonRef, shouldFocusRenameRef]);
+    wasOpenRef.current = open;
+  }, [open, inputRef, renameRef]);
 }
 
 interface RenameFieldProps {
-  readonly draft: string;
-  readonly message: string | undefined;
-  readonly messageId: string;
+  readonly project: Project;
+  /** The projects, for the names another project already uses. */
+  readonly projects: readonly ProjectSummary[];
   readonly inputRef: RefObject<HTMLInputElement | null>;
-  readonly onChange: (text: string) => void;
-  readonly onCommit: () => void;
-  readonly onCancel: () => void;
+  readonly onEdit: (edit: Edit) => void;
+  /** Puts the heading back. */
+  readonly onClose: () => void;
 }
 
+/** The field's draft and message, and what Enter, leaving, and Escape do. */
+interface RenameDraft {
+  readonly draft: Draft<string>;
+  /** What's wrong with the draft; undefined while it passes. */
+  readonly message: string | undefined;
+  readonly commit: () => void;
+  /** Puts the heading back without saving. */
+  readonly close: () => void;
+}
+
+/**
+ * The draft, checked on each render: one that fails stays in the field with
+ * its message and doesn't save.
+ */
+function useRenameDraft(props: RenameFieldProps): RenameDraft {
+  const { project, projects, onEdit, onClose } = props;
+  const draft = useDraft(project.name);
+  const check = checkProjectName({
+    text: draft.value,
+    projects,
+    projectId: project.id,
+  });
+  // Set once the field has closed. Removing the focused input fires `blur`
+  // in a browser, which would save the draft Escape meant to drop.
+  const closedRef = useRef(false);
+  const close = () => {
+    closedRef.current = true;
+    onClose();
+  };
+  const commit = () => {
+    if (closedRef.current) return;
+    commitRename({ project, check, onEdit, close });
+  };
+  const message = check.status === "fails" ? check.message : undefined;
+  return { draft, message, commit, close };
+}
+
+/** The heading-sized input and its message. */
 function RenameField(props: RenameFieldProps) {
-  const { message, messageId } = props;
+  const { inputRef } = props;
+  const messageId = useId();
+  const { draft, message, commit, close } = useRenameDraft(props);
   return (
     <div className={styles.renameField}>
-      <RenameInput {...props} />
+      <input
+        ref={inputRef}
+        type="text"
+        className={styles.renameInput}
+        value={draft.value}
+        aria-label="Project name"
+        aria-invalid={message !== undefined}
+        aria-describedby={describedBy({ messageId, message, otherIds: [] })}
+        onChange={(event) => {
+          draft.set(event.target.value);
+        }}
+        onBlur={commit}
+        // Always "changed": Escape closes the field even with nothing typed.
+        onKeyDown={(event) => {
+          fieldKeys({ commit, changed: true, reset: close })(event);
+        }}
+      />
       {message !== undefined && (
-        <p id={messageId} role="alert" className={styles.renameMessage}>
+        <p id={messageId} className={styles.renameMessage}>
           {message}
         </p>
       )}
@@ -224,119 +183,27 @@ function RenameField(props: RenameFieldProps) {
   );
 }
 
-function RenameInput(props: RenameFieldProps) {
-  const { draft, message, messageId, inputRef, onChange, onCommit, onCancel } =
-    props;
-  return (
-    <input
-      ref={inputRef}
-      type="text"
-      className={styles.renameInput}
-      value={draft}
-      aria-label="Project name"
-      aria-invalid={message !== undefined}
-      aria-describedby={message === undefined ? undefined : messageId}
-      onChange={(event) => {
-        onChange(event.target.value);
-      }}
-      onBlur={onCommit}
-      onKeyDown={renameKeys({ onCommit, onCancel })}
-    />
-  );
-}
-
-interface RenameKeysInput {
-  readonly onCommit: () => void;
-  readonly onCancel: () => void;
-}
-
-function renameKeys({
-  onCommit,
-  onCancel,
-}: RenameKeysInput): (event: KeyboardEvent<HTMLInputElement>) => void {
-  return (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      onCommit();
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      onCancel();
-    }
-  };
-}
-
-interface CommitRenameProps {
-  readonly draft: string;
+interface CommitRenameInput {
   readonly project: Project;
-  readonly projectsRef: RefObject<Promise<readonly ProjectSummary[]> | null>;
-  readonly listProjects: UseCases["listProjects"];
+  readonly check: DraftCheck<string>;
   readonly onEdit: (edit: Edit) => void;
-  readonly onSuccess: () => void;
-  readonly onError: (message: string) => void;
+  readonly close: () => void;
 }
 
-function useCommitRename({
-  draft,
-  project,
-  projectsRef,
-  listProjects,
-  onEdit,
-  onSuccess,
-  onError,
-}: CommitRenameProps): () => void {
-  const committingRef = useRef(false);
-  return useCallback(() => {
-    if (committingRef.current) return;
-    committingRef.current = true;
-    void executeCommit({
-      draft,
-      project,
-      projectsPromise: projectsRef.current,
-      listProjects,
-      onEdit,
-      onSuccess,
-      onError,
-    }).finally(() => {
-      committingRef.current = false;
-    });
-  }, [draft, project, projectsRef, listProjects, onEdit, onSuccess, onError]);
-}
-
-interface ExecuteCommitInput {
-  readonly draft: string;
-  readonly project: Project;
-  readonly projectsPromise: Promise<readonly ProjectSummary[]> | null;
-  readonly listProjects: UseCases["listProjects"];
-  readonly onEdit: (edit: Edit) => void;
-  readonly onSuccess: () => void;
-  readonly onError: (message: string) => void;
-}
-
-async function executeCommit({
-  draft,
-  project,
-  projectsPromise,
-  listProjects,
-  onEdit,
-  onSuccess,
-  onError,
-}: ExecuteCommitInput): Promise<void> {
-  const projects = await (projectsPromise ?? listProjects.execute());
-  const check = checkProjectName({
-    text: draft,
-    projects,
-    projectId: project.id,
-  });
-  if (check.status === "fails") {
-    onError(check.message);
-    return;
-  }
-  if (check.value !== project.name) {
-    const name = check.value;
+/**
+ * Renames the project if the draft passes, and closes the field. A draft
+ * that fails stays, with its message. The same name, spaces aside, renames
+ * nothing.
+ */
+function commitRename(input: CommitRenameInput): void {
+  const { project, check, onEdit, close } = input;
+  if (check.status === "fails") return;
+  const name = check.value;
+  if (name !== project.name) {
     onEdit({
       command: (record) => renameProject(record, { name }),
-      describe: (after) => `Rename ${project.name} to ${after.project.name}`,
+      describe: () => `Rename ${project.name} to ${name}`,
     });
   }
-  onSuccess();
+  close();
 }

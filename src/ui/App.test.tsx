@@ -118,7 +118,7 @@ describe("App", () => {
     expect(breadcrumb.textContent).toBe("Projects›Sample project");
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    const input = screen.getByRole("textbox", { name: "Project name" });
+    const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -164,7 +164,7 @@ describe("App", () => {
     await screen.findByRole("heading", { name: "Sample project" });
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    const input = screen.getByRole("textbox", { name: "Project name" });
+    const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });
     await screen.findByRole("heading", { name: "Orders API" });

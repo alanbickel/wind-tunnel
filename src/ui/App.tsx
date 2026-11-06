@@ -12,7 +12,7 @@ import { useOpenProject } from "./useOpenProject";
  * `main.tsx` puts the providers above it.
  */
 export function App() {
-  const { opened, lastOpenedId, open, close, rename } = useOpenProject();
+  const { opened, lastOpenedId, open, close, showName } = useOpenProject();
   // Here, not in a screen, so it asks once per session and the hint stays.
   const storage = useStoragePersistence();
 
@@ -31,7 +31,7 @@ export function App() {
           <ProjectScreen
             key={opened.id}
             id={opened.id}
-            onProjectNameChange={rename}
+            onProjectNameChange={showName}
           />
         )}
       </main>

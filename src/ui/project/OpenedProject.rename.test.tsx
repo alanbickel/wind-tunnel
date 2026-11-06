@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PROJECT_NAME_TAKEN } from "../../application/details/project-name";
 import { awsSaveProject } from "../../application/testing/aws-save-project";
@@ -21,6 +27,29 @@ function countedSaves() {
   return { projects, saveProject, execute };
 }
 
+/**
+ * The input's `onBlur` as it is now. A browser fires `blur` as it removes
+ * the focused input, and runs that handler; jsdom and React don't, so a test
+ * keeps the handler and calls it after the input has gone.
+ */
+function blurHandlerOf(input: HTMLElement): () => void {
+  const key = Object.keys(input).find((name) =>
+    name.startsWith("__reactProps"),
+  );
+  const props: unknown =
+    key === undefined ? undefined : Reflect.get(input, key);
+  const onBlur: unknown =
+    typeof props === "object" && props !== null
+      ? Reflect.get(props, "onBlur")
+      : undefined;
+  if (typeof onBlur !== "function") throw new Error("The input has no onBlur");
+  return () => {
+    act(() => {
+      Reflect.apply(onBlur, undefined, []);
+    });
+  };
+}
+
 describe("OpenedProject rename", () => {
   beforeEach(() => {
     stubDiagramBrowserApis();
@@ -35,7 +64,7 @@ describe("OpenedProject rename", () => {
   // queue, doesn't update the heading, doesn't notify the breadcrumb, or fails
   // to return focus to the Rename button.
   it("saves the new name on Enter, updates heading and breadcrumb, and focuses Rename", async () => {
-    const onProjectNameChange = vi.fn();
+    const onProjectNameChange = vi.fn<(name: string) => void>();
     const { projects, saveProject, execute } = countedSaves();
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject, onProjectNameChange });
@@ -43,7 +72,7 @@ describe("OpenedProject rename", () => {
     const renameButton = screen.getByRole("button", { name: "Rename" });
     fireEvent.click(renameButton);
 
-    const input = screen.getByRole<HTMLInputElement>("textbox", {
+    const input = await screen.findByRole<HTMLInputElement>("textbox", {
       name: "Project name",
     });
     expect(input.value).toBe("Sample project");
@@ -76,7 +105,7 @@ describe("OpenedProject rename", () => {
     renderOpenedProject({ projects, saveProject });
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    const input = screen.getByRole("textbox", { name: "Project name" });
+    const input = await screen.findByRole("textbox", { name: "Project name" });
 
     fireEvent.change(input, { target: { value: "Cancelled Name" } });
     fireEvent.keyDown(input, { key: "Escape" });
@@ -98,7 +127,7 @@ describe("OpenedProject rename", () => {
     renderOpenedProject({ projects, saveProject });
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    const input = screen.getByRole("textbox", { name: "Project name" });
+    const input = await screen.findByRole("textbox", { name: "Project name" });
 
     fireEvent.change(input, { target: { value: "   " } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -125,7 +154,7 @@ describe("OpenedProject rename", () => {
     renderOpenedProject({ projects, saveProject });
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    const input = screen.getByRole("textbox", { name: "Project name" });
+    const input = await screen.findByRole("textbox", { name: "Project name" });
 
     fireEvent.change(input, { target: { value: "other project" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -160,7 +189,7 @@ describe("OpenedProject rename", () => {
     renderOpenedProject({ projects, saveProject });
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    const input = screen.getByRole("textbox", { name: "Project name" });
+    const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -189,7 +218,7 @@ describe("OpenedProject rename", () => {
     expect(outOfDate.textContent).toBe("");
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    const input = screen.getByRole("textbox", { name: "Project name" });
+    const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Renamed Project" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -204,13 +233,13 @@ describe("OpenedProject rename", () => {
 
   // Fails if undoing a rename doesn't restore the original name to the heading and breadcrumb.
   it("puts the old name back in heading and breadcrumb after undo", async () => {
-    const onProjectNameChange = vi.fn();
+    const onProjectNameChange = vi.fn<(name: string) => void>();
     const { projects, saveProject } = countedSaves();
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject, onProjectNameChange });
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-    const input = screen.getByRole("textbox", { name: "Project name" });
+    const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -233,5 +262,93 @@ describe("OpenedProject rename", () => {
     expect(undoneRegion().textContent).toBe(
       "Undid: rename Sample project to Orders API.",
     );
+  });
+  // Fails if leaving the field doesn't save the new name exactly once, or
+  // doesn't send the focus to "Rename".
+  it("saves the new name once when the field is left, and focuses Rename", async () => {
+    const { projects, saveProject, execute } = countedSaves();
+    await projects.save(sampleRecord);
+    renderOpenedProject({ projects, saveProject });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "Orders API" } });
+    fireEvent.blur(input);
+
+    expect(screen.getByRole("heading", { name: "Orders API" })).toBeTruthy();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Rename" }),
+    );
+    await waitFor(() => {
+      expect(execute).toHaveBeenCalledOnce();
+    });
+  });
+
+  // Fails if the blur a browser fires as Escape removes the focused input
+  // saves the draft Escape meant to drop (the test runs the input's handler after it has gone).
+  it("saves nothing when Escape is followed by a blur", async () => {
+    const { projects, saveProject, execute } = countedSaves();
+    await projects.save(sampleRecord);
+    renderOpenedProject({ projects, saveProject });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "Cancelled Name" } });
+    const blur = blurHandlerOf(input);
+    fireEvent.keyDown(input, { key: "Escape" });
+    blur();
+
+    expect(
+      screen.getByRole("heading", { name: "Sample project" }),
+    ).toBeTruthy();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  // Fails if renaming to the name the project has, spaces aside, saves or
+  // adds an undo step (the command's own guard is tested apart).
+  it("saves nothing when the name is unchanged", async () => {
+    const { projects, saveProject, execute } = countedSaves();
+    await projects.save(sampleRecord);
+    renderOpenedProject({ projects, saveProject });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "  Sample project " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(
+      screen.getByRole("heading", { name: "Sample project" }),
+    ).toBeTruthy();
+    expect(execute).not.toHaveBeenCalled();
+    const undo = screen.getByRole("button", { name: "Undo" });
+    expect(undo.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  // Fails if Redo after Undo doesn't send the new name to the breadcrumb.
+  it("puts the new name back in the breadcrumb after redo", async () => {
+    const onProjectNameChange = vi.fn<(name: string) => void>();
+    renderOpenedProject({ onProjectNameChange });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "Orders API" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Undo rename Sample project to Orders API",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Redo rename Sample project to Orders API",
+      }),
+    );
+
+    expect(screen.getByRole("heading", { name: "Orders API" })).toBeTruthy();
+    expect(onProjectNameChange.mock.calls.map(([name]) => name)).toEqual([
+      "Orders API",
+      "Sample project",
+      "Orders API",
+    ]);
   });
 });

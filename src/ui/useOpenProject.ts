@@ -9,8 +9,8 @@ export interface OpenProjectState {
   readonly open: (project: ProjectSummary) => void;
   /** Back to the project list. */
   readonly close: () => void;
-  /** Updates the open project's name as its saved record changes. */
-  readonly rename: (name: string) => void;
+  /** Shows the open project's name in the breadcrumb; doesn't rename it. */
+  readonly showName: (name: string) => void;
 }
 
 /** Which project is open, and which was open last. */
@@ -25,10 +25,10 @@ export function useOpenProject(): OpenProjectState {
   const close = () => {
     setOpened(undefined);
   };
-  const rename = useCallback((name: string) => {
+  const showName = useCallback((name: string) => {
     setOpened((prev) =>
       prev !== undefined && prev.name !== name ? { ...prev, name } : prev,
     );
   }, []);
-  return { opened, lastOpenedId, open, close, rename };
+  return { opened, lastOpenedId, open, close, showName };
 }

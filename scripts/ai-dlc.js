@@ -7,6 +7,7 @@ import { parseArguments } from "./ai-dlc/arguments.js";
 import { collectDeferredChecks } from "./ai-dlc/deferred-checks.js";
 import { openPrFor, readIssue } from "./ai-dlc/github.js";
 import { stopIfWaiting } from "./ai-dlc/questions.js";
+import { modelFor } from "./ai-dlc/session.js";
 import {
   mergeWhenReady,
   reviewUntilReady,
@@ -27,12 +28,13 @@ async function driveIssue(
   /** @type {number} */ issue,
   /** @type {RunFlags} */ flags,
 ) {
-  const { state, title } = readIssue(issue);
+  const { state, title, labels } = readIssue(issue);
+  const model = modelFor(labels);
   console.log(
-    `\n${"=".repeat(72)}\n#${issue} ${title} (${state.toLowerCase()})`,
+    `\n${"=".repeat(72)}\n#${issue} ${title} (${state.toLowerCase()}, ${model})`,
   );
   if (state === "CLOSED") return true;
-  const job = { issue, flags };
+  const job = { issue, flags, model };
   const existing = openPrFor(issue)?.number;
   stopIfWaiting(issue, existing);
   const pr = existing ?? (await startIssue(job));

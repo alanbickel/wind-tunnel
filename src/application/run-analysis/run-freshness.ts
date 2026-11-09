@@ -31,6 +31,8 @@ const FIELDS: Readonly<Record<keyof Project, FieldUnchanged>> = {
   // counts, even though it changes no number (ADR-0018 consequences).
   architecture: ({ ran, project }) =>
     sameContent(ran.architecture, project.architecture),
+  // A workflow's name counts, as a component's does, since it's part of what
+  // ran; a project's name doesn't. Don't "fix" one to match the other.
   workflows: ({ ran, project }) =>
     sameContent(ran.workflows, project.workflows),
   // Only the workload that ran; the others don't change its results.

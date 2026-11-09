@@ -22,6 +22,7 @@ import { useAnnouncement } from "../shared/useAnnouncement";
 import { ConnectTo } from "./ConnectTo";
 import { ComponentSettings } from "./fields/ComponentSettings";
 import { EdgeSettings } from "./fields/EdgeSettings";
+import { WorkflowNameField } from "./fields/WorkflowNameField";
 import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
 import styles from "./SelectionDetails.module.css";
@@ -50,7 +51,7 @@ export interface SelectionDetailsProps {
 /**
  * The selected component's or edge's settings, each a field that saves a
  * change once it passes its checks, and a component's "Connect to…"; then
- * what calls it (UX design §4.1, §4.3). Or the selected workflow's outline,
+ * what calls it (UX design §4.1, §4.3). Or the selected workflow's name field and outline,
  * with the selected step marked in it. Takes the focus to its heading when
  * `takeFocus` says a selection was just made, so the keyboard and a screen
  * reader land on it. Escape anywhere in it closes it, unless a field has
@@ -236,7 +237,7 @@ function DetailsBody(props: DetailsBodyProps) {
 
 /**
  * A component's settings, then "Connect to…"; an edge's settings; a
- * workflow's outline. Each is keyed by what's selected, so no draft
+ * workflow's name, then its outline. Each is keyed by what's selected, so no draft
  * carries over to the next one.
  */
 const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
@@ -249,15 +250,12 @@ const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
   edge: (details: EdgeDetails) => (context) => (
     <EdgeSettings key={details.edgeId} details={details} {...context} />
   ),
-  workflow:
-    (details: WorkflowDetails) =>
-    ({ onSelect }) => (
-      <WorkflowOutline
-        key={details.workflowId}
-        details={details}
-        onSelect={onSelect}
-      />
-    ),
+  workflow: (details: WorkflowDetails) => (context) => (
+    <div key={details.workflowId}>
+      <WorkflowNameField details={details} {...context} />
+      <WorkflowOutline details={details} onSelect={context.onSelect} />
+    </div>
+  ),
 };
 
 /**

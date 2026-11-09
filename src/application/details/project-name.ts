@@ -81,7 +81,10 @@ function numbered(name: string, number: number): string {
   return `${name} (${String(number)})`;
 }
 
-/** What two names are compared by: no spaces around it, and one case. */
-function nameKey(name: string): string {
+/**
+ * What two names are compared by: no spaces around it, and one case.
+ * Workflow names compare the same way (`checkWorkflowName`).
+ */
+export function nameKey(name: string): string {
   return name.trim().toLowerCase();
 }

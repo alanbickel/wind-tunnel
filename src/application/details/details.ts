@@ -141,6 +141,31 @@ export interface OutlineStep {
    * step leads to; undefined for a step without any.
    */
   readonly async: OutlineStep | undefined;
+  /**
+   * What the user can do to the step: undefined for one that can't be
+   * changed, the workflow's first step, whose Remove is the workflow's, and
+   * async work, which stays read-only.
+   */
+  readonly editing: StepEditing | undefined;
+}
+
+/** What Move up, Move down, and Remove need to know about a step that's one of a step's calls. */
+export interface StepEditing {
+  /** The id of the step that calls it: the selection and the focus go there after a remove. */
+  readonly callerStepId: string;
+  /** Undefined for a step with no siblings, which has nothing to move among. */
+  readonly moves: StepMoves | undefined;
+  /**
+   * What Remove asks first, naming the steps under the step; undefined for a
+   * step with none, which goes at once.
+   */
+  readonly removal: RemovalText | undefined;
+}
+
+/** Which ways a step with siblings can move; at the end of its siblings, one can't. */
+export interface StepMoves {
+  readonly canMoveUp: boolean;
+  readonly canMoveDown: boolean;
 }
 
 /** A workflow step that calls along an edge: its workflow, and what it does. */

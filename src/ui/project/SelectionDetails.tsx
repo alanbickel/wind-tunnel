@@ -42,7 +42,7 @@ export interface SelectionDetailsProps {
   /** Removes the selected component, edge, or workflow, once the user confirms it. */
   readonly onRemove: (target: Selection) => void;
   /** Selects something Details shows: a step in a workflow's outline. */
-  readonly onSelect: (selection: Selection) => void;
+  readonly onSelect: ProjectSelection["selectWithin"];
   /** Whether a part of Details should take the focus: just after a selection. */
   readonly takeFocus: ProjectSelection["takeFocus"];
   /** Shows a Close button beside the heading, as the narrow layout does. */
@@ -249,7 +249,7 @@ const HEADINGS: KindHandlers<Details, ReactNode> = {
 interface BodyContext {
   readonly project: Project;
   readonly onEdit: (edit: Edit) => void;
-  readonly onSelect: (selection: Selection) => void;
+  readonly onSelect: ProjectSelection["selectWithin"];
   readonly announce: (message: string) => void;
   readonly takeFocus: ProjectSelection["takeFocus"];
   readonly connect: Connect;
@@ -286,7 +286,7 @@ const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
   workflow: (details: WorkflowDetails) => (context) => (
     <div key={details.workflowId}>
       <WorkflowNameField details={details} {...context} />
-      <WorkflowOutline details={details} onSelect={context.onSelect} />
+      <WorkflowOutline details={details} {...context} />
     </div>
   ),
 };

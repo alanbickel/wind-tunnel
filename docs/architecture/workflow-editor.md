@@ -1,6 +1,6 @@
 # The Workflow Editor
 
-How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Details has a name field that renames the workflow, and Remove takes it away ([the commands](#the-commands)). More editing ([#116](https://github.com/alanbickel/wind-tunnel/issues/116), [#117](https://github.com/alanbickel/wind-tunnel/issues/117)) adds to this guide as it lands. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Details has a name field that renames the workflow, and Remove takes it away; each step that's one of another's calls has Move up, Move down, and Remove ([the commands](#the-commands)). More editing ([#117](https://github.com/alanbickel/wind-tunnel/issues/117)) adds to this guide as it lands; [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workflow, four ways
 
@@ -101,7 +101,7 @@ flowchart TB
 - **The list.** Under the diagram's text version, "Workflows" lists the project's workflows in project order, each a button that selects it. A workflow with run issues says how many after its name, one per issue: "Get order · 1 problem". Its row is marked `aria-current` while the workflow, or one of its steps, is selected. With no workflows, it says "No workflows yet. A workflow is the path one kind of request takes through your architecture."
 - **Details.** `DescribeSelection` answers both kinds with one `WorkflowDetails`: the name, the names of the workloads whose mix has it (`usedBy`), the outline, and `currentStepId`, the selected step's or undefined. It describes nothing for a workflow the project doesn't have, or a step that isn't in that workflow. The heading is the workflow's name, "· Workflow"; then "Used by: Lunch rush, Steady day", or "Used by: no workload yet", joined with semicolons when a name has a comma of its own, as the templates' do; then the outline, the selected step marked `aria-current`. A step whose component is gone reads "a removed component · read", since a component's ID is never shown. Remove, in the header, asks first ([Removing a workflow](#removing-a-workflow)); `removal` in `WorkflowDetails` holds its words.
 - **Focus.** As for a component: selecting a workflow or a step moves the focus to the Details heading, and Escape, or Close in a narrow window, clears the selection and returns the focus to whatever made it. A step is selected from inside Details, so the outline selects it with `selectWithin`, which keeps the element remembered before, the workflow's row; the step's own button goes when Details closes.
-- **Undo and redo.** `selectionAfterUndo` keeps a selected workflow while the project still has it, and a selected step while its workflow still has a step with its ID, async work included; otherwise it clears the selection. Either stays even through an undo that brings a component or an edge back, which would otherwise select what came back: undoing a component's removal while one of its steps is selected leaves the step selected, and its issue goes from the outline. Undoing a workflow's remove while it's selected can't happen, since the remove cleared the selection; an undo that takes a selected workflow away (undoing its add) clears it. Nothing removes a step yet, so otherwise an undo only redraws the outline, with any renamed component's new name and the issues as they now are.
+- **Undo and redo.** `selectionAfterUndo` keeps a selected workflow while the project still has it, and a selected step while its workflow still has a step with its ID, async work included; otherwise it clears the selection. Either stays even through an undo that brings a component or an edge back, which would otherwise select what came back: undoing a component's removal while one of its steps is selected leaves the step selected, and its issue goes from the outline. Undoing a workflow's remove while it's selected can't happen, since the remove cleared the selection; an undo that takes a selected workflow away (undoing its add) clears it. Undoing a step's remove puts its step and everything under it back, and the selection, which the remove moved to the step's caller, stays there, since the caller is still in the workflow. An undo of a move leaves the selection on its step, whose id didn't change. Otherwise an undo only redraws the outline, with any renamed component's new name and the issues as they now are.
 
 ## The path on the diagram
 
@@ -146,8 +146,81 @@ Each edit to a workflow is a command in [`workflow-edits.ts`](../../src/applicat
 | `renameWorkflow` | The workflow's `name`; its id, steps, and the workloads' mixes stay. The same name, or a workflow that isn't there, returns the record as it was. The field checks the name first (`checkWorkflowName`): not empty, and not another workflow's, ignoring case and surrounding spaces | "Rename Get order to Fetch order" |
 | `addWorkflow` | A workflow after the others, with the given ids and name and a root step that has the given component and action, and no calls. The workloads' mixes and the architecture stay. It's added only once the first step is complete ([When a new workflow exists](#when-a-new-workflow-exists)) | "Add workflow Get order" |
 | `removeWorkflow` | The workflow, and its entry in every workload's mix, so no mix names a workflow the project doesn't have. The architecture, the layout, and other workflows stay. A workflow that isn't there returns the record as it was | "Remove workflow Get order" |
+| `moveStep` | One step's place among its siblings, up or down, its calls and async work with it: its caller's `calls` swap two entries, and nothing else changes. A step at that end, with no siblings, that's a workflow's first step, async work, or a step under async work, or that the workflow doesn't have returns the record as it was | "Move orders-db · read up" |
+| `removeStep` | The step, and every step under it, async work included. A caller left with no calls loses its `calls` field. No edge goes: edges belong to the architecture. A workflow's first step, async work, a step under async work, or a step the workflow doesn't have returns the record as it was | "Remove fn-orders · invoke" |
 
-Renaming a workflow makes the run on screen out of date, as renaming a component does, because workflows are part of what ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md)); renaming the project doesn't. Adding or removing a workflow makes the run out of date the same way. Editing steps adds rows as it lands.
+Renaming a workflow makes the run on screen out of date, as renaming a component does, because workflows are part of what ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md)); renaming the project doesn't. Adding or removing a workflow, and moving or removing a step, make the run out of date the same way. Editing steps adds rows as it lands.
+
+### Moving and removing a step
+
+Both commands work by the step's id, on the workflow they're given, and both find the step that holds it among its calls (`holderOf`, which doesn't search async work), so a command for a step that is the root, is async work or under it, or isn't there changes nothing. The examples are Template A's "Create order" after a `read` was added before its `write` (the [worked example](#editing-it) runs them). Before:
+
+```mermaid
+flowchart TB
+    subgraph tree["Create order: the steps"]
+        apiStep["api · invoke"]
+        fnStep["fn-orders · invoke"]
+        readStep["orders-db · read"]
+        writeStep["orders-db · write"]
+        apiStep -->|calls 1| fnStep
+        fnStep -->|calls 1| readStep
+        fnStep -->|calls 2| writeStep
+    end
+    subgraph arch["The architecture's edges"]
+        api["api"] --> fn["fn-orders"] --> db["orders-db"]
+    end
+```
+
+`moveStep` on `write`, up, swaps it with `read`: the two entries of fn-orders' `calls` trade places, whatever is under each goes with it, and the edges don't change. fn-orders now writes, then reads:
+
+```mermaid
+flowchart TB
+    subgraph tree["After moveStep: write, up"]
+        apiStep["api · invoke"]
+        fnStep["fn-orders · invoke"]
+        writeStep["orders-db · write"]
+        readStep["orders-db · read"]
+        apiStep -->|calls 1| fnStep
+        fnStep -->|calls 1| writeStep
+        fnStep -->|calls 2| readStep
+    end
+    subgraph arch["The architecture's edges, unchanged"]
+        api["api"] --> fn["fn-orders"] --> db["orders-db"]
+    end
+```
+
+`removeStep` on fn-orders takes it and everything under it, so Remove asks first, "Remove fn-orders · invoke and the 2 calls under it?". The edges stay, and Details of `api → fn-orders` now says no step calls along it:
+
+```mermaid
+flowchart TB
+    subgraph tree["After removeStep: fn-orders"]
+        apiStep["api · invoke"]
+    end
+    subgraph arch["The architecture's edges, unchanged"]
+        api["api"] --> fn["fn-orders"] --> db["orders-db"]
+    end
+```
+
+The words come from `describeSelection`, not the UI: each `OutlineStep` has `editing`, which says whether its Move up and Move down are usable, who its caller is, and what Remove asks (`stepRemovalText`; nothing for a step with nothing under it, which goes at once). A step that isn't one of another's calls, the workflow's first step, async work, and every step under async work, has no `editing`, and so no buttons.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant O as WorkflowOutline (ui)
+    participant S as useStepEdits (ui)
+    participant E as useProjectEdits (ui)
+    User->>O: Remove, on fn-orders · invoke
+    O->>O: asks "Remove fn-orders · invoke and the 2 calls under it?" Focus on Cancel
+    User->>O: confirms
+    O->>S: remove(step)
+    S->>E: edit(removeStep), described "Remove fn-orders · invoke"
+    S->>O: select the caller, "api · invoke", asking the heading for no focus
+    O->>O: focus the caller's line
+    S->>S: announce "Removed fn-orders · invoke." in Details' polite region
+```
+
+- **The focus.** A move leaves it on the button pressed: React puts the focus back on an element it moved, as long as the step's key is its id, so a step keyed by its place would leave it on its neighbour's. A move that can't go that way, at either end of the siblings, is `aria-disabled`, not `disabled`, so the focus can stay. A remove takes the step's buttons away, so `useFocusAfterRedraw` puts the focus on the caller's step button once the outline has drawn again; the selection moved to the caller with `selectWithin(…, "none")`, which asks Details' heading for nothing.
+- **The announcements.** "Moved orders-db · read up." and "Removed fn-orders · invoke." come from the polite region in Details, which is on the page before its text changes, as for a connection made there. They name the step as the outline does, by its component and action, never by an id. Each button's name says which step it's for ("Move up 1.1.2 orders-db · write"), since a screen reader lists many.
 
 ## Removing a workflow
 
@@ -223,3 +296,62 @@ Text version: Create order: API Gateway → fn-orders → orders-db (write).
 ```
 
 Template B's "Create order" is the outline, and its path line, in [A workflow, four ways](#a-workflow-four-ways). If an outline or a path line changes, the test fails and the diff shows how. If the change is intended, run `npx vitest run src/adapters/templates/details --update`, then update the excerpts on this page.
+
+### Editing it
+
+[`workflow-edit-sequence.test.ts`](../../src/adapters/templates/details/workflow-edit-sequence.test.ts) runs the step commands on Template A's "Create order", with a `read` added before its `write` (the user adds it with a command once [#156](https://github.com/alanbickel/wind-tunnel/issues/156) lands), through the same edit history the screen keeps, and writes each stage's outline and path line to [`workflow-edit-sequence.txt`](../../src/adapters/templates/details/workflow-edit-sequence.txt). It moves the write up, removes it (nothing under it, so it goes at once), undoes that, removes fn-orders (which asks first), and undoes that:
+
+```text
+Start
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · read
+        1.1.2  orders-db · write
+Text version: Create order: API Gateway → fn-orders → orders-db (read); API Gateway → fn-orders → orders-db (write).
+
+Move orders-db · write up
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+
+Remove asks: nothing; the step goes at once
+Remove orders-db · write
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (read).
+
+Undo: Remove orders-db · write
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+
+Remove asks: Remove fn-orders · invoke and the 2 calls under it?
+Remove fn-orders · invoke
+1  API Gateway · invoke
+Text version: Create order: API Gateway (invoke).
+
+Undo: Remove fn-orders · invoke
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+```
+
+The test also checks that the architecture is the same object at every stage, so no step command touches an edge, and that each undo gives back the very record from before. The next two pieces of the step editor ([#156](https://github.com/alanbickel/wind-tunnel/issues/156), [#157](https://github.com/alanbickel/wind-tunnel/issues/157)) add stages to it. If a stage changes, run the `--update` command above and update this excerpt.
+
+## Changing it
+
+To add a step command (say, `duplicateStep`), in the order a reviewer will read it:
+
+1. **The command**, in [`workflow-edits.ts`](../../src/application/edits/workflow-edits.ts): a plain function from record to record that takes its step by id, like `moveStep`. It does the whole change, so it's one undo step; it returns the very record it was given when there's nothing to do, so `edit` saves nothing; and it never touches the architecture. `moveStep` and `removeStep` share `changeCallsHolding`, which finds the step that holds an id among its calls and swaps in the calls `change` returns; a command that changes one step's calls should use it, and one that changes a step in place can use `mapSteps` ([`step-tree.ts`](../../src/domain/model/step-tree.ts)).
+2. **Its words**, in `application/details/`, not the UI: what the outline needs to offer it (`StepEditing`, built by `stepEditing` in `workflow-details.ts`), and a confirmation's question if it takes something with it (`removal-text.ts`, beside `stepRemovalText`). The undo name is the command's `describe`, in `useStepEdits`: the verb, then the step as the outline labels it, "Move orders-db · read up".
+3. **The button**, in `WorkflowOutline`, calling the command through `useStepEdits`, which saves it, selects what should be selected, and announces it. Name the button for its step, make one that can be unusable `aria-disabled` (the `Button`'s `usable`), and say where the focus goes.
+4. **Tests**, each with a `// Fails if` comment you've watched go red: the command in `workflow-edits.test.ts` (the change, the unchanged record, the input left alone, the architecture left alone); its words in `workflow-details.test.ts` or `removal-text.test.ts`; the screen in `OpenedProject.step-edits.test.tsx` (the announcement, the focus, the undo name, undoing it); and a stage in the edit sequence above. Update the commands table and the excerpt.
+
+A new step *action* or component type needs nothing from the editor: its pickers read the registry's `actions`, so a type that accepts a new action offers it as soon as it's registered ([adding a component type](../../CONTRIBUTING.md#adding-a-component-type)).

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Project, Step } from "./project";
-import { stepAt, stepLinksOf } from "./step-tree";
+import { stepAt, stepLinksOf, stepsBelow } from "./step-tree";
 
 const write: Step = { id: "write", componentId: "db", action: "write" };
 const enqueue: Step = {
@@ -72,5 +72,19 @@ describe("stepLinksOf", () => {
       ["enqueue", "consume"],
       ["consume", "write"],
     ]);
+  });
+});
+
+describe("stepsBelow", () => {
+  // Fails if it counts the step itself, leaves out async work or what's
+  // under it, or loses tree order.
+  it("lists every step under a step, calls then async work, not the step", () => {
+    expect(stepsBelow(root).map((s) => s.id)).toEqual([
+      "read",
+      "enqueue",
+      "consume",
+      "write",
+    ]);
+    expect(stepsBelow(write)).toEqual([]);
   });
 });

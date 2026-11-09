@@ -1,7 +1,8 @@
 import type { Project, Step, Workflow } from "../../domain/model/project";
 import type { WorkflowRunCheck } from "../run-checks/workflow-run-checks";
-import type { OutlineStep, WorkflowDetails } from "./details";
-import { workflowRemovalText } from "./removal-text";
+import { stepsBelow } from "../../domain/model/step-tree";
+import type { OutlineStep, StepEditing, WorkflowDetails } from "./details";
+import { stepRemovalText, workflowRemovalText } from "./removal-text";
 
 /** A workflow, in its project, its run issues, and the step selected in it, if any. */
 export interface WorkflowDetailsInput {
@@ -23,7 +24,7 @@ export function workflowDetails({
   onSteps,
   currentStepId,
 }: WorkflowDetailsInput): WorkflowDetails {
-  const context = { project, onSteps };
+  const context = { project, onSteps, editable: true };
   const usedBy = workloadsUsing(project, workflow.id);
   return {
     kind: "workflow",
@@ -31,7 +32,10 @@ export function workflowDetails({
     name: workflow.name,
     usedBy,
     removal: workflowRemovalText({ workflow, usedBy }),
-    outline: outlineOf({ step: workflow.root, number: "1" }, context),
+    outline: outlineOf(
+      { step: workflow.root, number: "1", place: undefined },
+      context,
+    ),
     currentStepId,
   };
 }
@@ -65,12 +69,30 @@ function workloadsUsing(project: Project, workflowId: string): string[] {
 interface NumberedStep {
   readonly step: Step;
   readonly number: string;
+  /** Where it is among its caller's calls; undefined for the root and for async work. */
+  readonly place: StepPlace | undefined;
+}
+
+/** A step's place among its caller's calls. */
+interface StepPlace {
+  readonly callerStepId: string;
+  readonly index: number;
+  readonly siblings: number;
 }
 
 /** What every line of the outline is drawn from. */
 interface OutlineContext {
   readonly project: Project;
   readonly onSteps: WorkflowRunCheck["onSteps"];
+  /** False under async work, which stays read-only: no step there is editable. */
+  readonly editable: boolean;
+}
+
+/** A step under another: its place in the outline, and among its caller's calls, if it's one. */
+interface UnderInput {
+  readonly child: Step;
+  readonly index: number;
+  readonly from: StepPlace | undefined;
 }
 
 /**
@@ -78,23 +100,72 @@ interface OutlineContext {
  * numbered in order under its own number, then its async work after them.
  */
 function outlineOf(
-  { step, number }: NumberedStep,
+  { step, number, place }: NumberedStep,
   context: OutlineContext,
 ): OutlineStep {
   const { project, onSteps } = context;
   const calls = step.calls ?? [];
-  const under = (child: Step, index: number) =>
+  const under = ({ child, index, from }: UnderInput, inner = context) =>
     outlineOf(
-      { step: child, number: `${number}.${String(index + 1)}` },
-      context,
+      { step: child, number: `${number}.${String(index + 1)}`, place: from },
+      inner,
     );
+  const asyncWork = { ...context, editable: false };
+  const label = `${componentName(project, step.componentId)} · ${step.action}`;
   return {
     stepId: step.id,
     number,
-    label: `${componentName(project, step.componentId)} · ${step.action}`,
+    label,
     issues: onSteps.get(step.id) ?? [],
-    calls: calls.map(under),
-    async: step.async && under(step.async, calls.length),
+    calls: calls.map((child, index) =>
+      under({ child, index, from: placeAmongCalls({ step, index }, context) }),
+    ),
+    async:
+      step.async &&
+      under(
+        { child: step.async, index: calls.length, from: undefined },
+        asyncWork,
+      ),
+    editing: place && stepEditing({ step, label, place }),
+  };
+}
+
+/** A call of a step, by its position among them. */
+interface CallInput {
+  readonly step: Step;
+  readonly index: number;
+}
+
+/** The place of a step's call among its calls; undefined where nothing is editable. */
+function placeAmongCalls(
+  { step, index }: CallInput,
+  { editable }: OutlineContext,
+): StepPlace | undefined {
+  if (!editable) return undefined;
+  return {
+    callerStepId: step.id,
+    index,
+    siblings: step.calls?.length ?? 0,
+  };
+}
+
+/** A step that's one of a step's calls, its label, and its place among them. */
+interface StepEditingInput {
+  readonly step: Step;
+  readonly label: string;
+  readonly place: StepPlace;
+}
+
+/** What Move up, Move down, and Remove need for a step. */
+function stepEditing({ step, label, place }: StepEditingInput): StepEditing {
+  const { callerStepId, index, siblings } = place;
+  return {
+    callerStepId,
+    moves:
+      siblings < 2
+        ? undefined
+        : { canMoveUp: index > 0, canMoveDown: index < siblings - 1 },
+    removal: stepRemovalText({ label, stepsBelow: stepsBelow(step).length }),
   };
 }
 

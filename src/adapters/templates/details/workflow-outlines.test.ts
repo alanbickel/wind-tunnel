@@ -1,16 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type {
-  OutlineStep,
-  WorkflowDetails,
-} from "../../../application/details/details";
-import {
-  ASYNC_WORK_HEADING,
-  usedByLine,
-} from "../../../application/details/workflow-details";
+import type { WorkflowDetails } from "../../../application/details/details";
+import { usedByLine } from "../../../application/details/workflow-details";
 import { workflowPathText } from "../../../application/details/workflow-path-text";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import type { Project, Workflow } from "../../../domain/model/project";
 import { projectA, projectB } from "../testing/scenario-runs";
+import { outlineLines } from "./outline-lines";
 
 // The worked example in docs/architecture/workflow-editor.md: each
 // template's workflows as Details outlines them, with "Used by", laid out
@@ -29,22 +24,6 @@ function detailsOf(project: Project, { id }: Workflow): WorkflowDetails {
   });
   if (details?.kind !== "workflow") throw new Error(`No workflow ${id}`);
   return details;
-}
-
-/**
- * The step's line and the lines under it, each step's calls and async work
- * indented to start under its label, as §2.5 draws them.
- */
-function outlineLines(step: OutlineStep, indent: string): string[] {
-  const under = `${indent}${" ".repeat(step.number.length + 2)}`;
-  const asyncLines = step.async
-    ? [`${under}${ASYNC_WORK_HEADING}`, ...outlineLines(step.async, under)]
-    : [];
-  return [
-    `${indent}${step.number}  ${step.label}`,
-    ...step.calls.flatMap((call) => outlineLines(call, under)),
-    ...asyncLines,
-  ];
 }
 
 /**

@@ -66,6 +66,31 @@ export function workflowRemovalText({
   };
 }
 
+/** A step, by its label, and how many steps are under it. */
+export interface StepRemovalInput {
+  /** E.g. "fn-orders · invoke". */
+  readonly label: string;
+  /** Every step under it, async work included. */
+  readonly stepsBelow: number;
+}
+
+/**
+ * What removing a step would take, as Remove's confirmation asks it (UX
+ * design §2.5 step 6): the step and every step under it. Undefined for a
+ * step with none under it, which goes without asking.
+ */
+export function stepRemovalText({
+  label,
+  stepsBelow,
+}: StepRemovalInput): RemovalText | undefined {
+  if (stepsBelow === 0) return undefined;
+  const calls = stepsBelow === 1 ? "call" : "calls";
+  return {
+    question: `Remove ${label} and the ${String(stepsBelow)} ${calls} under it?`,
+    warning: undefined,
+  };
+}
+
 /** "Lunch rush and Steady day run it; it leaves their mixes."; undefined if none does. */
 function mixesWarning(usedBy: readonly string[]): string | undefined {
   if (usedBy.length === 0) return undefined;

@@ -1,0 +1,201 @@
+import { describe, expect, it } from "vitest";
+import type {
+  OutlineStep,
+  WorkflowDetails,
+} from "../../../application/details/details";
+import { workflowPathText } from "../../../application/details/workflow-path-text";
+import {
+  NO_EDITS,
+  recordEdit,
+  undoEdit,
+  type EditHistory,
+} from "../../../application/edits/edit-history";
+import {
+  moveStep,
+  removeStep,
+} from "../../../application/edits/workflow-edits";
+import type { ProjectRecord } from "../../../application/ports/project-record";
+import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
+import type { Project } from "../../../domain/model/project";
+import { projectA } from "../testing/scenario-runs";
+import { outlineLines } from "./outline-lines";
+
+// The worked example's edit sequence in docs/architecture/workflow-editor.md:
+// Template A's "Create order", with a read before its write, edited with the
+// step commands and undone, each stage shown as Details outlines it with
+// its line in the diagram's text version. Accept an intended change with
+// `npx vitest run src/adapters/templates/details --update`, then check the
+// guide still matches.
+
+const describeSelection = awsDescribeSelection();
+const WORKFLOW_ID = "create-order";
+
+/**
+ * Template A with a `read` before "Create order"'s `write`, as the user
+ * adds it (UX design §2.5 step 5) once a call can be added.
+ */
+function withRead(project: Project): Project {
+  const workflows = project.workflows.map((workflow) => {
+    if (workflow.id !== WORKFLOW_ID) return workflow;
+    const fn = workflow.root.calls?.[0];
+    if (fn === undefined) throw new Error("Create order calls a function");
+    const read = {
+      id: "create-order-orders-db-read",
+      componentId: "orders-db",
+      action: "read",
+    } as const;
+    const calls = [read, ...(fn.calls ?? [])];
+    return {
+      ...workflow,
+      root: { ...workflow.root, calls: [{ ...fn, calls }] },
+    };
+  });
+  return { ...project, workflows };
+}
+
+const START: ProjectRecord = {
+  project: withRead(projectA),
+  layout: { nodes: {} },
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+};
+
+/** The workflow as Details describes it, in the record. */
+function detailsOf(record: ProjectRecord): WorkflowDetails {
+  const details = describeSelection.execute({
+    project: record.project,
+    selection: { kind: "workflow", workflowId: WORKFLOW_ID },
+  });
+  if (details?.kind !== "workflow") throw new Error("No Create order");
+  return details;
+}
+
+/** The step of the outline with the id. */
+function stepIn(outline: OutlineStep, stepId: string): OutlineStep {
+  if (outline.stepId === stepId) return outline;
+  for (const child of outline.calls) {
+    try {
+      return stepIn(child, stepId);
+    } catch {
+      // Not under this call: try the next.
+    }
+  }
+  throw new Error(`No step ${stepId}`);
+}
+
+/** The record's outline and its text version line. */
+function stage(record: ProjectRecord): string[] {
+  const { outline } = detailsOf(record);
+  const workflow = record.project.workflows.find((w) => w.id === WORKFLOW_ID);
+  if (workflow === undefined) throw new Error("No Create order");
+  return [
+    ...outlineLines(outline, ""),
+    `Text version: ${workflowPathText(record.project, workflow)}`,
+  ];
+}
+
+/** Where the sequence is: the record, and what can be undone. */
+interface Place {
+  readonly record: ProjectRecord;
+  readonly history: EditHistory;
+  readonly lines: readonly string[];
+}
+
+const BEGINNING: Place = {
+  record: START,
+  history: NO_EDITS,
+  lines: ["Start", ...stage(START)],
+};
+
+/** A command's result, and its step in the history. */
+interface CommandInput {
+  readonly from: Place;
+  readonly command: (record: ProjectRecord) => ProjectRecord;
+  readonly description: string;
+  /** What Remove would ask, as the outline words it, if the command is a remove. */
+  readonly asks?: string;
+}
+
+function apply({ from, command, description, asks }: CommandInput): Place {
+  const record = command(from.record);
+  const history = recordEdit(from.history, {
+    description,
+    before: from.record,
+    after: record,
+  });
+  return {
+    record,
+    history,
+    lines: ["", ...(asks ? [asks] : []), description, ...stage(record)],
+  };
+}
+
+function undo(from: Place): Place {
+  const move = undoEdit(from.history);
+  if (move === undefined) throw new Error("Nothing to undo");
+  const description = `Undo: ${move.step.description}`;
+  return {
+    record: move.to,
+    history: move.history,
+    lines: ["", description, ...stage(move.to)],
+  };
+}
+
+/** What Remove asks about the step, or that it goes at once. */
+function asking(record: ProjectRecord, stepId: string): string {
+  const { editing } = stepIn(detailsOf(record).outline, stepId);
+  return `Remove asks: ${editing?.removal?.question ?? "nothing; the step goes at once"}`;
+}
+
+describe("the workflow editor's edit sequence", () => {
+  // Fails if a move, a remove, or an undo of either changes what the
+  // outline and the text version show, so the guide's example no longer
+  // matches what the commands do; or if a remove takes an edge.
+  it("moves a step, removes it, and undoes both, on Template A's Create order", async () => {
+    const write = "create-order-orders-db";
+    const moved = apply({
+      from: BEGINNING,
+      command: (r) =>
+        moveStep(r, {
+          workflowId: WORKFLOW_ID,
+          stepId: write,
+          direction: "up",
+        }),
+      description: "Move orders-db · write up",
+    });
+    const removed = apply({
+      from: moved,
+      command: (r) => removeStep(r, { workflowId: WORKFLOW_ID, stepId: write }),
+      description: "Remove orders-db · write",
+      asks: asking(moved.record, write),
+    });
+    const undone = undo(removed);
+    const fn = "create-order-fn-orders";
+    const removedWithCalls = apply({
+      from: undone,
+      command: (r) => removeStep(r, { workflowId: WORKFLOW_ID, stepId: fn }),
+      description: "Remove fn-orders · invoke",
+      asks: asking(undone.record, fn),
+    });
+    const undoneAgain = undo(removedWithCalls);
+    const places = [
+      BEGINNING,
+      moved,
+      removed,
+      undone,
+      removedWithCalls,
+      undoneAgain,
+    ];
+
+    const text = `${places.flatMap((place) => place.lines).join("\n")}\n`;
+
+    await expect(text).toMatchFileSnapshot("workflow-edit-sequence.txt");
+    for (const place of places) {
+      expect(place.record.project.architecture).toBe(
+        START.project.architecture,
+      );
+    }
+    expect(undoneAgain.record).toBe(undone.record);
+    expect(undone.record).toBe(moved.record);
+  });
+});

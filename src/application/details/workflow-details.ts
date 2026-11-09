@@ -24,7 +24,7 @@ export function workflowDetails({
   onSteps,
   currentStepId,
 }: WorkflowDetailsInput): WorkflowDetails {
-  const context = { project, onSteps };
+  const context = { project, onSteps, editable: true };
   const usedBy = workloadsUsing(project, workflow.id);
   return {
     kind: "workflow",
@@ -84,6 +84,8 @@ interface StepPlace {
 interface OutlineContext {
   readonly project: Project;
   readonly onSteps: WorkflowRunCheck["onSteps"];
+  /** False under async work, which stays read-only: no step there is editable. */
+  readonly editable: boolean;
 }
 
 /** A step under another: its place in the outline, and among its caller's calls, if it's one. */
@@ -103,11 +105,12 @@ function outlineOf(
 ): OutlineStep {
   const { project, onSteps } = context;
   const calls = step.calls ?? [];
-  const under = ({ child, index, from }: UnderInput) =>
+  const under = ({ child, index, from }: UnderInput, inner = context) =>
     outlineOf(
       { step: child, number: `${number}.${String(index + 1)}`, place: from },
-      context,
+      inner,
     );
+  const asyncWork = { ...context, editable: false };
   const label = `${componentName(project, step.componentId)} · ${step.action}`;
   return {
     stepId: step.id,
@@ -115,16 +118,34 @@ function outlineOf(
     label,
     issues: onSteps.get(step.id) ?? [],
     calls: calls.map((child, index) =>
-      under({
-        child,
-        index,
-        from: { callerStepId: step.id, index, siblings: calls.length },
-      }),
+      under({ child, index, from: placeAmongCalls({ step, index }, context) }),
     ),
     async:
       step.async &&
-      under({ child: step.async, index: calls.length, from: undefined }),
+      under(
+        { child: step.async, index: calls.length, from: undefined },
+        asyncWork,
+      ),
     editing: place && stepEditing({ step, label, place }),
+  };
+}
+
+/** A call of a step, by its position among them. */
+interface CallInput {
+  readonly step: Step;
+  readonly index: number;
+}
+
+/** The place of a step's call among its calls; undefined where nothing is editable. */
+function placeAmongCalls(
+  { step, index }: CallInput,
+  { editable }: OutlineContext,
+): StepPlace | undefined {
+  if (!editable) return undefined;
+  return {
+    callerStepId: step.id,
+    index,
+    siblings: step.calls?.length ?? 0,
   };
 }
 

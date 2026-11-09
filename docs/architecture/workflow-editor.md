@@ -146,14 +146,14 @@ Each edit to a workflow is a command in [`workflow-edits.ts`](../../src/applicat
 | `renameWorkflow` | The workflow's `name`; its id, steps, and the workloads' mixes stay. The same name, or a workflow that isn't there, returns the record as it was. The field checks the name first (`checkWorkflowName`): not empty, and not another workflow's, ignoring case and surrounding spaces | "Rename Get order to Fetch order" |
 | `addWorkflow` | A workflow after the others, with the given ids and name and a root step that has the given component and action, and no calls. The workloads' mixes and the architecture stay. It's added only once the first step is complete ([When a new workflow exists](#when-a-new-workflow-exists)) | "Add workflow Get order" |
 | `removeWorkflow` | The workflow, and its entry in every workload's mix, so no mix names a workflow the project doesn't have. The architecture, the layout, and other workflows stay. A workflow that isn't there returns the record as it was | "Remove workflow Get order" |
-| `moveStep` | One step's place among its siblings, up or down, its calls and async work with it: its caller's `calls` swap two entries, and nothing else changes. A step at that end, with no siblings, that's a workflow's first step or async work, or that the workflow doesn't have returns the record as it was | "Move orders-db · read up" |
-| `removeStep` | The step, and every step under it, async work included. A caller left with no calls loses its `calls` field. No edge goes: edges belong to the architecture. A workflow's first step, async work, or a step the workflow doesn't have returns the record as it was | "Remove fn-orders · invoke" |
+| `moveStep` | One step's place among its siblings, up or down, its calls and async work with it: its caller's `calls` swap two entries, and nothing else changes. A step at that end, with no siblings, that's a workflow's first step, async work, or a step under async work, or that the workflow doesn't have returns the record as it was | "Move orders-db · read up" |
+| `removeStep` | The step, and every step under it, async work included. A caller left with no calls loses its `calls` field. No edge goes: edges belong to the architecture. A workflow's first step, async work, a step under async work, or a step the workflow doesn't have returns the record as it was | "Remove fn-orders · invoke" |
 
 Renaming a workflow makes the run on screen out of date, as renaming a component does, because workflows are part of what ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md)); renaming the project doesn't. Adding or removing a workflow, and moving or removing a step, make the run out of date the same way. Editing steps adds rows as it lands.
 
 ### Moving and removing a step
 
-Both commands work by the step's id, on the workflow they're given, and both find the step that holds it among its calls (`holderOf`), so a command for a step that is the root, is async work, or isn't there changes nothing. The examples are Template A's "Create order" after a `read` was added before its `write` (the [worked example](#editing-it) runs them). Before:
+Both commands work by the step's id, on the workflow they're given, and both find the step that holds it among its calls (`holderOf`, which doesn't search async work), so a command for a step that is the root, is async work or under it, or isn't there changes nothing. The examples are Template A's "Create order" after a `read` was added before its `write` (the [worked example](#editing-it) runs them). Before:
 
 ```mermaid
 flowchart TB
@@ -201,7 +201,7 @@ flowchart TB
     end
 ```
 
-The words come from `describeSelection`, not the UI: each `OutlineStep` has `editing`, which says whether its Move up and Move down are usable, who its caller is, and what Remove asks (`stepRemovalText`; nothing for a step with nothing under it, which goes at once). A step that isn't one of another's calls, the workflow's first step and async work, has no `editing`, and so no buttons.
+The words come from `describeSelection`, not the UI: each `OutlineStep` has `editing`, which says whether its Move up and Move down are usable, who its caller is, and what Remove asks (`stepRemovalText`; nothing for a step with nothing under it, which goes at once). A step that isn't one of another's calls, the workflow's first step, async work, and every step under async work, has no `editing`, and so no buttons.
 
 ```mermaid
 sequenceDiagram

@@ -77,4 +77,37 @@ describe("workflowDetails' editing", () => {
     });
     expect(only.calls[0]?.editing?.moves).toBeUndefined();
   });
+
+  // Fails if async work, or any step under it (its calls, or their calls),
+  // gets editing: async work stays read-only until Roadmap item 18.
+  it("gives no editing to async work or any step under it", () => {
+    const consumer: Step = {
+      ...leaf("consumer"),
+      calls: [{ ...leaf("c1"), calls: [leaf("c1a")] }, leaf("c2")],
+    };
+    const withAsync: Workflow = {
+      ...read,
+      root: {
+        ...read.root,
+        calls: [leaf("a"), { ...leaf("enq"), async: consumer }],
+      },
+    };
+
+    const { outline: root } = workflowDetails({
+      project: sampleRecord.project,
+      workflow: withAsync,
+      onSteps: new Map(),
+      currentStepId: undefined,
+    });
+    const asyncOutline = root.calls[1]?.async;
+
+    expect(root.calls[1]?.editing).toBeDefined();
+    expect(asyncOutline).toBeTruthy();
+    expect(asyncOutline && asyncOutline.editing).toBeUndefined();
+    expect(asyncOutline && asyncOutline.calls.map((c) => c.editing)).toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(asyncOutline?.calls[0]?.calls[0]?.editing).toBeUndefined();
+  });
 });

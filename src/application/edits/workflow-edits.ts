@@ -4,7 +4,7 @@ import type {
   Workflow,
   Workload,
 } from "../../domain/model/project";
-import { mapSteps, stepsOfWorkflow } from "../../domain/model/step-tree";
+import { mapSteps } from "../../domain/model/step-tree";
 import type { ProjectRecord } from "../ports/project-record";
 
 // Edit commands (ADR-0019): each takes the project record and returns the
@@ -196,11 +196,19 @@ function changeCallsHolding(
   };
 }
 
-/** The step of the workflow that has `stepId` among its calls. */
+/**
+ * The step of the workflow that has `stepId` among its calls. Async work, and
+ * every step under it, is not searched: it stays read-only.
+ */
 function holderOf(workflow: Workflow, stepId: string): Step | undefined {
-  return stepsOfWorkflow(workflow).find((step) =>
-    step.calls?.some((call) => call.id === stepId),
-  );
+  return holderUnder(workflow.root, stepId);
+}
+
+/** The step, or one under it by calls only, that has `stepId` among its calls. */
+function holderUnder(step: Step, stepId: string): Step | undefined {
+  const calls = step.calls ?? [];
+  if (calls.some((call) => call.id === stepId)) return step;
+  return calls.map((call) => holderUnder(call, stepId)).find(Boolean);
 }
 
 /** The step with these calls; a step with none has no `calls` at all. */

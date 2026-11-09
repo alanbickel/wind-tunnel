@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { ProjectSummary } from "../application/ports/project-record";
 
 export interface OpenProjectState {
@@ -9,6 +9,8 @@ export interface OpenProjectState {
   readonly open: (project: ProjectSummary) => void;
   /** Back to the project list. */
   readonly close: () => void;
+  /** Shows the open project's name in the breadcrumb; doesn't rename it. */
+  readonly showName: (name: string) => void;
 }
 
 /** Which project is open, and which was open last. */
@@ -23,5 +25,10 @@ export function useOpenProject(): OpenProjectState {
   const close = () => {
     setOpened(undefined);
   };
-  return { opened, lastOpenedId, open, close };
+  const showName = useCallback((name: string) => {
+    setOpened((prev) =>
+      prev !== undefined && prev.name !== name ? { ...prev, name } : prev,
+    );
+  }, []);
+  return { opened, lastOpenedId, open, close, showName };
 }

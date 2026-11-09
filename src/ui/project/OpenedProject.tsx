@@ -24,6 +24,8 @@ import { useUndoShortcuts } from "./useUndoShortcuts";
 
 export interface OpenedProjectProps {
   readonly record: ProjectRecord;
+  /** Follows the saved record's name, including after Undo and Redo. */
+  readonly onProjectNameChange?: (name: string) => void;
 }
 
 /**
@@ -34,9 +36,12 @@ export interface OpenedProjectProps {
  * every part of the screen reads the same ones, and a tab or layout change
  * doesn't stop the run.
  */
-export function OpenedProject({ record: loaded }: OpenedProjectProps) {
-  const screen = useProjectScreen(loaded);
-  const { edits, projectRun, selecting, changes, undoRedo } = screen;
+export function OpenedProject({
+  record: loaded,
+  onProjectNameChange,
+}: OpenedProjectProps) {
+  const screen = useProjectScreen({ loaded, onProjectNameChange });
+  const { edits, projectRun, undoRedo } = screen;
   const { project } = edits.record;
   const Column = useWideWindow() ? SideTabs : Stacked;
 
@@ -48,17 +53,31 @@ export function OpenedProject({ record: loaded }: OpenedProjectProps) {
         undoRedo={undoRedo}
         saveFailed={edits.saveFailed}
         onRetry={edits.retry}
+        onEdit={edits.edit}
       />
-      <div className={styles.columns}>
-        {screen.architecture}
-        <Column
-          project={project}
-          projectRun={projectRun}
-          selecting={selecting}
-          onEdit={edits.edit}
-          onRemove={changes.remove}
-        />
-      </div>
+      <ProjectColumns screen={screen} Column={Column} />
+    </div>
+  );
+}
+
+interface ProjectColumnsProps {
+  readonly screen: ProjectScreen;
+  readonly Column: typeof SideTabs | typeof Stacked;
+}
+
+/** The architecture diagram beside or above the secondary column. */
+function ProjectColumns({ screen, Column }: ProjectColumnsProps) {
+  const { edits, projectRun, selecting, changes } = screen;
+  return (
+    <div className={styles.columns}>
+      {screen.architecture}
+      <Column
+        project={edits.record.project}
+        projectRun={projectRun}
+        selecting={selecting}
+        onEdit={edits.edit}
+        onRemove={changes.remove}
+      />
     </div>
   );
 }
@@ -73,12 +92,18 @@ interface ProjectScreen {
   readonly architecture: ReactNode;
 }
 
+/** The record a project screen opens, and who follows its name. */
+interface ProjectScreenInput {
+  readonly loaded: ProjectRecord;
+  readonly onProjectNameChange: OpenedProjectProps["onProjectNameChange"];
+}
+
 /**
  * The record with its edits and their history, the run, and the
  * selection, and Undo's shortcuts while the screen is open.
  */
-function useProjectScreen(loaded: ProjectRecord): ProjectScreen {
-  const edits = useProjectEdits(loaded);
+function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
+  const edits = useProjectEdits(input.loaded, input.onProjectNameChange);
   const projectRun = useProjectRun(edits.record.project);
   const selecting = useSelection();
   const changes = useAddAndRemove(edits, selecting);

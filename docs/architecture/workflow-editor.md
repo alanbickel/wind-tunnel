@@ -1,6 +1,6 @@
 # The Workflow Editor
 
-How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Details has a name field that renames the workflow, and Remove takes it away; each step that's one of another's calls has Move up, Move down, and Remove ([the commands](#the-commands)). More editing ([#117](https://github.com/alanbickel/wind-tunnel/issues/117)) adds to this guide as it lands; [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Details has a name field that renames the workflow, and Remove takes it away; each step that's one of another's calls has Move up, Move down, and Remove, and each step that can take a call has "Add a call from …" ([the commands](#the-commands)). More editing ([#117](https://github.com/alanbickel/wind-tunnel/issues/117)) adds to this guide as it lands; [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workflow, four ways
 
@@ -146,10 +146,11 @@ Each edit to a workflow is a command in [`workflow-edits.ts`](../../src/applicat
 | `renameWorkflow` | The workflow's `name`; its id, steps, and the workloads' mixes stay. The same name, or a workflow that isn't there, returns the record as it was. The field checks the name first (`checkWorkflowName`): not empty, and not another workflow's, ignoring case and surrounding spaces | "Rename Get order to Fetch order" |
 | `addWorkflow` | A workflow after the others, with the given ids and name and a root step that has the given component and action, and no calls. The workloads' mixes and the architecture stay. It's added only once the first step is complete ([When a new workflow exists](#when-a-new-workflow-exists)) | "Add workflow Get order" |
 | `removeWorkflow` | The workflow, and its entry in every workload's mix, so no mix names a workflow the project doesn't have. The architecture, the layout, and other workflows stay. A workflow that isn't there returns the record as it was | "Remove workflow Get order" |
+| `addCall` | A new step, with the given id, component and action, as the last of the given step's `calls`; if the step's component has no edge to the call's, one edge too, with the caller type's `edgeDefaults` (`connectIfMissing`, the function "Connect to…" also ends in). The step can be the root or any step reached by `calls`; async work, a step under it, or a step the workflow doesn't have returns the record as it was. The pickers offer only components that exist | "Add a call from api to fn-orders", or "…, and its edge" |
 | `moveStep` | One step's place among its siblings, up or down, its calls and async work with it: its caller's `calls` swap two entries, and nothing else changes. A step at that end, with no siblings, that's a workflow's first step, async work, or a step under async work, or that the workflow doesn't have returns the record as it was | "Move orders-db · read up" |
 | `removeStep` | The step, and every step under it, async work included. A caller left with no calls loses its `calls` field. No edge goes: edges belong to the architecture. A workflow's first step, async work, a step under async work, or a step the workflow doesn't have returns the record as it was | "Remove fn-orders · invoke" |
 
-Renaming a workflow makes the run on screen out of date, as renaming a component does, because workflows are part of what ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md)); renaming the project doesn't. Adding or removing a workflow, and moving or removing a step, make the run out of date the same way. Editing steps adds rows as it lands.
+Renaming a workflow makes the run on screen out of date, as renaming a component does, because workflows are part of what ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md)); renaming the project doesn't. Adding or removing a workflow, and adding, moving, or removing a step, make the run out of date the same way. Editing steps adds rows as it lands.
 
 ### Moving and removing a step
 
@@ -221,6 +222,38 @@ sequenceDiagram
 
 - **The focus.** A move leaves it on the button pressed: React puts the focus back on an element it moved, as long as the step's key is its id, so a step keyed by its place would leave it on its neighbour's. A move that can't go that way, at either end of the siblings, is `aria-disabled`, not `disabled`, so the focus can stay. A remove takes the step's buttons away, so `useFocusAfterRedraw` puts the focus on the caller's step button once the outline has drawn again; the selection moved to the caller with `selectWithin(…, "none")`, which asks Details' heading for nothing.
 - **The announcements.** "Moved orders-db · read up." and "Removed fn-orders · invoke." come from the polite region in Details, which is on the page before its text changes, as for a connection made there. They name the step as the outline does, by its component and action, never by an id. Each button's name says which step it's for ("Move up 1.1.2 orders-db · write"), since a screen reader lists many.
+
+## Adding a call
+
+Under each step's calls, a button "Add a call from api" opens a draft call and moves the focus to its component picker (the button is gone, and the focus would otherwise fall to the page's body): a component picker, and once a component is chosen, an action picker. Like a new workflow's first step, the draft lives only in the UI (`AddCall`, local state), so nothing is stored until both are chosen, and Escape drops it, returns the focus to the button, and saves nothing. Escape stops there: Details' own Escape, which would close the outline, doesn't see it. A component whose type accepts one action has it chosen already, so choosing the component saves the call.
+
+`NewCall` (a use case, since the ids come from the `IdGenerator` port) says what the draft needs: ids for the call and for an edge it may add, the caller type's `edgeDefaults`, and the components to offer. The caller's neighbours come first, then the rest, each of those marked "No edge from api yet; choosing it adds one." The caller's own component isn't offered, since the architecture has no edge to itself. The draft reads it again whenever the project changes, so an Undo that takes a component away takes it from the picker.
+
+The compound case, a call along a missing edge, is one command and so one undo step:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant P as AddCall (ui)
+    participant S as useStepEdits (ui)
+    participant C as addCall (application)
+    participant E as useProjectEdits (ui)
+    participant D as Diagram, Details
+    User->>P: picks orders-db, marked "No edge from API Gateway yet; choosing it adds one."
+    User->>P: picks read
+    P->>S: add({ callerStepId, start, choice, action })
+    S->>E: edit(addCall), described "Add a call from API Gateway to orders-db, and its edge"
+    E->>C: addCall(record, { stepId, callId, componentId, action, edgeId, edgeSettings })
+    C->>C: appends the call, then connectIfMissing adds the edge with newEdge's defaults
+    E->>E: one history step; the run goes out of date; the save queue saves the record
+    E-->>D: the diagram draws the edge; the outline shows the new step, selected
+    S->>D: announce "Added a call from API Gateway to orders-db. Added the edge from API Gateway to orders-db."
+```
+
+- **The edge is the same function.** `addCall` ends in `connectIfMissing` (in [`edge-edits.ts`](../../src/application/edits/edge-edits.ts)), which calls `connectComponents`, as "Connect to…" does, so a call's edge and a drawn one are the same, with the same defaults from the caller's type. `connectIfMissing` adds none when the caller already has an edge to the callee, so a call along an edge that's there leaves the architecture as it was.
+- **The announcement** says the edge appeared, since it appears on the diagram, away from the focus. A call along an edge that's there says only "Added a call from fn-orders to orders-db."
+- **The focus and the selection.** The new step is selected and its line takes the focus (`useFocusAfterRedraw`), since the draft, which had it, has gone. The selection follows the step by id: an Undo takes it away, and `selectionAfterUndo` clears the selection, as for a removed step.
+- **Undo** removes the call and the edge together, because the history keeps the record from before.
 
 ## Removing a workflow
 
@@ -299,7 +332,7 @@ Template B's "Create order" is the outline, and its path line, in [A workflow, f
 
 ### Editing it
 
-[`workflow-edit-sequence.test.ts`](../../src/adapters/templates/details/workflow-edit-sequence.test.ts) runs the step commands on Template A's "Create order", with a `read` added before its `write` (the user adds it with a command once [#156](https://github.com/alanbickel/wind-tunnel/issues/156) lands), through the same edit history the screen keeps, and writes each stage's outline and path line to [`workflow-edit-sequence.txt`](../../src/adapters/templates/details/workflow-edit-sequence.txt). It moves the write up, removes it (nothing under it, so it goes at once), undoes that, removes fn-orders (which asks first), and undoes that:
+[`workflow-edit-sequence.test.ts`](../../src/adapters/templates/details/workflow-edit-sequence.test.ts) runs the step commands on Template A's "Create order", with a `read` added before its `write` (a call added with `addCall` goes last, so the test builds this one by hand to keep the stages short), through the same edit history the screen keeps, and writes each stage's outline and path line to [`workflow-edit-sequence.txt`](../../src/adapters/templates/details/workflow-edit-sequence.txt). It moves the write up, removes it (nothing under it, so it goes at once), undoes that, removes fn-orders (which asks first), and undoes that, then adds a call from API Gateway to orders-db along an edge the architecture doesn't have, and undoes that. Each undo says how many edges the architecture has:
 
 ```text
 Start
@@ -324,6 +357,7 @@ Remove orders-db · write
 Text version: Create order: API Gateway → fn-orders → orders-db (read).
 
 Undo: Remove orders-db · write
+Edges: 2
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
@@ -336,6 +370,24 @@ Remove fn-orders · invoke
 Text version: Create order: API Gateway (invoke).
 
 Undo: Remove fn-orders · invoke
+Edges: 2
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+
+Add a call from API Gateway to orders-db, and its edge
+Edges: 3 (API Gateway → orders-db is new)
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+   1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read); API Gateway → orders-db (read).
+
+Undo: Add a call from API Gateway to orders-db, and its edge
+Edges: 2
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
@@ -343,15 +395,15 @@ Undo: Remove fn-orders · invoke
 Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
 ```
 
-The test also checks that the architecture is the same object at every stage, so no step command touches an edge, and that each undo gives back the very record from before. The next two pieces of the step editor ([#156](https://github.com/alanbickel/wind-tunnel/issues/156), [#157](https://github.com/alanbickel/wind-tunnel/issues/157)) add stages to it. If a stage changes, run the `--update` command above and update this excerpt.
+The test also checks that the architecture is the same object at every stage before the added call, so no move or remove touches an edge; that the added call makes it three edges; and that each undo gives back the very record from before. The next piece of the step editor ([#157](https://github.com/alanbickel/wind-tunnel/issues/157)) adds stages to it. If a stage changes, run the `--update` command above and update this excerpt.
 
 ## Changing it
 
 To add a step command (say, `duplicateStep`), in the order a reviewer will read it:
 
-1. **The command**, in [`workflow-edits.ts`](../../src/application/edits/workflow-edits.ts): a plain function from record to record that takes its step by id, like `moveStep`. It does the whole change, so it's one undo step; it returns the very record it was given when there's nothing to do, so `edit` saves nothing; and it never touches the architecture. `moveStep` and `removeStep` share `changeCallsHolding`, which finds the step that holds an id among its calls and swaps in the calls `change` returns; a command that changes one step's calls should use it, and one that changes a step in place can use `mapSteps` ([`step-tree.ts`](../../src/domain/model/step-tree.ts)).
+1. **The command**, in [`workflow-edits.ts`](../../src/application/edits/workflow-edits.ts): a plain function from record to record that takes its step by id, like `moveStep`. It does the whole change, so it's one undo step; it returns the very record it was given when there's nothing to do, so `edit` saves nothing; and it touches the architecture only to add an edge a call needs, which it does through `connectIfMissing` (the one place a step command adds an edge), never by building the edge itself. `moveStep` and `removeStep` share `changeCallsHolding`, which finds the step that holds an id among its calls and swaps in the calls `change` returns; a command that changes one step's calls should use it, and one that changes a step in place can use `mapSteps` ([`step-tree.ts`](../../src/domain/model/step-tree.ts)).
 2. **Its words**, in `application/details/`, not the UI: what the outline needs to offer it (`StepEditing`, built by `stepEditing` in `workflow-details.ts`), and a confirmation's question if it takes something with it (`removal-text.ts`, beside `stepRemovalText`). The undo name is the command's `describe`, in `useStepEdits`: the verb, then the step as the outline labels it, "Move orders-db · read up".
 3. **The button**, in `WorkflowOutline`, calling the command through `useStepEdits`, which saves it, selects what should be selected, and announces it. Name the button for its step, make one that can be unusable `aria-disabled` (the `Button`'s `usable`), and say where the focus goes.
-4. **Tests**, each with a `// Fails if` comment you've watched go red: the command in `workflow-edits.test.ts` (the change, the unchanged record, the input left alone, the architecture left alone); its words in `workflow-details.test.ts` or `removal-text.test.ts`; the screen in `OpenedProject.step-edits.test.tsx` (the announcement, the focus, the undo name, undoing it); and a stage in the edit sequence above. Update the commands table and the excerpt.
+4. **Tests**, each with a `// Fails if` comment you've watched go red: the command in `workflow-edits.test.ts` (or its own file, as `addCall`'s is; the change, the unchanged record, the input left alone, the architecture left alone); its words in `workflow-details.test.ts` or `removal-text.test.ts`; the screen in `OpenedProject.step-edits.test.tsx` (the announcement, the focus, the undo name, undoing it); and a stage in the edit sequence above. Update the commands table and the excerpt.
 
 A new step *action* or component type needs nothing from the editor: its pickers read the registry's `actions`, so a type that accepts a new action offers it as soon as it's registered ([adding a component type](../../CONTRIBUTING.md#adding-a-component-type)).

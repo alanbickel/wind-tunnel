@@ -20,6 +20,7 @@ Remove orders-db · write
 Text version: Create order: API Gateway → fn-orders → orders-db (read).
 
 Undo: Remove orders-db · write
+Edges: 2
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
@@ -32,6 +33,24 @@ Remove fn-orders · invoke
 Text version: Create order: API Gateway (invoke).
 
 Undo: Remove fn-orders · invoke
+Edges: 2
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+
+Add a call from API Gateway to orders-db, and its edge
+Edges: 3 (API Gateway → orders-db is new)
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+   1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read); API Gateway → orders-db (read).
+
+Undo: Add a call from API Gateway to orders-db, and its edge
+Edges: 2
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write

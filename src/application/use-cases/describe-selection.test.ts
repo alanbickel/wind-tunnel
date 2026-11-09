@@ -307,7 +307,8 @@ describe("DescribeSelection", () => {
   // Fails if the outline loses a step, numbers one wrongly, names a step by
   // its id or its component's id rather than its component's name, drops
   // an enqueue's async work or numbers it before the calls, or puts the
-  // queue's call to the table, which has no edge, on any step but its own.
+  // queue's call to the table, which has no edge, on any step but its own;
+  // or offers "Add a call" on async work, which stays read-only.
   it("outlines a workflow's steps, numbered, async work after the calls", () => {
     const withCall: Project = {
       ...queued,
@@ -339,12 +340,14 @@ describe("DescribeSelection", () => {
       issues: [],
       async: undefined,
       editing: undefined,
+      addCallLabel: "Add a call from API",
       calls: [
         {
           stepId: "queue-enqueue",
           number: "1.1",
           label: "Queue · enqueue",
           issues: [],
+          addCallLabel: "Add a call from Queue",
           editing: {
             callerStepId: "api-invoke",
             moves: undefined,
@@ -363,6 +366,7 @@ describe("DescribeSelection", () => {
               ],
               calls: [],
               async: undefined,
+              addCallLabel: "Add a call from Table",
               editing: {
                 callerStepId: "queue-enqueue",
                 moves: undefined,
@@ -378,6 +382,7 @@ describe("DescribeSelection", () => {
             calls: [],
             async: undefined,
             editing: undefined,
+            addCallLabel: undefined,
           },
         },
       ],

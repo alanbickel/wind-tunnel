@@ -9,6 +9,7 @@ import {
 import {
   awsNewComponent,
   awsNewEdge,
+  awsNewCall,
   awsNewWorkflow,
 } from "../../../application/testing/aws-component-types";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
@@ -113,6 +114,7 @@ function buildUseCases({
     runSimulation: input.runSimulation ?? awsRunSimulation(runner),
     describeSelection: awsDescribeSelection(),
     newComponent: awsNewComponent(),
+    newCall: awsNewCall(),
     newEdge: awsNewEdge(),
     newWorkflow: awsNewWorkflow(),
     saveProject: input.saveProject ?? awsSaveProject(projects),

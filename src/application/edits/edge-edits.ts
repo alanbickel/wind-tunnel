@@ -31,6 +31,23 @@ export function connectComponents(
   return changeEdges(record, (edges) => [...edges, edge]);
 }
 
+/**
+ * Adds the edge as `connectComponents` does, unless the caller already has
+ * an edge to the callee (the architecture allows one per pair and direction),
+ * in which case the record is returned as it was. A command that may add an
+ * edge, such as `addCall`, adds it here, so a call's edge and a drawn one
+ * are the same.
+ */
+export function connectIfMissing(
+  record: ProjectRecord,
+  input: ConnectComponentsInput,
+): ProjectRecord {
+  const { from, to } = input;
+  const edges = record.project.architecture.edges;
+  if (edges.some((e) => e.from === from && e.to === to)) return record;
+  return connectComponents(record, input);
+}
+
 /** One of an edge's settings, by its key. */
 export type EdgeSettingKey = keyof EdgeSettings;
 

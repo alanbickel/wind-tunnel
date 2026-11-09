@@ -3,6 +3,7 @@ import { createFieldCatalog } from "../details/create-field-catalog";
 import type { IdGenerator } from "../ports/id-generator";
 import { ListComponentTypes } from "../use-cases/list-component-types";
 import { NewComponent } from "../use-cases/new-component";
+import { NewCall } from "../use-cases/new-call";
 import { NewEdge } from "../use-cases/new-edge";
 import { NewWorkflow } from "../use-cases/new-workflow";
 import { SequentialIds } from "./sequential-ids";
@@ -26,6 +27,16 @@ export function awsNewComponent(
   ids: IdGenerator = new SequentialIds("new"),
 ): NewComponent {
   return new NewComponent({ registry: createAwsComponentRegistry(), ids });
+}
+
+/**
+ * `NewCall` over the AWS registry, with ids `call-1`, `call-2`, … (a
+ * call's, then its edge's) unless given others.
+ */
+export function awsNewCall(
+  ids: IdGenerator = new SequentialIds("call"),
+): NewCall {
+  return new NewCall({ registry: createAwsComponentRegistry(), ids });
 }
 
 /**

@@ -5,7 +5,9 @@ import type {
   Workload,
 } from "../../domain/model/project";
 import { mapSteps } from "../../domain/model/step-tree";
+import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { ProjectRecord } from "../ports/project-record";
+import { connectIfMissing } from "./edge-edits";
 
 // Edit commands (ADR-0019): each takes the project record and returns the
 // next one, doing the whole change, so it's one undo step. They don't
@@ -100,6 +102,70 @@ export function addWorkflow(
   };
 }
 
+/** A new call: whose it is, its ids and its step, and the edge it adds if one is missing. */
+export interface AddCallInput extends StepInput {
+  /** A new id for the call, from the `IdGenerator` port. */
+  readonly callId: string;
+  /** The component the call goes to. */
+  readonly componentId: string;
+  readonly action: StepAction;
+  /** A new id for the edge, used only if the caller has none to the callee. */
+  readonly edgeId: string;
+  /** The caller type's `edgeDefaults`, which become that edge's settings. */
+  readonly edgeSettings: EdgeSettings;
+}
+
+/**
+ * Adds a call as the last of a step's calls (`stepId` is the caller). If the
+ * caller's component has no edge to the call's, the same command adds one,
+ * through `connectIfMissing`, so the call and its edge are one undo step
+ * (UX design §2.5 step 5, ADR-0019 decision 4). A step that isn't the root
+ * or one of a step's calls (async work stays read-only), or isn't in the
+ * workflow, returns the record as it was.
+ */
+export function addCall(
+  record: ProjectRecord,
+  input: AddCallInput,
+): ProjectRecord {
+  const { workflowId, stepId, callId, componentId, action } = input;
+  const workflow = record.project.workflows.find((w) => w.id === workflowId);
+  const caller = workflow && stepInCalls(workflow, stepId);
+  if (workflow === undefined || caller === undefined) return record;
+  const call: Step = { id: callId, componentId, action };
+  const append = (step: Step): Step =>
+    step.id === stepId
+      ? { ...step, calls: [...(step.calls ?? []), call] }
+      : step;
+  const withCall = withWorkflow(record, {
+    ...workflow,
+    root: mapSteps(workflow.root, append),
+  });
+  return connectIfMissing(withCall, {
+    edgeId: input.edgeId,
+    from: caller.componentId,
+    to: componentId,
+    settings: input.edgeSettings,
+  });
+}
+
+/**
+ * The step with this id that a call can be added to: the root, or a step
+ * reached by `calls` alone. Async work, and every step under it, isn't
+ * searched: it stays read-only.
+ */
+export function stepInCalls(
+  workflow: Workflow,
+  stepId: string,
+): Step | undefined {
+  return stepUnderCalls(workflow.root, stepId);
+}
+
+function stepUnderCalls(step: Step, stepId: string): Step | undefined {
+  if (step.id === stepId) return step;
+  const found = (step.calls ?? []).map((call) => stepUnderCalls(call, stepId));
+  return found.find(Boolean);
+}
+
 /** Which way a step moves among its siblings. */
 export type StepDirection = "up" | "down";
 
@@ -177,19 +243,23 @@ function changeCallsHolding(
   record: ProjectRecord,
   { workflowId, stepId, change }: CallsChangeInput,
 ): ProjectRecord {
-  const { project } = record;
-  const workflow = project.workflows.find((w) => w.id === workflowId);
+  const workflow = record.project.workflows.find((w) => w.id === workflowId);
   const holder = workflow && holderOf(workflow, stepId);
   if (workflow === undefined || holder === undefined) return record;
   const next = change(holder.calls ?? []);
   if (next === holder.calls) return record;
   const replace = (step: Step): Step =>
     step.id === holder.id ? withCalls(step, next) : step;
-  const changed: Workflow = {
+  return withWorkflow(record, {
     ...workflow,
     root: mapSteps(workflow.root, replace),
-  };
-  const swap = (w: Workflow): Workflow => (w.id === workflowId ? changed : w);
+  });
+}
+
+/** The record with the workflow of the same id as `changed` replaced by it. */
+function withWorkflow(record: ProjectRecord, changed: Workflow): ProjectRecord {
+  const { project } = record;
+  const swap = (w: Workflow): Workflow => (w.id === changed.id ? changed : w);
   return {
     ...record,
     project: { ...project, workflows: project.workflows.map(swap) },

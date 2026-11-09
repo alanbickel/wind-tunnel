@@ -3,6 +3,7 @@ import type {
   OutlineStep,
   WorkflowDetails,
 } from "../../../application/details/details";
+import { addCallText } from "../../../application/details/add-call-text";
 import { workflowPathText } from "../../../application/details/workflow-path-text";
 import {
   NO_EDITS,
@@ -11,10 +12,12 @@ import {
   type EditHistory,
 } from "../../../application/edits/edit-history";
 import {
+  addCall,
   moveStep,
   removeStep,
 } from "../../../application/edits/workflow-edits";
 import type { ProjectRecord } from "../../../application/ports/project-record";
+import { awsNewCall } from "../../../application/testing/aws-component-types";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import type { Project } from "../../../domain/model/project";
 import { projectA } from "../testing/scenario-runs";
@@ -114,9 +117,17 @@ interface CommandInput {
   readonly description: string;
   /** What Remove would ask, as the outline words it, if the command is a remove. */
   readonly asks?: string;
+  /** A line after the description, for what the outline doesn't show. */
+  readonly note?: string;
 }
 
-function apply({ from, command, description, asks }: CommandInput): Place {
+function apply({
+  from,
+  command,
+  description,
+  asks,
+  note,
+}: CommandInput): Place {
   const record = command(from.record);
   const history = recordEdit(from.history, {
     description,
@@ -126,7 +137,13 @@ function apply({ from, command, description, asks }: CommandInput): Place {
   return {
     record,
     history,
-    lines: ["", ...(asks ? [asks] : []), description, ...stage(record)],
+    lines: [
+      "",
+      ...(asks ? [asks] : []),
+      description,
+      ...(note ? [note] : []),
+      ...stage(record),
+    ],
   };
 }
 
@@ -137,8 +154,18 @@ function undo(from: Place): Place {
   return {
     record: move.to,
     history: move.history,
-    lines: ["", description, ...stage(move.to)],
+    lines: [
+      "",
+      description,
+      `Edges: ${String(edgeCount(move.to))}`,
+      ...stage(move.to),
+    ],
   };
+}
+
+/** How many edges the architecture has, which only a call along a missing edge changes. */
+function edgeCount(record: ProjectRecord): number {
+  return record.project.architecture.edges.length;
 }
 
 /** What Remove asks about the step, or that it goes at once. */
@@ -147,11 +174,47 @@ function asking(record: ProjectRecord, stepId: string): string {
   return `Remove asks: ${editing?.removal?.question ?? "nothing; the step goes at once"}`;
 }
 
+/**
+ * A call from the root, API Gateway, to orders-db: the architecture has no
+ * edge between them, so the same command adds one.
+ */
+function addedCall(from: Place): Place {
+  const start = awsNewCall().execute({
+    project: from.record.project,
+    workflowId: WORKFLOW_ID,
+    stepId: "create-order-api",
+  });
+  if (start === undefined) throw new Error("The root takes a call");
+  const { callId, edgeId, edgeSettings, callerName } = start;
+  const { undoName } = addCallText({
+    callerName,
+    calleeName: "orders-db",
+    addsEdge: true,
+  });
+  return apply({
+    from,
+    command: (r) =>
+      addCall(r, {
+        workflowId: WORKFLOW_ID,
+        stepId: "create-order-api",
+        callId,
+        componentId: "orders-db",
+        action: "read",
+        edgeId,
+        edgeSettings,
+      }),
+    description: undoName,
+    note: `Edges: ${String(edgeCount(from.record) + 1)} (API Gateway → orders-db is new)`,
+  });
+}
+
 describe("the workflow editor's edit sequence", () => {
-  // Fails if a move, a remove, or an undo of either changes what the
+  // Fails if a move, a remove, an add, or an undo of any changes what the
   // outline and the text version show, so the guide's example no longer
-  // matches what the commands do; or if a remove takes an edge.
-  it("moves a step, removes it, and undoes both, on Template A's Create order", async () => {
+  // matches what the commands do; if a move or a remove takes an edge; if a
+  // call along a missing edge adds none, or its undo leaves the edge or the
+  // call behind (it must give back the very record from before).
+  it("moves, removes, and adds steps and undoes each, on Template A's Create order", async () => {
     const write = "create-order-orders-db";
     const moved = apply({
       from: BEGINNING,
@@ -178,6 +241,8 @@ describe("the workflow editor's edit sequence", () => {
       asks: asking(undone.record, fn),
     });
     const undoneAgain = undo(removedWithCalls);
+    const calls = addedCall(undoneAgain);
+    const undoneCall = undo(calls);
     const places = [
       BEGINNING,
       moved,
@@ -185,16 +250,20 @@ describe("the workflow editor's edit sequence", () => {
       undone,
       removedWithCalls,
       undoneAgain,
+      calls,
+      undoneCall,
     ];
 
     const text = `${places.flatMap((place) => place.lines).join("\n")}\n`;
 
     await expect(text).toMatchFileSnapshot("workflow-edit-sequence.txt");
-    for (const place of places) {
+    for (const place of places.slice(0, -2)) {
       expect(place.record.project.architecture).toBe(
         START.project.architecture,
       );
     }
+    expect(edgeCount(calls.record)).toBe(edgeCount(START) + 1);
+    expect(undoneCall.record).toBe(undoneAgain.record);
     expect(undoneAgain.record).toBe(undone.record);
     expect(undone.record).toBe(moved.record);
   });

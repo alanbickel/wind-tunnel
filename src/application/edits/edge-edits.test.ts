@@ -6,6 +6,7 @@ import { awsNewEdge } from "../testing/aws-component-types";
 import { sampleRecord } from "../testing/sample-record";
 import {
   connectComponents,
+  connectIfMissing,
   removeEdge,
   resetEdgeSetting,
   setEdgeSetting,
@@ -123,5 +124,36 @@ describe("edge edit commands", () => {
         value: 5,
       }),
     ).toBe(sampleRecord);
+  });
+});
+
+describe("connectIfMissing", () => {
+  const input = {
+    edgeId: "new",
+    from: "api",
+    to: "table",
+    settings: lambdaDefinition.edgeDefaults,
+  };
+
+  // Fails if it adds a second edge between a pair that has one, or returns
+  // a new record for nothing (the edit would save).
+  it("adds an edge only where the caller has none to the callee", () => {
+    const added = connectIfMissing(sampleRecord, input);
+
+    expect(added.project.architecture.edges.map((e) => e.id)).toContain("new");
+    expect(connectIfMissing(added, { ...input, edgeId: "again" })).toBe(added);
+    expect(connectIfMissing(sampleRecord, { ...input, to: "fn" })).toBe(
+      sampleRecord,
+    );
+  });
+
+  // Fails if the opposite direction counts as the edge: a call from the
+  // callee back to the caller needs its own.
+  it("treats the other direction as another edge", () => {
+    const back = { ...input, from: "fn", to: "api" };
+
+    const added = connectIfMissing(sampleRecord, back);
+
+    expect(added.project.architecture.edges).toHaveLength(3);
   });
 });

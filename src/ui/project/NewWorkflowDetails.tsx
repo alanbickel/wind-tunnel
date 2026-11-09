@@ -1,5 +1,4 @@
 import {
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -16,7 +15,7 @@ import type {
 } from "../../application/use-cases/new-workflow";
 import type { Project, StepAction } from "../../domain/model/project";
 import { useUseCases } from "../app/useUseCases";
-import fieldStyles from "./fields/Fields.module.css";
+import { Picker } from "./fields/Picker";
 import { TextField } from "./fields/TextField";
 import { useDraft, type Draft } from "./fields/useDraft";
 import styles from "./SelectionDetails.module.css";
@@ -261,47 +260,4 @@ function stepOfComponent(
     componentId,
     action: actions?.length === 1 ? actions[0] : undefined,
   };
-}
-
-/** One choice of a picker: what it sets, and what it's called. */
-interface PickerOption {
-  readonly value: string;
-  readonly text: string;
-}
-
-interface PickerProps {
-  readonly label: string;
-  /** The option shown while nothing is chosen. */
-  readonly prompt: string;
-  readonly value: string | undefined;
-  readonly options: readonly PickerOption[];
-  readonly onPick: (value: string) => void;
-}
-
-/** A labeled picker, empty until something is chosen. */
-function Picker({ label, prompt, value, options, onPick }: PickerProps) {
-  const id = useId();
-  return (
-    <div className={fieldStyles.field}>
-      <label htmlFor={id} className={fieldStyles.label}>
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value ?? ""}
-        onChange={(event) => {
-          onPick(event.target.value);
-        }}
-      >
-        <option value="" disabled>
-          {prompt}
-        </option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.text}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
 }

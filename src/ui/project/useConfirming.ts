@@ -12,6 +12,8 @@ export interface Confirming {
   readonly ask: () => void;
   /** Closes the confirmation, and returns the focus to its opener. */
   readonly cancel: () => void;
+  /** Closes the confirmation and leaves the focus where it is. */
+  readonly dismiss: () => void;
 }
 
 /**
@@ -36,5 +38,8 @@ export function useConfirming(
     returnFocus.current = true;
     setOpen(false);
   }, []);
-  return { open, ask, cancel };
+  const dismiss = useCallback(() => {
+    setOpen(false);
+  }, []);
+  return { open, ask, cancel, dismiss };
 }

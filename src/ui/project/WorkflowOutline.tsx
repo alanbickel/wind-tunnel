@@ -9,12 +9,14 @@ import {
   ASYNC_WORK_HEADING,
   usedByLine,
 } from "../../application/details/workflow-details";
+import type { Project } from "../../domain/model/project";
 import { Button } from "../shared/Button";
+import { AddCall } from "./AddCall";
 import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
 import type { Edit } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
-import { useStepEdits } from "./useStepEdits";
+import { useStepEdits, type AddedCall } from "./useStepEdits";
 import {
   useFocusAfterRedraw,
   type StepButtonRefs,
@@ -22,6 +24,7 @@ import {
 import styles from "./WorkflowOutline.module.css";
 
 export interface WorkflowOutlineProps {
+  readonly project: Project;
   readonly details: WorkflowDetails;
   /** Selects a step of the outline. */
   readonly onSelect: ProjectSelection["selectWithin"];
@@ -36,28 +39,13 @@ export interface WorkflowOutlineProps {
  * numbered outline, each a button that selects it, marked current while
  * it's the selection (UX design §2.5 step 3), with its run issues under
  * it. A step that's one of a step's calls has Move up, Move down, and
- * Remove (§2.5 steps 5 and 6). An `enqueue` step's async work is under it,
- * read-only for now.
+ * Remove (§2.5 steps 5 and 6), and each step that can take one has "Add a
+ * call from …" under its calls (§2.5 step 3). An `enqueue` step's async
+ * work is under it, read-only for now.
  */
 export function WorkflowOutline(props: WorkflowOutlineProps) {
-  const { details, onSelect } = props;
-  const { workflowId, usedBy, outline, currentStepId } = details;
-  const edits = useStepEdits(props);
-  const focus = useFocusAfterRedraw();
-  const item: OutlineItemContext = {
-    currentStepId,
-    buttons: focus.buttons,
-    onSelect: (stepId: string) => {
-      onSelect({ kind: "step", workflowId, stepId });
-    },
-    onMove: edits.move,
-    onRemove: (step) => {
-      // The step and its buttons go: the focus goes to its caller's line.
-      const caller = step.editing?.callerStepId;
-      if (caller !== undefined) focus.after(caller);
-      edits.remove(step);
-    },
-  };
+  const { usedBy, outline } = props.details;
+  const item = useOutlineItem(props);
   return (
     <>
       <p className={styles.usedBy}>{usedByLine(usedBy)}</p>
@@ -68,14 +56,49 @@ export function WorkflowOutline(props: WorkflowOutlineProps) {
   );
 }
 
+/**
+ * What every line draws from and does. Adding a call or removing a step
+ * takes the button the focus was on away, so each asks for the focus to go
+ * to a step's line once the outline has drawn again: the new step's, or the
+ * removed step's caller's.
+ */
+function useOutlineItem(props: WorkflowOutlineProps): OutlineItemContext {
+  const { project, details, onSelect } = props;
+  const { workflowId, currentStepId } = details;
+  const edits = useStepEdits(props);
+  const focus = useFocusAfterRedraw();
+  return {
+    currentStepId,
+    project,
+    workflowId,
+    buttons: focus.buttons,
+    onSelect: (stepId: string) => {
+      onSelect({ kind: "step", workflowId, stepId });
+    },
+    onMove: edits.move,
+    onAdd: (call: AddedCall) => {
+      focus.after(call.start.callId);
+      edits.add(call);
+    },
+    onRemove: (step) => {
+      const caller = step.editing?.callerStepId;
+      if (caller !== undefined) focus.after(caller);
+      edits.remove(step);
+    },
+  };
+}
+
 /** What every line of the outline is drawn from, and what it does. */
 interface OutlineItemContext {
   readonly currentStepId: string | undefined;
+  readonly project: Project;
+  readonly workflowId: string;
   /** Remembers each step's button, to put the focus on one. */
   readonly buttons: StepButtonRefs;
   readonly onSelect: (stepId: string) => void;
   readonly onMove: (step: OutlineStep, direction: StepDirection) => void;
   readonly onRemove: (step: OutlineStep) => void;
+  readonly onAdd: (call: AddedCall) => void;
 }
 
 interface OutlineItemProps extends OutlineItemContext {
@@ -250,7 +273,10 @@ function MoveButton({ step, direction, usable, onMove }: MoveButtonProps) {
   );
 }
 
-/** One step's line, then the steps it calls, then its async work. */
+/**
+ * One step's line, then the steps it calls, then "Add a call" if it can
+ * take one, then its async work.
+ */
 function OutlineItem(props: OutlineItemProps) {
   const { step } = props;
   return (
@@ -262,6 +288,14 @@ function OutlineItem(props: OutlineItemProps) {
             <OutlineItem key={call.stepId} {...props} step={call} />
           ))}
         </ol>
+      )}
+      {step.addCallLabel !== undefined && (
+        <AddCall
+          project={props.project}
+          workflowId={props.workflowId}
+          step={step}
+          onAdd={props.onAdd}
+        />
       )}
       {step.async && <AsyncWork {...props} step={step.async} />}
     </li>

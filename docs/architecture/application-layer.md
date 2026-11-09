@@ -106,7 +106,7 @@ The browser and the CLI show the same counts from a run, so they compute them in
 - `workflowTotals`, `allWorkflows`, and `componentTotals`: the totals so far, each with its remainder (`inProgress`, `unfinished`), so the columns add up at any moment of a run.
 - `requestsInProgress` and `unfinishedWork`: the only definitions of those remainders; the CLI report calls them too.
 
-[`run-analysis-reconciles.test.ts`](../../src/adapters/templates/run-analysis-reconciles.test.ts) checks these sums against the collector's own totals for every template. The findings and the verdict live in `run-analysis/findings/`, with [their own guide](finding-detectors.md).
+[`run-analysis-reconciles.suite.ts`](../../src/adapters/templates/run-analysis-reconciles.suite.ts) checks these sums against the collector's own totals for every template. The findings and the verdict live in `run-analysis/findings/`, with [their own guide](finding-detectors.md).
 
 ## Edits and their history
 

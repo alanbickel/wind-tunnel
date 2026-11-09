@@ -222,17 +222,49 @@ describe("OpenedProject's Add workflow", () => {
   });
 
   // Fails if selecting something else while a draft is open keeps the
-  // draft, or saves it.
+  // draft, or saves it. The name is taken and the component has one
+  // action, so only the name check holds the draft back.
   it("drops the draft when a component is selected", () => {
-    renderProject({ project: noWorkflows });
+    renderProject();
     fireEvent.click(addWorkflowButton());
-    choose("Component", "table");
+    nameDraft("Read item");
+    choose("Component", "api");
 
     fireEvent.click(screen.getByRole("button", { name: /^API \(/ }));
 
     expect(detailsHeading().textContent).toContain("API");
     expect(screen.queryByRole("button", { name: "workflow-1" })).toBeNull();
     expect(undoButton().getAttribute("aria-disabled")).toBe("true");
+  });
+
+  // Fails if a component an Undo took away is still offered, or stays
+  // chosen, so that choosing its action saves a step that calls nothing.
+  it("drops a component from the draft when an Undo removes it", () => {
+    renderProject({ project: noWorkflows });
+    fireEvent.click(screen.getByRole("button", { name: "Add component" }));
+    const types = screen.getByRole("list", { name: "Component types" });
+    const dynamo = within(types)
+      .getAllByRole("button")
+      .find((button) => button.textContent.startsWith("DynamoDB"));
+    if (dynamo === undefined) throw new Error("No DynamoDB type");
+    fireEvent.click(dynamo);
+    fireEvent.click(addWorkflowButton());
+    const added = within(picker("Component"))
+      .getAllByRole("option")
+      .find(
+        (o) =>
+          o.textContent.endsWith("(DynamoDB)") &&
+          o.textContent !== "Table (DynamoDB)",
+      );
+    if (!(added instanceof HTMLOptionElement)) throw new Error("No new option");
+    choose("Component", added.value);
+
+    fireEvent.click(undoButton());
+
+    const options = within(picker("Component")).getAllByRole("option");
+    expect(options.map((o) => o.textContent)).not.toContain(added.textContent);
+    expect(picker("Component").value).toBe("");
+    expect(screen.queryByRole("combobox", { name: "Action" })).toBeNull();
   });
 
   // Fails if "Add workflow" in a project with no components is usable, or

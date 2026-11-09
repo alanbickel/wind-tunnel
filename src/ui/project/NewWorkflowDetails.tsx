@@ -1,6 +1,7 @@
 import {
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -43,10 +44,17 @@ export interface NewWorkflowDetailsProps {
 export function NewWorkflowDetails(props: NewWorkflowDetailsProps) {
   const { newWorkflow } = useUseCases();
   // Read once: the ids and the free name belong to this draft.
-  const [start] = useState(() =>
+  const [first] = useState(() =>
     newWorkflow.execute({ project: props.project }),
   );
-  return <WorkflowDraft {...props} start={start} />;
+  // Read again with the project: Undo and Redo can change the components
+  // while the draft is open, and a step must call one that is there.
+  const { project } = props;
+  const components = useMemo(
+    () => newWorkflow.execute({ project }).components,
+    [newWorkflow, project],
+  );
+  return <WorkflowDraft {...props} start={{ ...first, components }} />;
 }
 
 /** A chosen component, and its action once there is one. */
@@ -65,7 +73,13 @@ interface WorkflowDraftProps extends NewWorkflowDetailsProps {
 function WorkflowDraft(props: WorkflowDraftProps) {
   const { start } = props;
   const name = useDraft(start.name);
-  const [step, setStep] = useState(EMPTY_STEP);
+  const [chosen, setStep] = useState(EMPTY_STEP);
+  // A component an Undo took away is no longer chosen.
+  const step = start.components.some(
+    (c) => c.componentId === chosen.componentId,
+  )
+    ? chosen
+    : EMPTY_STEP;
   const { save, closedRef } = useSaveWhenComplete({ ...props, name });
   return (
     <div

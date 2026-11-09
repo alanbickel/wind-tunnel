@@ -14,11 +14,18 @@ export function authorPrompt(
     `2. Read the issue with its comments: \`gh issue view ${issue} --comments\`. If a maintainer comment answers an earlier question, act on it as the protocol says. If a branch for this issue already exists on origin (\`git ls-remote --heads origin\`), an earlier session started it: switch to it and carry on.`,
     `3. Follow CONTRIBUTING's "Branches and pull requests": branch from \`main\`, commit, run \`npm run check\` until it passes, push, and open exactly one PR, with \`Closes #${issue}\` in its description. Don't review or merge it: the driver runs \`/pr-review\` in a fresh session next.`,
     `4. Leave the working tree clean when you stop, whether you opened the PR or stopped to ask: commit and push what you have, or change nothing. The driver stops if it finds uncommitted changes.`,
+    CONTEXT_RULES,
     SHELL_RULES,
   ];
   if (flags.deferManualChecks) paragraphs.push(authorDeferral(issue));
   return paragraphs.join("\n\n");
 }
+
+/**
+ * Every call re-reads the whole conversation, so what a session reads early it
+ * pays for on each later call: most of a start step's cost (#142).
+ */
+const CONTEXT_RULES = `Keep your context small: every call re-reads all of it, so each file you read costs again on every later turn. To find where code goes and how it fits together, ask an Explore subagent and have it answer in a short summary with \`path:line\` references, rather than reading files yourself to survey them. Read a file yourself only when you'll change it or need its exact text, and read only the part you need (\`offset\` and \`limit\` for long files). Make related edits together: several Edit calls in one turn, and Write for a new file or a rewrite, rather than one small Edit per turn.`;
 
 const SHELL_RULES = `Shell commands: a command the allow list doesn't match is refused, and no one can approve it. Run one command per call. Don't \`cd\`, use shell variables, \`$TEMP\`, output redirection to a file, or heredocs. Write paths out in full. Commit with \`git commit -m "<one line>"\`. Push with \`git push -u origin <branch>\`, naming the issue branch: a bare \`git push\` is refused, and so is any push to \`main\`. Write a comment's body to a file in \`.review-tmp/\` (gitignored) and pass it with \`--body-file\`. Change files with the Edit and Write tools, not scripts.`;
 

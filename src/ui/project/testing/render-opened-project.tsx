@@ -38,10 +38,16 @@ export interface RenderOpenedProjectInput {
   readonly layout?: Layout;
   /** Wide, unless given. */
   readonly width?: WindowWidth;
+  /** Where projects are saved and listed, unless given. */
+  readonly projects?: InMemoryProjectRepository;
   /** The real one over the AWS types, saving to `projects`, unless given. */
   readonly saveProject?: UseCases["saveProject"];
   /** The real one over the AWS types, driven by `runner`, unless given. */
   readonly runSimulation?: UseCases["runSimulation"];
+  /** Reads from `projects` in memory unless given. */
+  readonly listProjects?: UseCases["listProjects"];
+  /** Follows the saved record's name. */
+  readonly onProjectNameChange?: (name: string) => void;
 }
 
 /** An opened project on screen, and what drives it. */
@@ -61,26 +67,26 @@ export interface RenderedProject extends RenderResult {
  * the AWS wording for selections, new components with ids `new-1`, `new-2`,
  * …, and saves to memory.
  */
-export function renderOpenedProject({
-  project = sampleRecord.project,
-  layout = sampleRecord.layout,
-  width = "wide",
-  saveProject,
-  runSimulation,
-}: RenderOpenedProjectInput = {}): RenderedProject {
+export function renderOpenedProject(
+  input: RenderOpenedProjectInput = {},
+): RenderedProject {
+  const {
+    project = sampleRecord.project,
+    layout = sampleRecord.layout,
+    width = "wide",
+    projects: givenProjects,
+    onProjectNameChange,
+  } = input;
   const resize = stubWindowWidth(width);
   const runner = new ManualSimulationRunner();
-  const projects = new InMemoryProjectRepository();
-  const useCases = fakeUseCases({
-    runSimulation: runSimulation ?? awsRunSimulation(runner),
-    describeSelection: awsDescribeSelection(),
-    newComponent: awsNewComponent(),
-    newEdge: awsNewEdge(),
-    saveProject: saveProject ?? awsSaveProject(projects),
-  });
+  const projects = givenProjects ?? new InMemoryProjectRepository();
+  const useCases = buildUseCases({ input, runner, projects });
   const screenOf = (shown: Project) => (
     <UseCasesProvider useCases={useCases}>
-      <OpenedProject record={{ ...sampleRecord, project: shown, layout }} />
+      <OpenedProject
+        record={{ ...sampleRecord, project: shown, layout }}
+        onProjectNameChange={onProjectNameChange}
+      />
     </UseCasesProvider>
   );
   const view = render(screenOf(project));
@@ -88,6 +94,27 @@ export function renderOpenedProject({
     view.rerender(screenOf(changed));
   };
   return { runner, resize, change, projects, ...view };
+}
+
+interface BuildUseCasesInput {
+  readonly input: RenderOpenedProjectInput;
+  readonly runner: ManualSimulationRunner;
+  readonly projects: InMemoryProjectRepository;
+}
+
+function buildUseCases({
+  input,
+  runner,
+  projects,
+}: BuildUseCasesInput): UseCases {
+  return fakeUseCases({
+    listProjects: input.listProjects ?? { execute: () => projects.list() },
+    runSimulation: input.runSimulation ?? awsRunSimulation(runner),
+    describeSelection: awsDescribeSelection(),
+    newComponent: awsNewComponent(),
+    newEdge: awsNewEdge(),
+    saveProject: input.saveProject ?? awsSaveProject(projects),
+  });
 }
 
 /**

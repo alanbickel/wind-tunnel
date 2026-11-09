@@ -6,7 +6,13 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { fail } from "./stop.js";
 
-const MODEL = "claude-opus-5-5";
+/**
+ * An issue's sessions run on Sonnet. The `opus` label switches them to Opus,
+ * for an issue whose design needs it: Opus costs several times more per token.
+ */
+export const DEFAULT_MODEL = "claude-sonnet-5-5";
+export const OPUS_LABEL = "opus";
+const OPUS_MODEL = "claude-opus-5-5";
 const EFFORT = "medium";
 /**
  * Passed as `--max-turns`, and enforced by the driver too: one run went 210
@@ -20,7 +26,7 @@ const SHOWN_LENGTH = 200;
 
 /** @typedef {import("./permissions.js").Permissions} Permissions */
 /** @typedef {import("node:child_process").ChildProcessByStdio<null, import("node:stream").Readable, null>} SessionProcess */
-/** @typedef {{ name: string, prompt: string, permissions: Permissions, systemPromptAddition: string | undefined }} SessionRequest */
+/** @typedef {{ name: string, prompt: string, model: string, permissions: Permissions, systemPromptAddition: string | undefined }} SessionRequest */
 /**
  * What the driver keeps from a session's events. `turnIds` holds the id of each
  * model response in the main conversation (not a subagent's): the driver's own turn count.
@@ -36,6 +42,11 @@ export function emptyTally() {
     turnIds: new Set(),
     stoppedAtTurnLimit: false,
   });
+}
+
+/** The model an issue's sessions run on, from the issue's labels. */
+export function modelFor(/** @type {string[]} */ labels) {
+  return labels.includes(OPUS_LABEL) ? OPUS_MODEL : DEFAULT_MODEL;
 }
 
 /** Runs one session to the end and stops the run if it didn't finish cleanly. */
@@ -73,7 +84,7 @@ function sessionArgs(/** @type {SessionRequest} */ request) {
     request.prompt,
     "-p",
     "--model",
-    MODEL,
+    request.model,
     "--effort",
     EFFORT,
     "--max-turns",

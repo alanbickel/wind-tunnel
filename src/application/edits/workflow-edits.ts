@@ -4,6 +4,7 @@ import type {
   Workflow,
   Workload,
 } from "../../domain/model/project";
+import { mapSteps, stepsOfWorkflow } from "../../domain/model/step-tree";
 import type { ProjectRecord } from "../ports/project-record";
 
 // Edit commands (ADR-0019): each takes the project record and returns the
@@ -97,4 +98,114 @@ export function addWorkflow(
     ...record,
     project: { ...project, workflows: [...project.workflows, workflow] },
   };
+}
+
+/** Which way a step moves among its siblings. */
+export type StepDirection = "up" | "down";
+
+/** A step, by id, in its workflow. */
+export interface StepInput {
+  readonly workflowId: string;
+  readonly stepId: string;
+}
+
+/** A step to move, and which way. */
+export interface MoveStepInput extends StepInput {
+  readonly direction: StepDirection;
+}
+
+/** Where a move puts a step, from where it is. */
+const MOVE_OFFSET: Record<StepDirection, number> = { up: -1, down: 1 };
+
+/**
+ * Moves a step one place up or down among its siblings, its calls with
+ * it. A step that's at that end, has no siblings, isn't one of a step's
+ * calls (the root, or async work, which stays read-only), or isn't in the
+ * workflow returns the record as it was.
+ */
+export function moveStep(
+  record: ProjectRecord,
+  { workflowId, stepId, direction }: MoveStepInput,
+): ProjectRecord {
+  return changeCallsHolding(record, {
+    workflowId,
+    stepId,
+    change: (calls) => {
+      const from = calls.findIndex((call) => call.id === stepId);
+      const to = from + MOVE_OFFSET[direction];
+      const moved = calls[from];
+      const swapped = calls[to];
+      if (moved === undefined || swapped === undefined) return calls;
+      const next = [...calls];
+      next[from] = swapped;
+      next[to] = moved;
+      return next;
+    },
+  });
+}
+
+/**
+ * Removes a step and everything under it, async work included. Edges
+ * belong to the architecture, so none goes with it (ADR-0019). A step that
+ * isn't one of a step's calls (the root, which a workflow's own remove
+ * takes, or async work, which stays read-only) or isn't in the workflow
+ * returns the record as it was.
+ */
+export function removeStep(
+  record: ProjectRecord,
+  { workflowId, stepId }: StepInput,
+): ProjectRecord {
+  return changeCallsHolding(record, {
+    workflowId,
+    stepId,
+    change: (calls) => calls.filter((call) => call.id !== stepId),
+  });
+}
+
+/** A change to one step's calls, as `changeCallsHolding` applies it. */
+interface CallsChangeInput extends StepInput {
+  /** The next calls of the step that holds `stepId` among its calls. */
+  readonly change: (calls: readonly Step[]) => readonly Step[];
+}
+
+/**
+ * Applies `change` to the calls of the step that holds `stepId` among them.
+ * The record is returned as it was if the workflow, or such a holder, isn't
+ * there, or `change` gives the very calls it was given back.
+ */
+function changeCallsHolding(
+  record: ProjectRecord,
+  { workflowId, stepId, change }: CallsChangeInput,
+): ProjectRecord {
+  const { project } = record;
+  const workflow = project.workflows.find((w) => w.id === workflowId);
+  const holder = workflow && holderOf(workflow, stepId);
+  if (workflow === undefined || holder === undefined) return record;
+  const next = change(holder.calls ?? []);
+  if (next === holder.calls) return record;
+  const replace = (step: Step): Step =>
+    step.id === holder.id ? withCalls(step, next) : step;
+  const changed: Workflow = {
+    ...workflow,
+    root: mapSteps(workflow.root, replace),
+  };
+  const swap = (w: Workflow): Workflow => (w.id === workflowId ? changed : w);
+  return {
+    ...record,
+    project: { ...project, workflows: project.workflows.map(swap) },
+  };
+}
+
+/** The step of the workflow that has `stepId` among its calls. */
+function holderOf(workflow: Workflow, stepId: string): Step | undefined {
+  return stepsOfWorkflow(workflow).find((step) =>
+    step.calls?.some((call) => call.id === stepId),
+  );
+}
+
+/** The step with these calls; a step with none has no `calls` at all. */
+function withCalls(step: Step, calls: readonly Step[]): Step {
+  if (calls.length > 0) return { ...step, calls };
+  const { id, componentId, action, async } = step;
+  return { id, componentId, action, ...(async && { async }) };
 }

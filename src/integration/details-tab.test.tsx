@@ -266,10 +266,12 @@ describe("the Details tab, for the templates' workflows", () => {
     vi.unstubAllGlobals();
   });
 
-  /** The outline's steps, as their buttons read. */
+  /** The outline's steps, as their buttons read: the ones that start with a step's number. */
   function outlineSteps(): HTMLElement[] {
     const outline = within(detailsTab()).getByRole("list", { name: "Steps" });
-    return within(outline).getAllByRole("button");
+    return within(outline)
+      .getAllByRole("button")
+      .filter((button) => /^[0-9]/.test(button.textContent));
   }
 
   // Fails if Template A's outlines lose a step, number one wrongly, name a
@@ -338,7 +340,8 @@ describe("the Details tab, for the templates' workflows", () => {
     expect(
       within(asyncWork)
         .getAllByRole("button")
-        .map((step) => step.textContent),
+        .map((step) => step.textContent)
+        .filter((text) => /^[0-9]/.test(text)),
     ).toEqual(["1.1.1.1 fn-writer · invoke", "1.1.1.1.1 orders-db · write"]);
   });
 });

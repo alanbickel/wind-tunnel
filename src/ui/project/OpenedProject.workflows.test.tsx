@@ -23,10 +23,12 @@ function selectedTab(): string | null | undefined {
     .find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
 }
 
-/** The outline's steps, as their buttons. */
+/** The outline's steps, as their buttons: the ones that start with a step's number. */
 function outlineSteps(): HTMLElement[] {
   const outline = screen.getByRole("list", { name: "Steps" });
-  return within(outline).getAllByRole("button");
+  return within(outline)
+    .getAllByRole("button")
+    .filter((button) => /^[0-9]/.test(button.textContent));
 }
 
 /** Each step's line, and the issues that describe its button, if any. */

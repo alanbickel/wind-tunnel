@@ -7,8 +7,10 @@ export type SideTab = "details" | "run";
 /**
  * What in Details takes the focus after a selection: its heading, or a new
  * component's name field, so the user can name it at once (UX §2.1 step 2).
+ * "none" asks for nothing, for a selection that places the focus itself:
+ * a step's remove moves it to the step's caller in the outline.
  */
-export type FocusTarget = "heading" | "name";
+export type FocusTarget = "heading" | "name" | "none";
 
 /** The project screen's one selection, and what selecting does to the screen. */
 export interface ProjectSelection {

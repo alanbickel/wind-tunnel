@@ -101,3 +101,10 @@ export function mapSteps(step: Step, change: StepChange): Step {
       : { async: mapSteps(step.async, change) }),
   });
 }
+
+/** Every step under `step`, async work included, in tree order; not `step` itself. */
+export function stepsBelow(step: Step): Step[] {
+  return stepsUnder({ step, path: [] })
+    .map((located) => located.step)
+    .slice(1);
+}

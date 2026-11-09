@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
+import type { Step, Workflow } from "../../domain/model/project";
+import { stepsOfWorkflow } from "../../domain/model/step-tree";
 import type { ProjectRecord } from "../ports/project-record";
 import { sampleRecord } from "../testing/sample-record";
-import { addWorkflow, removeWorkflow, renameWorkflow } from "./workflow-edits";
+import {
+  addWorkflow,
+  moveStep,
+  removeStep,
+  removeWorkflow,
+  renameWorkflow,
+  type StepDirection,
+} from "./workflow-edits";
 
 /** A deep copy, to check later that a command left its input alone. */
 function copyOf(record: ProjectRecord): ProjectRecord {
@@ -132,5 +141,128 @@ describe("addWorkflow", () => {
       "componentId",
       "id",
     ]);
+  });
+});
+
+describe("moveStep and removeStep", () => {
+  const step = (id: string, rest: Partial<Step> = {}): Step => ({
+    id,
+    componentId: "table",
+    action: "read",
+    ...rest,
+  });
+  // api > fn > [read, write, enqueue(calls: [log], async: consumer)]
+  const enqueue = step("enq", {
+    action: "enqueue",
+    calls: [step("log")],
+    async: step("consumer", { calls: [step("consumer-db")] }),
+  });
+  const fn = step("fn", { calls: [step("read"), step("write"), enqueue] });
+  const create: Workflow = {
+    id: "create",
+    name: "Create order",
+    root: step("api", { calls: [fn] }),
+  };
+  const [read] = sampleRecord.project.workflows;
+  if (read === undefined) throw new Error("The sample has a workflow");
+  const record: ProjectRecord = {
+    ...sampleRecord,
+    project: { ...sampleRecord.project, workflows: [read, create] },
+  };
+
+  /** The ids of the steps a workflow's `fn` calls, in order. */
+  const fnCalls = (r: ProjectRecord): string[] =>
+    stepsOfWorkflow(r.project.workflows[1] ?? create)
+      .find((s) => s.id === "fn")
+      ?.calls?.map((c) => c.id) ?? [];
+
+  // Fails if Move down doesn't swap a step with the sibling after it, Move
+  // up with the one before it, loses the step's calls and async work, or
+  // changes the input record, another workflow, or the architecture.
+  it("swaps a step with its neighbour, its calls and async work with it", () => {
+    const before = copyOf(record);
+
+    const down = moveStep(record, {
+      workflowId: "create",
+      stepId: "write",
+      direction: "down",
+    });
+    const up = moveStep(down, {
+      workflowId: "create",
+      stepId: "write",
+      direction: "up",
+    });
+
+    expect(fnCalls(down)).toEqual(["read", "enq", "write"]);
+    expect(fnCalls(up)).toEqual(["read", "write", "enq"]);
+    expect(
+      moveStep(record, {
+        workflowId: "create",
+        stepId: "enq",
+        direction: "up",
+      }).project.workflows[1]?.root.calls?.[0]?.calls?.[1],
+    ).toEqual(enqueue);
+    expect(down.project.workflows[0]).toBe(read);
+    expect(down.project.architecture).toBe(record.project.architecture);
+    expect(record).toEqual(before);
+  });
+
+  // Fails if a move past either end, of a step with no siblings, of the
+  // root, of async work, or of a step the workflow doesn't have returns a
+  // new record: the edit would save, and become an undo step, for nothing.
+  it("returns the same record when the step can't move that way", () => {
+    const move = (workflowId: string, stepId: string, d: StepDirection) =>
+      moveStep(record, { workflowId, stepId, direction: d });
+
+    expect(move("create", "read", "up")).toBe(record);
+    expect(move("create", "enq", "down")).toBe(record);
+    expect(move("create", "fn", "down")).toBe(record);
+    expect(move("create", "api", "down")).toBe(record);
+    expect(move("create", "consumer", "up")).toBe(record);
+    expect(move("create", "gone", "up")).toBe(record);
+    expect(move("gone", "read", "down")).toBe(record);
+    expect(move("read", "write", "down")).toBe(record);
+  });
+
+  // Fails if removeStep leaves the step, or any step under it (calls or
+  // async work), takes a sibling or an edge with it, or changes the input
+  // record or another workflow.
+  it("takes the step and everything under it, async work included, and no edge", () => {
+    const before = copyOf(record);
+
+    const next = removeStep(record, { workflowId: "create", stepId: "enq" });
+
+    expect(fnCalls(next)).toEqual(["read", "write"]);
+    const ids = stepsOfWorkflow(next.project.workflows[1] ?? create).map(
+      (s) => s.id,
+    );
+    expect(ids).toEqual(["api", "fn", "read", "write"]);
+    expect(next.project.architecture).toBe(record.project.architecture);
+    expect(next.project.workflows[0]).toBe(read);
+    expect(record).toEqual(before);
+  });
+
+  // Fails if the last call leaves `calls: []` behind, so a step that has
+  // none stores differently from one that never had any.
+  it("leaves a step with no calls without a calls field", () => {
+    const next = removeStep(
+      removeStep(record, { workflowId: "create", stepId: "read" }),
+      { workflowId: "create", stepId: "write" },
+    );
+    const only = removeStep(next, { workflowId: "create", stepId: "enq" });
+
+    expect(only.project.workflows[1]?.root.calls?.[0]).toEqual(step("fn"));
+  });
+
+  // Fails if removeStep takes a workflow's root, or async work, or returns
+  // a new record for a step the workflow doesn't have.
+  it("returns the same record for the root, async work, or no such step", () => {
+    const remove = (workflowId: string, stepId: string) =>
+      removeStep(record, { workflowId, stepId });
+
+    expect(remove("create", "api")).toBe(record);
+    expect(remove("create", "consumer")).toBe(record);
+    expect(remove("create", "gone")).toBe(record);
+    expect(remove("gone", "read")).toBe(record);
   });
 });

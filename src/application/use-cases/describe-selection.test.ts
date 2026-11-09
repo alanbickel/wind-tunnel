@@ -338,12 +338,21 @@ describe("DescribeSelection", () => {
       label: "API · invoke",
       issues: [],
       async: undefined,
+      editing: undefined,
       calls: [
         {
           stepId: "queue-enqueue",
           number: "1.1",
           label: "Queue · enqueue",
           issues: [],
+          editing: {
+            callerStepId: "api-invoke",
+            moves: undefined,
+            removal: {
+              question: "Remove Queue · enqueue and the 2 calls under it?",
+              warning: undefined,
+            },
+          },
           calls: [
             {
               stepId: "table-write",
@@ -354,6 +363,11 @@ describe("DescribeSelection", () => {
               ],
               calls: [],
               async: undefined,
+              editing: {
+                callerStepId: "queue-enqueue",
+                moves: undefined,
+                removal: undefined,
+              },
             },
           ],
           async: {
@@ -363,6 +377,7 @@ describe("DescribeSelection", () => {
             issues: [],
             calls: [],
             async: undefined,
+            editing: undefined,
           },
         },
       ],

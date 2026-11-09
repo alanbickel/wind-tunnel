@@ -52,3 +52,12 @@
   margin: var(--space-1) 0 0;
   color: var(--color-text-muted);
 }
+
+/* A step's button, then its Move up, Move down, and Remove, on one line
+   that wraps in a narrow column. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}

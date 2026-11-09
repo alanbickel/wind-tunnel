@@ -51,11 +51,11 @@ export interface SelectionDetailsProps {
 /**
  * The selected component's or edge's settings, each a field that saves a
  * change once it passes its checks, and a component's "Connect to…"; then
- * what calls it (UX design §4.1, §4.3). Or the selected workflow's name field and outline,
- * with the selected step marked in it. Takes the focus to its heading when
- * `takeFocus` says a selection was just made, so the keyboard and a screen
- * reader land on it. Escape anywhere in it closes it, unless a field has
- * a draft to put back first. Remove asks before it removes.
+ * what calls it (UX design §4.1, §4.3). Or the selected workflow's name field
+ * and outline, with the selected step marked in it. Takes the focus to its
+ * heading when `takeFocus` says a selection was just made, so the keyboard and
+ * a screen reader land on it. Escape anywhere in it closes it, unless a field
+ * has a draft to put back first. Remove asks before it removes.
  */
 export function SelectionDetails(props: SelectionDetailsProps) {
   const { project, selection, onClose } = props;
@@ -237,8 +237,8 @@ function DetailsBody(props: DetailsBodyProps) {
 
 /**
  * A component's settings, then "Connect to…"; an edge's settings; a
- * workflow's name, then its outline. Each is keyed by what's selected, so no draft
- * carries over to the next one.
+ * workflow's name, then its outline. Each is keyed by what's selected, so no
+ * draft carries over to the next one.
  */
 const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
   component: (details: ComponentDetails) => (context) => (

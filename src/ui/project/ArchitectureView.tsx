@@ -23,7 +23,7 @@ import {
 import { Panel } from "../shared/Panel";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { AddComponent, type AddComponentProps } from "./AddComponent";
-import { WorkflowList } from "./WorkflowList";
+import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
 
@@ -39,8 +39,8 @@ export interface ArchitectureViewProps {
   readonly onMove: (componentId: string, position: Point) => void;
   /** "Add component", above the diagram. */
   readonly adding: AddComponentProps;
-  /** Starts a new workflow, as "Add workflow" in the workflows list does. */
-  readonly onAddWorkflow: () => void;
+  /** "Add workflow", in the workflows list. */
+  readonly addingWorkflow: AddWorkflowProps;
 }
 
 /**
@@ -73,7 +73,7 @@ export function ArchitectureView(props: ArchitectureViewProps) {
         project={props.record.project}
         selection={props.selection}
         onSelect={props.onSelect}
-        onAdd={props.onAddWorkflow}
+        adding={props.addingWorkflow}
       />
     </Panel>
   );

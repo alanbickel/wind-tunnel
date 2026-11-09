@@ -14,6 +14,7 @@ import { Tabs } from "../shared/Tabs";
 import { useWideWindow } from "../shared/useWideWindow";
 import type { AddComponentProps } from "./AddComponent";
 import { ArchitectureView } from "./ArchitectureView";
+import type { AddWorkflowProps } from "./WorkflowList";
 import styles from "./OpenedProject.module.css";
 import { ProjectBar } from "./ProjectBar";
 import { NothingSelected, SelectionDetails } from "./SelectionDetails";
@@ -127,8 +128,9 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
 function useArchitecture(input: ArchitectureInput) {
   const { edits, selecting, changes, move } = input;
   const { record } = edits;
-  const { addWorkflow, connect } = changes;
+  const { connect } = changes;
   const adding = useAdding(changes);
+  const addingWorkflow = useAddingWorkflow(changes);
   const { selection, select, clear } = selecting;
   return useMemo(
     () => (
@@ -140,10 +142,23 @@ function useArchitecture(input: ArchitectureInput) {
         onConnect={connect}
         onMove={move}
         adding={adding}
-        onAddWorkflow={addWorkflow}
+        addingWorkflow={addingWorkflow}
       />
     ),
-    [record, selection, select, clear, connect, move, adding, addWorkflow],
+    [record, selection, select, clear, connect, move, adding, addingWorkflow],
+  );
+}
+
+/** "Add workflow"'s props, the same object while its parts are. */
+function useAddingWorkflow(changes: AddAndRemove): AddWorkflowProps {
+  const { addWorkflow, addWorkflowButtonRef, workflowAnnouncement } = changes;
+  return useMemo(
+    () => ({
+      onAdd: addWorkflow,
+      buttonRef: addWorkflowButtonRef,
+      announcement: workflowAnnouncement,
+    }),
+    [addWorkflow, addWorkflowButtonRef, workflowAnnouncement],
   );
 }
 

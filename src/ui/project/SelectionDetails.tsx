@@ -39,7 +39,7 @@ export interface SelectionDetailsProps {
   readonly onEdit: (edit: Edit) => void;
   /** Clears the selection and returns the focus: on Escape, and on Close. */
   readonly onClose: () => void;
-  /** Removes the selected component or edge, once the user confirms it. */
+  /** Removes the selected component, edge, or workflow, once the user confirms it. */
   readonly onRemove: (target: Selection) => void;
   /** Selects something Details shows: a step in a workflow's outline. */
   readonly onSelect: (selection: Selection) => void;
@@ -140,8 +140,7 @@ interface DetailsHeaderProps extends SelectionDetailsProps {
 }
 
 /**
- * The heading, Remove, if the selection can be removed, and Close, if
- * there is one. Remove opens a confirmation under them, and Cancel there
+ * The heading, Remove, and Close, if there is one. Remove opens a confirmation under them, and Cancel there
  * returns the focus to Remove.
  */
 function DetailsHeader(props: DetailsHeaderProps) {
@@ -154,7 +153,7 @@ function DetailsHeader(props: DetailsHeaderProps) {
       <div className={styles.header}>
         <Heading {...props} />
         <div className={styles.actions}>
-          {removal !== undefined && !open && (
+          {!open && (
             <Button ref={openerRef} onClick={ask}>
               Remove
             </Button>
@@ -162,7 +161,7 @@ function DetailsHeader(props: DetailsHeaderProps) {
           {closable && <Button onClick={onClose}>Close</Button>}
         </div>
       </div>
-      {removal !== undefined && open && (
+      {open && (
         <RemoveConfirmation
           text={removal.text}
           onConfirm={() => {
@@ -195,8 +194,8 @@ interface Removal {
   readonly target: Selection;
 }
 
-/** Each kind's remove, or undefined for one that can't be removed yet. */
-const REMOVALS: KindHandlers<Details, Removal | undefined> = {
+/** Each kind's remove. */
+const REMOVALS: KindHandlers<Details, Removal> = {
   component: ({ componentId, removal }: ComponentDetails) => ({
     text: removal,
     target: { kind: "component", componentId },
@@ -205,8 +204,10 @@ const REMOVALS: KindHandlers<Details, Removal | undefined> = {
     text: removal,
     target: { kind: "edge", edgeId },
   }),
-  // Removing a workflow is issue 116's, and a step issue 117's.
-  workflow: () => undefined,
+  workflow: ({ workflowId, removal }: WorkflowDetails) => ({
+    text: removal,
+    target: { kind: "workflow", workflowId },
+  }),
 };
 
 function closeOnEscape(

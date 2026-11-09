@@ -1,4 +1,9 @@
-import type { Step, StepAction, Workflow } from "../../domain/model/project";
+import type {
+  Step,
+  StepAction,
+  Workflow,
+  Workload,
+} from "../../domain/model/project";
 import type { ProjectRecord } from "../ports/project-record";
 
 // Edit commands (ADR-0019): each takes the project record and returns the
@@ -29,6 +34,37 @@ export function renameWorkflow(
   return {
     ...record,
     project: { ...project, workflows: project.workflows.map(rename) },
+  };
+}
+
+/** A workflow to remove. */
+export interface RemoveWorkflowInput {
+  readonly workflowId: string;
+}
+
+/**
+ * Removes a workflow, and its entries in every workload's mix, so no mix
+ * names a workflow the project doesn't have. A workload left with an empty
+ * mix gets the run issue for one. Undo needs nothing more: the history
+ * keeps the record from before.
+ */
+export function removeWorkflow(
+  record: ProjectRecord,
+  { workflowId }: RemoveWorkflowInput,
+): ProjectRecord {
+  const { project } = record;
+  if (!project.workflows.some((w) => w.id === workflowId)) return record;
+  const leaveMix = (workload: Workload): Workload => ({
+    ...workload,
+    mix: workload.mix.filter((entry) => entry.workflowId !== workflowId),
+  });
+  return {
+    ...record,
+    project: {
+      ...project,
+      workflows: project.workflows.filter((w) => w.id !== workflowId),
+      workloads: project.workloads.map(leaveMix),
+    },
   };
 }
 

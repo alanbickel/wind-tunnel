@@ -58,8 +58,8 @@ describe("OpenedProject's workflows", () => {
 
   // Fails if a workflow's row doesn't open its outline in Details, the
   // focus doesn't move to its heading, the row isn't marked while it's
-  // selected, Details offers a Remove that does nothing, or Escape leaves
-  // Details showing or drops the focus instead of returning it to the row.
+  // selected, or Escape leaves Details showing or drops the focus instead
+  // of returning it to the row.
   it("opens a workflow's outline from its row, and Escape returns to the row", () => {
     renderProject();
 
@@ -75,7 +75,6 @@ describe("OpenedProject's workflows", () => {
       "1.1.1 Table · read",
     ]);
     expect(screen.getByText("Used by: Steady")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
     expect(selectedTab()).toBe("Run");
     expect(document.activeElement).toBe(row);

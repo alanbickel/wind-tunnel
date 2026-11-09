@@ -333,9 +333,9 @@ export default defineConfig([
 
   { files: ["src/**/*.{ts,tsx}", "tests/**/*.ts"], rules: codingStandards },
   // A `describe` block groups many tests, so length and parameter counts
-  // don't apply to test files or suites; keep each test itself within 30 lines. A test
-  // may keep its own small test doubles beside it, so one class per file
-  // doesn't apply either.
+  // don't apply to test files or suites; keep each test itself within 30
+  // lines. A test may keep its own small test doubles beside it, so one class
+  // per file doesn't apply either.
   {
     files: [TEST_FILES, SUITE_FILES],
     rules: {

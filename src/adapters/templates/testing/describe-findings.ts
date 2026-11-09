@@ -41,8 +41,9 @@ import type { RunGetter } from "./use-run";
 // once for every topic that reads it.
 
 /**
- * What a run's findings should be, and how its verdict is checked. Its verdict is either
- * quoted by a reading in findings.md or pinned in the case, never both.
+ * What a run's findings should be, and how its verdict is checked. Its
+ * verdict is either quoted by a reading in findings.md or pinned in the case,
+ * never both.
  */
 export type FindingsCase = QuotedCase | PinnedCase;
 

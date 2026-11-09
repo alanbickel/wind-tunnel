@@ -105,6 +105,9 @@ export function describeLunchRushA(getRun: RunGetter): void {
       }
     });
 
+    // Fails if orders-db's maxConnections rises enough that under 25% of
+    // requests fail, or if a request fails for another cause than
+    // too-many-connections, such as a Lambda throttle.
     it("fails a large share of requests, all from connection exhaustion", () => {
       const workflows = Object.values(getRun().totals.workflows);
       const started = workflows.reduce((n, w) => n + w.started, 0);

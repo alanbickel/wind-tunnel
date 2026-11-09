@@ -78,11 +78,15 @@ export function describeTotalsReconcile(getRun: RunGetter): void {
       ({ project, totals, snapshots } = getRun());
     });
 
+    // Fails if the run ends with no request in progress at the entry point,
+    // such as a workload that drains before the run ends.
     it("leaves some work unfinished, so the checks below mean something", () => {
       const api = totals.components.api;
       expect(api?.inProgress).toBeGreaterThan(0);
     });
 
+    // Fails if a component stops counting work it is running or holding in a
+    // queue, so arrivals - completed - failed - rejected no longer equals it.
     it("matches each component's unfinished work to its state at the end", () => {
       for (const component of project.architecture.components) {
         const m = totals.components[component.id];
@@ -96,6 +100,8 @@ export function describeTotalsReconcile(getRun: RunGetter): void {
       }
     });
 
+    // Fails if `api` stops being the entry point, or if workflows count a
+    // retry as an extra arrival, so started and api's arrivals differ.
     it("matches workflows in progress to requests unfinished at the entry point", () => {
       // Every workflow starts at `api` with no retries, so each user request
       // is exactly one arrival there.
@@ -111,6 +117,8 @@ export function describeTotalsReconcile(getRun: RunGetter): void {
       expect(inProgress).toBe(api.inProgress);
     });
 
+    // Fails if the totals count a request the per-second rows don't, or the
+    // rows count one twice.
     it("adds up the per-second rows to the totals", () => {
       for (const [id, w] of Object.entries(totals.workflows)) {
         const rows = snapshots.map((s) => s.workflows[id]);
@@ -203,6 +211,8 @@ export function describeQueueReconciles(getRun: RunGetter): void {
       ({ totals } = getRun());
     });
 
+    // Fails if the queue counts a delivery as in flight after its consumer
+    // finished it, or stops counting one the consumer is working on.
     it("is delivering exactly the messages its consumer is working on", () => {
       const queue = totals.components["orders-queue"];
       const consumer = totals.components["fn-writer"];

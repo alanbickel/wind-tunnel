@@ -25,7 +25,7 @@ Other scripts:
 | Script | What it does |
 |---|---|
 | `npm run build` | Production build into `dist/` |
-| `npm run check:changed` | The same checks, limited to what changed since `main`: quicker while you work, but can miss what the full check catches |
+| `npm run check:changed` | The same checks, limited to what changed since `main`, and without the build: quicker while you work, but can miss what the full check catches |
 | `npm run test` / `npm run test:watch` | Run the Vitest tests once / in watch mode |
 | `npm run lint` | ESLint, including the architecture layer rules and the coding standards |
 | `npm run format` | Format code with Prettier |

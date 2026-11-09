@@ -22,6 +22,8 @@ import { CheckWorkloads } from "./application/use-cases/check-workloads";
 import { NameComponents } from "./application/use-cases/name-components";
 import { NewComponent } from "./application/use-cases/new-component";
 import { NewEdge } from "./application/use-cases/new-edge";
+import type { IdGenerator } from "./application/ports/id-generator";
+import { NewCall } from "./application/use-cases/new-call";
 import { NewWorkflow } from "./application/use-cases/new-workflow";
 import { DescribeSelection } from "./application/use-cases/describe-selection";
 import { DeleteProject } from "./application/use-cases/delete-project";
@@ -90,13 +92,33 @@ function createUseCases(database: ProjectDatabase): UseCases {
     saveProject: new SaveProject({ projects, clock, registry }),
     deleteProject: new DeleteProject({ projects }),
     runSimulation: new RunSimulation({ runner, registry }),
-    newComponent: new NewComponent({ registry, ids }),
-    newEdge: new NewEdge({ registry, ids }),
-    newWorkflow: new NewWorkflow({ registry, ids }),
+    ...createStarters({ registry, ids }),
     ...createProjectReaders(registry),
     storagePersistence: new BrowserStoragePersistence({
       storage: navigator.storage,
     }),
+  };
+}
+
+/** What the use cases that start a new component, call, edge, or workflow draw on. */
+interface StartersDependencies {
+  readonly registry: ComponentRegistry;
+  readonly ids: IdGenerator;
+}
+
+/** The use cases that give a new component, call, edge, or workflow its ids and defaults. */
+function createStarters({
+  registry,
+  ids,
+}: StartersDependencies): Pick<
+  UseCases,
+  "newComponent" | "newCall" | "newEdge" | "newWorkflow"
+> {
+  return {
+    newComponent: new NewComponent({ registry, ids }),
+    newCall: new NewCall({ registry, ids }),
+    newEdge: new NewEdge({ registry, ids }),
+    newWorkflow: new NewWorkflow({ registry, ids }),
   };
 }
 

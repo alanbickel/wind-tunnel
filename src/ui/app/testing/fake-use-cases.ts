@@ -14,7 +14,7 @@ const throwsUnexpected = (name: string) => (): never => {
 
 /**
  * `UseCases` whose every call rejects (or throws, for the synchronous
- * `describeSelection`, `newComponent`, `newEdge`, and `newWorkflow`), for UI tests. Override the ones a test
+ * `describeSelection`, `newComponent`, `newCall`, `newEdge`, and `newWorkflow`), for UI tests. Override the ones a test
  * expects: `fakeUseCases({ listProjects: { execute: () => ... } })`.
  * `nameComponents`, `checkWorkloads`, `checkWorkflows`, and
  * `listComponentTypes` are the real ones over the AWS types: they're pure,
@@ -38,6 +38,7 @@ export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
     checkWorkflows: awsCheckWorkflows(),
     listComponentTypes: awsListComponentTypes(),
     newComponent: { execute: throwsUnexpected("newComponent") },
+    newCall: { execute: throwsUnexpected("newCall") },
     newEdge: { execute: throwsUnexpected("newEdge") },
     newWorkflow: { execute: throwsUnexpected("newWorkflow") },
     storagePersistence: { request: unexpected("storagePersistence") },

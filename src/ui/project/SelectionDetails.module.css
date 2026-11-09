@@ -87,3 +87,8 @@
   gap: var(--space-3);
   margin-top: var(--space-3);
 }
+
+/* "Add a call from …", under a step's calls, in line with them. */
+.addCall {
+  margin: var(--space-1) 0 var(--space-1) var(--space-5);
+}

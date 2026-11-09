@@ -147,6 +147,13 @@ export interface OutlineStep {
    * async work, which stays read-only.
    */
   readonly editing: StepEditing | undefined;
+  /**
+   * The words of the button that adds a call to the step: "Add a call from
+   * api". Undefined where nothing is editable (async work, and every step
+   * under it) and for a step whose component is gone, which has no edges to
+   * offer.
+   */
+  readonly addCallLabel: string | undefined;
 }
 
 /** What Move up, Move down, and Remove need to know about a step that's one of a step's calls. */

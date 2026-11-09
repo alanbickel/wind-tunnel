@@ -110,7 +110,6 @@ function outlineOf(
       { step: child, number: `${number}.${String(index + 1)}`, place: from },
       inner,
     );
-  const asyncWork = { ...context, editable: false };
   const label = `${componentName(project, step.componentId)} · ${step.action}`;
   return {
     stepId: step.id,
@@ -124,10 +123,26 @@ function outlineOf(
       step.async &&
       under(
         { child: step.async, index: calls.length, from: undefined },
-        asyncWork,
+        readOnly(context),
       ),
     editing: place && stepEditing({ step, label, place }),
+    addCallLabel: addCallLabel(step, context),
   };
+}
+
+/** The context for async work, and every step under it, which nothing edits. */
+function readOnly(context: OutlineContext): OutlineContext {
+  return { ...context, editable: false };
+}
+
+/** "Add a call from api", or undefined where a step can't take a call. */
+function addCallLabel(step: Step, context: OutlineContext): string | undefined {
+  const { project, editable } = context;
+  const exists = project.architecture.components.some(
+    (c) => c.id === step.componentId,
+  );
+  if (!editable || !exists) return undefined;
+  return `Add a call from ${componentName(project, step.componentId)}`;
 }
 
 /** A call of a step, by its position among them. */

@@ -1,6 +1,6 @@
 # The Workflow Editor
 
-How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Editing ([#116](https://github.com/alanbickel/wind-tunnel/issues/116), [#117](https://github.com/alanbickel/wind-tunnel/issues/117)) adds to this guide as it lands. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §2.5](../design/user-experience.md#25-describe-a-requests-path)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Details has a name field that renames the workflow ([the commands](#the-commands)). More editing ([#116](https://github.com/alanbickel/wind-tunnel/issues/116), [#117](https://github.com/alanbickel/wind-tunnel/issues/117)) adds to this guide as it lands. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workflow, four ways
 
@@ -136,6 +136,16 @@ flowchart TB
 - **The words** come from the same phrasebook as the project bar's, with the step as the subject: "This step calls orders-db from fn-orders, which has no edge to it." Like the outline's labels, they name components by name and never show an ID; a removed component has no name to give, so the step says only that it's gone (UX design §2.4 step 5).
 - **The count** is one per issue, so a step with two issues counts twice, and it matches the sentences under the steps. The row says it in words, and the outline sets an issue off by a line down its side, so neither relies on color. The issues also describe the step's button (`aria-describedby`), so a screen reader hears them on it.
 - **Opening a project with run issues** still works, as it has since [#94](https://github.com/alanbickel/wind-tunnel/issues/94): the outline is where they now show, alongside the project bar's reason.
+
+## The commands
+
+Each edit to a workflow is a command in [`workflow-edits.ts`](../../src/application/edits/workflow-edits.ts), a plain function from record to record that [the user interface guide](user-interface.md#editing-and-saving) describes. Each row says what it changes in the record, and the name its undo step gets.
+
+| Command | Changes in the record | Undo name |
+|---|---|---|
+| `renameWorkflow` | The workflow's `name`; its id, steps, and the workloads' mixes stay. The same name, or a workflow that isn't there, returns the record as it was. The field checks the name first (`checkWorkflowName`): not empty, and not another workflow's, ignoring case and surrounding spaces | "Rename Get order to Fetch order" |
+
+Renaming a workflow makes the run on screen out of date, as renaming a component does, because workflows are part of what ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md)); renaming the project doesn't. Adding and removing workflows, and editing steps, add rows as they land.
 
 ## Worked example
 

@@ -6,6 +6,7 @@ import {
   removeComponent,
 } from "../../application/edits/component-edits";
 import { removeEdge } from "../../application/edits/edge-edits";
+import { removeWorkflow } from "../../application/edits/workflow-edits";
 import type { ProjectRecord } from "../../application/ports/project-record";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
@@ -30,9 +31,10 @@ export interface AddAndRemove {
    */
   readonly connect: (from: string, to: string) => void;
   /**
-   * Removes the component or edge and saves, clears the selection, moves
-   * the focus to "Add component", since what made the selection may be
-   * gone, and announces it, since the focus has left what changed.
+   * Removes the component, edge, or workflow and saves, clears the
+   * selection, moves the focus to "Add component" ("Add workflow" for a
+   * workflow), since what made the selection may be gone, and announces it
+   * in the region beside that button, since the focus has left what changed.
    */
   readonly remove: (target: Selection) => void;
   /** The "Add component" button. */
@@ -41,7 +43,22 @@ export interface AddAndRemove {
   readonly announcement: string;
   /** Says a message in that region, without moving the focus. */
   readonly announce: (message: string) => void;
+  /** The "Add workflow" button, where the focus goes after a workflow's remove. */
+  readonly addWorkflowButtonRef: RefObject<HTMLButtonElement | null>;
+  /** "Removed Get order.", for the polite region beside "Add workflow". */
+  readonly workflowAnnouncement: string;
 }
+
+/** Where a remove leaves the focus, and says what it removed. */
+interface RemovalPlace {
+  readonly buttonRef: RefObject<HTMLButtonElement | null>;
+  readonly announce: (message: string) => void;
+}
+
+/** The button a remove sends the focus to: by what it removed. */
+type RemovalPlaceName = "component" | "workflow";
+
+type RemovalPlaces = Readonly<Record<RemovalPlaceName, RemovalPlace>>;
 
 /**
  * What changes a project's shape (UX design §2.4): each is one edit
@@ -51,21 +68,19 @@ export function useAddAndRemove(
   edits: ProjectEdits,
   selecting: ProjectSelection,
 ): AddAndRemove {
-  const { edit, record } = edits;
+  const { edit } = edits;
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const [announcement, announce] = useAnnouncement();
   const add = useAdd(edit, selecting.select);
   const addWorkflow = useAddWorkflow(selecting.select);
-  const connectWith = useConnect(edit);
-  const { project } = record;
-  const connect = useCallback(
-    (from: string, to: string) => {
-      const said = connectWith({ project, from, to });
-      if (said !== undefined) announce(said);
-    },
-    [connectWith, project, announce],
-  );
-  const remove = useRemove({ edits, selecting, addButtonRef, announce });
+  const connect = useAnnouncedConnect(edits, announce);
+  const [workflowAnnouncement, announceWorkflow] = useAnnouncement();
+  const addWorkflowButtonRef = useRef<HTMLButtonElement>(null);
+  const places: RemovalPlaces = {
+    component: { buttonRef: addButtonRef, announce },
+    workflow: { buttonRef: addWorkflowButtonRef, announce: announceWorkflow },
+  };
+  const remove = useRemove({ edits, selecting, places });
   return {
     add,
     addWorkflow,
@@ -74,7 +89,25 @@ export function useAddAndRemove(
     addButtonRef,
     announcement,
     announce,
+    addWorkflowButtonRef,
+    workflowAnnouncement,
   };
+}
+
+/** Connect, as `AddAndRemove` describes it. */
+function useAnnouncedConnect(
+  { edit, record }: ProjectEdits,
+  announce: (message: string) => void,
+): AddAndRemove["connect"] {
+  const connectWith = useConnect(edit);
+  const { project } = record;
+  return useCallback(
+    (from: string, to: string) => {
+      const said = connectWith({ project, from, to });
+      if (said !== undefined) announce(said);
+    },
+    [connectWith, project, announce],
+  );
 }
 
 /** Add workflow, as `AddAndRemove` describes it. */
@@ -109,35 +142,37 @@ function useAdd(
 interface RemoveInput {
   readonly edits: ProjectEdits;
   readonly selecting: ProjectSelection;
-  readonly addButtonRef: RefObject<HTMLButtonElement | null>;
-  readonly announce: (message: string) => void;
+  readonly places: RemovalPlaces;
 }
 
 /** Remove, as `AddAndRemove` describes it. */
 function useRemove({
   edits,
   selecting,
-  addButtonRef,
-  announce,
+  places,
 }: RemoveInput): AddAndRemove["remove"] {
   const { edit, record } = edits;
   const { clear } = selecting;
+  const { component, workflow } = places;
   return useCallback(
     (target: Selection) => {
       const removal = dispatchKind(REMOVALS, target)(record);
       if (removal === undefined) return;
+      const { buttonRef, announce } =
+        removal.place === "workflow" ? workflow : component;
       edit(removal.edit);
       clear();
-      addButtonRef.current?.focus();
+      buttonRef.current?.focus();
       announce(removal.message);
     },
-    [record, edit, clear, announce, addButtonRef],
+    [record, edit, clear, component, workflow],
   );
 }
 
-/** A remove's edit, and what it announces. */
+/** A remove's edit, where its focus goes, and what it announces. */
 interface Removal {
   readonly edit: Edit;
+  readonly place: RemovalPlaceName;
   /** E.g. "Removed Table." or "Removed the edge from API to Function." */
   readonly message: string;
 }
@@ -162,6 +197,7 @@ const REMOVALS: KindHandlers<
             command: (current) => removeComponent(current, { componentId }),
             describe: () => `Remove ${removed.name}`,
           },
+          place: "component",
           message: `Removed ${removed.name}.`,
         }
       );
@@ -178,11 +214,25 @@ const REMOVALS: KindHandlers<
           command: (current) => removeEdge(current, { edgeId }),
           describe: () => `Remove ${edge}`,
         },
+        place: "component",
         message: `Removed ${edge}.`,
       };
     },
-  // Nothing removes a workflow or a step yet (issues 116 and 117).
-  workflow: () => () => undefined,
+  workflow:
+    ({ workflowId }) =>
+    ({ project }) => {
+      const removed = project.workflows.find((w) => w.id === workflowId);
+      if (removed === undefined) return undefined;
+      return {
+        edit: {
+          command: (current) => removeWorkflow(current, { workflowId }),
+          describe: () => `Remove workflow ${removed.name}`,
+        },
+        place: "workflow",
+        message: `Removed ${removed.name}.`,
+      };
+    },
+  // Nothing removes a step yet (issue 117).
   step: () => () => undefined,
   // A draft is dropped, not removed.
   "new-workflow": () => () => undefined,

@@ -1,4 +1,4 @@
-import { useId, useMemo } from "react";
+import { useId, useMemo, type RefObject } from "react";
 import type { Selection } from "../../application/details/selection";
 import type { Project } from "../../domain/model/project";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
@@ -11,8 +11,17 @@ export interface WorkflowListProps {
   readonly project: Project;
   readonly selection: Selection | undefined;
   readonly onSelect: (selection: Selection) => void;
+  /** "Add workflow", and the region beside it. */
+  readonly adding: AddWorkflowProps;
+}
+
+export interface AddWorkflowProps {
   /** Starts a new workflow. */
   readonly onAdd: () => void;
+  /** The "Add workflow" button, where the focus goes after a workflow's remove. */
+  readonly buttonRef: RefObject<HTMLButtonElement | null>;
+  /** What a workflow's remove announces: "Removed Get order." */
+  readonly announcement: string;
 }
 
 /**
@@ -112,20 +121,27 @@ const ADD_A_COMPONENT_FIRST = "Add a component first.";
 /**
  * "Add workflow", which opens a new workflow in Details as a draft. A
  * workflow's first step calls a component, so with none the button is
- * unusable, and says why in words its description points at.
+ * unusable, and says why in words its description points at. Beside it, a
+ * polite region, on the page from the start, empty, so a screen reader
+ * announces a message put in it: what a workflow's remove took.
  */
-function AddWorkflow({ project, onAdd }: WorkflowListProps) {
+function AddWorkflow({ project, adding }: WorkflowListProps) {
+  const { onAdd, buttonRef, announcement } = adding;
   const whyId = useId();
   const usable = project.architecture.components.length > 0;
   return (
     <>
       <Button
+        ref={buttonRef}
         usable={usable}
         describedBy={usable ? undefined : whyId}
         onClick={onAdd}
       >
         Add workflow
       </Button>
+      <p role="status" className={styles.announcement}>
+        {announcement}
+      </p>
       {!usable && (
         <p id={whyId} className={styles.whyNot}>
           {ADD_A_COMPONENT_FIRST}

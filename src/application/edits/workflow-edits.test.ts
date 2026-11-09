@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectRecord } from "../ports/project-record";
 import { sampleRecord } from "../testing/sample-record";
-import { addWorkflow, renameWorkflow } from "./workflow-edits";
+import { addWorkflow, removeWorkflow, renameWorkflow } from "./workflow-edits";
 
 /** A deep copy, to check later that a command left its input alone. */
 function copyOf(record: ProjectRecord): ProjectRecord {
@@ -38,6 +38,56 @@ describe("renameWorkflow", () => {
     expect(
       renameWorkflow(sampleRecord, { workflowId: "gone", name: "Other" }),
     ).toBe(sampleRecord);
+  });
+});
+
+describe("removeWorkflow", () => {
+  const [read] = sampleRecord.project.workflows;
+  const [steady] = sampleRecord.project.workloads;
+  if (read === undefined || steady === undefined) {
+    throw new Error("The sample has a workflow and a workload");
+  }
+  const list = { ...read, id: "list", name: "List items" };
+  const record: ProjectRecord = {
+    ...sampleRecord,
+    project: {
+      ...sampleRecord.project,
+      workflows: [read, list],
+      workloads: [
+        {
+          ...steady,
+          mix: [
+            { workflowId: "read", weight: 3 },
+            { workflowId: "list", weight: 1 },
+          ],
+        },
+        { ...steady, id: "spike", mix: [{ workflowId: "list", weight: 2 }] },
+      ],
+    },
+  };
+
+  // Fails if removeWorkflow leaves the workflow or its mix entries in any
+  // workload, drops another workflow's entry or changes its weight, changes
+  // anything else in the record, or changes the input record.
+  it("takes the workflow and its mix entries from every workload, and nothing else", () => {
+    const before = copyOf(record);
+
+    const next = removeWorkflow(record, { workflowId: "list" });
+
+    expect(next.project.workflows).toEqual([read]);
+    expect(next.project.workloads.map((w) => w.mix)).toEqual([
+      [{ workflowId: "read", weight: 3 }],
+      [],
+    ]);
+    expect(next.project.architecture).toBe(record.project.architecture);
+    expect(next.layout).toBe(record.layout);
+    expect(record).toEqual(before);
+  });
+
+  // Fails if a workflow the project doesn't have returns a new record: the
+  // edit would save, and become an undo step, for nothing.
+  it("returns the same record for a workflow the project doesn't have", () => {
+    expect(removeWorkflow(record, { workflowId: "gone" })).toBe(record);
   });
 });
 

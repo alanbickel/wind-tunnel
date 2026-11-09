@@ -1,6 +1,7 @@
 import type { Project, Step, Workflow } from "../../domain/model/project";
 import type { WorkflowRunCheck } from "../run-checks/workflow-run-checks";
 import type { OutlineStep, WorkflowDetails } from "./details";
+import { workflowRemovalText } from "./removal-text";
 
 /** A workflow, in its project, its run issues, and the step selected in it, if any. */
 export interface WorkflowDetailsInput {
@@ -23,11 +24,13 @@ export function workflowDetails({
   currentStepId,
 }: WorkflowDetailsInput): WorkflowDetails {
   const context = { project, onSteps };
+  const usedBy = workloadsUsing(project, workflow.id);
   return {
     kind: "workflow",
     workflowId: workflow.id,
     name: workflow.name,
-    usedBy: workloadsUsing(project, workflow.id),
+    usedBy,
+    removal: workflowRemovalText({ workflow, usedBy }),
     outline: outlineOf({ step: workflow.root, number: "1" }, context),
     currentStepId,
   };

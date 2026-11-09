@@ -111,6 +111,8 @@ export interface WorkflowDetails {
   readonly name: string;
   /** The names of the workloads whose mix has it, in project order. */
   readonly usedBy: readonly string[];
+  /** What Remove's confirmation says. */
+  readonly removal: RemovalText;
   /** The workflow's first step, with every step under it. */
   readonly outline: OutlineStep;
   /** The selected step's id; undefined when the workflow itself is selected. */

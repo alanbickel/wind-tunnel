@@ -389,6 +389,28 @@ describe("DescribeSelection", () => {
     );
   });
 
+  // Fails if Remove's confirmation for a workflow doesn't name the workloads
+  // whose mix has it (one or several, in project order), or says more than
+  // the question when none does.
+  it("words a workflow's removal by the workloads that run it", () => {
+    const [steady] = sample.workloads;
+    if (steady === undefined) throw new Error("sample has no workload");
+    const spike = { ...steady, id: "spike", name: "Spike" };
+    const two: Project = { ...sample, workloads: [steady, spike] };
+
+    expect(workflowIn(two, "read").removal).toEqual({
+      question: "Remove Read item?",
+      warning: "Steady and Spike run it; it leaves their mixes.",
+    });
+    expect(workflowIn(sample, "read").removal.warning).toBe(
+      "Steady runs it; it leaves its mix.",
+    );
+    expect(workflowIn({ ...sample, workloads: [] }, "read").removal).toEqual({
+      question: "Remove Read item?",
+      warning: undefined,
+    });
+  });
+
   // Fails if a selected step doesn't show its workflow's outline, or isn't
   // the one marked, or a workflow selected on its own marks a step.
   it("marks the selected step in its workflow's outline", () => {

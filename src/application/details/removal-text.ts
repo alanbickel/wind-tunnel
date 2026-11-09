@@ -1,4 +1,9 @@
-import type { Component, Edge, Project } from "../../domain/model/project";
+import type {
+  Component,
+  Edge,
+  Project,
+  Workflow,
+} from "../../domain/model/project";
 import { listOf } from "../shared/list-of";
 import { stepsCalling, stepsCallingAlong } from "./called-by";
 import type { RemovalText } from "./details";
@@ -39,6 +44,35 @@ export function edgeRemovalText(project: Project, edge: Edge): RemovalText {
       call: "along it",
     }),
   };
+}
+
+/** A workflow, and the names of the workloads whose mix has it. */
+export interface WorkflowRemovalInput {
+  readonly workflow: Workflow;
+  readonly usedBy: readonly string[];
+}
+
+/**
+ * What removing a workflow would take, as Remove's confirmation asks it
+ * (UX design §4.3): the workloads whose mixes it leaves, if any.
+ */
+export function workflowRemovalText({
+  workflow,
+  usedBy,
+}: WorkflowRemovalInput): RemovalText {
+  return {
+    question: `Remove ${workflow.name}?`,
+    warning: mixesWarning(usedBy),
+  };
+}
+
+/** "Lunch rush and Steady day run it; it leaves their mixes."; undefined if none does. */
+function mixesWarning(usedBy: readonly string[]): string | undefined {
+  if (usedBy.length === 0) return undefined;
+  if (usedBy.length === 1) {
+    return `${listOf(usedBy)} runs it; it leaves its mix.`;
+  }
+  return `${listOf(usedBy)} run it; it leaves their mixes.`;
 }
 
 /** " and its edge from Function", or nothing if it has no edges. */

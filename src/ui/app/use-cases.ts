@@ -11,6 +11,7 @@ import type { ListTemplates } from "../../application/use-cases/list-templates";
 import type { NameComponents } from "../../application/use-cases/name-components";
 import type { NewComponent } from "../../application/use-cases/new-component";
 import type { NewEdge } from "../../application/use-cases/new-edge";
+import type { ChangeStep } from "../../application/use-cases/change-step";
 import type { NewCall } from "../../application/use-cases/new-call";
 import type { NewWorkflow } from "../../application/use-cases/new-workflow";
 import type { OpenProject } from "../../application/use-cases/open-project";
@@ -48,6 +49,7 @@ export interface UseCases {
   readonly listComponentTypes: UseCase<ListComponentTypes>;
   readonly newComponent: UseCase<NewComponent>;
   readonly newCall: UseCase<NewCall>;
+  readonly changeStep: UseCase<ChangeStep>;
   readonly newEdge: UseCase<NewEdge>;
   readonly newWorkflow: UseCase<NewWorkflow>;
   /**

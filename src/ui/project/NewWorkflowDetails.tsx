@@ -69,17 +69,21 @@ interface WorkflowDraftProps extends NewWorkflowDetailsProps {
   readonly start: NewWorkflowStart;
 }
 
-/** The draft's heading, name, and first step. */
-function WorkflowDraft(props: WorkflowDraftProps) {
-  const { start } = props;
-  const name = useDraft(start.name);
-  const [chosen, setStep] = useState(EMPTY_STEP);
-  // A component an Undo took away is no longer chosen.
-  const step = start.components.some(
-    (c) => c.componentId === chosen.componentId,
-  )
+/** A component an Undo took away is no longer chosen. */
+function stepStillValid(
+  chosen: FirstStep,
+  components: NewWorkflowStart["components"],
+): FirstStep {
+  return components.some((c) => c.componentId === chosen.componentId)
     ? chosen
     : EMPTY_STEP;
+}
+
+/** The draft's heading, name, and first step. */
+function WorkflowDraft(props: WorkflowDraftProps) {
+  const name = useDraft(props.start.name);
+  const [chosen, setStep] = useState(EMPTY_STEP);
+  const step = stepStillValid(chosen, props.start.components);
   const { save, closedRef } = useSaveWhenComplete({ ...props, name });
   return (
     <div
@@ -96,7 +100,7 @@ function WorkflowDraft(props: WorkflowDraftProps) {
         }}
       />
       <FirstStepPickers
-        choices={start.components}
+        choices={props.start.components}
         step={step}
         onChange={(next) => {
           setStep(next);

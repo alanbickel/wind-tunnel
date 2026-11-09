@@ -32,7 +32,8 @@ export interface DescribeSelectionInput {
  * defaults, what an editor needs, and what calls it; an edge's defaults are
  * its caller type's. For a workflow, or a step in one, the workflow's
  * outline, each step with its run issues, and the workloads that use it.
- * Undefined if the project has no such item.
+ * Undefined if the project has no such item, or for a new workflow, which
+ * isn't an item yet.
  */
 export class DescribeSelection {
   private readonly deps: DescribeSelectionDependencies;
@@ -62,6 +63,8 @@ export class DescribeSelection {
         }),
       step: ({ workflowId, stepId }) =>
         describeWorkflow({ project, registry, id: workflowId, stepId }),
+      // A draft has no details to describe: the UI shows it.
+      "new-workflow": () => undefined,
     };
   }
 

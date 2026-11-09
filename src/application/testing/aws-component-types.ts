@@ -4,6 +4,7 @@ import type { IdGenerator } from "../ports/id-generator";
 import { ListComponentTypes } from "../use-cases/list-component-types";
 import { NewComponent } from "../use-cases/new-component";
 import { NewEdge } from "../use-cases/new-edge";
+import { NewWorkflow } from "../use-cases/new-workflow";
 import { SequentialIds } from "./sequential-ids";
 
 /**
@@ -35,4 +36,14 @@ export function awsNewEdge(
   ids: IdGenerator = new SequentialIds("edge"),
 ): NewEdge {
   return new NewEdge({ registry: createAwsComponentRegistry(), ids });
+}
+
+/**
+ * `NewWorkflow` over the AWS registry, with ids `wf-1`, `wf-2`, … (a
+ * workflow's, then its first step's) unless given others.
+ */
+export function awsNewWorkflow(
+  ids: IdGenerator = new SequentialIds("wf"),
+): NewWorkflow {
+  return new NewWorkflow({ registry: createAwsComponentRegistry(), ids });
 }

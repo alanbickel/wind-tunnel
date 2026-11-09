@@ -9,6 +9,7 @@ import {
 import {
   awsNewComponent,
   awsNewEdge,
+  awsNewWorkflow,
 } from "../../../application/testing/aws-component-types";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import { awsSaveProject } from "../../../application/testing/aws-save-project";
@@ -65,7 +66,7 @@ export interface RenderedProject extends RenderResult {
 /**
  * Renders `OpenedProject` with the sample record, runs driven by the test,
  * the AWS wording for selections, new components with ids `new-1`, `new-2`,
- * …, and saves to memory.
+ * …, new workflows with ids `wf-1`, `wf-2`, …, and saves to memory.
  */
 export function renderOpenedProject(
   input: RenderOpenedProjectInput = {},
@@ -113,6 +114,7 @@ function buildUseCases({
     describeSelection: awsDescribeSelection(),
     newComponent: awsNewComponent(),
     newEdge: awsNewEdge(),
+    newWorkflow: awsNewWorkflow(),
     saveProject: input.saveProject ?? awsSaveProject(projects),
   });
 }

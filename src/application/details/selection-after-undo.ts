@@ -70,6 +70,7 @@ const OUTLASTS_BRINGING_BACK: Record<Selection["kind"], boolean> = {
   edge: false,
   workflow: true,
   step: true,
+  "new-workflow": false,
 };
 
 /** The projects either side of an undo or a redo. */
@@ -129,4 +130,6 @@ const PRESENCE: KindHandlers<Selection, (project: Project) => boolean> = {
         stepsOfWorkflow(workflow).some((s) => s.id === stepId)
       );
     },
+  // A draft isn't in the project, and an undo doesn't touch it.
+  "new-workflow": () => () => true,
 };

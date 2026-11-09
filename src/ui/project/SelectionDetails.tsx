@@ -23,6 +23,7 @@ import { ConnectTo } from "./ConnectTo";
 import { ComponentSettings } from "./fields/ComponentSettings";
 import { EdgeSettings } from "./fields/EdgeSettings";
 import { WorkflowNameField } from "./fields/WorkflowNameField";
+import { NewWorkflowDetails } from "./NewWorkflowDetails";
 import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
 import styles from "./SelectionDetails.module.css";
@@ -58,6 +59,14 @@ export interface SelectionDetailsProps {
  * has a draft to put back first. Remove asks before it removes.
  */
 export function SelectionDetails(props: SelectionDetailsProps) {
+  if (props.selection.kind === "new-workflow") {
+    return <NewWorkflowFrame {...props} />;
+  }
+  return <DescribedSelection {...props} />;
+}
+
+/** A component, an edge, a workflow, or a step: what `describeSelection` says. */
+function DescribedSelection(props: SelectionDetailsProps) {
   const { project, selection, onClose } = props;
   const { describeSelection } = useUseCases();
   const details = useMemo(
@@ -84,6 +93,29 @@ export function SelectionDetails(props: SelectionDetailsProps) {
       <p role="status" className={styles.announcement}>
         {announcement}
       </p>
+    </div>
+  );
+}
+
+/**
+ * A new workflow's draft, with the Escape that closes Details. It has no
+ * details to describe, Remove, or call it: nothing is stored yet.
+ */
+function NewWorkflowFrame(props: SelectionDetailsProps) {
+  const { project, onEdit, onSelect, takeFocus, onClose } = props;
+  return (
+    <div
+      className={styles.details}
+      onKeyDown={(event) => {
+        closeOnEscape(event, onClose);
+      }}
+    >
+      <NewWorkflowDetails
+        project={project}
+        onEdit={onEdit}
+        onSelect={onSelect}
+        takeFocus={takeFocus}
+      />
     </div>
   );
 }

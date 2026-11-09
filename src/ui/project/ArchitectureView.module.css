@@ -28,3 +28,17 @@
 .problems {
   color: var(--color-status-warn);
 }
+
+/* "Workflows" with "Add workflow" beside it, wrapping under it when narrow. */
+.listHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+}
+
+/* Why "Add workflow" is unusable. */
+.whyNot {
+  margin: 0;
+  color: var(--color-text-muted);
+}

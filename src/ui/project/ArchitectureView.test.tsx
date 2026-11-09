@@ -73,6 +73,7 @@ function renderView({
         onSelect={onSelect}
         onClear={onClear}
         onConnect={vi.fn()}
+        onAddWorkflow={vi.fn()}
         onMove={onMove}
         adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
       />

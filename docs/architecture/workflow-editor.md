@@ -144,8 +144,37 @@ Each edit to a workflow is a command in [`workflow-edits.ts`](../../src/applicat
 | Command | Changes in the record | Undo name |
 |---|---|---|
 | `renameWorkflow` | The workflow's `name`; its id, steps, and the workloads' mixes stay. The same name, or a workflow that isn't there, returns the record as it was. The field checks the name first (`checkWorkflowName`): not empty, and not another workflow's, ignoring case and surrounding spaces | "Rename Get order to Fetch order" |
+| `addWorkflow` | A workflow after the others, with the given ids and name and a root step that has the given component and action, and no calls. The workloads' mixes and the architecture stay. It's added only once the first step is complete ([When a new workflow exists](#when-a-new-workflow-exists)) | "Add workflow Get order" |
 
-Renaming a workflow makes the run on screen out of date, as renaming a component does, because workflows are part of what ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md)); renaming the project doesn't. Adding and removing workflows, and editing steps, add rows as they land.
+Renaming a workflow makes the run on screen out of date, as renaming a component does, because workflows are part of what ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md)); renaming the project doesn't. Adding a workflow makes the run out of date the same way. Removing workflows, and editing steps, add rows as they land.
+
+## When a new workflow exists
+
+A workflow is stored with a root step, and a step names a component, so a workflow can't be stored before its first step's component is chosen. "Add workflow" therefore opens a *draft*, which lives only in the UI. It's a selection, `{ kind: "new-workflow" }`, so selecting anything else replaces it in the same update, and it's never saved because no selection is.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: Add workflow
+    Draft: Draft, not stored
+    Draft: name "workflow-1" selected, empty first step
+    Draft --> ComponentChosen: choose a component
+    ComponentChosen --> ActionChosen: choose an action
+    Draft --> ActionChosen: choose a component with one action
+    ActionChosen --> Saved: the name passes its check
+    ActionChosen --> ActionChosen: the name fails; saves when it passes
+    Saved: Saved and selected
+    Saved: one command, one undo step
+    Draft --> NothingSaved: Escape, or select something else
+    ComponentChosen --> NothingSaved: Escape, or select something else
+    ActionChosen --> NothingSaved: Escape, or select something else
+    NothingSaved --> [*]
+    Saved --> [*]
+```
+
+- **What starts it.** `NewWorkflow` (a use case, since the ids come from the `IdGenerator` port) returns the workflow's id and its root step's, the first free name ("workflow-1", then "workflow-2", from `newWorkflowName`, which compares names as `checkWorkflowName` does, so the suggestion passes), and every component with the actions its type accepts. `NewWorkflowDetails` reads it once when the draft opens, so the ids and the name belong to the draft.
+- **What saves it.** The draft saves when the name passes `checkWorkflowName` and the step has a component and an action. A component that accepts one action has it chosen already, so choosing the component can save it. Checks run when a picker changes and when the name field commits (Enter, or leaving it), so a draft whose name was wrong saves once the name is fixed. Saving hands `addWorkflow` to `edit` and selects the workflow with `selectWithin`, in the same event; no effect watches for it.
+- **What drops it.** Escape, or selecting anything else, unmounts the draft: nothing was saved, and there's no undo step. A browser fires `blur` on the name field as it's removed, which would commit a draft that Escape meant to drop (or commit one that has just saved); jsdom doesn't, so no ordinary test catches it. A ref that Escape and the save set, and the commit checks, guards it.
+- **With no components,** a first step has nothing to call, so "Add workflow" is `aria-disabled` and says "Add a component first."
 
 ## Worked example
 

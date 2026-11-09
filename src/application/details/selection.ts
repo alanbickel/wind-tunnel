@@ -4,7 +4,11 @@
  * Workloads and findings join the union as they become selectable.
  */
 export type Selection =
-  ComponentSelection | EdgeSelection | WorkflowSelection | StepSelection;
+  | ComponentSelection
+  | EdgeSelection
+  | WorkflowSelection
+  | StepSelection
+  | NewWorkflowSelection;
 
 /** A component, by its id. */
 export interface ComponentSelection {
@@ -32,4 +36,13 @@ export interface StepSelection {
   readonly kind: "step";
   readonly workflowId: string;
   readonly stepId: string;
+}
+
+/**
+ * A workflow being made, which isn't in the project yet: it has a name and
+ * a first step, and is saved once the step has a component and an action.
+ * Selecting anything else drops it, so no half-made workflow is stored.
+ */
+export interface NewWorkflowSelection {
+  readonly kind: "new-workflow";
 }

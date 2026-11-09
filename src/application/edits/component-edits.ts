@@ -1,3 +1,4 @@
+import { firstFreeName } from "../details/first-free-name";
 import type { Component } from "../../domain/model/project";
 import { valueAt } from "../details/config-value";
 import type { ProjectRecord } from "../ports/project-record";
@@ -108,12 +109,8 @@ export function addComponent(
 
 /** `type-1`, `type-2`, …: the first that no component of `type` is named. */
 function nextFreeName(components: readonly Component[], type: string): string {
-  const taken = new Set(
-    components.filter((c) => c.type === type).map((c) => c.name),
-  );
-  let number = 1;
-  while (taken.has(`${type}-${String(number)}`)) number++;
-  return `${type}-${String(number)}`;
+  const taken = components.filter((c) => c.type === type).map((c) => c.name);
+  return firstFreeName({ prefix: type, taken });
 }
 
 /** A component to remove. */

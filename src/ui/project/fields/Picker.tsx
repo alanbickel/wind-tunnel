@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type Ref } from "react";
 import fieldStyles from "./Fields.module.css";
 
 /** One choice of a picker: what it sets, and what it's called. */
@@ -14,10 +14,13 @@ export interface PickerProps {
   readonly value: string | undefined;
   readonly options: readonly PickerOption[];
   readonly onPick: (value: string) => void;
+  /** The `<select>`, for a screen that moves the focus to it. */
+  readonly selectRef?: Ref<HTMLSelectElement>;
 }
 
 /** A labeled picker, empty until something is chosen. */
-export function Picker({ label, prompt, value, options, onPick }: PickerProps) {
+export function Picker(props: PickerProps) {
+  const { label, prompt, value, options, onPick, selectRef } = props;
   const id = useId();
   return (
     <div className={fieldStyles.field}>
@@ -25,6 +28,7 @@ export function Picker({ label, prompt, value, options, onPick }: PickerProps) {
         {label}
       </label>
       <select
+        ref={selectRef}
         id={id}
         value={value ?? ""}
         onChange={(event) => {

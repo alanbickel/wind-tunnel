@@ -59,13 +59,16 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
   // Fails if the component picker lists the caller's own component, puts a
   // component with no edge from the caller before its neighbours, or
   // doesn't mark each of those as adding an edge; or the action picker is
-  // there before a component is chosen.
+  // there before a component is chosen; or opening the draft doesn't move
+  // the focus to the component picker (it would fall to the page's body,
+  // out of reach of Escape).
   it("lists the caller's neighbours first, and marks the others as adding an edge", () => {
     renderProject();
     openOutline();
     addCallFrom("Add a call from API, step 1");
 
     const picker = screen.getByRole("combobox", { name: "Component" });
+    expect(document.activeElement).toBe(picker);
     expect(
       within(picker)
         .getAllByRole("option")
@@ -177,8 +180,7 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
     );
   });
 
-  // Fails if the undo step isn't named for the call and its edge, or the
-  // edge's name isn't there when the call needs none.
+  // Fails if Undo's name leaves out the edge the call added.
   it("names Undo for both the call and its edge", () => {
     renderProject();
     openOutline();

@@ -4,6 +4,7 @@ import {
   useState,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import type { OutlineStep } from "../../application/details/details";
 import type { Project, StepAction } from "../../domain/model/project";
@@ -13,6 +14,7 @@ import type {
 } from "../../application/use-cases/new-call";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
+import { useFocusOnMount } from "../shared/useFocusOnMount";
 import { Picker, type PickerOption } from "./fields/Picker";
 import styles from "./SelectionDetails.module.css";
 import { useConfirming } from "./useConfirming";
@@ -84,6 +86,9 @@ function CallDraft(props: CallDraftProps) {
     [newCall, project, workflowId, step.stepId],
   );
   const [chosen, setChosen] = useState(NOTHING_CHOSEN);
+  // The button that opened the draft is gone, so the focus moves to the
+  // component picker; Escape works from there.
+  const componentRef = useFocusOnMount<HTMLSelectElement>();
   if (start === undefined) return null;
   const change = (next: Chosen) => {
     setChosen(next);
@@ -96,7 +101,12 @@ function CallDraft(props: CallDraftProps) {
   };
   return (
     <DraftGroup label={step.addCallLabel} onDrop={onDrop}>
-      <CallPickers start={start} chosen={chosen} onChange={change} />
+      <CallPickers
+        start={start}
+        chosen={chosen}
+        componentRef={componentRef}
+        onChange={change}
+      />
     </DraftGroup>
   );
 }
@@ -140,6 +150,8 @@ function dropOnEscape(
 interface CallPickersProps {
   readonly start: NewCallStart;
   readonly chosen: Chosen;
+  /** The component picker's `<select>`, which takes the focus. */
+  readonly componentRef: RefObject<HTMLSelectElement | null>;
   readonly onChange: (chosen: Chosen) => void;
 }
 
@@ -148,7 +160,8 @@ interface CallPickersProps {
  * rest, each of those marked as adding an edge; and once a component is
  * chosen, the action picker, listing what its type accepts.
  */
-function CallPickers({ start, chosen, onChange }: CallPickersProps) {
+function CallPickers(props: CallPickersProps) {
+  const { start, chosen, componentRef, onChange } = props;
   const choice = start.choices.find(
     (c) => c.componentId === chosen.componentId,
   );
@@ -156,6 +169,7 @@ function CallPickers({ start, chosen, onChange }: CallPickersProps) {
     <>
       <Picker
         label="Component"
+        selectRef={componentRef}
         prompt="Choose a component"
         value={choice?.componentId}
         options={start.choices.map(componentOption)}
@@ -164,18 +178,35 @@ function CallPickers({ start, chosen, onChange }: CallPickersProps) {
         }}
       />
       {choice !== undefined && (
-        <Picker
-          label="Action"
-          prompt="Choose an action"
-          value={chosen.action}
-          options={choice.actions.map((a) => ({ value: a, text: a }))}
-          onPick={(action) => {
-            const picked = choice.actions.find((a) => a === action);
-            onChange({ componentId: choice.componentId, action: picked });
-          }}
+        <ActionPicker
+          choice={choice}
+          action={chosen.action}
+          onChange={onChange}
         />
       )}
     </>
+  );
+}
+
+interface ActionPickerProps {
+  readonly choice: CallChoice;
+  readonly action: StepAction | undefined;
+  readonly onChange: (chosen: Chosen) => void;
+}
+
+/** The actions the chosen component's type accepts. */
+function ActionPicker({ choice, action, onChange }: ActionPickerProps) {
+  return (
+    <Picker
+      label="Action"
+      prompt="Choose an action"
+      value={action}
+      options={choice.actions.map((a) => ({ value: a, text: a }))}
+      onPick={(value) => {
+        const picked = choice.actions.find((a) => a === value);
+        onChange({ componentId: choice.componentId, action: picked });
+      }}
+    />
   );
 }
 

@@ -9,7 +9,7 @@ import type { TypeAdvice } from "./type-advice";
 
 const LUNCH_RUSH_TEST = {
   kind: "observed",
-  file: "src/adapters/templates/scenarios/lunch-rush.test.ts",
+  file: "src/adapters/templates/scenarios/lunch-rush.suite.ts",
   test: "fails requests in every second of the peak",
 } as const;
 

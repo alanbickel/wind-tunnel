@@ -191,7 +191,7 @@ Each limit's `whenFull` says what happens to the next request once the limit is 
 | A refusing limit whose reason isn't in `rejectionReasons` | The contract |
 | A limit's reason used while that limit has room (the wrong limit declares it) | The contract |
 | A declaration that changes during a run; a held limit that's missing, is the limit itself, or doesn't refuse | The contract |
-| A limit that refuses but declares a wait, when its reason is listed: the rejection reads as one with no limit behind it | Not the contract. The type's own `limitValues` test, and for the template types the rejection-reason tests in [`adapters/templates/rejection-reasons/`](../../src/adapters/templates/rejection-reasons/), which check whole runs |
+| A limit that refuses but declares a wait, when its reason is listed: the rejection reads as one with no limit behind it | Not the contract. The type's own `limitValues` test, and for the template types the rejection-reason tests in [`describeRejectionReasons`](../../src/adapters/templates/testing/describe-rejection-reasons.ts), which check whole runs |
 
 ## The contract every definition must pass
 

@@ -26,8 +26,8 @@ Findings
         - While its queryWorkers were all busy and its connections were out, orders-db finished 896 requests a second on average, against 1,770 arriving.
         Cause began at 11 s.
         Fixes:
-        - In Wind Tunnel: Raise queryWorkers, so queries stop waiting for a worker. A waiting query holds its connection, so the connections run out only while the workers are full: Template A's lunch rush fails nothing at 64. (Observed: src/adapters/templates/scenarios/lunch-rush.test.ts, "fails requests in every second of the peak"; fidelity RDS-2, RDS-3)
-        - In Wind Tunnel: Raising maxConnections alone moves the failure upstream: in Template A's lunch rush at 5,000, waiting queries hold all of fn-orders' concurrency, and Lambda throttles instead. (Observed: src/adapters/templates/scenarios/lunch-rush.test.ts, "fails requests in every second of the peak"; fidelity RDS-2)
+        - In Wind Tunnel: Raise queryWorkers, so queries stop waiting for a worker. A waiting query holds its connection, so the connections run out only while the workers are full: Template A's lunch rush fails nothing at 64. (Observed: src/adapters/templates/scenarios/lunch-rush.suite.ts, "fails requests in every second of the peak"; fidelity RDS-2, RDS-3)
+        - In Wind Tunnel: Raising maxConnections alone moves the failure upstream: in Template A's lunch rush at 5,000, waiting queries hold all of fn-orders' concurrency, and Lambda throttles instead. (Observed: src/adapters/templates/scenarios/lunch-rush.suite.ts, "fails requests in every second of the peak"; fidelity RDS-2)
         - In AWS: RDS Proxy alone isn't a fix: it makes a request wait for a pooled connection, up to ConnectionBorrowTimeout (120 s by default), instead of refusing it, but adds no query capacity. Not modeled. (Documented: RDS Proxy connection settings, https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy-connections.html; fidelity RDS-6)
 
 Workflows

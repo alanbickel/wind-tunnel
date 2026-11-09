@@ -14,7 +14,7 @@ export const dynamoDbAdvice: TypeAdvice = {
           message: say`Provision readUnitsPerSec for the sustained read rate, not the burst: a bucket that refills slower than reads arrive runs out however large it is. Template B's long rush fails nothing at 2,500.`,
           claim: {
             kind: "observed",
-            file: "src/adapters/templates/scenarios/long-rush-template-b.test.ts",
+            file: "src/adapters/templates/scenarios/long-rush-template-b.suite.ts",
             test: "serves every request without a failure",
           },
           fidelityIds: ["DDB-1", "DDB-2"],

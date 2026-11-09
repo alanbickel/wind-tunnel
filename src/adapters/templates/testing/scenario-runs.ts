@@ -1,7 +1,5 @@
 import { expect } from "vitest";
-import { createAwsComponentRegistry } from "../../../domain/components/aws";
 import type { MetricsSnapshot } from "../../../domain/metrics/metrics-collector";
-import { simulateWithMetrics } from "../../../domain/metrics/metrics-collector";
 import { limitExhausted } from "../../../domain/metrics/limit-exhausted";
 import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
@@ -9,15 +7,19 @@ import templateA from "../template-a.json";
 import templateB from "../template-b.json";
 import { loadTemplate } from "./run-template";
 
-// Shared by the scenario tests in `../scenarios/`, which check that each
-// template teaches its lesson under each workload. Each workload has its own
-// file, and the long rush one per template, so the runs spread across test
-// workers instead of queueing in one: the long rush takes most of the time.
-
-const registry = createAwsComponentRegistry();
+// Shared by the files in `../runs/`, each of which runs one template and
+// workload once per seed and gives the run to the tests of every topic that
+// reads it: the scenario's lesson, its findings, its rejections, and its
+// reconciliations.
 
 /** Each scenario runs on these seeds, so a lesson can't rest on one lucky run. */
 export const SEEDS = [42, 7, 2026];
+
+/**
+ * The seed whose run the other checks read too: findings.md's readings, the
+ * findings, the report snapshots, and the totals that must reconcile.
+ */
+export const READING_SEED = SEEDS[0] ?? 42;
 
 export const projectA = loadTemplate(templateA);
 export const projectB = loadTemplate(templateB);
@@ -28,21 +30,10 @@ export interface Phase {
   readonly toSec: number;
 }
 
-/** A template's workload, run on one seed. */
-export interface ScenarioInput {
-  readonly project: Project;
-  readonly workloadId: string;
-  readonly seed: number;
-}
-
-/** Runs the workload to the end with every workload's seed set to `seed`. */
-export function runScenario({ project, workloadId, seed }: ScenarioInput) {
+/** The project with every workload's seed set to `seed`. */
+export function withSeed(project: Project, seed: number): Project {
   const workloads = project.workloads.map((w) => ({ ...w, seed }));
-  return simulateWithMetrics({
-    project: { ...project, workloads },
-    workloadId,
-    registry,
-  });
+  return { ...project, workloads };
 }
 
 /** The snapshots of the seconds that lie wholly inside `phase`. */

@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createDetectors } from "../../../application/run-analysis/findings/create-detectors";
 import { createPhrasebook } from "../../../application/run-analysis/findings/create-phrasebook";
 import {
@@ -21,39 +21,35 @@ import {
   sameKey,
 } from "../../../application/run-analysis/findings/finding-key";
 import type { FindingNode } from "../../../application/run-analysis/findings/order-findings";
-import type {
-  MetricsRun,
-  MetricsSnapshot,
-} from "../../../domain/metrics/metrics-collector";
+import type { MetricsSnapshot } from "../../../domain/metrics/metrics-collector";
 import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
-import type { Project } from "../../../domain/model/project";
 import findingsDoc from "../../../../docs/design/findings.md?raw";
 import { formatMessage } from "../../../application/run-analysis/findings/message-format";
 import { componentNames } from "../../../application/run-analysis/component-names";
+import type { TemplateRun } from "./use-run";
 import type { FindingsWording } from "../../../application/run-analysis/findings/findings-wording";
 import { formatFindings, formatVerdict } from "../../cli/findings-report";
 import { formatShortForms } from "./format-short-forms";
-import { registry, RUN_TIMEOUT_MS } from "./run-template";
-import { runScenario } from "./scenario-runs";
+import { registry } from "./run-template";
+import type { RunGetter } from "./use-run";
 
 // The findings must reconcile with the totals the collector counts on its
 // own (ADR-0015): one failure finding per cause, whose `affected` is that
 // cause's failed requests, so the findings add up to the run's failures.
-// Each run's verdict must also read as findings.md §1 quotes it. The runs
-// are split across the files in `../findings/` so they go to different
-// test workers.
+// Each run's verdict must also read as findings.md §1 quotes it. The run
+// itself comes from the file in `../runs/` that calls this, which makes it
+// once for every topic that reads it.
 
 /**
- * A run to read, and what its findings should be. Its verdict is either
+ * What a run's findings should be, and how its verdict is checked. Its verdict is either
  * quoted by a reading in findings.md or pinned in the case, never both.
  */
 export type FindingsCase = QuotedCase | PinnedCase;
 
 /** What every case gives, whichever way its verdict is checked. */
 interface CaseBase {
+  /** Names the run's report files: "Template A, lunch rush". */
   readonly name: string;
-  readonly project: Project;
-  readonly workloadId: string;
   /** The top-level findings, in order, each with its causes beneath it. */
   readonly findings: readonly ExpectedFinding[];
 }
@@ -129,18 +125,18 @@ export function backlog(queueId: string, limitName: string): FindingKey {
 
 /** A run, what `findRun` made of it, and how the CLI words it. */
 interface ReadRun {
-  readonly run: MetricsRun;
+  readonly run: TemplateRun;
   readonly findings: RunFindings;
   readonly wording: FindingsWording;
 }
 
-/** Gets the run once `beforeAll` has made it. */
+/** Gets the run, read, once it has been made. */
 type ReadRunGetter = () => ReadRun;
 
-/** Runs each case at seed 42, the seed findings.md's readings use. */
-export function describeFindings(cases: readonly FindingsCase[]): void {
-  describe.each(cases)("$name", (c) => {
-    const read = readRunOf(c);
+/** Checks the findings of a run at seed 42, the seed findings.md's readings use. */
+export function describeFindings(run: RunGetter, c: FindingsCase): void {
+  describe("its findings", () => {
+    const read = readRunOf(run);
     itCountsEachCause(read);
     itSpansEachCause(read);
     itStartsNoCauseEarly(read);
@@ -153,23 +149,21 @@ export function describeFindings(cases: readonly FindingsCase[]): void {
   });
 }
 
-function readRunOf({ project, workloadId }: FindingsCase): ReadRunGetter {
+function readRunOf(getRun: RunGetter): ReadRunGetter {
   let read: ReadRun | undefined;
-  beforeAll(() => {
-    const run = runScenario({ project, workloadId, seed: 42 });
-    const soFar = { project, workloadId, snapshots: run.snapshots };
+  return () => {
+    if (read !== undefined) return read;
+    const run = getRun();
+    const { project, workloadId, snapshots } = run;
     const detectors = createDetectors();
     read = {
       run,
-      findings: findRun(soFar, detectors),
+      findings: findRun({ project, workloadId, snapshots }, detectors),
       wording: {
         phrasebook: createPhrasebook({ project, detectors }),
         nameOf: componentNames(project, registry),
       },
     };
-  }, RUN_TIMEOUT_MS);
-  return () => {
-    if (read === undefined) throw new Error("The run hasn't been made yet");
     return read;
   };
 }

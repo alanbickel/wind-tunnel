@@ -7,7 +7,7 @@ Failing. 4,377 of 273,539 answered requests failed (1.6%); 7 were still in progr
    - The last failure was in the second ending at 141 s, and none followed in the 59 s after it.
    - After it, orders-read's readUnits peaked at 7,497 of 7,500 tokens drawn.
    Fixes:
-   - In Wind Tunnel: Provision readUnitsPerSec for the sustained read rate, not the burst: a bucket that refills slower than reads arrive runs out however large it is. Template B's long rush fails nothing at 2,500. (Observed: src/adapters/templates/scenarios/long-rush-template-b.test.ts, "serves every request without a failure"; fidelity DDB-1, DDB-2)
+   - In Wind Tunnel: Provision readUnitsPerSec for the sustained read rate, not the burst: a bucket that refills slower than reads arrive runs out however large it is. Template B's long rush fails nothing at 2,500. (Observed: src/adapters/templates/scenarios/long-rush-template-b.suite.ts, "serves every request without a failure"; fidelity DDB-1, DDB-2)
    - In AWS: Look for throttles in latency, not only in errors: the AWS SDKs retry throttled requests on their own, so a throttle may reach your code only as a slower answer. (Documented: DynamoDB error handling, https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html; fidelity DDB-4)
    Learn more: docs/learning/aws-did-you-know.md#dynamodb-saves-up-unused-capacity-for-bursts
    1.1. Note: orders-read's readUnits bucket drained from 18 s and ran out in the second ending at 96 s.
@@ -22,7 +22,7 @@ Failing. 4,377 of 273,539 answered requests failed (1.6%); 7 were still in progr
    - Meanwhile, users were answered quickly, because a request ends once its work is queued: Create order within 157 ms (the highest p99 of those seconds).
    - No synchronous design could have offered that wait: API Gateway stops waiting for fn-api after 29 s.
    Fixes:
-   - In Wind Tunnel: Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: Template B's long rush keeps up at 20. (Observed: src/adapters/templates/scenarios/long-rush-template-b.test.ts, "grows the backlog through the whole peak"; fidelity SQS-3, SQS-4)
+   - In Wind Tunnel: Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: Template B's long rush keeps up at 20. (Observed: src/adapters/templates/scenarios/long-rush-template-b.suite.ts, "grows the backlog through the whole peak"; fidelity SQS-3, SQS-4)
    - In Wind Tunnel: Check what the consumers call before raising it: each delivery holds capacity downstream, such as a database connection, so more consumers can move the wait there. (Assumption)
    - In AWS: Raise the event source mapping's maximum concurrency (2 to 1,000), and keep the function's reserved concurrency at least as high, or Lambda might throttle the messages. (Documented: SQS scaling, https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html; fidelity SQS-3, SQS-4)
    - In AWS: Watch the queue's ApproximateAgeOfOldestMessage in CloudWatch: the age of the oldest unprocessed message shows a backlog while it builds. (Documented: SQS CloudWatch metrics, https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)

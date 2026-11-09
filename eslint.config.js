@@ -195,6 +195,8 @@ const FACTORY_SELECTORS = [
 ];
 
 const TEST_FILES = "**/*.test.{ts,tsx}";
+// A suite is a module of `describe` blocks that several test files call.
+const SUITE_FILES = "**/*.suite.ts";
 
 // Coding standards (docs/contributing/coding-standards.md). Errors: an
 // exception needs a disable comment with the reason after `--`.
@@ -331,11 +333,11 @@ export default defineConfig([
 
   { files: ["src/**/*.{ts,tsx}", "tests/**/*.ts"], rules: codingStandards },
   // A `describe` block groups many tests, so length and parameter counts
-  // don't apply to test files; keep each test itself within 30 lines. A test
-  // may keep its own small test doubles beside it, so one class per file
-  // doesn't apply either.
+  // don't apply to test files or suites; keep each test itself within 30
+  // lines. A test may keep its own small test doubles beside it, so one class
+  // per file doesn't apply either.
   {
-    files: [TEST_FILES],
+    files: [TEST_FILES, SUITE_FILES],
     rules: {
       "max-lines-per-function": "off",
       "max-params": "off",

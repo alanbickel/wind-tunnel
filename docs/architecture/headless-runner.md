@@ -74,7 +74,7 @@ A run stops at the end of its workload, usually with some requests still in prog
 
 `timeouts` is in none of these sums: the caller stopped waiting, but the component still finished the work as ok or failed ([ADR-0006](../adr/0006-components-return-effects-to-the-engine.md)).
 
-The report computes "in progress", "unfinished", and "being delivered" by subtraction, so the sums hold by construction. [`report-reconciles.test.ts`](../../src/adapters/cli/report-reconciles.test.ts) checks each of them against an independent value, such as a component's own count of running and waiting work at the end of the run, so a counting bug fails a test instead of disappearing into the remainder.
+The report computes "in progress", "unfinished", and "being delivered" by subtraction, so the sums hold by construction. [`report-reconciles.suite.ts`](../../src/adapters/cli/report-reconciles.suite.ts) checks each of them against an independent value, such as a component's own count of running and waiting work at the end of the run, so a counting bug fails a test instead of disappearing into the remainder.
 
 ## Worked example: Template A's lunch rush
 

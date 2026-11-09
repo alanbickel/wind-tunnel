@@ -1,43 +1,31 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import type { Project } from "../../../domain/model/project";
-import { RUN_TIMEOUT_MS } from "./run-template";
-import {
-  runRecordingRejections,
-  unexplainedRejections,
-  type RunWithRejections,
-} from "./rejection-runs";
+import { describe, expect, it } from "vitest";
+import { unexplainedRejections } from "./rejection-runs";
+import type { RunGetter } from "./use-run";
 
 // Each limit declares the reason it rejects with (ADR-0015), and the
 // findings match a failure's cause to the limit behind it by that reason.
 // The component contract checks this for each type on its own; these tests
 // check it in the snapshots of whole runs, which is what the findings read.
 // Engine timeouts aren't a component's rejections, so they're left out.
-// The runs are split across the files in `../rejection-reasons/` so they
-// go to different test workers.
+// The run itself comes from the file in `../runs/` that calls this.
 
-/** A run to check, and the rejections it should have. */
+/** The rejections a run should have. */
 export interface RejectionCase {
-  readonly name: string;
-  readonly project: Project;
-  readonly workloadId: string;
   /** Each distinct cause, as "component: reason", in order of first rejection. */
   readonly rejectedAs: readonly string[];
 }
 
-/** Checks each case's rejections against its snapshots' limit declarations. */
+/** Checks the run's rejections against its snapshots' limit declarations. */
 export function describeRejectionReasons(
-  cases: readonly RejectionCase[],
+  getRun: RunGetter,
+  { rejectedAs }: RejectionCase,
 ): void {
-  describe.each(cases)("$name", ({ project, workloadId, rejectedAs }) => {
-    let run: RunWithRejections;
-    beforeAll(() => {
-      run = runRecordingRejections({ project, workloadId });
-    }, RUN_TIMEOUT_MS);
-
+  describe("its rejections", () => {
     // Fails if the observer misses rejections, which would let the next
     // test pass without checking them, or if a run stops rejecting where
     // its reading in findings.md says it does.
     it("records the rejections the totals count, from the expected causes", () => {
+      const run = getRun();
       const counted = Object.values(run.totals.components).reduce(
         (n, c) => n + c.rejected,
         0,
@@ -54,7 +42,7 @@ export function describeRejectionReasons(
     // the wrong limit declares it (DynamoDB's `writeUnits` alone), or if
     // the snapshots stop carrying each limit's declaration.
     it("explains every rejection by an exhausted limit that declares its reason", () => {
-      expect(unexplainedRejections(run)).toEqual([]);
+      expect(unexplainedRejections(getRun())).toEqual([]);
     });
   });
 }

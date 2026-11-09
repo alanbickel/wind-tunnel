@@ -11,7 +11,7 @@ import didYouKnowDoc from "../../../../docs/learning/aws-did-you-know.md?raw";
 
 /** The template tests' sources, keyed by their path from the repository. */
 const TEST_SOURCES: Readonly<Record<string, string>> = import.meta.glob(
-  "/src/adapters/templates/**/*.test.ts",
+  "/src/adapters/templates/scenarios/*.suite.ts",
   { query: "?raw", import: "default", eager: true },
 );
 

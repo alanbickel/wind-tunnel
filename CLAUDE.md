@@ -24,7 +24,7 @@ Read `CONTRIBUTING.md` (the hub: setup, architecture rules, the rule headlines, 
 ## While working
 
 - Start simple: get the core model and wiring working before UX polish.
-- Check with `npm run check:changed` as you go. It usually takes seconds, because it runs only the tests whose imports reach a file changed since `main` (committed or not), and lints and format-checks only files changed since its last run. It can miss what the full check catches: ESLint's type-aware rules may not re-check an unchanged file whose types changed elsewhere, and the architecture tests in `tests/architecture/` read `src/` from disk rather than importing it, so a change in `src/` doesn't rerun them. Run the full `npm run check` before declaring work done or opening a PR.
+- Check with `npm run check:changed` as you go. It usually takes seconds, because it runs only the tests whose imports reach a file changed since `main` (committed or not), and lints and format-checks only files changed since its last run. It can miss what the full check catches: ESLint's type-aware rules may not re-check an unchanged file whose types changed elsewhere, and the architecture tests in `tests/architecture/` read `src/` from disk rather than importing it, so a change in `src/` doesn't rerun them. It also skips the build. Run the full `npm run check` before declaring work done or opening a PR.
 - Lint can't check every coding standard. Check the ones that the Enforcement table in `coding-standards.md` leaves to reviewers yourself.
 
 ## Commits, PRs, and reviews

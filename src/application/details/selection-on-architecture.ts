@@ -71,6 +71,8 @@ const ON_ARCHITECTURE: KindHandlers<
       return { ringed: NO_PARTS, path: pathOf(project, workflow) };
     },
   step: (selection) => (project) => stepOn(project, selection),
+  // A draft isn't on the diagram until it's saved.
+  "new-workflow": () => () => NOTHING_SHOWN,
 };
 
 /** A step rings its component and the edge its call arrives on, on its workflow's path. */

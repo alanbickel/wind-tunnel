@@ -12,6 +12,7 @@ import { useProjectRun, type ProjectRun } from "../run/useProjectRun";
 import { Panel } from "../shared/Panel";
 import { Tabs } from "../shared/Tabs";
 import { useWideWindow } from "../shared/useWideWindow";
+import type { AddComponentProps } from "./AddComponent";
 import { ArchitectureView } from "./ArchitectureView";
 import styles from "./OpenedProject.module.css";
 import { ProjectBar } from "./ProjectBar";
@@ -109,7 +110,12 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   const changes = useAddAndRemove(edits, selecting);
   const undoRedo = useUndoRedo(edits, selecting);
   useUndoShortcuts(undoRedo);
-  const architecture = useArchitecture({ edits, selecting, changes });
+  const move = useMove({
+    edit: edits.edit,
+    project: edits.record.project,
+    announce: changes.announce,
+  });
+  const architecture = useArchitecture({ edits, selecting, changes, move });
   return { edits, projectRun, selecting, changes, undoRedo, architecture };
 }
 
@@ -118,10 +124,11 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
  * are, so React skips it: the run's snapshots re-render the screen several
  * times a second.
  */
-function useArchitecture({ edits, selecting, changes }: ArchitectureInput) {
+function useArchitecture(input: ArchitectureInput) {
+  const { edits, selecting, changes, move } = input;
   const { record } = edits;
-  const { add, connect, addButtonRef, announcement, announce } = changes;
-  const move = useMove({ edit: edits.edit, project: record.project, announce });
+  const { addWorkflow, connect } = changes;
+  const adding = useAdding(changes);
   const { selection, select, clear } = selecting;
   return useMemo(
     () => (
@@ -132,20 +139,20 @@ function useArchitecture({ edits, selecting, changes }: ArchitectureInput) {
         onClear={clear}
         onConnect={connect}
         onMove={move}
-        adding={{ onAdd: add, buttonRef: addButtonRef, announcement }}
+        adding={adding}
+        onAddWorkflow={addWorkflow}
       />
     ),
-    [
-      record,
-      selection,
-      select,
-      clear,
-      connect,
-      move,
-      add,
-      addButtonRef,
-      announcement,
-    ],
+    [record, selection, select, clear, connect, move, adding, addWorkflow],
+  );
+}
+
+/** "Add component"'s props, the same object while its parts are. */
+function useAdding(changes: AddAndRemove): AddComponentProps {
+  const { add, addButtonRef, announcement } = changes;
+  return useMemo(
+    () => ({ onAdd: add, buttonRef: addButtonRef, announcement }),
+    [add, addButtonRef, announcement],
   );
 }
 
@@ -154,6 +161,7 @@ interface ArchitectureInput {
   readonly edits: ProjectEdits;
   readonly selecting: ProjectSelection;
   readonly changes: AddAndRemove;
+  readonly move: Move;
 }
 
 /** Moves a component on the diagram. */

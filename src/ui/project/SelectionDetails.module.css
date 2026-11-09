@@ -79,3 +79,11 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* A new workflow's first step: its two pickers, one under another. */
+.firstStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}

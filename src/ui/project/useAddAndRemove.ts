@@ -20,6 +20,11 @@ export interface AddAndRemove {
   /** Adds a component of the type, saves, and selects it for naming. */
   readonly add: (type: string) => void;
   /**
+   * Opens a new workflow in Details as a draft, its name field taking the
+   * focus. Nothing is saved until its first step is complete.
+   */
+  readonly addWorkflow: () => void;
+  /**
    * Connects two components, as drawn on the diagram, saves, and announces
    * it, since the canvas says nothing to a screen reader.
    */
@@ -50,6 +55,7 @@ export function useAddAndRemove(
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const [announcement, announce] = useAnnouncement();
   const add = useAdd(edit, selecting.select);
+  const addWorkflow = useAddWorkflow(selecting.select);
   const connectWith = useConnect(edit);
   const { project } = record;
   const connect = useCallback(
@@ -60,7 +66,24 @@ export function useAddAndRemove(
     [connectWith, project, announce],
   );
   const remove = useRemove({ edits, selecting, addButtonRef, announce });
-  return { add, connect, remove, addButtonRef, announcement, announce };
+  return {
+    add,
+    addWorkflow,
+    connect,
+    remove,
+    addButtonRef,
+    announcement,
+    announce,
+  };
+}
+
+/** Add workflow, as `AddAndRemove` describes it. */
+function useAddWorkflow(
+  select: ProjectSelection["select"],
+): AddAndRemove["addWorkflow"] {
+  return useCallback(() => {
+    select({ kind: "new-workflow" }, "name");
+  }, [select]);
 }
 
 /** Add, as `AddAndRemove` describes it. */
@@ -161,4 +184,6 @@ const REMOVALS: KindHandlers<
   // Nothing removes a workflow or a step yet (issues 116 and 117).
   workflow: () => () => undefined,
   step: () => () => undefined,
+  // A draft is dropped, not removed.
+  "new-workflow": () => () => undefined,
 };

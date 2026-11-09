@@ -85,6 +85,7 @@ Each use case is a class: ports go into the constructor as one object, and the w
 | `ListComponentTypes` | registry, field descriptors | The types "Add component" offers, in registration order, each with its line on what it's for. Synchronous |
 | `NewComponent` | registry, ids | The input for `addComponent`: a new id and the type's `defaultConfig`, or undefined for an unknown type. Synchronous |
 | `NewEdge` | registry, ids | The input for `connectComponents`: a new id and the caller type's `edgeDefaults`, or undefined if the caller isn't in the project or its type is unknown. Synchronous |
+| `NewWorkflow` | registry, ids | What a new workflow starts with: its id and its root step's, the first free name, and every component with the actions its type accepts. Changes nothing: `addWorkflow` adds the workflow once its first step is complete. Synchronous |
 
 Most are a single call on a port. The ones with logic:
 

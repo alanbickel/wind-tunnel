@@ -1,4 +1,4 @@
-import type { Workflow } from "../../domain/model/project";
+import type { Step, StepAction, Workflow } from "../../domain/model/project";
 import type { ProjectRecord } from "../ports/project-record";
 
 // Edit commands (ADR-0019): each takes the project record and returns the
@@ -29,5 +29,36 @@ export function renameWorkflow(
   return {
     ...record,
     project: { ...project, workflows: project.workflows.map(rename) },
+  };
+}
+
+/** A new workflow: its name, its ids, and its first step's component and action. */
+export interface AddWorkflowInput {
+  /** A new id, from the `IdGenerator` port. */
+  readonly workflowId: string;
+  /** A new id for the first step, from the `IdGenerator` port. */
+  readonly rootStepId: string;
+  readonly name: string;
+  /** The component the first step calls. */
+  readonly componentId: string;
+  readonly action: StepAction;
+}
+
+/**
+ * Adds a workflow, after the project's others, with one step: its root.
+ * A workflow can't be stored without a root, so a new one is added only
+ * once its first step has a component and an action, in one command and
+ * so one undo step. Workloads' mixes don't change.
+ */
+export function addWorkflow(
+  record: ProjectRecord,
+  { workflowId, rootStepId, name, componentId, action }: AddWorkflowInput,
+): ProjectRecord {
+  const { project } = record;
+  const root: Step = { id: rootStepId, componentId, action };
+  const workflow: Workflow = { id: workflowId, name, root };
+  return {
+    ...record,
+    project: { ...project, workflows: [...project.workflows, workflow] },
   };
 }

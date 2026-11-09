@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renameComponent, removeComponent } from "../edits/component-edits";
 import { removeEdge } from "../edits/edge-edits";
+import { addWorkflow } from "../edits/workflow-edits";
 import { sampleRecord } from "../testing/sample-record";
 import { selectionAfterUndo } from "./selection-after-undo";
 
@@ -171,5 +172,39 @@ describe("selectionAfterUndo", () => {
       { kind: "keep" },
       { kind: "keep" },
     ]);
+  });
+});
+
+describe("selectionAfterUndo of an added workflow", () => {
+  // Fails if undoing an add keeps a selection that points at the workflow
+  // it took away, so Details would show a workflow that isn't there.
+  it("clears a selection that pointed at the workflow", () => {
+    const added = addWorkflow(sampleRecord, {
+      workflowId: "wf-new",
+      rootStepId: "step-new",
+      name: "Get order",
+      componentId: "table",
+      action: "read",
+    }).project;
+
+    const change = selectionAfterUndo({
+      from: added,
+      to: sample,
+      selection: { kind: "workflow", workflowId: "wf-new" },
+    });
+
+    expect(change).toEqual({ kind: "clear" });
+  });
+
+  // Fails if undoing an add clears a draft: it isn't in the project, so no
+  // undo takes it away.
+  it("keeps a new-workflow draft", () => {
+    const change = selectionAfterUndo({
+      from: sample,
+      to: sample,
+      selection: { kind: "new-workflow" },
+    });
+
+    expect(change).toEqual({ kind: "keep" });
   });
 });

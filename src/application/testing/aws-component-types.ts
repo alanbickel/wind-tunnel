@@ -3,6 +3,7 @@ import { createFieldCatalog } from "../details/create-field-catalog";
 import type { IdGenerator } from "../ports/id-generator";
 import { ListComponentTypes } from "../use-cases/list-component-types";
 import { NewComponent } from "../use-cases/new-component";
+import { ChangeStep } from "../use-cases/change-step";
 import { NewCall } from "../use-cases/new-call";
 import { NewEdge } from "../use-cases/new-edge";
 import { NewWorkflow } from "../use-cases/new-workflow";
@@ -27,6 +28,16 @@ export function awsNewComponent(
   ids: IdGenerator = new SequentialIds("new"),
 ): NewComponent {
   return new NewComponent({ registry: createAwsComponentRegistry(), ids });
+}
+
+/**
+ * `ChangeStep` over the AWS registry, with ids `change-1`, `change-2`, … (a
+ * change's edge) unless given others.
+ */
+export function awsChangeStep(
+  ids: IdGenerator = new SequentialIds("change"),
+): ChangeStep {
+  return new ChangeStep({ registry: createAwsComponentRegistry(), ids });
 }
 
 /**

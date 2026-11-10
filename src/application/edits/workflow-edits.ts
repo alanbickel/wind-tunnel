@@ -148,6 +148,59 @@ export function addCall(
   });
 }
 
+/** A step's new component and action, and the edge a call along a missing one adds. */
+export interface ChangeStepInput extends StepInput {
+  /** The component the step now calls. */
+  readonly componentId: string;
+  readonly action: StepAction;
+  /** A new id for the edge, used only if the caller has none to the new component. */
+  readonly edgeId: string;
+  /**
+   * The caller type's `edgeDefaults`, which become that edge's settings;
+   * undefined adds no edge (the root has no caller, and a caller whose
+   * component is gone has no type to take them from).
+   */
+  readonly edgeSettings: EdgeSettings | undefined;
+}
+
+/**
+ * Changes a step's component and action together, so it's never left
+ * without either. The step keeps its id, its calls, and its `async` (which
+ * can't change here). If the step's caller has no edge to the new
+ * component, the same command adds one, through `connectIfMissing`, as
+ * `addCall` does, so it's one undo step; the root has no caller, so it adds
+ * none. A step that's the root or one of a step's calls (async work stays
+ * read-only), or isn't in the workflow, returns the record as it was; so
+ * does a change to what the step already is, unless its caller has no edge
+ * to its component, which is still added.
+ */
+export function changeStep(
+  record: ProjectRecord,
+  input: ChangeStepInput,
+): ProjectRecord {
+  const { workflowId, stepId, componentId, action } = input;
+  const workflow = record.project.workflows.find((w) => w.id === workflowId);
+  const step = workflow && stepInCalls(workflow, stepId);
+  if (workflow === undefined || step === undefined) return record;
+  const unchanged = step.componentId === componentId && step.action === action;
+  const caller = holderOf(workflow, stepId);
+  const change = (s: Step): Step =>
+    s.id === stepId ? { ...s, componentId, action } : s;
+  const withStep = withWorkflow(record, {
+    ...workflow,
+    root: mapSteps(workflow.root, change),
+  });
+  const next = unchanged ? record : withStep;
+  const { edgeId, edgeSettings: settings } = input;
+  if (caller === undefined || settings === undefined) return next;
+  return connectIfMissing(next, {
+    edgeId,
+    from: caller.componentId,
+    to: componentId,
+    settings,
+  });
+}
+
 /**
  * The step with this id that a call can be added to: the root, or a step
  * reached by `calls` alone. Async work, and every step under it, isn't
@@ -267,10 +320,10 @@ function withWorkflow(record: ProjectRecord, changed: Workflow): ProjectRecord {
 }
 
 /**
- * The step of the workflow that has `stepId` among its calls. Async work, and
+ * The step of the workflow that has `stepId` among its calls: its caller. Async work, and
  * every step under it, is not searched: it stays read-only.
  */
-function holderOf(workflow: Workflow, stepId: string): Step | undefined {
+export function holderOf(workflow: Workflow, stepId: string): Step | undefined {
   return holderUnder(workflow.root, stepId);
 }
 

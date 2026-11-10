@@ -23,6 +23,7 @@ import { NameComponents } from "./application/use-cases/name-components";
 import { NewComponent } from "./application/use-cases/new-component";
 import { NewEdge } from "./application/use-cases/new-edge";
 import type { IdGenerator } from "./application/ports/id-generator";
+import { ChangeStep } from "./application/use-cases/change-step";
 import { NewCall } from "./application/use-cases/new-call";
 import { NewWorkflow } from "./application/use-cases/new-workflow";
 import { DescribeSelection } from "./application/use-cases/describe-selection";
@@ -112,11 +113,12 @@ function createStarters({
   ids,
 }: StartersDependencies): Pick<
   UseCases,
-  "newComponent" | "newCall" | "newEdge" | "newWorkflow"
+  "newComponent" | "newCall" | "changeStep" | "newEdge" | "newWorkflow"
 > {
   return {
     newComponent: new NewComponent({ registry, ids }),
     newCall: new NewCall({ registry, ids }),
+    changeStep: new ChangeStep({ registry, ids }),
     newEdge: new NewEdge({ registry, ids }),
     newWorkflow: new NewWorkflow({ registry, ids }),
   };

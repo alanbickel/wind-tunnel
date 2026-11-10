@@ -64,6 +64,7 @@ These apply everywhere. A gotcha that belongs to one area is in its guide: the V
 
 - **No constructor parameter properties.** `erasableSyntaxOnly` is on, so `constructor(private readonly queue: EventQueue)` doesn't compile. Declare the field and assign it in the constructor.
 - **TypeScript is pinned to `~6.0`** because typescript-eslint doesn't support TypeScript 7 yet. For the same reason, the layer rules use typescript-eslint's `no-restricted-imports`, not ESLint's.
+- **A command that changes a step keeps its `async`.** `changeStep` spreads the step and sets only its component and action, so the async work stays; a command that rebuilds a step field by field, as `withCalls` does when the last call goes, has to name `async` or it drops the step's async work. The async-work editor builds on that.
 
 ## Milestones and the roadmap
 

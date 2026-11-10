@@ -1,11 +1,7 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
 import type { EdgeSettings } from "../../domain/model/edge-settings";
-import type {
-  Component,
-  Project,
-  StepAction,
-} from "../../domain/model/project";
-import { newEdgeNote } from "../details/add-call-text";
+import type { Project } from "../../domain/model/project";
+import { callChoices, type CallChoice } from "./call-choices";
 import { stepInCalls } from "../edits/workflow-edits";
 import type { IdGenerator } from "../ports/id-generator";
 
@@ -22,21 +18,6 @@ export interface NewCallInput {
   readonly workflowId: string;
   /** The caller step's id. */
   readonly stepId: string;
-}
-
-/** A component a new call can go to. */
-export interface CallChoice {
-  readonly componentId: string;
-  /** Its name, as Undo and the announcements say it. */
-  readonly name: string;
-  /** E.g. "orders-db (RDS)": its name, then its type's display name. */
-  readonly label: string;
-  /** What its type accepts, in the type's order; empty for an unknown type. */
-  readonly actions: readonly StepAction[];
-  /** True when the caller has no edge to it, so choosing it adds one. */
-  readonly addsEdge: boolean;
-  /** What marks a choice that adds an edge; undefined for a neighbour. */
-  readonly note: string | undefined;
 }
 
 /** What the UI needs to draft a call, and to add it once it's complete. */
@@ -81,44 +62,7 @@ export class NewCall {
       edgeId: ids.newId(),
       edgeSettings: callerType.edgeDefaults,
       callerName: caller.name,
-      choices: this.choicesFor(project, caller),
+      choices: callChoices({ registry, project, caller }),
     };
   }
-
-  /** Every other component, the caller's neighbours first, each group in project order. */
-  private choicesFor(project: Project, caller: Component): CallChoice[] {
-    const { components, edges } = project.architecture;
-    const reached = new Set(
-      edges.filter((e) => e.from === caller.id).map((e) => e.to),
-    );
-    const choices = components
-      .filter((c) => c.id !== caller.id)
-      .map((c) =>
-        this.choiceOf(c, {
-          callerName: caller.name,
-          addsEdge: !reached.has(c.id),
-        }),
-      );
-    // Array.sort is stable: false (neighbours) sorts before true.
-    return choices.sort((a, b) => Number(a.addsEdge) - Number(b.addsEdge));
-  }
-
-  private choiceOf(component: Component, edge: EdgeNeed): CallChoice {
-    const type = this.deps.registry.get(component.type);
-    const { callerName, addsEdge } = edge;
-    return {
-      componentId: component.id,
-      name: component.name,
-      label: `${component.name} (${type?.displayName ?? component.type})`,
-      actions: type?.actions ?? [],
-      addsEdge,
-      note: addsEdge ? newEdgeNote(callerName) : undefined,
-    };
-  }
-}
-
-/** Whether a choice needs a new edge from the caller, and the caller's name. */
-interface EdgeNeed {
-  readonly callerName: string;
-  readonly addsEdge: boolean;
 }

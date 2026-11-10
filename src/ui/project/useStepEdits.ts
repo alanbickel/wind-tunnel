@@ -7,13 +7,17 @@ import {
   addCallText,
   type AddCallText,
 } from "../../application/details/add-call-text";
-import type {
-  CallChoice,
-  NewCallStart,
-} from "../../application/use-cases/new-call";
+import type { CallChoice } from "../../application/use-cases/call-choices";
+import type { NewCallStart } from "../../application/use-cases/new-call";
 import type { StepAction } from "../../domain/model/project";
 import {
+  changeStepText,
+  type ChangeStepText,
+} from "../../application/details/change-step-text";
+import type { ChangeStepStart } from "../../application/use-cases/change-step";
+import {
   addCall,
+  changeStep,
   type AddCallInput,
   moveStep,
   removeStep,
@@ -31,6 +35,14 @@ export interface AddedCall {
   readonly action: StepAction;
 }
 
+/** A step changed to a component and an action, both chosen. */
+export interface ChangedStep {
+  readonly stepId: string;
+  readonly start: ChangeStepStart;
+  readonly choice: CallChoice;
+  readonly action: StepAction;
+}
+
 /** What the outline does to a step. */
 export interface StepEdits {
   /**
@@ -39,6 +51,12 @@ export interface StepEdits {
    * new step, and announces it.
    */
   readonly add: (call: AddedCall) => void;
+  /**
+   * Changes the step's component and action, and adds the edge from its
+   * caller if there's none; saves it as one step and announces it. The
+   * step keeps its id, so the selection stays on it.
+   */
+  readonly change: (changed: ChangedStep) => void;
   /** Moves the step one place among its siblings, saves, and announces it. */
   readonly move: (step: OutlineStep, direction: StepDirection) => void;
   /**
@@ -68,7 +86,11 @@ export function useStepEdits(input: StepEditsInput): StepEdits {
   const move = useMove(input);
   const remove = useRemove(input);
   const add = useAdd(input);
-  return useMemo(() => ({ add, move, remove }), [add, move, remove]);
+  const change = useChange(input);
+  return useMemo(
+    () => ({ add, change, move, remove }),
+    [add, change, move, remove],
+  );
 }
 
 /** Add, as `StepEdits` describes it. */
@@ -94,6 +116,48 @@ function useAdd({
     },
     [workflowId, onEdit, onSelect, announce],
   );
+}
+
+/** Change, as `StepEdits` describes it. */
+function useChange({
+  details,
+  onEdit,
+  announce,
+}: StepEditsInput): StepEdits["change"] {
+  const { workflowId } = details;
+  return useCallback(
+    (changed: ChangedStep) => {
+      const { stepId, start, choice, action } = changed;
+      const text = changeText(changed);
+      onEdit({
+        command: (record) =>
+          changeStep(record, {
+            workflowId,
+            stepId,
+            componentId: choice.componentId,
+            action,
+            edgeId: start.edgeId,
+            edgeSettings: start.edgeSettings,
+          }),
+        describe: () => text.undoName,
+      });
+      announce(text.announcement);
+    },
+    [workflowId, onEdit, announce],
+  );
+}
+
+/** The words for a changed step: its two labels, and the edge if one is added. */
+function changeText({ start, choice, action }: ChangedStep): ChangeStepText {
+  const { callerName } = start;
+  return changeStepText({
+    fromLabel: start.label,
+    toLabel: `${choice.name} · ${action}`,
+    edge:
+      choice.addsEdge && callerName !== undefined
+        ? { callerName, calleeName: choice.name }
+        : undefined,
+  });
 }
 
 /** The words for a drafted call: its two components, and whether it adds an edge. */

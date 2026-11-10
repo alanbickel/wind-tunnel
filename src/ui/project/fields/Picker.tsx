@@ -16,12 +16,45 @@ export interface PickerProps {
   readonly onPick: (value: string) => void;
   /** The `<select>`, for a screen that moves the focus to it. */
   readonly selectRef?: Ref<HTMLSelectElement>;
+  /**
+   * False when the picker can't change: it stays focusable, as a Button
+   * does, and `explanation` says why. Defaults to true.
+   */
+  readonly usable?: boolean;
+  /** Why a picker that isn't usable is; read as its description. */
+  readonly explanation?: string;
 }
 
-/** A labeled picker, empty until something is chosen. */
+interface PickerOptionsProps {
+  readonly prompt: string;
+  readonly options: readonly PickerOption[];
+}
+
+/** The prompt, which can't be chosen, then each option. */
+function PickerOptions({ prompt, options }: PickerOptionsProps) {
+  return (
+    <>
+      <option value="" disabled>
+        {prompt}
+      </option>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.text}
+        </option>
+      ))}
+    </>
+  );
+}
+
+/**
+ * A labeled picker, empty until something is chosen, and empty again if
+ * its value isn't among its options.
+ */
 export function Picker(props: PickerProps) {
   const { label, prompt, value, options, onPick, selectRef } = props;
+  const { usable = true, explanation } = props;
   const id = useId();
+  const explanationId = useId();
   return (
     <div className={fieldStyles.field}>
       <label htmlFor={id} className={fieldStyles.label}>
@@ -30,20 +63,16 @@ export function Picker(props: PickerProps) {
       <select
         ref={selectRef}
         id={id}
-        value={value ?? ""}
+        value={options.some((o) => o.value === value) ? value : ""}
+        aria-disabled={usable ? undefined : true}
+        aria-describedby={usable ? undefined : explanationId}
         onChange={(event) => {
-          onPick(event.target.value);
+          if (usable) onPick(event.target.value);
         }}
       >
-        <option value="" disabled>
-          {prompt}
-        </option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.text}
-          </option>
-        ))}
+        <PickerOptions prompt={prompt} options={options} />
       </select>
+      {!usable && <p id={explanationId}>{explanation}</p>}
     </div>
   );
 }

@@ -12,11 +12,12 @@ import {
 import type { Project } from "../../domain/model/project";
 import { Button } from "../shared/Button";
 import { AddCall } from "./AddCall";
+import { ChangeStep } from "./ChangeStep";
 import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
 import type { Edit } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
-import { useStepEdits, type AddedCall } from "./useStepEdits";
+import { useStepEdits, type AddedCall, type ChangedStep } from "./useStepEdits";
 import {
   useFocusAfterRedraw,
   type StepButtonRefs,
@@ -76,6 +77,7 @@ function useOutlineItem(props: WorkflowOutlineProps): OutlineItemContext {
       onSelect({ kind: "step", workflowId, stepId });
     },
     onMove: edits.move,
+    onChange: edits.change,
     onAdd: (call: AddedCall) => {
       focus.after(call.start.callId);
       edits.add(call);
@@ -99,6 +101,7 @@ interface OutlineItemContext {
   readonly onMove: (step: OutlineStep, direction: StepDirection) => void;
   readonly onRemove: (step: OutlineStep) => void;
   readonly onAdd: (call: AddedCall) => void;
+  readonly onChange: (changed: ChangedStep) => void;
 }
 
 interface OutlineItemProps extends OutlineItemContext {
@@ -273,8 +276,22 @@ function MoveButton({ step, direction, usable, onMove }: MoveButtonProps) {
   );
 }
 
+/** The pickers that change the step, while it's the selected one. */
+function ChangeWhenCurrent(props: OutlineItemProps) {
+  const { step, currentStepId, project, workflowId, onChange } = props;
+  if (step.stepId !== currentStepId) return null;
+  return (
+    <ChangeStep
+      project={project}
+      workflowId={workflowId}
+      step={step}
+      onChange={onChange}
+    />
+  );
+}
+
 /**
- * One step's line, then the steps it calls, then "Add a call" if it can
+ * One step's line, then the pickers that change it while it's selected, then the steps it calls, then "Add a call" if it can
  * take one, then its async work.
  */
 function OutlineItem(props: OutlineItemProps) {
@@ -282,6 +299,7 @@ function OutlineItem(props: OutlineItemProps) {
   return (
     <li>
       <StepLine {...props} />
+      <ChangeWhenCurrent {...props} />
       {step.calls.length > 0 && (
         <ol className={styles.outline}>
           {step.calls.map((call) => (

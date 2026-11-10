@@ -9,6 +9,7 @@ import {
 import {
   awsNewComponent,
   awsNewEdge,
+  awsChangeStep,
   awsNewCall,
   awsNewWorkflow,
 } from "../../../application/testing/aws-component-types";
@@ -115,6 +116,7 @@ function buildUseCases({
     describeSelection: awsDescribeSelection(),
     newComponent: awsNewComponent(),
     newCall: awsNewCall(),
+    changeStep: awsChangeStep(),
     newEdge: awsNewEdge(),
     newWorkflow: awsNewWorkflow(),
     saveProject: input.saveProject ?? awsSaveProject(projects),

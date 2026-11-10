@@ -8,10 +8,8 @@ import {
 } from "react";
 import type { OutlineStep } from "../../application/details/details";
 import type { Project, StepAction } from "../../domain/model/project";
-import type {
-  CallChoice,
-  NewCallStart,
-} from "../../application/use-cases/new-call";
+import type { CallChoice } from "../../application/use-cases/call-choices";
+import type { NewCallStart } from "../../application/use-cases/new-call";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
 import { useFocusOnMount } from "../shared/useFocusOnMount";

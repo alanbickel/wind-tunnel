@@ -163,6 +163,25 @@ describe("OpenedProject's changing a workflow's step", () => {
     );
   });
 
+  // Fails if choosing the step's own component again, while a draft is
+  // pending, announces a change that didn't happen, or leaves the draft.
+  it("drops the draft without announcing when the step's own component is chosen again", () => {
+    renderProject();
+    selectStep("1.1 Function · invoke");
+
+    pick("Component", "table");
+    pick("Component", "fn");
+
+    expect(picker("Component").value).toBe("fn");
+    expect(picker("Action").value).toBe("invoke");
+    expect(screen.queryByText(/^Changed /)).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "Undo" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
   // Fails if choosing an accepted action leaves the step's issue, or the
   // workflow's row keeps its problem count.
   it("clears a step's issue when the change fixes it, and the workflow's count with it", () => {

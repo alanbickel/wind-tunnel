@@ -77,6 +77,11 @@ function useStepDraft({
     onChange({ stepId: step.stepId, start, choice: picked, action });
   };
   const pickComponent = (picked: CallChoice) => {
+    // Back to the step's own component: nothing to change, so nothing to save.
+    if (picked.componentId === start.componentId) {
+      setPending(undefined);
+      return;
+    }
     const action = actionAfter(picked, start.action);
     if (action === undefined) setPending(picked.componentId);
     else save(picked, action);

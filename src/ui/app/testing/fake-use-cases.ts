@@ -1,6 +1,9 @@
 import { awsCheckWorkflows } from "../../../application/testing/aws-check-workflows";
 import { awsCheckWorkloads } from "../../../application/testing/aws-check-workloads";
-import { awsListComponentTypes } from "../../../application/testing/aws-component-types";
+import {
+  awsChangeStep,
+  awsListComponentTypes,
+} from "../../../application/testing/aws-component-types";
 import { awsNameComponents } from "../../../application/testing/aws-name-components";
 import type { UseCases } from "../use-cases";
 
@@ -14,11 +17,12 @@ const throwsUnexpected = (name: string) => (): never => {
 
 /**
  * `UseCases` whose every call rejects (or throws, for the synchronous
- * `describeSelection`, `newComponent`, `newCall`, `changeStep`, `newEdge`, and `newWorkflow`), for UI tests. Override the ones a test
- * expects: `fakeUseCases({ listProjects: { execute: () => ... } })`.
- * `nameComponents`, `checkWorkloads`, `checkWorkflows`, and
- * `listComponentTypes` are the real ones over the AWS types: they're pure,
- * and every test that shows a project uses them.
+ * `describeSelection`, `newComponent`, `newCall`, `newEdge`, and
+ * `newWorkflow`), for UI tests. Override the ones a test expects:
+ * `fakeUseCases({ listProjects: { execute: () => ... } })`.
+ * `nameComponents`, `checkWorkloads`, `checkWorkflows`,
+ * `listComponentTypes`, and `changeStep` are the real ones over the AWS
+ * types: they're pure, and every test that shows a project uses them.
  */
 export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
   return {
@@ -39,7 +43,7 @@ export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
     listComponentTypes: awsListComponentTypes(),
     newComponent: { execute: throwsUnexpected("newComponent") },
     newCall: { execute: throwsUnexpected("newCall") },
-    changeStep: { execute: throwsUnexpected("changeStep") },
+    changeStep: awsChangeStep(),
     newEdge: { execute: throwsUnexpected("newEdge") },
     newWorkflow: { execute: throwsUnexpected("newWorkflow") },
     storagePersistence: { request: unexpected("storagePersistence") },

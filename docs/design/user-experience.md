@@ -106,6 +106,14 @@ A sketch, to test the edit model and the layout against the workflow editor. It 
 
 In a copy of Template A, you add an SQS queue, "orders-queue", and a Lambda, "fn-writer". In Create order's steps, you change fn-orders' `write` of orders-db into an `enqueue` to orders-queue. Only `enqueue` steps have async work ([today's rule](../../src/domain/components/find-step-issues.ts)), so the workflow editor offers an "async work" slot under it; you add a call to fn-writer there, and under it the `write` of orders-db. You didn't draw the three edges these calls need, so each call adds its own as you go: `fn-orders → orders-queue`, `orders-queue → fn-writer`, and `fn-writer → orders-db`. The `fn-orders → orders-db` edge stays, and Get order's read still uses it.
 
+The steps, as the editor will offer them ([ADR-0021](../adr/0021-edit-async-work-through-the-same-commands.md) is the design behind them):
+
+1. **Change the step.** You select fn-orders' `orders-db · write`, and in its pickers choose `orders-queue`; SQS accepts only `enqueue`, so the action follows. The step keeps its place, and the edge `fn-orders → orders-queue` is added with it: **New** "Changed orders-db · write to orders-queue · enqueue. Added the edge from fn-orders to orders-queue. It has no async work yet."
+2. **Fill the slot.** Under the step the outline says **New** "No async work yet. A message is taken off the queue and nothing runs." beside **New** "Add async work, done when a consumer takes the message". You choose `fn-writer`, marked "No edge from orders-queue yet; choosing it adds one.", and `invoke`: **New** "Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer."
+3. **Add the write.** Under fn-writer, "Add a call from fn-writer", `orders-db`, `write`, adds `fn-writer → orders-db`.
+4. **Undo** takes back one of these at a time, each with its edge.
+5. **Change it back.** Had you changed the `enqueue` back to a `write` of orders-db, the screen would ask: **New** "Change orders-queue · enqueue to orders-db · write? Its async work, 2 steps, goes." Cancel has the focus; confirming takes the async work, and one Undo brings back both it and the `enqueue`.
+
 What this tests:
 
 - **Changing a step in place**, not removing and re-adding it, so its children survive a change of action. Only an `enqueue` takes async work, so changing one back to a `write` says that its async work goes.

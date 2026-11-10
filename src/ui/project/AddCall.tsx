@@ -21,18 +21,21 @@ import type { AddedCall } from "./useStepEdits";
 export interface AddCallProps {
   readonly project: Project;
   readonly workflowId: string;
-  /** The step that gets the call: its `addCallLabel` is set. */
+  /** The step that gets the call: its `addCallLabel` is set, or it's an `enqueue` with an empty slot. */
   readonly step: OutlineStep;
+  /** The words of the button, and the name of the draft it opens. */
+  readonly label: string;
   /** Saves the call, selects it, and announces it. */
   readonly onAdd: (call: AddedCall) => void;
 }
 
 /**
  * "Add a call from api", under a step's calls (UX design §2.5 steps 3 and
- * 5): it opens a draft call, a component picker and an action picker,
- * which lives only here, so nothing is saved until both are chosen, and
- * Escape drops it and returns the focus to the button. The button is off
- * the page while the draft is open.
+ * 5), or "Add async work …" in an `enqueue` step's empty slot (§2.5 step 8):
+ * it opens a draft call, a component picker and an action picker, which
+ * lives only here, so nothing is saved until both are chosen, and Escape
+ * drops it and returns the focus to the button. The button is off the page
+ * while the draft is open.
  */
 export function AddCall(props: AddCallProps) {
   const { step } = props;
@@ -44,10 +47,10 @@ export function AddCall(props: AddCallProps) {
         <Button
           ref={openerRef}
           expanded={false}
-          label={`${step.addCallLabel ?? ""}, step ${step.number}`}
+          label={`${props.label}, step ${step.number}`}
           onClick={ask}
         >
-          {step.addCallLabel}
+          {props.label}
         </Button>
       </div>
     );
@@ -98,7 +101,7 @@ function CallDraft(props: CallDraftProps) {
     onSaved();
   };
   return (
-    <DraftGroup label={step.addCallLabel} onDrop={onDrop}>
+    <DraftGroup label={props.label} onDrop={onDrop}>
       <CallPickers
         start={start}
         chosen={chosen}

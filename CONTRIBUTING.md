@@ -64,7 +64,7 @@ These apply everywhere. A gotcha that belongs to one area is in its guide: the V
 
 - **No constructor parameter properties.** `erasableSyntaxOnly` is on, so `constructor(private readonly queue: EventQueue)` doesn't compile. Declare the field and assign it in the constructor.
 - **TypeScript is pinned to `~6.0`** because typescript-eslint doesn't support TypeScript 7 yet. For the same reason, the layer rules use typescript-eslint's `no-restricted-imports`, not ESLint's.
-- **A command that rebuilds a step names every field it keeps.** `withCalls` rebuilds a step field by field when the last call goes, so it has to name `async` or it drops the step's async work. `changeStep` rebuilds a changed step as its id, component and action alone, so it drops `calls` and `async` on purpose ([ADR-0021](docs/adr/0021-edit-async-work-through-the-same-commands.md)); a new field on `Step` that belongs to the step itself, not to what's under it, has to be named there too.
+- **A command that rebuilds a step names every field it keeps.** `withCalls` rebuilds a step field by field when the last call goes, so it has to name `async` or it drops the step's async work; `removeStep` of an async root rebuilds its queue the other way round, and names `calls`. `changeStep` rebuilds a changed step as its id, component and action alone, so it drops `calls` and `async` on purpose ([ADR-0021](docs/adr/0021-edit-async-work-through-the-same-commands.md)); a new field on `Step` that belongs to the step itself, not to what's under it, has to be named there too.
 
 ## Milestones and the roadmap
 

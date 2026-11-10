@@ -62,6 +62,9 @@ const plainEdge: Omit<Edge, "id" | "from" | "to"> = {
   retry: { maxAttempts: 1, backoff: "none", baseDelayMs: 0 },
 };
 
+/** What a step that isn't an enqueue or an async root says about async work. */
+const NOT_ASYNC = { asyncSlot: undefined, description: undefined };
+
 /** API → queue, whose async work calls the function: a queue's consumer. */
 const queued: Project = {
   ...sample,
@@ -308,8 +311,10 @@ describe("DescribeSelection", () => {
   // its id or its component's id rather than its component's name, drops
   // an enqueue's async work or numbers it before the calls, or puts the
   // queue's call to the table, which has no edge, on any step but its own;
-  // or offers "Add a call" on async work, which stays read-only, or under
-  // an enqueue, whose follow-up work is its async work (ADR-0021).
+  // or offers "Add a call" under an enqueue, whose follow-up work is its
+  // async work (ADR-0021), or gives the async root a caller other than the
+  // queue, a Move, or any words but "Runs when a consumer takes the message
+  // from Queue."
   it("outlines a workflow's steps, numbered, async work after the calls", () => {
     const withCall: Project = {
       ...queued,
@@ -340,6 +345,7 @@ describe("DescribeSelection", () => {
       label: "API · invoke",
       issues: [],
       async: undefined,
+      ...NOT_ASYNC,
       editing: undefined,
       addCallLabel: "Add a call from API",
       calls: [
@@ -349,6 +355,7 @@ describe("DescribeSelection", () => {
           label: "Queue · enqueue",
           issues: [],
           addCallLabel: undefined,
+          ...NOT_ASYNC,
           editing: {
             callerStepId: "api-invoke",
             moves: undefined,
@@ -356,6 +363,7 @@ describe("DescribeSelection", () => {
               question: "Remove Queue · enqueue and the 2 calls under it?",
               warning: undefined,
             },
+            emptiesSlotOf: undefined,
           },
           calls: [
             {
@@ -367,11 +375,13 @@ describe("DescribeSelection", () => {
               ],
               calls: [],
               async: undefined,
+              ...NOT_ASYNC,
               addCallLabel: "Add a call from Table",
               editing: {
                 callerStepId: "queue-enqueue",
                 moves: undefined,
                 removal: undefined,
+                emptiesSlotOf: undefined,
               },
             },
           ],
@@ -382,8 +392,15 @@ describe("DescribeSelection", () => {
             issues: [],
             calls: [],
             async: undefined,
-            editing: undefined,
-            addCallLabel: undefined,
+            asyncSlot: undefined,
+            description: "Runs when a consumer takes the message from Queue.",
+            editing: {
+              callerStepId: "queue-enqueue",
+              moves: undefined,
+              removal: undefined,
+              emptiesSlotOf: "Queue · enqueue",
+            },
+            addCallLabel: "Add a call from Function",
           },
         },
       ],

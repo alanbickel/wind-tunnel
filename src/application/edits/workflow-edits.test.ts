@@ -210,8 +210,9 @@ describe("moveStep and removeStep", () => {
   });
 
   // Fails if a move past either end, of a step with no siblings, of the
-  // root, of async work or a step under it, or of a step the workflow doesn't have returns a
-  // new record: the edit would save, and become an undo step, for nothing.
+  // root, of an async root (its slot's only step), or of a step the workflow
+  // doesn't have returns a new record: the edit would save, and become an
+  // undo step, for nothing.
   it("returns the same record when the step can't move that way", () => {
     const move = (workflowId: string, stepId: string, d: StepDirection) =>
       moveStep(record, { workflowId, stepId, direction: d });
@@ -221,7 +222,6 @@ describe("moveStep and removeStep", () => {
     expect(move("create", "fn", "down")).toBe(record);
     expect(move("create", "api", "down")).toBe(record);
     expect(move("create", "consumer", "up")).toBe(record);
-    expect(move("create", "consumer-log", "up")).toBe(record);
     expect(move("create", "gone", "up")).toBe(record);
     expect(move("gone", "read", "down")).toBe(record);
     expect(move("read", "write", "down")).toBe(record);
@@ -257,16 +257,13 @@ describe("moveStep and removeStep", () => {
     expect(only.project.workflows[1]?.root.calls?.[0]).toEqual(step("fn"));
   });
 
-  // Fails if removeStep takes a workflow's root, async work or a step under
-  // it, or returns
-  // a new record for a step the workflow doesn't have.
-  it("returns the same record for the root, async work, a step under it, or no such step", () => {
+  // Fails if removeStep takes a workflow's root, or returns a new record for
+  // a step the workflow doesn't have.
+  it("returns the same record for the root, or no such step", () => {
     const remove = (workflowId: string, stepId: string) =>
       removeStep(record, { workflowId, stepId });
 
     expect(remove("create", "api")).toBe(record);
-    expect(remove("create", "consumer")).toBe(record);
-    expect(remove("create", "consumer-db")).toBe(record);
     expect(remove("create", "gone")).toBe(record);
     expect(remove("gone", "read")).toBe(record);
   });

@@ -18,7 +18,7 @@ const step = (id: string, rest: Partial<Step> = {}): Step => ({
 });
 
 // The sample's "Read item" is api > fn > table (read). "With async" has a
-// queue's async work, which stays read-only.
+// queue's async work.
 const [read] = sampleRecord.project.workflows;
 if (read === undefined) throw new Error("The sample has a workflow");
 const withAsync: Workflow = {
@@ -144,10 +144,10 @@ describe("addCall", () => {
     expect(next.project.architecture).toBe(record.project.architecture);
   });
 
-  // Fails if a call goes under async work or a step under it, or for a
-  // step or workflow that isn't there, or returns a new record for any of
-  // them (the edit would save, and become an undo step, for nothing).
-  it("returns the same record for async work, a step that isn't there, or no such workflow", () => {
+  // Fails if a call goes in for a step or workflow that isn't there, or
+  // returns a new record for either (the edit would save, and become an undo
+  // step, for nothing).
+  it("returns the same record for a step that isn't there, or no such workflow", () => {
     const call = (stepId: string, workflowId = "async") =>
       addCall(record, {
         workflowId,
@@ -159,7 +159,6 @@ describe("addCall", () => {
         edgeSettings: API_EDGE,
       });
 
-    expect(call("consumer")).toBe(record);
     expect(call("gone")).toBe(record);
     expect(call("api", "gone")).toBe(record);
     expect(call("api")).not.toBe(record);

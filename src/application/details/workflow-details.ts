@@ -1,7 +1,12 @@
 import type { Project, Step, Workflow } from "../../domain/model/project";
 import type { WorkflowRunCheck } from "../run-checks/workflow-run-checks";
 import { stepsBelow } from "../../domain/model/step-tree";
-import type { OutlineStep, StepEditing, WorkflowDetails } from "./details";
+import type {
+  AsyncSlot,
+  OutlineStep,
+  StepEditing,
+  WorkflowDetails,
+} from "./details";
 import { stepRemovalText, workflowRemovalText } from "./removal-text";
 
 /** A workflow, in its project, its run issues, and the step selected in it, if any. */
@@ -24,7 +29,7 @@ export function workflowDetails({
   onSteps,
   currentStepId,
 }: WorkflowDetailsInput): WorkflowDetails {
-  const context = { project, onSteps, editable: true };
+  const context = { project, onSteps };
   const usedBy = workloadsUsing(project, workflow.id);
   return {
     kind: "workflow",
@@ -56,6 +61,14 @@ export function usedByLine(usedBy: readonly string[]): string {
 export const ASYNC_WORK_HEADING =
   "Async work, done when a consumer takes the message";
 
+/** What Details says in an `enqueue` step's empty async slot. */
+export const NO_ASYNC_WORK_TEXT =
+  "No async work yet. A message is taken off the queue and nothing runs.";
+
+/** The words of the button that opens a draft of async work. */
+export const ADD_ASYNC_WORK_LABEL =
+  "Add async work, done when a consumer takes the message";
+
 /** The names of the workloads whose mix has the workflow, in project order. */
 function workloadsUsing(project: Project, workflowId: string): string[] {
   return project.workloads
@@ -84,8 +97,6 @@ interface StepPlace {
 interface OutlineContext {
   readonly project: Project;
   readonly onSteps: WorkflowRunCheck["onSteps"];
-  /** False under async work, which stays read-only: no step there is editable. */
-  readonly editable: boolean;
 }
 
 /** A step under another: its place in the outline, and among its caller's calls, if it's one. */
@@ -105,10 +116,10 @@ function outlineOf(
 ): OutlineStep {
   const { project, onSteps } = context;
   const calls = step.calls ?? [];
-  const under = ({ child, index, from }: UnderInput, inner = context) =>
+  const under = ({ child, index, from }: UnderInput) =>
     outlineOf(
       { step: child, number: `${number}.${String(index + 1)}`, place: from },
-      inner,
+      context,
     );
   const label = `${componentName(project, step.componentId)} · ${step.action}`;
   return {
@@ -117,36 +128,75 @@ function outlineOf(
     label,
     issues: onSteps.get(step.id) ?? [],
     calls: calls.map((child, index) =>
-      under({ child, index, from: placeAmongCalls({ step, index }, context) }),
+      under({ child, index, from: placeAmongCalls({ step, index }) }),
     ),
-    async:
-      step.async &&
-      under(
-        { child: step.async, index: calls.length, from: undefined },
-        readOnly(context),
-      ),
+    async: step.async && asyncOutline(step.async, { step, under, context }),
+    asyncSlot: asyncSlot(step, context),
+    description: undefined,
     editing: place && stepEditing({ step, label, place }),
     addCallLabel: addCallLabel(step, context),
   };
 }
 
-/** The context for async work, and every step under it, which nothing edits. */
-function readOnly(context: OutlineContext): OutlineContext {
-  return { ...context, editable: false };
+/** What `asyncOutline` needs: the queue step, how to outline a step under it, and the context. */
+interface AsyncOutlineInput {
+  readonly step: Step;
+  readonly under: (input: UnderInput) => OutlineStep;
+  readonly context: OutlineContext;
 }
 
 /**
- * "Add a call from api", or undefined where a step can't take a call: async
- * work, a step whose component is gone, and an `enqueue`, whose follow-up
- * work is its async work (ADR-0021 decision 3).
+ * The outline of a queue step's async root, numbered after the queue's
+ * calls. The root is its slot's only step, so it has no siblings to move
+ * among; its caller is the queue, and its description says when it runs.
+ */
+function asyncOutline(
+  root: Step,
+  { step: queue, under, context }: AsyncOutlineInput,
+): OutlineStep {
+  const place: StepPlace = { callerStepId: queue.id, index: 0, siblings: 1 };
+  const outline = under({
+    child: root,
+    index: queue.calls?.length ?? 0,
+    from: place,
+  });
+  const queueName = componentName(context.project, queue.componentId);
+  return {
+    ...outline,
+    description: `Runs when a consumer takes the message from ${queueName}.`,
+    editing: outline.editing && {
+      ...outline.editing,
+      emptiesSlotOf: `${queueName} · ${queue.action}`,
+    },
+  };
+}
+
+/** Whether the project has a component with this id. */
+function hasComponent(project: Project, componentId: string): boolean {
+  return project.architecture.components.some((c) => c.id === componentId);
+}
+
+/**
+ * "Add a call from api", or undefined where a step can't take a call: a
+ * step whose component is gone, and an `enqueue`, whose follow-up work is
+ * its async work (ADR-0021 decision 3).
  */
 function addCallLabel(step: Step, context: OutlineContext): string | undefined {
-  const { project, editable } = context;
-  const exists = project.architecture.components.some(
-    (c) => c.id === step.componentId,
-  );
-  if (!editable || !exists || step.action === "enqueue") return undefined;
+  const { project } = context;
+  if (!hasComponent(project, step.componentId)) return undefined;
+  if (step.action === "enqueue") return undefined;
   return `Add a call from ${componentName(project, step.componentId)}`;
+}
+
+/**
+ * The empty async slot of an `enqueue` step: undefined for any other step,
+ * for one that has async work, and for one whose component is gone, which
+ * has no edges to offer.
+ */
+function asyncSlot(step: Step, context: OutlineContext): AsyncSlot | undefined {
+  if (step.action !== "enqueue" || step.async !== undefined) return undefined;
+  if (!hasComponent(context.project, step.componentId)) return undefined;
+  return { text: NO_ASYNC_WORK_TEXT, addLabel: ADD_ASYNC_WORK_LABEL };
 }
 
 /** A call of a step, by its position among them. */
@@ -155,12 +205,8 @@ interface CallInput {
   readonly index: number;
 }
 
-/** The place of a step's call among its calls; undefined where nothing is editable. */
-function placeAmongCalls(
-  { step, index }: CallInput,
-  { editable }: OutlineContext,
-): StepPlace | undefined {
-  if (!editable) return undefined;
+/** The place of a step's call among its calls. */
+function placeAmongCalls({ step, index }: CallInput): StepPlace {
   return {
     callerStepId: step.id,
     index,
@@ -185,6 +231,7 @@ function stepEditing({ step, label, place }: StepEditingInput): StepEditing {
         ? undefined
         : { canMoveUp: index > 0, canMoveDown: index < siblings - 1 },
     removal: stepRemovalText({ label, stepsBelow: stepsBelow(step).length }),
+    emptiesSlotOf: undefined,
   };
 }
 

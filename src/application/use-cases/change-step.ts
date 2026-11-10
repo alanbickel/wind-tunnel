@@ -6,7 +6,7 @@ import type {
   Step,
   StepAction,
 } from "../../domain/model/project";
-import { holderOf, stepInCalls } from "../edits/workflow-edits";
+import { findStep, holderOf } from "../edits/step-search";
 import { stepsBelow } from "../../domain/model/step-tree";
 import type { IdGenerator } from "../ports/id-generator";
 import { callChoices, type CallChoice } from "./call-choices";
@@ -85,7 +85,7 @@ export class ChangeStep {
     const { registry, ids } = this.deps;
     const { project, workflowId, stepId } = input;
     const workflow = project.workflows.find((w) => w.id === workflowId);
-    const step = workflow && stepInCalls(workflow, stepId);
+    const step = workflow && findStep(workflow, stepId);
     if (workflow === undefined || step === undefined) return undefined;
     const { components } = project.architecture;
     const caller = componentOf(project, holderOf(workflow, stepId));

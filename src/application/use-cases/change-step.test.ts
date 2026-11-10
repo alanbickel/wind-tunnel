@@ -96,18 +96,18 @@ describe("ChangeStep", () => {
     expect(leaf?.stepsBelow).toBe(0);
   });
 
-  // Fails if async work, a step that isn't there, or a workflow that isn't
-  // there is offered a change.
-  it("is undefined for async work, a missing step, or a missing workflow", () => {
+  // Fails if async work isn't offered a change, with its queue as the
+  // caller, or a step that isn't there or a workflow that isn't there is.
+  it("offers an async root, whose caller is its queue, and nothing for a missing step or workflow", () => {
     const change = awsChangeStep();
 
-    expect(
-      change.execute({
-        project: withAsync,
-        workflowId: "async",
-        stepId: "consumer",
-      }),
-    ).toBeUndefined();
+    const root = change.execute({
+      project: withAsync,
+      workflowId: "async",
+      stepId: "consumer",
+    });
+    expect(root?.callerName).toBe("Function");
+    expect(root?.label).toBe("Table · read");
     expect(change.execute({ ...base, stepId: "gone" })).toBeUndefined();
     expect(
       change.execute({ ...base, workflowId: "gone", stepId: "table-read" }),

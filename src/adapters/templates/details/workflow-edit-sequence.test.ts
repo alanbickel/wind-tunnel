@@ -1,17 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type {
-  OutlineStep,
-  WorkflowDetails,
-} from "../../../application/details/details";
 import { addCallText } from "../../../application/details/add-call-text";
 import { changeStepText } from "../../../application/details/change-step-text";
-import { workflowPathText } from "../../../application/details/workflow-path-text";
-import {
-  NO_EDITS,
-  recordEdit,
-  undoEdit,
-  type EditHistory,
-} from "../../../application/edits/edit-history";
 import {
   addCall,
   changeStep,
@@ -23,10 +12,16 @@ import {
   awsChangeStep,
   awsNewCall,
 } from "../../../application/testing/aws-component-types";
-import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import type { Project } from "../../../domain/model/project";
 import { projectA } from "../testing/scenario-runs";
-import { outlineLines } from "./outline-lines";
+import {
+  apply,
+  asking,
+  beginning,
+  edgeCount,
+  undo,
+  type Place,
+} from "./edit-sequence";
 
 // The worked example's edit sequence in docs/architecture/workflow-editor.md:
 // Template A's "Create order", with a read before its write, edited with the
@@ -35,7 +30,6 @@ import { outlineLines } from "./outline-lines";
 // `npx vitest run src/adapters/templates/details --update`, then check the
 // guide still matches.
 
-const describeSelection = awsDescribeSelection();
 const WORKFLOW_ID = "create-order";
 
 /**
@@ -68,116 +62,7 @@ const START: ProjectRecord = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
-/** The workflow as Details describes it, in the record. */
-function detailsOf(record: ProjectRecord): WorkflowDetails {
-  const details = describeSelection.execute({
-    project: record.project,
-    selection: { kind: "workflow", workflowId: WORKFLOW_ID },
-  });
-  if (details?.kind !== "workflow") throw new Error("No Create order");
-  return details;
-}
-
-/** The step of the outline with the id. */
-function stepIn(outline: OutlineStep, stepId: string): OutlineStep {
-  if (outline.stepId === stepId) return outline;
-  for (const child of outline.calls) {
-    try {
-      return stepIn(child, stepId);
-    } catch {
-      // Not under this call: try the next.
-    }
-  }
-  throw new Error(`No step ${stepId}`);
-}
-
-/** The record's outline and its text version line. */
-function stage(record: ProjectRecord): string[] {
-  const { outline } = detailsOf(record);
-  const workflow = record.project.workflows.find((w) => w.id === WORKFLOW_ID);
-  if (workflow === undefined) throw new Error("No Create order");
-  return [
-    ...outlineLines(outline, ""),
-    `Text version: ${workflowPathText(record.project, workflow)}`,
-  ];
-}
-
-/** Where the sequence is: the record, and what can be undone. */
-interface Place {
-  readonly record: ProjectRecord;
-  readonly history: EditHistory;
-  readonly lines: readonly string[];
-}
-
-const BEGINNING: Place = {
-  record: START,
-  history: NO_EDITS,
-  lines: ["Start", ...stage(START)],
-};
-
-/** A command's result, and its step in the history. */
-interface CommandInput {
-  readonly from: Place;
-  readonly command: (record: ProjectRecord) => ProjectRecord;
-  readonly description: string;
-  /** What Remove would ask, as the outline words it, if the command is a remove. */
-  readonly asks?: string;
-  /** A line after the description, for what the outline doesn't show. */
-  readonly note?: string;
-}
-
-function apply({
-  from,
-  command,
-  description,
-  asks,
-  note,
-}: CommandInput): Place {
-  const record = command(from.record);
-  const history = recordEdit(from.history, {
-    description,
-    before: from.record,
-    after: record,
-  });
-  return {
-    record,
-    history,
-    lines: [
-      "",
-      ...(asks ? [asks] : []),
-      description,
-      ...(note ? [note] : []),
-      ...stage(record),
-    ],
-  };
-}
-
-function undo(from: Place): Place {
-  const move = undoEdit(from.history);
-  if (move === undefined) throw new Error("Nothing to undo");
-  const description = `Undo: ${move.step.description}`;
-  return {
-    record: move.to,
-    history: move.history,
-    lines: [
-      "",
-      description,
-      `Edges: ${String(edgeCount(move.to))}`,
-      ...stage(move.to),
-    ],
-  };
-}
-
-/** How many edges the architecture has, which only a call along a missing edge changes. */
-function edgeCount(record: ProjectRecord): number {
-  return record.project.architecture.edges.length;
-}
-
-/** What Remove asks about the step, or that it goes at once. */
-function asking(record: ProjectRecord, stepId: string): string {
-  const { editing } = stepIn(detailsOf(record).outline, stepId);
-  return `Remove asks: ${editing?.removal?.question ?? "nothing; the step goes at once"}`;
-}
+const BEGINNING = beginning(START, WORKFLOW_ID);
 
 /**
  * A call from the root, API Gateway, to orders-db: the architecture has no
@@ -198,6 +83,7 @@ function addedCall(from: Place): Place {
   });
   return apply({
     from,
+    workflowId: WORKFLOW_ID,
     command: (r) =>
       addCall(r, {
         workflowId: WORKFLOW_ID,
@@ -234,6 +120,7 @@ function changedCall(from: Place): Place {
   });
   return apply({
     from,
+    workflowId: WORKFLOW_ID,
     command: (r) =>
       changeStep(r, {
         workflowId: WORKFLOW_ID,
@@ -258,6 +145,7 @@ describe("the workflow editor's edit sequence", () => {
     const write = "create-order-orders-db";
     const moved = apply({
       from: BEGINNING,
+      workflowId: WORKFLOW_ID,
       command: (r) =>
         moveStep(r, {
           workflowId: WORKFLOW_ID,
@@ -268,23 +156,25 @@ describe("the workflow editor's edit sequence", () => {
     });
     const removed = apply({
       from: moved,
+      workflowId: WORKFLOW_ID,
       command: (r) => removeStep(r, { workflowId: WORKFLOW_ID, stepId: write }),
       description: "Remove orders-db · write",
-      asks: asking(moved.record, write),
+      asks: asking(moved.record, { workflowId: WORKFLOW_ID, stepId: write }),
     });
-    const undone = undo(removed);
+    const undone = undo(removed, WORKFLOW_ID);
     const fn = "create-order-fn-orders";
     const removedWithCalls = apply({
       from: undone,
+      workflowId: WORKFLOW_ID,
       command: (r) => removeStep(r, { workflowId: WORKFLOW_ID, stepId: fn }),
       description: "Remove fn-orders · invoke",
-      asks: asking(undone.record, fn),
+      asks: asking(undone.record, { workflowId: WORKFLOW_ID, stepId: fn }),
     });
-    const undoneAgain = undo(removedWithCalls);
+    const undoneAgain = undo(removedWithCalls, WORKFLOW_ID);
     const calls = addedCall(undoneAgain);
     const changed = changedCall(calls);
-    const undoneChange = undo(changed);
-    const undoneCall = undo(undoneChange);
+    const undoneChange = undo(changed, WORKFLOW_ID);
+    const undoneCall = undo(undoneChange, WORKFLOW_ID);
     const places = [
       BEGINNING,
       moved,

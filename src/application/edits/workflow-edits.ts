@@ -8,6 +8,7 @@ import { mapSteps } from "../../domain/model/step-tree";
 import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { ProjectRecord } from "../ports/project-record";
 import { connectIfMissing } from "./edge-edits";
+import { findStep, holderOf } from "./step-search";
 
 // Edit commands (ADR-0019): each takes the project record and returns the
 // next one, doing the whole change, so it's one undo step. They don't
@@ -119,9 +120,9 @@ export interface AddCallInput extends StepInput {
  * Adds a call as the last of a step's calls (`stepId` is the caller). If the
  * caller's component has no edge to the call's, the same command adds one,
  * through `connectIfMissing`, so the call and its edge are one undo step
- * (UX design §2.5 step 5, ADR-0019 decision 4). A step that isn't the root
- * or one of a step's calls (async work stays read-only), or isn't in the
- * workflow, returns the record as it was.
+ * (UX design §2.5 step 5, ADR-0019 decision 4). The caller can be any step,
+ * in the main tree or in async work. A step that isn't in the workflow
+ * returns the record as it was.
  */
 export function addCall(
   record: ProjectRecord,
@@ -129,7 +130,7 @@ export function addCall(
 ): ProjectRecord {
   const { workflowId, stepId, callId, componentId, action } = input;
   const workflow = record.project.workflows.find((w) => w.id === workflowId);
-  const caller = workflow && stepInCalls(workflow, stepId);
+  const caller = workflow && findStep(workflow, stepId);
   if (workflow === undefined || caller === undefined) return record;
   const call: Step = { id: callId, componentId, action };
   const append = (step: Step): Step =>
@@ -172,10 +173,9 @@ export interface ChangeStepInput extends StepInput {
  * edge to the new component, the same command adds one, through
  * `connectIfMissing`, as `addCall` does, so it's one undo step; the root has
  * no caller, so it adds none. Nothing is added for what was under the step.
- * A step that's the root or one of a step's calls (async work stays
- * read-only), or isn't in the workflow, returns the record as it was; so
- * does a change to what the step already is, unless its caller has no edge
- * to its component, which is still added.
+ * A step that isn't in the workflow returns the record as it was; so does a
+ * change to what the step already is, unless its caller has no edge to its
+ * component, which is still added. The caller of an async root is its queue.
  */
 export function changeStep(
   record: ProjectRecord,
@@ -183,7 +183,7 @@ export function changeStep(
 ): ProjectRecord {
   const { workflowId, stepId, componentId, action } = input;
   const workflow = record.project.workflows.find((w) => w.id === workflowId);
-  const step = workflow && stepInCalls(workflow, stepId);
+  const step = workflow && findStep(workflow, stepId);
   if (workflow === undefined || step === undefined) return record;
   const unchanged = step.componentId === componentId && step.action === action;
   const caller = holderOf(workflow, stepId);
@@ -205,22 +205,48 @@ export function changeStep(
   });
 }
 
-/**
- * The step with this id that a call can be added to: the root, or a step
- * reached by `calls` alone. Async work, and every step under it, isn't
- * searched: it stays read-only.
- */
-export function stepInCalls(
-  workflow: Workflow,
-  stepId: string,
-): Step | undefined {
-  return stepUnderCalls(workflow.root, stepId);
+/** An `enqueue` step's new async work: its ids and step, and the edge it adds if one is missing. */
+export interface AddAsyncWorkInput extends StepInput {
+  /** A new id for the async root, from the `IdGenerator` port. */
+  readonly asyncId: string;
+  /** The component that takes the message: the async root's. */
+  readonly componentId: string;
+  readonly action: StepAction;
+  /** A new id for the edge, used only if the queue has none to the consumer. */
+  readonly edgeId: string;
+  /** The queue type's `edgeDefaults`, which become that edge's settings. */
+  readonly edgeSettings: EdgeSettings;
 }
 
-function stepUnderCalls(step: Step, stepId: string): Step | undefined {
-  if (step.id === stepId) return step;
-  const found = (step.calls ?? []).map((call) => stepUnderCalls(call, stepId));
-  return found.find(Boolean);
+/**
+ * Sets the async work of an `enqueue` step that has none (`stepId` is the
+ * step, the queue). The async root is a call from the queue along its edge
+ * to the consumer, so if the queue's component has no edge to the
+ * consumer's, the same command adds one, through `connectIfMissing`: the
+ * slot and its edge are one undo step (ADR-0021 decision 2). A step that
+ * isn't an `enqueue`, already has async work, or isn't in the workflow
+ * returns the record as it was.
+ */
+export function addAsyncWork(
+  record: ProjectRecord,
+  input: AddAsyncWorkInput,
+): ProjectRecord {
+  const { workflowId, stepId, asyncId, componentId, action } = input;
+  const workflow = record.project.workflows.find((w) => w.id === workflowId);
+  const queue = workflow && findStep(workflow, stepId);
+  if (workflow === undefined || queue === undefined) return record;
+  if (queue.action !== "enqueue" || queue.async !== undefined) return record;
+  const async: Step = { id: asyncId, componentId, action };
+  const withAsync = replaceStep(record, {
+    workflow,
+    step: { ...queue, async },
+  });
+  return connectIfMissing(withAsync, {
+    edgeId: input.edgeId,
+    from: queue.componentId,
+    to: componentId,
+    settings: input.edgeSettings,
+  });
 }
 
 /** Which way a step moves among its siblings. */
@@ -243,8 +269,8 @@ const MOVE_OFFSET: Record<StepDirection, number> = { up: -1, down: 1 };
 /**
  * Moves a step one place up or down among its siblings, its calls with
  * it. A step that's at that end, has no siblings, isn't one of a step's
- * calls (the root, or async work, which stays read-only), or isn't in the
- * workflow returns the record as it was.
+ * calls (the root, or an async root, which is its slot's only step), or
+ * isn't in the workflow returns the record as it was.
  */
 export function moveStep(
   record: ProjectRecord,
@@ -269,15 +295,20 @@ export function moveStep(
 
 /**
  * Removes a step and everything under it, async work included. Edges
- * belong to the architecture, so none goes with it (ADR-0019). A step that
- * isn't one of a step's calls (the root, which a workflow's own remove
- * takes, or async work, which stays read-only) or isn't in the workflow
- * returns the record as it was.
+ * belong to the architecture, so none goes with it (ADR-0019). Removing an
+ * async root leaves its queue's slot empty: the queue's `async` goes and its
+ * calls stay. The root, which a workflow's own remove takes, or a step the
+ * workflow doesn't have returns the record as it was.
  */
 export function removeStep(
   record: ProjectRecord,
   { workflowId, stepId }: StepInput,
 ): ProjectRecord {
+  const workflow = record.project.workflows.find((w) => w.id === workflowId);
+  const holder = workflow && holderOf(workflow, stepId);
+  if (workflow && holder?.async?.id === stepId) {
+    return replaceStep(record, { workflow, step: withoutAsync(holder) });
+  }
   return changeCallsHolding(record, {
     workflowId,
     stepId,
@@ -302,11 +333,27 @@ function changeCallsHolding(
 ): ProjectRecord {
   const workflow = record.project.workflows.find((w) => w.id === workflowId);
   const holder = workflow && holderOf(workflow, stepId);
-  if (workflow === undefined || holder === undefined) return record;
-  const next = change(holder.calls ?? []);
-  if (next === holder.calls) return record;
-  const replace = (step: Step): Step =>
-    step.id === holder.id ? withCalls(step, next) : step;
+  const calls = holder?.calls ?? [];
+  if (workflow === undefined || !calls.some((call) => call.id === stepId)) {
+    return record;
+  }
+  const next = change(calls);
+  if (next === calls || holder === undefined) return record;
+  return replaceStep(record, { workflow, step: withCalls(holder, next) });
+}
+
+/** A workflow, and the step in it that's replaced, by its id. */
+interface ReplaceStepInput {
+  readonly workflow: Workflow;
+  readonly step: Step;
+}
+
+/** The record with the workflow's step of the same id as `step` replaced by it. */
+function replaceStep(
+  record: ProjectRecord,
+  { workflow, step }: ReplaceStepInput,
+): ProjectRecord {
+  const replace = (s: Step): Step => (s.id === step.id ? step : s);
   return withWorkflow(record, {
     ...workflow,
     root: mapSteps(workflow.root, replace),
@@ -323,19 +370,10 @@ function withWorkflow(record: ProjectRecord, changed: Workflow): ProjectRecord {
   };
 }
 
-/**
- * The step of the workflow that has `stepId` among its calls: its caller. Async work, and
- * every step under it, is not searched: it stays read-only.
- */
-export function holderOf(workflow: Workflow, stepId: string): Step | undefined {
-  return holderUnder(workflow.root, stepId);
-}
-
-/** The step, or one under it by calls only, that has `stepId` among its calls. */
-function holderUnder(step: Step, stepId: string): Step | undefined {
-  const calls = step.calls ?? [];
-  if (calls.some((call) => call.id === stepId)) return step;
-  return calls.map((call) => holderUnder(call, stepId)).find(Boolean);
+/** The step without its async work, naming every field it keeps. */
+function withoutAsync(step: Step): Step {
+  const { id, componentId, action, calls } = step;
+  return { id, componentId, action, ...(calls && { calls }) };
 }
 
 /** The step with these calls; a step with none has no `calls` at all. */

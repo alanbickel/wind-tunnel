@@ -116,7 +116,7 @@ The steps, as the editor will offer them ([ADR-0021](../adr/0021-edit-async-work
 
 What this tests:
 
-- **Changing a step in place**, not removing and re-adding it, so its children survive a change of action. Only an `enqueue` takes async work, so changing one back to a `write` says that its async work goes.
+- **Changing a step in place**, not removing and re-adding it, so it keeps its id, its place and its selection, while what's under it goes after a confirmation. Only an `enqueue` takes async work, so changing one back to a `write` says that its async work goes.
 - **An edge no step uses.** Had Get order's read moved too, `fn-orders → orders-db` would be used by nothing. It's part of the architecture, so it stays, and its drawer says no step uses it.
 - **Room.** The workflow editor, the drawer, and the diagram are all in use at once, for a tree three calls deep. **Proposed** ([§3](#3-layout)).
 

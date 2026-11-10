@@ -82,7 +82,7 @@ flowchart TB
 - **The pickers.** The action picker is no longer locked, and the component picker no longer filters by the step's action: both offer every component. A component whose type accepts one action (SQS only accepts `enqueue`) still takes it at once.
 - **One undo step.** The command does the whole change, so Undo restores the component, the action and everything under it together, because the history keeps the record from before.
 - **Names and words.** The undo name says what went, as the add's says its edge: "Change fn-orders · invoke to fn-writer · invoke, and remove the 3 steps under it". The announcement: "Changed fn-orders · invoke to fn-writer · invoke. The 3 steps under it are gone." Changing to `enqueue` says there's a slot to fill: "Changed orders-db · write to orders-queue · enqueue. Added the edge from fn-orders to orders-queue. It has no async work yet."
-- **This changes what #161 shipped.** `changeStep` keeps a step's calls today, and the workflow-editor guide and CONTRIBUTING's Gotchas say so. #164 changes the command, its words, its tests, and those two passages.
+- **This changes what #161 shipped.** `changeStep` keeps a step's calls today, and the docs say so in several places: the workflow-editor guide (the `changeStep` row, "Async work stays read-only", and the paragraph on keeping every field), the user-interface guide ("Changing a step"), the application-layer guide (the `ChangeStep` row), and CONTRIBUTING's Gotchas. #164 changes the command, its words, its tests, and every passage that says `changeStep` keeps what's under a step; a search of `docs` and `CONTRIBUTING.md` for `changeStep` finds them.
 
 ### 4. What the screen shows
 

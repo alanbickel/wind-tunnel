@@ -112,7 +112,7 @@ The steps, as the editor will offer them ([ADR-0021](../adr/0021-edit-async-work
 2. **Fill the slot.** Under the step the outline says **New** "No async work yet. A message is taken off the queue and nothing runs." beside **New** "Add async work, done when a consumer takes the message". You choose `fn-writer`, marked "No edge from orders-queue yet; choosing it adds one.", and `invoke`: **New** "Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer."
 3. **Add the write.** Under fn-writer, "Add a call from fn-writer", `orders-db`, `write`, adds `fn-writer → orders-db`.
 4. **Undo** takes back one of these at a time, each with its edge.
-5. **Change it back.** Had you changed the `enqueue` back to a `write` of orders-db, the screen would ask: **New** "Change orders-queue · enqueue to orders-db · write? Its async work, 2 steps, goes." Cancel has the focus; confirming takes the async work, and one Undo brings back both it and the `enqueue`.
+5. **Change it back.** Had you changed the `enqueue` back to a `write` of orders-db, the screen would ask: **New** "Change orders-queue · enqueue to orders-db · write? The 2 steps under it go." Cancel has the focus; confirming takes them, and one Undo brings back both them and the `enqueue`.
 
 What this tests:
 

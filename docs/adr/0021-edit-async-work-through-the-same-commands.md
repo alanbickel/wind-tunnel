@@ -26,7 +26,7 @@ Edits to the async tree are the same edits as to the main one, on steps the comm
 
 1. **Async work is a slot on an `enqueue` step, not a list.** An `enqueue` step has zero or one async root. Its root is a call from the queue, along the queue's edge to the consumer, so everything about a call applies to it: the edge supplies its latency, timeout and retries; the queue type's `edgeDefaults` are the defaults of a new one; the consumer's component must have an edge from the queue, or the step shows `missing-edge`. There is no new kind of edge and no new field.
 2. **An empty slot is a valid state, and it's not stored.** An `enqueue` step with no `async` runs: each message is taken and nothing happens. The slot is empty because `async` is absent, so changing a step *to* `enqueue` stores nothing more than its component and action. The screen offers the slot because the step's action is `enqueue` and it has none. The outline says so: "No async work yet. A message is taken off the queue and nothing runs." There's no run issue for it: a user can point a step at an SQS queue and leave its outbound edge empty (decided in review).
-3. **Async work lives and dies with `enqueue`.** The command that changes a step enforces the validator's rule, so the editor never produces `async-not-on-enqueue`: after a change, the step has `async` only if its action is `enqueue`. The two issues about async work can still arrive from a stored project, and the editor can fix them (decision 5).
+3. **Async work lives and dies with `enqueue`.** Any change to a step drops what's under it ([decision 3](#3-changing-a-steps-component-or-action)), so the editor never produces `async-not-on-enqueue`: a step that becomes an `enqueue` starts with an empty slot, and one that stops being an `enqueue` has none. The two issues about async work can still arrive from a stored project, and the editor can fix them (decision 5).
 4. **Async work may nest.** An `enqueue` under async work gets a slot like any other: the model, the engine and the validator allow it, and a rule against it would be a new restriction with no reason in the model. A chain of queues is a real pattern (SQS to Lambda to SQS).
 
 ### 2. How the commands reach the async tree
@@ -47,41 +47,30 @@ Edits to the async tree are the same edits as to the main one, on steps the comm
 
 ### 3. Changing a step's component or action
 
-`changeStep` changes a step's component and action together, and today keeps its id, `calls` and `async` whatever it changes to. That has to end, because a step's children were chosen for the component it had: a database's `read` under one Lambda means nothing under another, and a consumer's edge starts at one particular queue. So, decided in review:
+`changeStep` changes a step's component and action together, and today keeps its id, `calls` and `async` whatever it changes to. That has to end, because what's under a step belongs to what the step was: a database's `read` under one Lambda means nothing under another, and a consumer's edge starts at one particular queue. So, decided in review:
 
-**A step keeps what's under it only while its component stays the same. Changing to a different component, even one of the same type, drops everything under the step, `calls` and `async` alike, after asking.** Within that, `async` also goes when the new action isn't `enqueue`, which is the validator's rule, so the command can't produce what the validator rejects. The step keeps its id.
+**Any change to a step's component or action drops everything under it, `calls` and `async` alike, after asking. The step keeps its id.** One rule, with no distinction between synchronous and async work, or between a different component and a different action of the same one. The model hardly needs the distinction: the only types with more than one action are RDS and DynamoDB (`read`, `write`), which have nothing under them in any template. If a type with several actions and children arrives, loosening the rule is safe, because it can't invalidate a stored project; tightening it later could.
 
 | The change | Becomes |
 |---|---|
-| A different component | Everything under the step goes, `calls` and `async`. The user is asked first, and told how many steps (below). |
-| The same component, a different action | The step keeps its `calls`; its `async` goes if the new action isn't `enqueue`, and the user is asked. |
-| To `enqueue` | The step gets an empty slot, which is nothing in the record (decision 1.2). It's a different component, so anything under it goes, after asking. |
-| `enqueue` to `enqueue` on another queue | A different component, so its async work goes, after asking. The consumer's edge belonged to the old queue, so no `missing-edge` is left on a step the user didn't touch. |
+| A different component, or a different action | Everything under the step goes, `calls` and `async`. The user is asked first, and told how many steps (below). A step with nothing under it changes at once. |
+| To `enqueue` | The step gets an empty slot, which is nothing in the record (decision 1.2). Whatever was under it went, as above. |
 | The same component and action | Nothing changes, as today. |
 
-The same rule as a flow. It's a picture of the table, which is the contract:
+Nothing can then leave a step with `async` and an action other than `enqueue`, which is the validator's rule, so the command can't produce what the validator rejects. The same rule as a flow; it's a picture of the table, which is the contract:
 
 ```mermaid
 flowchart TB
     start["changeStep: a new component and action for a step"]
-    sameComponent{"Same component<br/>as now?"}
-    sameAction{"Same action<br/>too?"}
-    stillEnqueue{"New action<br/>is enqueue?"}
+    changed{"Different component<br/>or action?"}
     nothing["Nothing changes"]
-    keepAll["Keeps its calls and its async work"]
-    dropAsync["Keeps its calls;<br/>its async work goes"]
     dropAll["Everything under it goes:<br/>calls and async work"]
     asks["Asks first if anything is under it,<br/>counting every step; focus on Cancel"]
     ownEdge["Adds the step's own edge from its caller,<br/>if it's missing"]
     emptySlot["If the step is now an enqueue, its async slot is empty<br/>(stored as nothing)"]
-    start --> sameComponent
-    sameComponent -->|yes| sameAction
-    sameComponent -->|no| dropAll
-    sameAction -->|yes| nothing
-    sameAction -->|no| stillEnqueue
-    stillEnqueue -->|yes| keepAll
-    stillEnqueue -->|no| dropAsync
-    dropAsync --> asks
+    start --> changed
+    changed -->|no| nothing
+    changed -->|yes| dropAll
     dropAll --> asks
     asks --> ownEdge
     ownEdge --> emptySlot
@@ -125,7 +114,7 @@ The editor can't produce `async-not-on-enqueue` or `async-not-delivered`, but a 
 | Edit | Undo name | Announcement |
 |---|---|---|
 | Add async work | "Add async work from orders-queue to fn-writer", or "…, and its edge" | "Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer." |
-| Change to a different component | "Change fn-orders · invoke to fn-writer · invoke, and remove the 3 steps under it" | "Changed … The 3 steps under it are gone." |
+| Change a step's component or action | "Change fn-orders · invoke to fn-writer · invoke, and remove the 3 steps under it" | "Changed … The 3 steps under it are gone." |
 | Change to `enqueue` | "Change orders-db · write to orders-queue · enqueue", or "…, and its edge" | "Changed … It has no async work yet." |
 | Remove the async root | "Remove fn-writer · invoke" | "Removed fn-writer · invoke. orders-queue · enqueue has no async work now." |
 | Add, change, move, remove below it | As in the main tree | As in the main tree |
@@ -138,7 +127,7 @@ Each with a `// Fails if` comment, as [testing.md](../contributing/testing.md) s
 
 **#164, change an action in place**
 
-- `changeStep`: the step keeps its id; a change to a different component, even of the same type, drops everything under it, `calls` and `async`; the same component with another action keeps its `calls`, and drops `async` only if the action isn't `enqueue`; the same component and action change nothing; a change to `enqueue` stores nothing more than its component and action; a change along a missing edge still adds the step's own edge, and nothing for what was under it. Undo (the history, over the same record) restores the step and everything under it.
+- `changeStep`: the step keeps its id; a change of component, even to one of the same type, or of action, drops everything under it, `calls` and `async` alike; the same component and action change nothing; a change to `enqueue` stores nothing more than its component and action; a change along a missing edge still adds the step's own edge, and nothing for what was under it. Undo (the history, over the same record) restores the step and everything under it.
 - The words: the question counts every step under the step, nested async work and calls included; none is asked when nothing is under it; the undo name and the announcement say how many went.
 - The screen: the picker is unlocked; the question has the focus on Cancel, and Cancel changes nothing; confirming announces what went; Undo restores all of it; no "Add a call" under an `enqueue`.
 
@@ -157,17 +146,17 @@ Each with a `// Fails if` comment, as [testing.md](../contributing/testing.md) s
 
 The maintainer settled the four questions this design raised (2026-11-10):
 
-1. **A step with calls, changed to `enqueue`:** ask, then drop them. The maintainer generalized it: the same rule holds for any change of a step's component to a different one, same type or not ([decision 3](#3-changing-a-steps-component-or-action)).
+1. **A step with calls, changed to `enqueue`:** ask, then drop them. The maintainer generalized it: the same rule holds for any change of a step's component or action, same type or not ([decision 3](#3-changing-a-steps-component-or-action)).
 2. **`enqueue` under async work:** allowed; chained queues are modeled ([decision 1.4](#1-the-model)).
-3. **Changing an `enqueue` to another queue while it has async work:** not left as a step with a missing edge. It follows the same ask-then-drop rule.
+3. **Changing an `enqueue` to another queue while it has async work:** not left as a step with a missing edge. It follows the same ask-then-drop rule, which the maintainer widened in review to every change of a step's component or action ([decision 3](#3-changing-a-steps-component-or-action)).
 4. **An `enqueue` with no async work:** valid, with no run issue ([decision 1.2](#1-the-model)).
 
 ## Consequences
 
 - **The editor finishes M6's workflow editing.** A user can model a queue in front of a slow component, and the findings, which read the run, work on what they build.
 - **No schema, engine, validator or detector change.** The model already had the concept; the editor reaches it. A stored project opens as before.
-- **The commands grow one function and a rule.** `addAsyncWork` is new; `changeStep` gains the keep-or-drop rule, for `calls` as well as `async`; two search helpers change their scope and name. The step's id is still the only address.
-- **Re-pointing a step can now lose work**, so it asks, as a remove does, and #161's behavior changes with it: a step keeps what's under it only while its component stays. A leaf changes at once; re-pointing a step in the middle of a tree costs a confirmation and a rebuild of what was under it.
+- **The commands grow one function and a rule.** `addAsyncWork` is new; `changeStep` drops what's under a step it changes, `calls` and `async` alike; two search helpers change their scope and name. The step's id is still the only address.
+- **Changing a step can now lose work**, so it asks, as a remove does, and #161's behavior changes with it: a step no longer keeps what's under it through a change. A leaf changes at once; changing a step in the middle of a tree costs a confirmation and a rebuild of what was under it.
 - **The empty slot is derived, not stored**, so there's nothing to migrate and nothing to get out of step; the cost is that the screen derives the state from two fields.
 - **Nesting is allowed**, so the outline, the path and the findings have to keep working at any depth. They already do: they walk the tree recursively.
 - **Sub-issues change.** #164 and #165 take the rules above, and #166 gains the changes in its list ([#162](https://github.com/alanbickel/wind-tunnel/issues/162)'s sub-issues are adjusted once this is reviewed).

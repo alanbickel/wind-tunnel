@@ -147,12 +147,19 @@ function useChange({
   );
 }
 
+/** What a step is called once it's changed to a component and an action. */
+export function toLabelOf(choice: CallChoice, action: StepAction): string {
+  return `${choice.name} · ${action}`;
+}
+
 /** The words for a changed step: its two labels, and the edge if one is added. */
 function changeText({ start, choice, action }: ChangedStep): ChangeStepText {
   const { callerName } = start;
   return changeStepText({
     fromLabel: start.label,
-    toLabel: `${choice.name} · ${action}`,
+    toLabel: toLabelOf(choice, action),
+    stepsBelow: start.stepsBelow,
+    toEnqueue: action === "enqueue",
     edge:
       choice.addsEdge && callerName !== undefined
         ? { callerName, calleeName: choice.name }

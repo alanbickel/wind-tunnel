@@ -5,13 +5,15 @@ import styles from "./SelectionDetails.module.css";
 
 export interface RemoveConfirmationProps {
   readonly text: RemovalText;
+  /** What the confirming button says; defaults to "Remove". */
+  readonly confirmLabel?: string;
   readonly onConfirm: () => void;
   /** On Cancel, and on Escape. */
   readonly onCancel: () => void;
 }
 
 /**
- * Asks before a remove, naming what it takes and the steps it leaves that
+ * Asks before a remove, or a change that drops steps, naming what it takes and the steps it leaves that
  * can't run (UX design §2.4 steps 4 and 5). A screen reader reads the
  * question and the warning as the group's name and description.
  */
@@ -46,7 +48,11 @@ export function RemoveConfirmation(props: RemoveConfirmationProps) {
  * Remove and Cancel. The focus moves to Cancel, so an Enter pressed by
  * mistake keeps the component.
  */
-function ConfirmationButtons({ onConfirm, onCancel }: RemoveConfirmationProps) {
+function ConfirmationButtons({
+  confirmLabel = "Remove",
+  onConfirm,
+  onCancel,
+}: RemoveConfirmationProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => {
     cancelRef.current?.focus();
@@ -54,7 +60,7 @@ function ConfirmationButtons({ onConfirm, onCancel }: RemoveConfirmationProps) {
   return (
     <div className={styles.actions}>
       <Button variant="primary" onClick={onConfirm}>
-        Remove
+        {confirmLabel}
       </Button>
       <Button ref={cancelRef} onClick={onCancel}>
         Cancel

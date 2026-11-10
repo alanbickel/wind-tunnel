@@ -165,11 +165,14 @@ export interface ChangeStepInput extends StepInput {
 
 /**
  * Changes a step's component and action together, so it's never left
- * without either. The step keeps its id, its calls, and its `async` (which
- * can't change here). If the step's caller has no edge to the new
- * component, the same command adds one, through `connectIfMissing`, as
- * `addCall` does, so it's one undo step; the root has no caller, so it adds
- * none. A step that's the root or one of a step's calls (async work stays
+ * without either. The step keeps its id and loses everything under it,
+ * `calls` and `async` alike (ADR-0021 decision 3): what's under a step
+ * belongs to what the step was. A step changed to `enqueue` has an empty
+ * async slot, which is stored as no `async`. If the step's caller has no
+ * edge to the new component, the same command adds one, through
+ * `connectIfMissing`, as `addCall` does, so it's one undo step; the root has
+ * no caller, so it adds none. Nothing is added for what was under the step.
+ * A step that's the root or one of a step's calls (async work stays
  * read-only), or isn't in the workflow, returns the record as it was; so
  * does a change to what the step already is, unless its caller has no edge
  * to its component, which is still added.
@@ -184,8 +187,9 @@ export function changeStep(
   if (workflow === undefined || step === undefined) return record;
   const unchanged = step.componentId === componentId && step.action === action;
   const caller = holderOf(workflow, stepId);
+  // Names id, componentId and action only, so calls and async go.
   const change = (s: Step): Step =>
-    s.id === stepId ? { ...s, componentId, action } : s;
+    s.id === stepId ? { id: s.id, componentId, action } : s;
   const withStep = withWorkflow(record, {
     ...workflow,
     root: mapSteps(workflow.root, change),

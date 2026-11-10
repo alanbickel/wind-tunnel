@@ -244,6 +244,21 @@ describe("OpenedProject's changing a workflow's step", () => {
     ).toBe("true");
   });
 
+  // Fails if picking another component while a question is open leaves the
+  // question for the earlier choice on screen, so Change still applies it.
+  it("drops the question when the pickers move back to the step's own component", () => {
+    renderProject({ project: withStepsUnderFunction() });
+    selectStep("1.1 Function · invoke");
+    pick("Component", "table");
+    pick("Action", "write");
+    expect(screen.getByRole("button", { name: "Change" })).toBeTruthy();
+
+    pick("Component", "fn");
+
+    expect(screen.queryByRole("button", { name: "Change" })).toBeNull();
+    expect(outlineText()).toHaveLength(4);
+  });
+
   // Fails if confirming doesn't change the step and drop everything under
   // it, doesn't say how many went, names Undo for less than the whole
   // change, or one Undo doesn't restore the component, the action, and

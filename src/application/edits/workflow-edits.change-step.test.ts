@@ -199,7 +199,7 @@ describe("changeStep", () => {
   });
 
   // Fails if a change along a missing edge adds none, adds one for a step
-  // that was under the changed step, or isn't one record (one undo step).
+  // that was under the changed step.
   it("adds the step's own edge and nothing for what was under it", () => {
     const next = change("fn-invoke", { componentId: "table", action: "read" });
 

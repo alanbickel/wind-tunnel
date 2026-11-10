@@ -1,5 +1,8 @@
-import { useMemo, useRef, useState } from "react";
-import type { OutlineStep } from "../../application/details/details";
+import { useMemo, useRef, useState, type RefObject } from "react";
+import type {
+  OutlineStep,
+  RemovalText,
+} from "../../application/details/details";
 import { changeStepQuestion } from "../../application/details/change-step-text";
 import type { ChangeStepStart } from "../../application/use-cases/change-step";
 import type { CallChoice } from "../../application/use-cases/call-choices";
@@ -125,29 +128,77 @@ function useChangeQuestion({ start, onChange }: ChangePickersProps) {
     else setAsked(changed);
   };
   const text = asked && questionOf(start, asked);
-  return { selectRef, text, save, answer };
+  const drop = () => {
+    setAsked(undefined);
+  };
+  return { selectRef, text, save, answer, drop };
 }
 
 /** The two pickers, and the question a change that drops steps asks. */
 function ChangePickers(props: ChangePickersProps) {
-  const { start, step } = props;
   const question = useChangeQuestion(props);
-  const { choice, pending, pickComponent, pickAction } = useStepDraft({
-    ...props,
-    onChange: question.save,
-  });
+  const draft = useStepDraft({ ...props, onChange: question.save });
+  // A new pick replaces the held change: the question is about the old one.
+  const pickComponent = (picked: CallChoice) => {
+    question.drop();
+    draft.pickComponent(picked);
+  };
   return (
     <div
       role="group"
-      aria-label={`Change step ${step.number}`}
+      aria-label={`Change step ${props.step.number}`}
       className={styles.firstStep}
     >
+      <StepPickers
+        start={props.start}
+        draft={{ ...draft, pickComponent }}
+        selectRef={question.selectRef}
+      />
+      {question.text && (
+        <ChangeQuestion text={question.text} answer={question.answer} />
+      )}
+    </div>
+  );
+}
+
+interface ChangeQuestionProps {
+  readonly text: RemovalText;
+  readonly answer: (confirmed: boolean) => void;
+}
+
+/** The question, with Change and Cancel. */
+function ChangeQuestion({ text, answer }: ChangeQuestionProps) {
+  return (
+    <RemoveConfirmation
+      text={text}
+      confirmLabel="Change"
+      onConfirm={() => {
+        answer(true);
+      }}
+      onCancel={() => {
+        answer(false);
+      }}
+    />
+  );
+}
+
+interface StepPickersProps {
+  readonly start: ChangeStepStart;
+  readonly draft: StepDraft;
+  readonly selectRef: RefObject<HTMLSelectElement | null>;
+}
+
+/** The component picker and the action picker. */
+function StepPickers({ start, draft, selectRef }: StepPickersProps) {
+  const { choice, pending, pickComponent, pickAction } = draft;
+  return (
+    <>
       <Picker
         label="Component"
         prompt="Choose a component"
         value={choice?.componentId}
         options={start.choices.map(componentOption)}
-        selectRef={question.selectRef}
+        selectRef={selectRef}
         onPick={(id) => {
           const picked = start.choices.find((c) => c.componentId === id);
           if (picked !== undefined) pickComponent(picked);
@@ -159,19 +210,7 @@ function ChangePickers(props: ChangePickersProps) {
         pending={pending}
         onPick={pickAction}
       />
-      {question.text && (
-        <RemoveConfirmation
-          text={question.text}
-          confirmLabel="Change"
-          onConfirm={() => {
-            question.answer(true);
-          }}
-          onCancel={() => {
-            question.answer(false);
-          }}
-        />
-      )}
-    </div>
+    </>
   );
 }
 

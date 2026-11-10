@@ -59,6 +59,34 @@ Edits to the async tree are the same edits as to the main one, on steps the comm
 | `enqueue` to `enqueue` on another queue | A different component, so its async work goes, after asking. The consumer's edge belonged to the old queue, so no `missing-edge` is left on a step the user didn't touch. |
 | The same component and action | Nothing changes, as today. |
 
+The same rule as a flow. It's a picture of the table, which is the contract:
+
+```mermaid
+flowchart TB
+    start["changeStep: a new component and action for a step"]
+    sameComponent{"Same component<br/>as now?"}
+    sameAction{"Same action<br/>too?"}
+    stillEnqueue{"New action<br/>is enqueue?"}
+    nothing["Nothing changes"]
+    keepAll["Keeps its calls and its async work"]
+    dropAsync["Keeps its calls;<br/>its async work goes"]
+    dropAll["Everything under it goes:<br/>calls and async work"]
+    asks["Asks first if anything is under it,<br/>counting every step; focus on Cancel"]
+    ownEdge["Adds the step's own edge from its caller,<br/>if it's missing"]
+    emptySlot["If the step is now an enqueue, its async slot is empty<br/>(stored as nothing)"]
+    start --> sameComponent
+    sameComponent -->|yes| sameAction
+    sameComponent -->|no| dropAll
+    sameAction -->|yes| nothing
+    sameAction -->|no| stillEnqueue
+    stillEnqueue -->|yes| keepAll
+    stillEnqueue -->|no| dropAsync
+    dropAsync --> asks
+    dropAll --> asks
+    asks --> ownEdge
+    ownEdge --> emptySlot
+```
+
 - **The question.** A change that drops steps asks before saving, with the focus on Cancel, as a remove does. It counts every step under the step, async work and nested steps included: "Change fn-orders · invoke to fn-writer · invoke? The 3 steps under it go." A step with nothing under it changes at once, as today.
 - **The step's own edge** is unchanged: if its caller has no edge to the new component, the same command adds one (`connectIfMissing`), as `addCall` does. Only what's *under* the step is dropped.
 - **No calls under an `enqueue`.** The editor stops offering "Add a call from orders-queue", since a queue's follow-up work is its async work. The validator doesn't change, so a stored project with such calls still opens. (Assumed from the answer to the first question, not separately confirmed.)

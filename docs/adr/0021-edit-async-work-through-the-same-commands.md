@@ -121,27 +121,6 @@ The editor can't produce `async-not-on-enqueue` or `async-not-delivered`, but a 
 
 An id never appears in any of them.
 
-### 7. Tests each sub-issue needs
-
-Each with a `// Fails if` comment, as [testing.md](../contributing/testing.md) says.
-
-**#164, change an action in place**
-
-- `changeStep`: the step keeps its id; a change of component, even to one of the same type, or of action, drops everything under it, `calls` and `async` alike; the same component and action change nothing; a change to `enqueue` stores nothing more than its component and action; a change along a missing edge still adds the step's own edge, and nothing for what was under it. Undo (the history, over the same record) restores the step and everything under it.
-- The words: the question counts every step under the step, nested async work and calls included; none is asked when nothing is under it; the undo name and the announcement say how many went.
-- The screen: the picker is unlocked; the question has the focus on Cancel, and Cancel changes nothing; confirming announces what went; Undo restores all of it; no "Add a call" under an `enqueue`.
-
-**#165, the async slot and the async tree**
-
-- The search: `stepInCalls` and `holderOf` find a step in both trees; the async root's holder is the queue.
-- `addAsyncWork`: sets the slot and adds the edge when it's missing, in one command; adds none when it's there; returns the record unchanged for a step that isn't an `enqueue`, has async work already, or isn't in the workflow; leaves the input alone.
-- Each existing command on the async tree: `addCall` under the async root; `changeStep` on the root along a missing edge from the queue; `moveStep` among siblings below the root, and unchanged for the root; `removeStep` on the root leaves the slot empty and the queue's `calls` as they were, and takes nothing from the architecture.
-- The slot: shown only on an `enqueue` with none; the draft saves when both are chosen, and Escape saves nothing; the words for an empty slot.
-- The older project's issues: `async-not-on-enqueue` is fixed by Remove on the root, and by changing the action; `async-not-delivered` shows on the step.
-- **The acceptance test:** the §2.6 sketch in a copy of Template A, through the same edit history the screen keeps: three calls and their three edges (`fn-orders → orders-queue`, `orders-queue → fn-writer`, `fn-writer → orders-db`), each undone in turn, with each announcement. The result has no run issues, and a run of it delivers messages.
-
-**#166, docs** are checked by the sequence test's output, as the guide's other worked example is.
-
 ## Decided in review
 
 The maintainer settled the four questions this design raised (2026-11-10):
@@ -159,4 +138,4 @@ The maintainer settled the four questions this design raised (2026-11-10):
 - **Changing a step can now lose work**, so it asks, as a remove does, and #161's behavior changes with it: a step no longer keeps what's under it through a change. A leaf changes at once; changing a step in the middle of a tree costs a confirmation and a rebuild of what was under it.
 - **The empty slot is derived, not stored**, so there's nothing to migrate and nothing to get out of step; the cost is that the screen derives the state from two fields.
 - **Nesting is allowed**, so the outline, the path and the findings have to keep working at any depth. They already do: they walk the tree recursively.
-- **Sub-issues change.** #164 and #165 take the rules above, and #166 gains the changes in its list ([#162](https://github.com/alanbickel/wind-tunnel/issues/162)'s sub-issues are adjusted once this is reviewed).
+- **The plan is on the issues.** The scope and tests for #164 to #166, which follow from this, are on those issues ([#162](https://github.com/alanbickel/wind-tunnel/issues/162)), not here.

@@ -346,13 +346,17 @@ interface EmptyAsyncSlotProps extends OutlineItemProps {
 /**
  * An `enqueue` step's empty async slot: the heading, what an empty slot
  * means, and the button that opens a draft of async work. A message is
- * taken off the queue and nothing runs until there is some.
+ * taken off the queue and nothing runs until there is some. The group is
+ * named by the heading, so a screen reader entering the button hears it.
  */
 function EmptyAsyncSlot(props: EmptyAsyncSlotProps) {
   const { slot, step } = props;
+  const labelId = useId();
   return (
-    <div className={styles.async}>
-      <p className={styles.asyncLabel}>{ASYNC_WORK_HEADING}</p>
+    <div role="group" aria-labelledby={labelId} className={styles.async}>
+      <p id={labelId} className={styles.asyncLabel}>
+        {ASYNC_WORK_HEADING}
+      </p>
       <p className={styles.asyncLabel}>{slot.text}</p>
       <AddCall
         project={props.project}

@@ -141,6 +141,15 @@ describe("OpenedProject's async work under an enqueue", () => {
       screen.getAllByRole("button", { name: /^Add async work/ }),
     ).toHaveLength(1);
     expect(slotButton("1.1.1")).toBeTruthy();
+    // Fails if the empty slot isn't a group named by its heading, so a
+    // screen reader reaching the button doesn't hear what the slot is.
+    const group = screen.getByRole("group", {
+      name: "Async work, done when a consumer takes the message",
+    });
+    expect(within(group).getByText(/^No async work yet/)).toBeTruthy();
+    expect(
+      within(group).getByRole("button", { name: /^Add async work/ }),
+    ).toBeTruthy();
     cleanup();
 
     renderProject({ project: ordersWith({ async: WRITER_STEP }) });

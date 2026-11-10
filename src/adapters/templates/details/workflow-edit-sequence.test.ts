@@ -229,6 +229,8 @@ function changedCall(from: Place): Place {
     fromLabel: start.label,
     toLabel: "orders-db · write",
     edge: undefined,
+    stepsBelow: 0,
+    toEnqueue: false,
   });
   return apply({
     from,

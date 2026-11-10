@@ -154,6 +154,8 @@ describe("OpenedProject's changing a workflow's step", () => {
     ).toBe("true");
 
     pick("Action", "write");
+    // The sample's Function has a call under it, so the change asks first.
+    fireEvent.click(screen.getByRole("button", { name: "Change" }));
 
     expect(outlineText()[1]).toBe("1.1 Table · write");
     expect(picker("Action").value).toBe("write");
@@ -206,36 +208,108 @@ describe("OpenedProject's changing a workflow's step", () => {
     expect(screen.queryByText(/accepts only/)).toBeNull();
   });
 
-  // Fails if a step with async work can change its action, or the picker
-  // doesn't say why it can't, or can't be reached by the keyboard.
-  it("makes the action of a step with async work unusable, with the reason", () => {
+  // Fails if a step with async work still has a locked action picker, or a
+  // change that drops steps saves before it's confirmed, or the question
+  // miscounts the steps (the call and the async work), or the focus isn't on
+  // Cancel, or Cancel changes anything or leaves the pickers on the draft.
+  it("asks before a change that drops steps, with the focus on Cancel, and Cancel changes nothing", () => {
+    renderProject({ project: withStepsUnderFunction() });
+    selectStep("1.1 Function · invoke");
+    expect(picker("Action").getAttribute("aria-disabled")).toBeNull();
+
+    pick("Component", "table");
+    pick("Action", "write");
+
+    const question = screen.getByRole("group", {
+      name: "Change Function · invoke to Table · write? The 2 steps under it go.",
+    });
+    expect(document.activeElement).toBe(
+      within(question).getByRole("button", { name: "Cancel" }),
+    );
+    expect(outlineText()[1]).toBe("1.1 Function · invoke");
+
+    fireEvent.click(within(question).getByRole("button", { name: "Cancel" }));
+
+    expect(
+      screen.queryByRole("group", { name: /^Change Function/ }),
+    ).toBeNull();
+    expect(outlineText()).toHaveLength(4);
+    expect(picker("Component").value).toBe("fn");
+    expect(picker("Action").value).toBe("invoke");
+    expect(document.activeElement).toBe(picker("Component"));
+    expect(
+      screen
+        .getByRole("button", { name: "Undo" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  // Fails if confirming doesn't change the step and drop everything under
+  // it, doesn't say how many went, names Undo for less than the whole
+  // change, or one Undo doesn't restore the component, the action, and
+  // everything under it.
+  it("changes the step and drops what's under it on Change, and one Undo restores all", async () => {
+    const { projects } = renderProject({ project: withStepsUnderFunction() });
+    selectStep("1.1 Function · invoke");
+    pick("Component", "table");
+    pick("Action", "write");
+
+    fireEvent.click(screen.getByRole("button", { name: "Change" }));
+
+    expect(outlineText()).toEqual(["1 API · invoke", "1.1 Table · write"]);
+    expect(detailsStatus().textContent).toBe(
+      "Changed Function · invoke to Table · write. Added the edge from API to Table. The 2 steps under it are gone.",
+    );
+    await savedRecord(
+      projects,
+      (r) => r.project.workflows[0]?.root.calls?.[0]?.calls === undefined,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Undo change Function · invoke to Table · write, and its edge, and remove the 2 steps under it",
+      }),
+    );
+
+    expect(outlineText()).toHaveLength(4);
+    expect(outlineText()[1]).toBe("1.1 Function · invoke");
+  });
+
+  // Fails if a step whose action is enqueue offers "Add a call": its
+  // follow-up work is its async work.
+  it('offers no "Add a call" under an enqueue', () => {
     renderProject({
       project: withRoot({
         id: "api-invoke",
         componentId: "api",
         action: "invoke",
-        calls: [
-          {
-            id: "fn",
-            componentId: "fn",
-            action: "invoke",
-            async: { id: "consumer", componentId: "table", action: "read" },
-          },
-        ],
+        calls: [{ id: "enq", componentId: "fn", action: "enqueue" }],
       }),
     });
-    selectStep("1.1 Function · invoke");
+    selectStep("1.1 Function · enqueue");
 
-    const action = picker("Action");
-    expect(action.getAttribute("aria-disabled")).toBe("true");
-    expect(action.hasAttribute("disabled")).toBe(false);
-    const explanation = document.getElementById(
-      action.getAttribute("aria-describedby") ?? "",
-    );
-    expect(explanation?.textContent).toBe(
-      "Remove its async work first, or wait for the async-work editor.",
-    );
-    fireEvent.change(action, { target: { value: "write" } });
-    expect(outlineText()[1]).toBe("1.1 Function · invoke");
+    expect(
+      screen
+        .getAllByRole("button", { name: /^Add a call from/ })
+        .map((b) => b.textContent),
+    ).toEqual(["Add a call from API"]);
   });
 });
+
+/** API > Function (invoke), which has a call to the Table and async work on it. */
+function withStepsUnderFunction(): Project {
+  return withRoot({
+    id: "api-invoke",
+    componentId: "api",
+    action: "invoke",
+    calls: [
+      {
+        id: "fn",
+        componentId: "fn",
+        action: "invoke",
+        calls: [{ id: "read", componentId: "table", action: "read" }],
+        async: { id: "consumer", componentId: "table", action: "read" },
+      },
+    ],
+  });
+}

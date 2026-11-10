@@ -6,14 +6,10 @@ import type {
   Step,
   StepAction,
 } from "../../domain/model/project";
-import { ASYNC_ACTION_LOCKED } from "../details/change-step-text";
 import { holderOf, stepInCalls } from "../edits/workflow-edits";
+import { stepsBelow } from "../../domain/model/step-tree";
 import type { IdGenerator } from "../ports/id-generator";
-import {
-  callChoices,
-  type CallChoice,
-  type CallChoicesInput,
-} from "./call-choices";
+import { callChoices, type CallChoice } from "./call-choices";
 
 export interface ChangeStepDependencies {
   /** What actions each type accepts, its display name, and its edge defaults. */
@@ -42,10 +38,10 @@ export interface ChangeStepStart {
   readonly edgeSettings: EdgeSettings | undefined;
   /** The caller's component name; undefined for the root. */
   readonly callerName: string | undefined;
-  /** The components to choose from: the caller's neighbours first; with async work, only those whose type accepts the step's action. */
+  /** The components to choose from, the caller's neighbours first. */
   readonly choices: readonly CallChoice[];
-  /** Why the action can't change; undefined when it can. */
-  readonly actionLocked: string | undefined;
+  /** How many steps are under the step, calls and async work and everything nested; a change drops them all. */
+  readonly stepsBelow: number;
 }
 
 /** The step's label, "orders-db · read"; "a removed component" if the project has none. */
@@ -69,16 +65,6 @@ function componentOf(
   return project.architecture.components.find(
     (c) => c.id === step?.componentId,
   );
-}
-
-/**
- * The components a step can be changed to. With async work, only those whose
- * type accepts its action, since the action can't change while it has it.
- */
-function choicesFor(input: CallChoicesInput, step: Step): CallChoice[] {
-  const choices = callChoices(input);
-  if (step.async === undefined) return choices;
-  return choices.filter((c) => c.actions.includes(step.action));
 }
 
 /**
@@ -111,8 +97,8 @@ export class ChangeStep {
       edgeId: ids.newId(),
       edgeSettings: edgeDefaultsOf(registry, caller),
       callerName: caller?.name,
-      choices: choicesFor({ registry, project, caller }, step),
-      actionLocked: step.async && ASYNC_ACTION_LOCKED,
+      choices: callChoices({ registry, project, caller }),
+      stepsBelow: stepsBelow(step).length,
     };
   }
 }

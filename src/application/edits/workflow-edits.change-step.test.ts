@@ -18,7 +18,7 @@ const step = (id: string, rest: Partial<Step> = {}): Step => ({
 });
 
 // The sample's "Read item" is api > fn > table (read), with edges api → fn
-// and fn → table. "With async" has a queue's async work, read-only.
+// and fn → table. "With async" has a queue's async work, under an enqueue.
 const [read] = sampleRecord.project.workflows;
 if (read === undefined) throw new Error("The sample has a workflow");
 const withAsync: Workflow = {
@@ -62,12 +62,52 @@ function change(
   });
 }
 
+/** The "async" workflow's records, with calls under the enqueue as well as async work. */
+function nestedRecord(): ProjectRecord {
+  const enq = step("enq", {
+    action: "enqueue",
+    calls: [step("call")],
+    async: step("consumer", { calls: [step("below")] }),
+  });
+  const workflow: Workflow = {
+    ...withAsync,
+    root: { ...withAsync.root, calls: [enq] },
+  };
+  return {
+    ...record,
+    project: {
+      ...record.project,
+      workflows: record.project.workflows.map((w) =>
+        w.id === workflow.id ? workflow : w,
+      ),
+    },
+  };
+}
+
+/** `enq` of the nested record, changed. */
+function changeStepIn(from: ProjectRecord, to: ChangeTo): ProjectRecord {
+  return changeStep(from, {
+    workflowId: "async",
+    stepId: "enq",
+    ...to,
+    edgeId: "e",
+    edgeSettings: undefined,
+  });
+}
+
+function rootOf(from: ProjectRecord): Step {
+  const root = from.project.workflows[1]?.root;
+  if (root === undefined) throw new Error("The record has the async workflow");
+  return root;
+}
+
 const TABLE_WRITE: ChangeTo = { componentId: "table", action: "write" };
 
 describe("changeStep", () => {
-  // Fails if the step loses its id or its calls, or any other step,
-  // workflow, the layout, or the input record changes.
-  it("changes the component and action and keeps the step's id and calls", () => {
+  // Fails if the step loses its id, keeps what's under it (a component's
+  // calls mean nothing under another), or any other step, workflow, the
+  // layout, or the input record changes.
+  it("changes the component and action, keeps the step's id, and drops its calls", () => {
     const before = copyOf(record);
 
     const next = change("fn-invoke", { componentId: "table", action: "read" });
@@ -78,7 +118,11 @@ describe("changeStep", () => {
       "table",
       "read",
     ]);
-    expect(fn?.calls).toEqual([step("table-read")]);
+    expect(fn).toEqual({
+      id: "fn-invoke",
+      componentId: "table",
+      action: "read",
+    });
     expect(next.project.workflows[1]).toBe(withAsync);
     expect(next.layout).toBe(record.layout);
     expect(record).toEqual(before);
@@ -116,20 +160,53 @@ describe("changeStep", () => {
     expect(next.project.architecture).toBe(record.project.architecture);
   });
 
-  // Fails if changing a step drops its `async`: the async-work item relies
-  // on it surviving (a step keeps its async work when its component or
-  // action is changed around it).
-  it("keeps a step's async untouched", () => {
+  // Fails if a change of component drops only the calls or only the async
+  // work, or only when the type differs (even a change to another component
+  // of the same type drops what's under the step), or a change of action
+  // alone keeps them.
+  it("drops calls and async work on any change of component or action", () => {
+    const nested = nestedRecord();
+    const toFn = changeStepIn(nested, { componentId: "fn", action: "invoke" });
+    const toWrite = changeStepIn(nested, TABLE_WRITE);
+
+    expect(rootOf(toFn).calls?.[0]).toEqual(
+      step("enq", { componentId: "fn", action: "invoke" }),
+    );
+    expect(rootOf(toWrite).calls?.[0]).toEqual(step("enq", TABLE_WRITE));
+    const sameType = changeStepIn(nested, {
+      componentId: "other",
+      action: "enqueue",
+    });
+    expect(rootOf(sameType).calls?.[0]).toEqual(
+      step("enq", { componentId: "other", action: "enqueue" }),
+    );
+  });
+
+  // Fails if a change to `enqueue` stores more than the component and action
+  // (an empty async slot is no `async`), or keeps the async work it had.
+  it("stores nothing more than the component and action for a change to enqueue", () => {
     const next = change(
       "enq",
-      { componentId: "fn", action: "invoke" },
+      { componentId: "fn", action: "enqueue" },
       "async",
     );
 
-    expect(next).not.toBe(record);
-    const enq = next.project.workflows[1]?.root.calls?.[0];
-    expect(enq?.async).toEqual(step("consumer"));
-    expect(enq?.componentId).toBe("fn");
+    expect(next.project.workflows[1]?.root.calls?.[0]).toEqual({
+      id: "enq",
+      componentId: "fn",
+      action: "enqueue",
+    });
+  });
+
+  // Fails if a change along a missing edge adds none, adds one for a step
+  // that was under the changed step, or isn't one record (one undo step).
+  it("adds the step's own edge and nothing for what was under it", () => {
+    const next = change("fn-invoke", { componentId: "table", action: "read" });
+
+    expect(next.project.architecture.edges).toEqual([
+      ...record.project.architecture.edges,
+      expect.objectContaining({ from: "api", to: "table" }),
+    ]);
   });
 
   // Fails if a step under async work, a step or workflow that isn't there,

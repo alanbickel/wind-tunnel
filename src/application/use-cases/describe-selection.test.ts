@@ -308,7 +308,8 @@ describe("DescribeSelection", () => {
   // its id or its component's id rather than its component's name, drops
   // an enqueue's async work or numbers it before the calls, or puts the
   // queue's call to the table, which has no edge, on any step but its own;
-  // or offers "Add a call" on async work, which stays read-only.
+  // or offers "Add a call" on async work, which stays read-only, or under
+  // an enqueue, whose follow-up work is its async work (ADR-0021).
   it("outlines a workflow's steps, numbered, async work after the calls", () => {
     const withCall: Project = {
       ...queued,
@@ -347,7 +348,7 @@ describe("DescribeSelection", () => {
           number: "1.1",
           label: "Queue · enqueue",
           issues: [],
-          addCallLabel: "Add a call from Queue",
+          addCallLabel: undefined,
           editing: {
             callerStepId: "api-invoke",
             moves: undefined,

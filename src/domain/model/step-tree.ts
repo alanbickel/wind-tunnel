@@ -88,7 +88,8 @@ export type StepChange = (step: Step) => Step;
 /**
  * The tree with `change` applied to every step, children first. The tree
  * keeps its shape: `change` sees each step with its rebuilt `calls` and
- * `async`, and shouldn't add or remove them.
+ * `async`. It shouldn't add or remove them, except to drop the children of
+ * the step it's changing (`changeStep`).
  */
 export function mapSteps(step: Step, change: StepChange): Step {
   return change({

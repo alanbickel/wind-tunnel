@@ -135,13 +135,17 @@ function readOnly(context: OutlineContext): OutlineContext {
   return { ...context, editable: false };
 }
 
-/** "Add a call from api", or undefined where a step can't take a call. */
+/**
+ * "Add a call from api", or undefined where a step can't take a call: async
+ * work, a step whose component is gone, and an `enqueue`, whose follow-up
+ * work is its async work (ADR-0021 decision 3).
+ */
 function addCallLabel(step: Step, context: OutlineContext): string | undefined {
   const { project, editable } = context;
   const exists = project.architecture.components.some(
     (c) => c.id === step.componentId,
   );
-  if (!editable || !exists) return undefined;
+  if (!editable || !exists || step.action === "enqueue") return undefined;
   return `Add a call from ${componentName(project, step.componentId)}`;
 }
 

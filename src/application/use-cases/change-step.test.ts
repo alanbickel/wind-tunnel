@@ -43,7 +43,6 @@ describe("ChangeStep", () => {
       action: "read",
       label: "Table · read",
       callerName: "Function",
-      actionLocked: undefined,
     });
     expect(start?.edgeSettings?.timeoutMs).toBe(5_000);
   });
@@ -73,20 +72,28 @@ describe("ChangeStep", () => {
     ]);
   });
 
-  // Fails if a step with async work can change its action, or isn't told why,
-  // or is offered a component whose type doesn't accept its action
-  // (changing the component would then change the action).
-  it("locks the action of a step with async work, and offers only components that accept it", () => {
+  // Fails if a step with async work still locks its action, or filters the
+  // components by its action (the picker offers every component, and a
+  // change drops what's under the step), or the count leaves out a nested
+  // step, async work, or calls.
+  it("offers every component for a step with async work, and counts the steps under a step", () => {
     const start = awsChangeStep().execute({
       project: withAsync,
       workflowId: "async",
       stepId: "enq",
     });
 
-    expect(start?.actionLocked).toBe(
-      "Remove its async work first, or wait for the async-work editor.",
-    );
-    expect(start?.choices.map((c) => c.componentId)).toEqual(["fn"]);
+    expect(start).not.toHaveProperty("actionLocked");
+    expect(start?.choices.map((c) => c.componentId)).toEqual(["fn", "table"]);
+    expect(start?.stepsBelow).toBe(1);
+    const root = awsChangeStep().execute({
+      project: withAsync,
+      workflowId: "async",
+      stepId: "root",
+    });
+    expect(root?.stepsBelow).toBe(2);
+    const leaf = awsChangeStep().execute({ ...base, stepId: "table-read" });
+    expect(leaf?.stepsBelow).toBe(0);
   });
 
   // Fails if async work, a step that isn't there, or a workflow that isn't

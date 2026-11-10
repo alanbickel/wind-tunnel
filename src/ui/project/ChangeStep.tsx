@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { OutlineStep } from "../../application/details/details";
+import { changeStepQuestion } from "../../application/details/change-step-text";
 import type { ChangeStepStart } from "../../application/use-cases/change-step";
 import type { CallChoice } from "../../application/use-cases/call-choices";
 import type { Project, StepAction } from "../../domain/model/project";
 import { useUseCases } from "../app/useUseCases";
 import { Picker, type PickerOption } from "./fields/Picker";
+import { RemoveConfirmation } from "./RemoveConfirmation";
 import styles from "./SelectionDetails.module.css";
-import type { ChangedStep } from "./useStepEdits";
+import { toLabelOf, type ChangedStep } from "./useStepEdits";
 
 export interface ChangeStepProps {
   readonly project: Project;
@@ -20,10 +22,12 @@ export interface ChangeStepProps {
 /**
  * The selected step's component and action pickers (UX design §2.5 step 6),
  * showing what it is now. Choosing an action, or a component whose type
- * accepts the step's action or only one, saves at once. A component that
- * leaves the action to choose holds a draft, here and nowhere else, so
- * nothing is saved until the action is chosen. Nothing for a step that
- * can't be changed: async work.
+ * accepts the step's action or only one, saves at once, unless steps are
+ * under the step: a change drops them (ADR-0021 decision 3), so it asks
+ * first, with the focus on Cancel. A component that leaves the action to
+ * choose holds a draft, here and nowhere else, so nothing is saved until
+ * the action is chosen. Nothing for a step that can't be changed: async
+ * work.
  */
 export function ChangeStep({
   project,
@@ -94,10 +98,44 @@ function useStepDraft({
   };
 }
 
-/** The two pickers. */
+/** The question a change asks first; undefined if no steps are under the step. */
+function questionOf(start: ChangeStepStart, changed: ChangedStep) {
+  return changeStepQuestion({
+    fromLabel: start.label,
+    toLabel: toLabelOf(changed.choice, changed.action),
+    stepsBelow: start.stepsBelow,
+  });
+}
+
+/**
+ * The change waiting for an answer, if steps are under the step: asks for
+ * it, and saves it on Confirm. Either answer puts the focus back on
+ * `selectRef`'s picker, since the question's buttons go.
+ */
+function useChangeQuestion({ start, onChange }: ChangePickersProps) {
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const [asked, setAsked] = useState<ChangedStep>();
+  const answer = (confirmed: boolean) => {
+    if (confirmed && asked !== undefined) onChange(asked);
+    setAsked(undefined);
+    selectRef.current?.focus();
+  };
+  const save = (changed: ChangedStep) => {
+    if (questionOf(start, changed) === undefined) onChange(changed);
+    else setAsked(changed);
+  };
+  const text = asked && questionOf(start, asked);
+  return { selectRef, text, save, answer };
+}
+
+/** The two pickers, and the question a change that drops steps asks. */
 function ChangePickers(props: ChangePickersProps) {
   const { start, step } = props;
-  const { choice, pending, pickComponent, pickAction } = useStepDraft(props);
+  const question = useChangeQuestion(props);
+  const { choice, pending, pickComponent, pickAction } = useStepDraft({
+    ...props,
+    onChange: question.save,
+  });
   return (
     <div
       role="group"
@@ -109,6 +147,7 @@ function ChangePickers(props: ChangePickersProps) {
         prompt="Choose a component"
         value={choice?.componentId}
         options={start.choices.map(componentOption)}
+        selectRef={question.selectRef}
         onPick={(id) => {
           const picked = start.choices.find((c) => c.componentId === id);
           if (picked !== undefined) pickComponent(picked);
@@ -120,6 +159,18 @@ function ChangePickers(props: ChangePickersProps) {
         pending={pending}
         onPick={pickAction}
       />
+      {question.text && (
+        <RemoveConfirmation
+          text={question.text}
+          confirmLabel="Change"
+          onConfirm={() => {
+            question.answer(true);
+          }}
+          onCancel={() => {
+            question.answer(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -131,7 +182,7 @@ interface ActionPickerProps {
   readonly onPick: StepDraft["pickAction"];
 }
 
-/** The actions the shown component accepts; unusable, with the reason, if the step's can't change. */
+/** The actions the shown component accepts. */
 function ActionPicker({ start, choice, pending, onPick }: ActionPickerProps) {
   const actions = choice?.actions ?? [];
   return (
@@ -140,8 +191,6 @@ function ActionPicker({ start, choice, pending, onPick }: ActionPickerProps) {
       prompt="Choose an action"
       value={pending ? undefined : start.action}
       options={actions.map((a) => ({ value: a, text: a }))}
-      usable={start.actionLocked === undefined}
-      explanation={start.actionLocked}
       onPick={(value) => {
         const action = actions.find((a) => a === value);
         if (choice !== undefined && action !== undefined)

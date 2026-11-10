@@ -1,0 +1,74 @@
+Start
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+Text version: Create order: API Gateway → fn-orders → orders-db (write).
+
+Change orders-db · write to orders-queue · enqueue, and its edge
+Announces: Changed orders-db · write to orders-queue · enqueue. Added the edge from fn-orders to orders-queue. It has no async work yet.
+Edges: 3 (fn-orders → orders-queue is new)
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-queue · enqueue
+               Async work, done when a consumer takes the message
+               No async work yet. A message is taken off the queue and nothing runs.
+               [Add async work, done when a consumer takes the message]
+Text version: Create order: API Gateway → fn-orders → orders-queue (enqueue).
+
+Add async work from orders-queue to fn-writer, and its edge
+Announces: Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer.
+Edges: 4 (orders-queue → fn-writer is new)
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-queue · enqueue
+               Async work, done when a consumer takes the message
+               1.1.1.1  fn-writer · invoke
+Text version: Create order: API Gateway → fn-orders → orders-queue (enqueue), then fn-writer (invoke).
+
+Add a call from fn-writer to orders-db, and its edge
+Announces: Added a call from fn-writer to orders-db. Added the edge from fn-writer to orders-db.
+Edges: 5 (fn-writer → orders-db is new)
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-queue · enqueue
+               Async work, done when a consumer takes the message
+               1.1.1.1  fn-writer · invoke
+                        1.1.1.1.1  orders-db · write
+Text version: Create order: API Gateway → fn-orders → orders-queue (enqueue), then fn-writer → orders-db (write).
+
+Undo: Add a call from fn-writer to orders-db, and its edge
+Edges: 4
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-queue · enqueue
+               Async work, done when a consumer takes the message
+               1.1.1.1  fn-writer · invoke
+Text version: Create order: API Gateway → fn-orders → orders-queue (enqueue), then fn-writer (invoke).
+
+Undo: Add async work from orders-queue to fn-writer, and its edge
+Edges: 3
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-queue · enqueue
+               Async work, done when a consumer takes the message
+               No async work yet. A message is taken off the queue and nothing runs.
+               [Add async work, done when a consumer takes the message]
+Text version: Create order: API Gateway → fn-orders → orders-queue (enqueue).
+
+Undo: Change orders-db · write to orders-queue · enqueue, and its edge
+Edges: 2
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+Text version: Create order: API Gateway → fn-orders → orders-db (write).
+
+Remove asks: Remove fn-writer · invoke and the 1 call under it?
+Remove fn-writer · invoke
+Announces: Removed fn-writer · invoke. orders-queue · enqueue has no async work now.
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-queue · enqueue
+               Async work, done when a consumer takes the message
+               No async work yet. A message is taken off the queue and nothing runs.
+               [Add async work, done when a consumer takes the message]
+Text version: Create order: API Gateway → fn-orders → orders-queue (enqueue).

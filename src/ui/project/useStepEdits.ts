@@ -1,12 +1,17 @@
 import { useCallback, useMemo } from "react";
 import type {
   OutlineStep,
+  StepEditing,
   WorkflowDetails,
 } from "../../application/details/details";
 import {
   addCallText,
   type AddCallText,
 } from "../../application/details/add-call-text";
+import {
+  addAsyncWorkText,
+  emptiedSlotAnnouncement,
+} from "../../application/details/add-async-work-text";
 import type { CallChoice } from "../../application/use-cases/call-choices";
 import type { NewCallStart } from "../../application/use-cases/new-call";
 import type { StepAction } from "../../domain/model/project";
@@ -16,8 +21,10 @@ import {
 } from "../../application/details/change-step-text";
 import type { ChangeStepStart } from "../../application/use-cases/change-step";
 import {
+  addAsyncWork,
   addCall,
   changeStep,
+  type AddAsyncWorkInput,
   type AddCallInput,
   moveStep,
   removeStep,
@@ -51,6 +58,12 @@ export interface StepEdits {
    * new step, and announces it.
    */
   readonly add: (call: AddedCall) => void;
+  /**
+   * Sets the `enqueue` step's async work, and the edge from its queue to
+   * the consumer if there's none; saves it as one step, selects the new
+   * step, and announces it.
+   */
+  readonly addAsync: (call: AddedCall) => void;
   /**
    * Changes the step's component and action, and adds the edge from its
    * caller if there's none; saves it as one step and announces it. The
@@ -86,10 +99,11 @@ export function useStepEdits(input: StepEditsInput): StepEdits {
   const move = useMove(input);
   const remove = useRemove(input);
   const add = useAdd(input);
+  const addAsync = useAddAsync(input);
   const change = useChange(input);
   return useMemo(
-    () => ({ add, change, move, remove }),
-    [add, change, move, remove],
+    () => ({ add, addAsync, change, move, remove }),
+    [add, addAsync, change, move, remove],
   );
 }
 
@@ -116,6 +130,52 @@ function useAdd({
     },
     [workflowId, onEdit, onSelect, announce],
   );
+}
+
+/** Add async work, as `StepEdits` describes it. */
+function useAddAsync({
+  details,
+  onEdit,
+  onSelect,
+  announce,
+}: StepEditsInput): StepEdits["addAsync"] {
+  const { workflowId } = details;
+  return useCallback(
+    (added: AddedCall) => {
+      const text = addAsyncWorkText({
+        queueName: added.start.callerName,
+        consumerName: added.choice.name,
+        addsEdge: added.choice.addsEdge,
+      });
+      onEdit({
+        command: (record) =>
+          addAsyncWork(record, addAsyncWorkInput(workflowId, added)),
+        describe: () => text.undoName,
+      });
+      onSelect(
+        { kind: "step", workflowId, stepId: added.start.callId },
+        "none",
+      );
+      announce(text.announcement);
+    },
+    [workflowId, onEdit, onSelect, announce],
+  );
+}
+
+/** What `addAsyncWork` needs, from a drafted async root and its workflow. */
+function addAsyncWorkInput(
+  workflowId: string,
+  { callerStepId, start, choice, action }: AddedCall,
+): AddAsyncWorkInput {
+  return {
+    workflowId,
+    stepId: callerStepId,
+    asyncId: start.callId,
+    componentId: choice.componentId,
+    action,
+    edgeId: start.edgeId,
+    edgeSettings: start.edgeSettings,
+  };
 }
 
 /** Change, as `StepEdits` describes it. */
@@ -210,6 +270,15 @@ function useMove({
   );
 }
 
+/** What a remove says: an async root's also says its queue has no async work now. */
+function removedText(label: string, { emptiesSlotOf }: StepEditing): string {
+  if (emptiesSlotOf === undefined) return `Removed ${label}.`;
+  return emptiedSlotAnnouncement({
+    removedLabel: label,
+    queueLabel: emptiesSlotOf,
+  });
+}
+
 /** Remove, as `StepEdits` describes it. */
 function useRemove({
   details,
@@ -229,7 +298,7 @@ function useRemove({
         { kind: "step", workflowId, stepId: editing.callerStepId },
         "none",
       );
-      announce(`Removed ${label}.`);
+      announce(removedText(label, editing));
     },
     [workflowId, onEdit, onSelect, announce],
   );

@@ -58,9 +58,9 @@ describe("NewCall", () => {
     ]);
   });
 
-  // Fails if a draft starts for a step that can't take a call (async work
-  // stays read-only), or for a step or workflow that isn't there.
-  it("gives nothing for a step that can't take a call", () => {
+  // Fails if a draft doesn't start for an async root (the queue's consumer
+  // can call too), or starts for a step or workflow that isn't there.
+  it("starts for async work, and gives nothing for a step or workflow that isn't there", () => {
     const [workflow] = sampleRecord.project.workflows;
     if (workflow === undefined) throw new Error("The sample has a workflow");
     const project: Project = {
@@ -86,7 +86,7 @@ describe("NewCall", () => {
     const start = (stepId: string, workflowId = "read") =>
       awsNewCall().execute({ project, workflowId, stepId });
 
-    expect(start("consumer")).toBeUndefined();
+    expect(start("consumer")?.callerName).toBe("Function");
     expect(start("gone")).toBeUndefined();
     expect(start("api-invoke", "gone")).toBeUndefined();
     expect(start("enq")).toBeDefined();

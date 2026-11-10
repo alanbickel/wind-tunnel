@@ -142,23 +142,43 @@ export interface OutlineStep {
    */
   readonly async: OutlineStep | undefined;
   /**
-   * What the user can do to the step: undefined for one that can't be
-   * changed, the workflow's first step, whose Remove is the workflow's, and
-   * async work, which stays read-only.
+   * What the user can do to the step: undefined for the workflow's first
+   * step, whose Remove is the workflow's. An async root has Remove but no
+   * moves: it's its slot's only step.
    */
   readonly editing: StepEditing | undefined;
   /**
    * The words of the button that adds a call to the step: "Add a call from
-   * api". Undefined where nothing is editable (async work, and every step
-   * under it) and for a step whose component is gone, which has no edges to
-   * offer.
+   * api". Undefined for a step whose component is gone, which has no edges
+   * to offer, and for an `enqueue`, whose follow-up work is its async work.
    */
   readonly addCallLabel: string | undefined;
+  /**
+   * What an `enqueue` step with no async work says and offers in its empty
+   * slot; undefined for any other step, and for one that has async work.
+   */
+  readonly asyncSlot: AsyncSlot | undefined;
+  /**
+   * What an async root is, for a screen reader: "Runs when a consumer takes
+   * the message from orders-queue."; undefined for any other step.
+   */
+  readonly description: string | undefined;
+}
+
+/** An `enqueue` step's empty async slot: what it says, and its button. */
+export interface AsyncSlot {
+  /** "No async work yet. A message is taken off the queue and nothing runs." */
+  readonly text: string;
+  /** The words of the button that opens a draft of async work. */
+  readonly addLabel: string;
 }
 
 /** What Move up, Move down, and Remove need to know about a step that's one of a step's calls. */
 export interface StepEditing {
-  /** The id of the step that calls it: the selection and the focus go there after a remove. */
+  /**
+   * The id of the step that calls it, or for an async root the queue that
+   * holds it: the selection and the focus go there after a remove.
+   */
   readonly callerStepId: string;
   /** Undefined for a step with no siblings, which has nothing to move among. */
   readonly moves: StepMoves | undefined;
@@ -167,6 +187,12 @@ export interface StepEditing {
    * step with none, which goes at once.
    */
   readonly removal: RemovalText | undefined;
+  /**
+   * For an async root, the label of the queue step that holds it, whose
+   * slot a remove leaves empty: "orders-queue · enqueue". Undefined for any
+   * other step.
+   */
+  readonly emptiesSlotOf: string | undefined;
 }
 
 /** Which ways a step with siblings can move; at the end of its siblings, one can't. */

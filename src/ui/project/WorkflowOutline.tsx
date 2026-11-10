@@ -1,5 +1,6 @@
 import { useId, useRef, type RefObject } from "react";
 import type {
+  AsyncSlot,
   OutlineStep,
   StepEditing,
   WorkflowDetails,
@@ -42,7 +43,8 @@ export interface WorkflowOutlineProps {
  * it. A step that's one of a step's calls has Move up, Move down, and
  * Remove (§2.5 steps 5 and 6), and each step that can take one has "Add a
  * call from …" under its calls (§2.5 step 3). An `enqueue` step's async
- * work is under it, read-only for now.
+ * work is under it, and takes the same edits (§2.5 step 8): an empty slot has
+ * "Add async work …", and the async root has Remove but no Move.
  */
 export function WorkflowOutline(props: WorkflowOutlineProps) {
   const { usedBy, outline } = props.details;
@@ -82,6 +84,10 @@ function useOutlineItem(props: WorkflowOutlineProps): OutlineItemContext {
       focus.after(call.start.callId);
       edits.add(call);
     },
+    onAddAsync: (call: AddedCall) => {
+      focus.after(call.start.callId);
+      edits.addAsync(call);
+    },
     onRemove: (step) => {
       const caller = step.editing?.callerStepId;
       if (caller !== undefined) focus.after(caller);
@@ -101,6 +107,7 @@ interface OutlineItemContext {
   readonly onMove: (step: OutlineStep, direction: StepDirection) => void;
   readonly onRemove: (step: OutlineStep) => void;
   readonly onAdd: (call: AddedCall) => void;
+  readonly onAddAsync: (call: AddedCall) => void;
   readonly onChange: (changed: ChangedStep) => void;
 }
 
@@ -201,19 +208,29 @@ function useStepRemoval({ step, onRemove }: StepRowProps): StepRemoval {
  */
 function StepButton(props: StepRowProps) {
   const { step, currentStepId, buttons, onSelect, describedBy } = props;
+  const descriptionId = useId();
+  const { description } = step;
+  const describers = [describedBy, description && descriptionId];
   return (
-    <button
-      ref={buttons(step.stepId)}
-      type="button"
-      className={styles.step}
-      aria-current={step.stepId === currentStepId || undefined}
-      aria-describedby={describedBy}
-      onClick={() => {
-        onSelect(step.stepId);
-      }}
-    >
-      <span className={styles.number}>{step.number}</span> {step.label}
-    </button>
+    <>
+      <button
+        ref={buttons(step.stepId)}
+        type="button"
+        className={styles.step}
+        aria-current={step.stepId === currentStepId || undefined}
+        aria-describedby={describers.filter(Boolean).join(" ") || undefined}
+        onClick={() => {
+          onSelect(step.stepId);
+        }}
+      >
+        <span className={styles.number}>{step.number}</span> {step.label}
+      </button>
+      {description && (
+        <span id={descriptionId} hidden>
+          {description}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -312,11 +329,39 @@ function OutlineItem(props: OutlineItemProps) {
           project={props.project}
           workflowId={props.workflowId}
           step={step}
+          label={step.addCallLabel}
           onAdd={props.onAdd}
         />
       )}
       {step.async && <AsyncWork {...props} step={step.async} />}
+      {step.asyncSlot && <EmptyAsyncSlot {...props} slot={step.asyncSlot} />}
     </li>
+  );
+}
+
+interface EmptyAsyncSlotProps extends OutlineItemProps {
+  readonly slot: AsyncSlot;
+}
+
+/**
+ * An `enqueue` step's empty async slot: the heading, what an empty slot
+ * means, and the button that opens a draft of async work. A message is
+ * taken off the queue and nothing runs until there is some.
+ */
+function EmptyAsyncSlot(props: EmptyAsyncSlotProps) {
+  const { slot, step } = props;
+  return (
+    <div className={styles.async}>
+      <p className={styles.asyncLabel}>{ASYNC_WORK_HEADING}</p>
+      <p className={styles.asyncLabel}>{slot.text}</p>
+      <AddCall
+        project={props.project}
+        workflowId={props.workflowId}
+        step={step}
+        label={slot.addLabel}
+        onAdd={props.onAddAsync}
+      />
+    </div>
   );
 }
 

@@ -209,11 +209,10 @@ describe("changeStep", () => {
     ]);
   });
 
-  // Fails if a step under async work, a step or workflow that isn't there,
-  // or a change to what the step already is returns a new record (the edit
-  // would save, and become an undo step, for nothing).
-  it("returns the same record for async work, a missing step or workflow, or no change", () => {
-    expect(change("consumer", TABLE_WRITE, "async")).toBe(record);
+  // Fails if a step or workflow that isn't there, or a change to what the
+  // step already is, returns a new record (the edit would save, and become an
+  // undo step, for nothing).
+  it("returns the same record for a missing step or workflow, or no change", () => {
     expect(change("gone", TABLE_WRITE)).toBe(record);
     expect(change("fn-invoke", TABLE_WRITE, "gone")).toBe(record);
     expect(change("table-read", { componentId: "table", action: "read" })).toBe(

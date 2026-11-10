@@ -2,7 +2,7 @@ import type { ComponentRegistry } from "../../domain/components/component-regist
 import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { Project } from "../../domain/model/project";
 import { callChoices, type CallChoice } from "./call-choices";
-import { stepInCalls } from "../edits/workflow-edits";
+import { findStep } from "../edits/step-search";
 import type { IdGenerator } from "../ports/id-generator";
 
 export interface NewCallDependencies {
@@ -51,7 +51,7 @@ export class NewCall {
     const { registry, ids } = this.deps;
     const { project, workflowId, stepId } = input;
     const workflow = project.workflows.find((w) => w.id === workflowId);
-    const step = workflow && stepInCalls(workflow, stepId);
+    const step = workflow && findStep(workflow, stepId);
     const caller = project.architecture.components.find(
       (c) => c.id === step?.componentId,
     );

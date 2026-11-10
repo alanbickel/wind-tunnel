@@ -1,6 +1,6 @@
 # ADR-0021: Edit async work through the same commands, tied to its `enqueue`
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-10
 
 ## Context

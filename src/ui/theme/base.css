@@ -47,6 +47,11 @@ p {
   margin: 0 0 var(--space-3);
 }
 
+/* A status region is always mounted, so an empty one must take no room. */
+[role="status"]:empty {
+  margin: 0;
+}
+
 a {
   color: var(--color-accent);
 }

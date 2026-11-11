@@ -32,7 +32,9 @@ function useRegionSettled(): boolean {
  * Shows a load in progress, its failure, or what it loaded. The status
  * region is always there and only its text changes: screen readers skip
  * a region that is added with its text already in it. A load that starts
- * with the view gets its text a moment after the region is added.
+ * with the view gets its text a moment after the region is added. A reload
+ * on a view that has been there longer shows its text at once: the region is
+ * already known to screen readers.
  */
 export function LoadableView<T>({
   loadable,

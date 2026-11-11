@@ -16,6 +16,7 @@ import { UseCasesProvider } from "../app/UseCasesProvider";
 import { ProjectsScreen } from "./ProjectsScreen";
 
 const CREATE_SAMPLE = "Create a project from Sample project";
+const CREATE_STATUS = "Project creation";
 
 function renderScreen(useCases: UseCases, onOpen = vi.fn()) {
   return render(
@@ -160,9 +161,10 @@ describe("ProjectsScreen", () => {
     const templates = screen.getByRole("region", {
       name: "Create from template",
     });
-    expect(within(templates).getAllByRole("status").at(-1)?.textContent).toBe(
-      "Creating the project…",
-    );
+    expect(
+      within(templates).getByRole("status", { name: CREATE_STATUS })
+        .textContent,
+    ).toBe("Creating the project…");
     expect(create.getAttribute("aria-disabled")).toBe("true");
     await screen.findByRole("button", { name: "Sample project" });
     expect(await projects.list()).toHaveLength(1);
@@ -182,15 +184,19 @@ describe("ProjectsScreen", () => {
     const templates = screen.getByRole("region", {
       name: "Create from template",
     });
-    const status = within(templates).getAllByRole("status").at(-1);
-    expect(status?.textContent).toBe("");
+    const status = within(templates).getByRole("status", {
+      name: CREATE_STATUS,
+    });
+    expect(status.textContent).toBe("");
 
     fireEvent.click(create);
 
     await waitFor(() => {
-      expect(status?.textContent).toBe("Creating the project…");
+      expect(status.textContent).toBe("Creating the project…");
     });
-    expect(within(templates).getAllByRole("status").at(-1)).toBe(status);
+    expect(within(templates).getByRole("status", { name: CREATE_STATUS })).toBe(
+      status,
+    );
   });
 });
 

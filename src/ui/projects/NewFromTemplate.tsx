@@ -33,7 +33,9 @@ export function NewFromTemplate({ onCreated }: NewFromTemplateProps) {
           />
         )}
       </LoadableView>
-      <p role="status">{pending ? "Creating the project…" : ""}</p>
+      <p role="status" aria-label="Project creation">
+        {pending ? "Creating the project…" : ""}
+      </p>
       {problem && <p role="alert">{problem}</p>}
     </section>
   );

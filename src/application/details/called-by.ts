@@ -1,4 +1,9 @@
-import type { Edge, Project, Step } from "../../domain/model/project";
+import type { Edge, Project } from "../../domain/model/project";
+import {
+  stepLinksOf,
+  stepsOfWorkflow,
+  type StepLink,
+} from "../../domain/model/step-tree";
 import type { StepCall } from "./details";
 
 /**
@@ -12,7 +17,7 @@ export function workflowsCalling(
 ): string[] {
   return project.workflows
     .filter((workflow) =>
-      stepsUnder(workflow.root).some((s) => s.componentId === componentId),
+      stepsOfWorkflow(workflow).some((s) => s.componentId === componentId),
     )
     .map((workflow) => workflow.name);
 }
@@ -20,7 +25,7 @@ export function workflowsCalling(
 /** How many steps call the component, in every workflow, async work included. */
 export function stepsCalling(project: Project, componentId: string): number {
   return project.workflows
-    .flatMap((workflow) => stepsUnder(workflow.root))
+    .flatMap(stepsOfWorkflow)
     .filter((step) => step.componentId === componentId).length;
 }
 
@@ -31,7 +36,7 @@ export function stepsCalling(project: Project, componentId: string): number {
  */
 export function stepsAlong(project: Project, edge: Edge): StepCall[] {
   const found = project.workflows.flatMap((workflow) =>
-    callsUnder(workflow.root)
+    stepLinksOf(workflow)
       .filter(({ caller, callee }) => isAlong(edge, { caller, callee }))
       .map(({ callee }) => ({
         workflowName: workflow.name,
@@ -55,34 +60,10 @@ export function stepsAlong(project: Project, edge: Edge): StepCall[] {
  */
 export function stepsCallingAlong(project: Project, edge: Edge): number {
   return project.workflows
-    .flatMap((workflow) => callsUnder(workflow.root))
+    .flatMap(stepLinksOf)
     .filter((pair) => isAlong(edge, pair)).length;
 }
 
-/** One step calling another: a nested call, or a queue's async work. */
-interface StepPair {
-  readonly caller: Step;
-  readonly callee: Step;
-}
-
-function isAlong(edge: Edge, { caller, callee }: StepPair): boolean {
+function isAlong(edge: Edge, { caller, callee }: StepLink): boolean {
   return caller.componentId === edge.from && callee.componentId === edge.to;
-}
-
-/** The steps a step calls directly: its nested calls, then its async work. */
-function calleesOf(step: Step): Step[] {
-  return [...(step.calls ?? []), ...(step.async ? [step.async] : [])];
-}
-
-/** The step and every step under it. */
-function stepsUnder(step: Step): Step[] {
-  return [step, ...calleesOf(step).flatMap(stepsUnder)];
-}
-
-/** Every caller and callee pair under the step. */
-function callsUnder(step: Step): StepPair[] {
-  return calleesOf(step).flatMap((callee) => [
-    { caller: step, callee },
-    ...callsUnder(callee),
-  ]);
 }

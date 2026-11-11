@@ -32,7 +32,7 @@ flowchart TB
                         1.1.1.1.1  orders-db · write
 ```
 
-**3. The path on the diagram.** Selecting the workflow highlights its path: every component a step calls, and every edge a call follows, async work included. Here that's the five components above, and the four edges `api → fn-api`, `fn-api → orders-queue`, `orders-queue → fn-writer`, and `fn-writer → orders-db`; orders-read and `fn-api → orders-read`, which only "Get order" uses, aren't on it. Selecting the step `1.1.1.1  fn-writer · invoke` keeps the path and rings fn-writer and `orders-queue → fn-writer`, the edge the queue delivers its message along. [The path on the diagram](#the-path-on-the-diagram) says how.
+**3. The path on the diagram.** Selecting the workflow highlights its path: every component a step calls, and every edge a call follows, async work included. Here that's the five components above, and the four edges `api → fn-api`, `fn-api → orders-queue`, `orders-queue → fn-writer`, and `fn-writer → orders-db`; orders-read and `fn-api → orders-read`, which only "Get order" uses, aren't on it. Selecting the step `1.1.1.1  fn-writer · invoke` keeps the path and marks fn-writer and `orders-queue → fn-writer`, the edge the queue delivers its message along. [The path on the diagram](#the-path-on-the-diagram) says how.
 
 **4. The path in the text version.** Under the diagram's components and connections, its text version gives each workflow's path as one line, for a reader who can't see the diagram. [`workflowPathText`](../../src/application/details/workflow-path-text.ts) names each step by its component, and the last step of a path by its action too; a workflow that branches gets a path per leaf, joined by semicolons, and async work follows its queue after "then":
 
@@ -69,7 +69,7 @@ flowchart TB
         phrases["<b>run-issue-phrases</b><br/>[Component: run-checks/]<br/>An issue's words, with the step as the subject"]:::component
         pathText["<b>workflowPathText</b><br/>[Component: details/]<br/>A workflow's path line, for the text version"]:::component
         afterUndo["<b>selectionAfterUndo</b><br/>[Component: details/]<br/>Keeps a step while it's there"]:::component
-        onDiagram["<b>selectionOnArchitecture</b><br/>[Component: details/]<br/>The path, and what a step rings"]:::component
+        onDiagram["<b>selectionOnArchitecture</b><br/>[Component: details/]<br/>The path, and what a step marks"]:::component
         edits["<b>workflow-edits</b><br/>[Component: edits/]<br/>addCall, addAsyncWork, changeStep (drops what's under the step), moveStep, removeStep (an async root empties its slot)"]:::component
     end
     diagram["<b>Diagram</b><br/>[ui/diagram/]"]:::external
@@ -112,7 +112,7 @@ A selected workflow's path, or a selected step's, is drawn on the diagram as the
 
 - **The path** is every component the workflow's steps call, and the edge each call follows, from its caller's component to its own; async work's edge runs from the queue to its consumer. `stepLinksOf` (in `step-tree.ts`) pairs each step with its caller. A step selection keeps its workflow's path, as the list keeps its row marked.
 - **A step** marks its component and the edge its call arrives on. The root step has no caller, since the user calls it, so it marks only its component.
-- **Only what the architecture has.** A step whose component was removed rings nothing, and a call with no edge arrives on none; the outline says why ([How an issue finds its step](#how-an-issue-finds-its-step)). A workflow or step the project doesn't have shows nothing.
+- **Only what the architecture has.** A step whose component was removed marks nothing, and a call with no edge arrives on none; the outline says why ([How an issue finds its step](#how-an-issue-finds-its-step)). A workflow or step the project doesn't have shows nothing.
 - **How it looks.** A path's boxes get a thick accent border inside their own, and its arrows are drawn at the thick line's width, in the accent color. The selection's bar runs down the box's left edge, and a selected arrow is twice as thick again, so a step's mark reads apart from its workflow's path by shape and width, not color alone. `Diagram.module.css` draws both, from the `on-path` class and React Flow's `selected` class.
 
 ## How an issue finds its step

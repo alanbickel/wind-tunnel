@@ -125,7 +125,7 @@ sequenceDiagram
     F->>F: draft "0" fails its range: "Query workers must be at least 1."
     User->>F: types 64, leaves the field
     F->>E: save(64), which ComponentSettings made: edit(record => setComponentSetting(record, { componentId, key, value: 64 }))
-    E->>E: holds the next record; the screen shows it, and the run goes out of date
+    E->>E: holds the next record, the screen shows it, and the run goes out of date
     E->>Q: save(next)
     Q->>S: execute(next), one at a time
     S-->>Q: saved, or not
@@ -178,8 +178,8 @@ sequenceDiagram
     W-->>WB: postMessage({ kind: "finished", run })
     WB->>W: terminate()
     WB-->>UC: resolves finished
-    UC-->>UI: finished; phase becomes "finished"
-    Note over UI,W: If the stop signal fires first, the runner terminates the Worker at once<br/>and resolves stopped; snapshots still queued are dropped.
+    UC-->>UI: finished, phase becomes "finished"
+    Note over UI,W: If the stop signal fires first, the runner terminates the Worker at once<br/>and resolves stopped. Snapshots still queued are dropped.
 ```
 
 From the snapshots so far, the project bar draws a progress bar, and the Run tab what the run means, then the evidence: the totals and each limit's busiest use (`RunTotals`, each table with its sum under it and an info control beside its heading), and four charts (`runCharts`): requests per second, p99 latency, and each component's work in progress and queue. Findings and charts take far longer than a snapshot takes to arrive, so `useRunFindings` defers the run (its id, project copy, workload, and snapshots together, so the deferred value never mixes two runs) with `useDeferredValue`, and the totals and charts draw the same deferred run: React puts clicks such as Stop first and skips snapshots it falls behind on, while the progress bar stays current.

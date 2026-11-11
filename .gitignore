@@ -15,5 +15,8 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Dev-server config for the Claude desktop app's browser pane (kept local for now)
+.claude/launch.json
+
 # Session logs from the development automation driver (scripts/ai-dlc.js, AI-DLC.md)
 ai-dlc-logs/

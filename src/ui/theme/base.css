@@ -107,9 +107,13 @@ td {
   text-align: start;
 }
 
-/* One focus ring for every control, shown for keyboard focus only. No
-   stylesheet of ours removes it (tests/architecture/stylesheets.test.ts). */
-:where(:focus-visible) {
+/* One focus ring, wherever the DOM focus is, whatever put it there: a key, a
+   click, or code. It's `:focus`, not `:focus-visible`, because browsers don't
+   count focus that code moves after a click as visible, and the user
+   couldn't see where it went. Nothing else is a ring: the selection is a bar
+   on the left edge (UX design §4.1). No stylesheet of ours removes it
+   (tests/architecture/stylesheets.test.ts). */
+:where(:focus) {
   outline: var(--line-width-thick) solid var(--color-focus-ring);
   outline-offset: var(--line-width-thick);
 }

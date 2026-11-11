@@ -1,3 +1,11 @@
+/* Details of the selection: the bar on the left edge that marks a selected
+   box and row too, so Details shows what the selection is while the focus
+   is in it. */
+.details {
+  border-inline-start: var(--selection-bar-width) solid var(--color-text);
+  padding-inline-start: var(--space-3);
+}
+
 /* The heading, with Close at the far end when there is one. */
 .header {
   display: flex;

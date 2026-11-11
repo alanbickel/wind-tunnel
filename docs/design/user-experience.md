@@ -196,21 +196,25 @@ The project bar wraps and doesn't stick, so it doesn't take a small screen's hei
 
 The project screen has one selection, or none: a component, an edge, a workflow, a step, a workload, or a finding. It's held by the project screen, above both columns, so the diagram, the drawer, the lists, and the run's results all read the same one. It isn't saved with the project, and it isn't an undo step.
 
+**How the selection and the focus look.** They are two things and look like two things. The focus ring means the DOM focus: it's drawn on whatever element has it, whatever put it there (a key, a click, or code), and nothing else is ever a ring. The selection is a filled bar down the left edge of what's selected: a box on the diagram, a row in a list or the text version, and Details itself, so one rule holds on every surface. A selected edge has no left edge, so it keeps its thicker stroke. The selection stays marked while the focus is in Details, so you can see which box or arrow Details shows; a click always shows the ring, even though every click leaves one, because a click that moves the focus by code (after a remove, or onto Details' heading) wouldn't otherwise show where it went.
+
+**Tab in the canvas doesn't select.** Selecting moves the focus to Details' heading (below), so selecting on focus would pull the focus away before a keyboard user reached the next box. Focus is where you are; selection is what you act on; they can sit on different things, and that's why they look different.
+
 What each part of the screen does with it:
 
 | Selected | Diagram | Details tab | Elsewhere |
 |---|---|---|---|
-| Component | Rings the component | Its settings (§2.2) | |
+| Component | Marks the component | Its settings (§2.2) | |
 | Edge | Thickens the edge | Its latency, timeout, retry, and the steps that call along it | |
 | Workflow | Highlights the components and edges it uses | Its outline (§2.5) | Its row in the list is marked |
-| Step | Rings the step's component, and the edge the call arrives on | The workflow's outline, with the step marked | |
+| Step | Marks the step's component, and the edge the call arrives on | The workflow's outline, with the step marked | |
 | Workload | Nothing | The workload editor | |
-| Finding | Rings the components it names | Stays closed: the finding is read in the Run tab | Charts shade its time window and its cause's ([§3.3](#33-the-items-punted-from-m5)) |
+| Finding | Marks the components it names | Stays closed: the finding is read in the Run tab | Charts shade its time window and its cause's ([§3.3](#33-the-items-punted-from-m5)) |
 
 - **The keyboard path.** Everything selectable can be selected outside the canvas, by a button: components and connections in the diagram's text version (today plain list items), workflows and workloads in their lists, steps in the outline, and findings in the Run tab. The canvas's nodes and edges can be focused and selected with Enter as well, but nothing depends on it.
 - **Focus.** Selecting a component, edge, workflow, step, or workload opens Details and moves the focus to its heading. Escape there clears the selection, shows Run again in the wide layout, and returns the focus to whatever made the selection. Selecting a finding leaves the focus on the finding.
 - **The mouse.** Clicking a node, an edge, or a list row selects it; clicking the canvas's empty space clears the selection.
-- **When the selected thing goes.** Removing it clears the selection and moves the focus to "Add component", since what made the selection may be gone with it ([#95](https://github.com/alanbickel/wind-tunnel/issues/95)); and undoing the remove selects it again, unless a workflow or a step has been selected since, which stays selected so its outline shows the step's issue going. A finding names components from the run's own copy of the project (§4.2), so it can name one that's since been removed: selecting it then rings nothing, and the finding says **New** "orders-db isn't in the project any more."
+- **When the selected thing goes.** Removing it clears the selection and moves the focus to "Add component", since what made the selection may be gone with it ([#95](https://github.com/alanbickel/wind-tunnel/issues/95)); and undoing the remove selects it again, unless a workflow or a step has been selected since, which stays selected so its outline shows the step's issue going. A finding names components from the run's own copy of the project (§4.2), so it can name one that's since been removed: selecting it then marks nothing, and the finding says **New** "orders-db isn't in the project any more."
 
 ### 4.2 Run freshness
 
@@ -290,7 +294,7 @@ The M6 Roadmap items, in build order. Each can be used when it merges, and each 
 
 1. **The project bar.** The project's name, the workload picker, Run and Stop, and the run's status move into a bar above the columns; the right column becomes the Details and Run tabs, Details empty until something can be selected. Settles TODO look-and-feel item 5. [§3.1](#31-wide), [§3.2](#32-narrow)
 2. **Select a component and read its settings.** Selection held by the project screen; components and edges selectable on the diagram and in its text version; the Details tab shows a component's settings or an edge's, read-only, with field descriptors' labels, units, and help, each default with its evidence, and "Called by". [§4.1](#41-selection), [§5](#5-data-needs) (field descriptors, what calls a component)
-3. **Select a finding.** Selecting a finding rings its components on the diagram and shades its time and cause windows on the charts. One of the items punted from M5. [§3.3](#33-the-items-punted-from-m5), [§4.1](#41-selection)
+3. **Select a finding.** Selecting a finding marks its components on the diagram and shades its time and cause windows on the charts. One of the items punted from M5. [§3.3](#33-the-items-punted-from-m5), [§4.1](#41-selection)
 4. **Show component names, not ids.** Findings and the CLI show names, with the type added where two types share one; a name is unique among its type's components. Needed before a new component's UUID could reach the screen. [§5](#5-data-needs) (component names)
 5. **A run keeps the model it ran.** The run copies the project, its findings are worded from the copy, and the screen says when it's out of date, announced as a status message. [§4.2](#42-run-freshness), [§4.4](#44-what-a-screen-reader-hears), ADR-0018
 6. **Edit a component's settings.** Edit commands and the use case that validates the architecture and saves; fields that hold a draft and word their own messages, tied to the field; number and distribution fields; the component's name field, with its uniqueness check; "Reset to default"; a failed save's "Try again", announced. [§2.2](#22-edit-a-components-settings), [§4.3](#43-editing-and-saving), [§4.4](#44-what-a-screen-reader-hears), ADR-0019

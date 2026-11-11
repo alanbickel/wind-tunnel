@@ -64,22 +64,19 @@
   stroke-width: var(--line-width-thick);
 }
 
-/* The selection, marked by shape and width as well as color: a ring
-   around the selected box, outside its border and apart from it, and the
-   selected arrow drawn at twice the thick line's width. React Flow puts
-   its `selected` class on each. A selected box on the path keeps the
-   path's border inside the ring. */
+/* The selection, marked by shape and width as well as color: a bar down
+   the left edge of the selected box, inside its border, and the selected
+   arrow drawn at twice the thick line's width. Never a ring: a ring means
+   the DOM focus (base.css). React Flow puts its `selected` class on each.
+   A selected box on the path keeps the path's border around the bar. */
 .diagram :global(.react-flow__node.selected) {
-  box-shadow:
-    0 0 0 var(--line-width-thick) var(--color-surface),
-    0 0 0 calc(2 * var(--line-width-thick)) var(--color-accent);
+  box-shadow: inset var(--selection-bar-width) 0 0 0 var(--color-text);
 }
 
 .diagram :global(.react-flow__node.selected.on-path) {
   box-shadow:
-    inset 0 0 0 var(--line-width-thick) var(--color-accent),
-    0 0 0 var(--line-width-thick) var(--color-surface),
-    0 0 0 calc(2 * var(--line-width-thick)) var(--color-accent);
+    inset var(--selection-bar-width) 0 0 0 var(--color-text),
+    inset 0 0 0 var(--line-width-thick) var(--color-accent);
 }
 
 .diagram :global(.react-flow__edge.selected .react-flow__edge-path) {

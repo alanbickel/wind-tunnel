@@ -4,7 +4,7 @@ Wind Tunnel exists so a developer can describe their own system, run real-world 
 
 **Status.** M7 ("Canvas-first", [#188](https://github.com/alanbickel/wind-tunnel/issues/188)) rebuilds the screen around the diagram. Today's screen is M6's: two columns, the diagram in a card on the left and the Details and Run tabs on the right. The [user interface guide](../architecture/user-interface.md) describes the code as it is; this page describes where it's going, and [§11](#11-how-m7-builds-it) says in what order. The rules in §3 to §6 hold on both screens.
 
-**What isn't here.** Exact wording of messages, the list of edit commands, and the field-by-field data each step needs. Those live in the code and its tests, and, for work not built yet, in the issue that builds it. The M6 version of this page, which went through every journey step by step and is still cited by the M6 Roadmap items and ADRs 0010, 0018, 0019, and 0021, is [kept at its last commit](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md).
+**What isn't here.** Exact wording of messages, the list of edit commands, and the field-by-field data each step needs. Those live in the code and its tests, and, for work not built yet, in the issue that builds it. The M6 version of this page, which went through every journey step by step and is still cited by the M6 Roadmap items and ADRs 0010, 0018, 0019, and 0021, is [kept at its last commit](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md). A `§x.y` in a code comment, a test, or a guide is a section of that M6 version.
 
 ## 1. The modeling loop
 

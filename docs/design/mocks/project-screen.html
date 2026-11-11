@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mock: the canvas-first project screen</title>
+    <link rel="stylesheet" href="./mock-tokens.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"
+    />
+    <style>
+      .wf {
+        position: relative;
+        height: 470px;
+        border: 1px solid var(--border-strong);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--surface-1);
+        font-size: 12px;
+      }
+      .wf .abs {
+        position: absolute;
+      }
+      .bar {
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 40px;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px;
+      }
+      .pill {
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        padding: 3px 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+      }
+      .canvas {
+        left: 0;
+        right: 0;
+        top: 40px;
+        bottom: 44px;
+        background-image: radial-gradient(
+          var(--border-strong) 1px,
+          transparent 1px
+        );
+        background-size: 16px 16px;
+      }
+      .node {
+        width: 100px;
+        height: 62px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        padding: 6px 8px;
+        box-sizing: border-box;
+      }
+      .node b {
+        font-weight: 500;
+        display: block;
+      }
+      .node span {
+        color: var(--text-secondary);
+        font-size: 11px;
+      }
+      .badge {
+        font-size: 11px;
+        border-radius: var(--radius);
+        padding: 1px 6px;
+        display: inline-block;
+        margin-top: 3px;
+      }
+      .insp {
+        right: 8px;
+        top: 48px;
+        bottom: 52px;
+        width: 214px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+        padding: 10px;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+      .dock {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 44px;
+        background: var(--surface-2);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 10px;
+      }
+      .tool {
+        left: 8px;
+        top: 110px;
+        width: 32px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        font-size: 16px;
+        color: var(--text-secondary);
+      }
+      .s-edit,
+      .s-run,
+      .s-flow {
+        display: none;
+      }
+      .wf[data-s="edit"] .s-edit,
+      .wf[data-s="run"] .s-run,
+      .wf[data-s="flow"] .s-flow {
+        display: block;
+      }
+      .wf[data-s="edit"] .s-edit.fx,
+      .wf[data-s="run"] .s-run.fx,
+      .wf[data-s="flow"] .s-flow.fx {
+        display: flex;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .muted {
+        color: var(--text-secondary);
+      }
+      .ring {
+        width: 104px;
+        height: 66px;
+        border: 2px solid var(--border-accent);
+        border-radius: 9px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="mock-page">
+      <p class="mock-caption">
+        Sketch, 2026-11-11, for #188: the project screen in three states. Not
+        the app, and not kept in step with it; docs/design/user-experience.md is
+        the authority.
+      </p>
+      <h1 class="sr-only">The canvas-first project screen</h1>
+      <div
+        style="display: flex; gap: 8px; margin: 0 0 10px; align-items: center"
+      >
+        <span class="muted">State:</span>
+        <button data-go="edit">Editing</button>
+        <button data-go="run">After a run</button>
+        <button data-go="flow">Tracing a workflow</button>
+      </div>
+      <div class="wf" id="wf" data-s="run">
+        <div class="abs bar">
+          <i class="ti ti-wind" aria-hidden="true" style="font-size: 16px"></i>
+          <span class="muted">Projects /</span
+          ><span style="font-weight: 500">Serverless API with RDS</span>
+          <i class="ti ti-chevron-down muted" aria-hidden="true"></i>
+          <span style="margin-left: 6px" class="muted"
+            ><i class="ti ti-arrow-back-up" aria-label="Undo"></i>
+            <i class="ti ti-arrow-forward-up" aria-label="Redo"></i
+          ></span>
+          <span style="flex: 1"></span>
+          <span class="pill"
+            ><i class="ti ti-activity" aria-hidden="true"></i>Lunch rush · 20 s
+            · 2k req/s<i class="ti ti-chevron-down" aria-hidden="true"></i
+          ></span>
+          <span
+            class="pill"
+            style="
+              background: var(--fill-accent);
+              color: var(--on-accent);
+              border-color: transparent;
+            "
+            ><i class="ti ti-player-play" aria-hidden="true"></i>Run</span
+          >
+          <span
+            class="pill s-run"
+            style="
+              background: var(--bg-danger);
+              color: var(--text-danger);
+              border-color: var(--border-danger);
+            "
+            >Failing · 43.7%</span
+          >
+          <span class="pill s-edit muted">Out of date</span>
+          <span
+            class="pill s-flow"
+            style="
+              background: var(--bg-danger);
+              color: var(--text-danger);
+              border-color: var(--border-danger);
+            "
+            >Failing · 43.7%</span
+          >
+        </div>
+        <div class="abs canvas">
+          <div
+            class="abs"
+            style="
+              left: 52px;
+              top: 62px;
+              width: 404px;
+              height: 184px;
+              border: 1px dashed var(--border-stronger);
+              border-radius: 10px;
+            "
+          ></div>
+          <div class="abs muted" style="left: 60px; top: 66px; font-size: 11px">
+            <i class="ti ti-cloud" aria-hidden="true"></i> AWS · us-east-1
+          </div>
+          <svg
+            class="abs"
+            style="left: 0; top: 0"
+            width="680"
+            height="386"
+            aria-hidden="true"
+          >
+            <line
+              x1="168"
+              y1="155"
+              x2="208"
+              y2="155"
+              stroke="var(--border-stronger)"
+              stroke-width="1.5"
+            />
+            <line
+              x1="308"
+              y1="155"
+              x2="348"
+              y2="155"
+              stroke="var(--border-stronger)"
+              stroke-width="1.5"
+            />
+          </svg>
+          <div
+            class="abs s-run muted"
+            style="left: 176px; top: 104px; font-size: 11px"
+          >
+            2k/s
+          </div>
+          <div
+            class="abs s-run"
+            style="
+              left: 306px;
+              top: 104px;
+              font-size: 11px;
+              color: var(--text-danger);
+            "
+          >
+            44% fail
+          </div>
+          <div
+            class="abs s-flow badge"
+            style="
+              left: 176px;
+              top: 124px;
+              background: var(--fill-accent);
+              color: var(--on-accent);
+            "
+          >
+            1
+          </div>
+          <div
+            class="abs s-flow badge"
+            style="
+              left: 316px;
+              top: 124px;
+              background: var(--fill-accent);
+              color: var(--on-accent);
+            "
+          >
+            2
+          </div>
+          <div class="abs node" style="left: 68px; top: 124px">
+            <b><i class="ti ti-api" aria-hidden="true"></i> api</b
+            ><span>API Gateway</span><br />
+            <span
+              class="badge s-run"
+              style="background: var(--bg-success); color: var(--text-success)"
+              >ok</span
+            >
+          </div>
+          <div class="abs node" style="left: 208px; top: 124px">
+            <b><i class="ti ti-lambda" aria-hidden="true"></i> fn-orders</b
+            ><span>Lambda</span><br />
+            <span
+              class="badge s-run"
+              style="background: var(--bg-warning); color: var(--text-warning)"
+              >waited</span
+            >
+          </div>
+          <div class="abs node" style="left: 348px; top: 124px">
+            <b><i class="ti ti-database" aria-hidden="true"></i> orders-db</b
+            ><span>RDS</span><br />
+            <span
+              class="badge s-run"
+              style="background: var(--bg-danger); color: var(--text-danger)"
+              >refused</span
+            >
+          </div>
+          <div class="abs s-edit ring" style="left: 346px; top: 122px"></div>
+          <div class="abs s-flow ring" style="left: 66px; top: 122px"></div>
+          <div class="abs s-flow ring" style="left: 206px; top: 122px"></div>
+          <div class="abs s-flow ring" style="left: 346px; top: 122px"></div>
+          <div
+            class="abs fx s-flow"
+            style="
+              left: 120px;
+              top: 262px;
+              background: var(--surface-2);
+              border: 1px solid var(--border-strong);
+              border-radius: 8px;
+              padding: 5px 10px;
+              gap: 10px;
+              align-items: center;
+            "
+          >
+            <span style="font-weight: 500">Get order</span
+            ><span class="muted">step 2 of 3</span>
+            <i class="ti ti-player-skip-back" aria-label="Previous step"></i>
+            <i class="ti ti-player-play" aria-label="Play"></i>
+            <i class="ti ti-player-skip-forward" aria-label="Next step"></i>
+          </div>
+          <div
+            class="abs"
+            style="left: 52px; bottom: 10px; display: flex; gap: 6px"
+          >
+            <span class="pill" style="background: var(--surface-2)"
+              ><i class="ti ti-route" aria-hidden="true"></i>Workflows ▾</span
+            >
+            <span class="pill" style="background: var(--surface-2)"
+              ><i class="ti ti-list" aria-hidden="true"></i>As text</span
+            >
+            <span class="pill" style="background: var(--surface-2)"
+              ><i class="ti ti-minus" aria-label="Zoom out"></i
+              ><i class="ti ti-plus" aria-label="Zoom in"></i
+            ></span>
+          </div>
+        </div>
+        <div class="abs tool">
+          <i class="ti ti-pointer" aria-label="Select"></i>
+          <i class="ti ti-square-plus" aria-label="Add component"></i>
+          <i class="ti ti-arrows-right" aria-label="Connect"></i>
+          <i class="ti ti-route" aria-label="Workflows"></i>
+          <i class="ti ti-activity" aria-label="Workloads"></i>
+        </div>
+        <div class="abs insp s-edit">
+          <div style="display: flex; justify-content: space-between">
+            <span style="font-weight: 500"
+              ><i class="ti ti-database" aria-hidden="true"></i> orders-db</span
+            >
+            <i class="ti ti-x muted" aria-label="Close"></i>
+          </div>
+          <div class="muted" style="margin-bottom: 8px">
+            RDS · called by Get order, Create order
+          </div>
+          <div class="muted" style="font-size: 11px; margin: 4px 0">
+            Capacity
+          </div>
+          <div class="row">
+            <span>Max connections</span><span class="pill">90</span>
+          </div>
+          <div class="row">
+            <span>Query workers</span><span class="pill">16</span>
+          </div>
+          <div class="muted" style="font-size: 11px; margin: 10px 0 4px">
+            Latency
+          </div>
+          <div class="row">
+            <span>Query time</span><span class="pill">lognormal ▾</span>
+          </div>
+          <div class="row">
+            <span>median / p99</span><span>15 / 60 ms</span>
+          </div>
+          <div class="muted" style="font-size: 11px; margin-top: 10px">
+            <i class="ti ti-info-circle" aria-hidden="true"></i> Help text on
+            demand, not inline
+          </div>
+        </div>
+        <div class="abs insp s-run">
+          <div style="display: flex; justify-content: space-between">
+            <span style="font-weight: 500">Run: Lunch rush</span
+            ><i class="ti ti-x muted" aria-label="Close"></i>
+          </div>
+          <div
+            style="
+              background: var(--bg-danger);
+              color: var(--text-danger);
+              border-radius: var(--radius);
+              padding: 6px 8px;
+              margin: 8px 0;
+            "
+          >
+            28,841 of 65,963 failed
+          </div>
+          <div class="muted" style="font-size: 11px; margin-bottom: 4px">
+            Why
+          </div>
+          <div style="padding: 6px 0; border-bottom: 1px solid var(--border)">
+            <span style="color: var(--text-danger)">orders-db</span> refused:
+            too many connections, 14–47 s
+          </div>
+          <div style="padding: 6px 0; border-bottom: 1px solid var(--border)">
+            Requests waited for its 16 query workers, holding connections
+          </div>
+          <div class="muted" style="font-size: 11px; margin: 10px 0 4px">
+            Try
+          </div>
+          <div class="pill" style="margin-bottom: 4px">Raise query workers</div>
+          <div class="pill">Put a queue before writes</div>
+        </div>
+        <div class="abs insp s-flow">
+          <div style="display: flex; justify-content: space-between">
+            <span style="font-weight: 500"
+              ><i class="ti ti-route" aria-hidden="true"></i> Get order</span
+            >
+            <i class="ti ti-x muted" aria-label="Close"></i>
+          </div>
+          <div class="muted" style="margin-bottom: 8px">
+            Used by 3 workloads
+          </div>
+          <div class="row">
+            <span
+              ><i class="ti ti-grip-vertical muted" aria-hidden="true"></i> 1
+              API Gateway · invoke</span
+            >
+          </div>
+          <div
+            class="row"
+            style="padding-left: 12px; background: var(--bg-accent-muted)"
+          >
+            <span
+              ><i class="ti ti-grip-vertical muted" aria-hidden="true"></i> 2
+              fn-orders · invoke</span
+            >
+          </div>
+          <div class="row" style="padding-left: 24px">
+            <span
+              ><i class="ti ti-grip-vertical muted" aria-hidden="true"></i> 3
+              orders-db · read</span
+            >
+          </div>
+          <div class="muted" style="margin-top: 10px">
+            <i class="ti ti-plus" aria-hidden="true"></i> Drag from a box to add
+            a call
+          </div>
+        </div>
+        <div class="abs dock">
+          <span style="font-weight: 500">Timeline</span>
+          <svg width="360" height="28" aria-hidden="true" class="s-run">
+            <polyline
+              fill="none"
+              stroke="var(--text-success)"
+              stroke-width="1.5"
+              points="0,22 60,22 90,10 210,10 240,22 360,22"
+            />
+            <polyline
+              fill="none"
+              stroke="var(--text-danger)"
+              stroke-width="1.5"
+              points="0,26 80,26 100,14 200,14 230,26 360,26"
+            />
+          </svg>
+          <svg width="360" height="28" aria-hidden="true" class="s-flow">
+            <polyline
+              fill="none"
+              stroke="var(--text-success)"
+              stroke-width="1.5"
+              points="0,22 60,22 90,10 210,10 240,22 360,22"
+            />
+            <polyline
+              fill="none"
+              stroke="var(--text-danger)"
+              stroke-width="1.5"
+              points="0,26 80,26 100,14 200,14 230,26 360,26"
+            />
+          </svg>
+          <span class="muted s-edit" style="width: 360px"
+            >Run again to see your changes</span
+          >
+          <span class="muted s-run">The whole run, read-only</span>
+          <span style="flex: 1"></span>
+          <span class="pill"
+            ><i class="ti ti-chart-line" aria-hidden="true"></i>Charts ▴</span
+          >
+        </div>
+      </div>
+    </main>
+    <script>
+      for (const button of document.querySelectorAll("[data-go]")) {
+        button.addEventListener("click", () => {
+          document.getElementById("wf").dataset.s = button.dataset.go;
+        });
+      }
+    </script>
+  </body>
+</html>

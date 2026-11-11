@@ -51,3 +51,7 @@ ESLint enforces the boundary: importing `@xyflow/react` in `src/ui/` or `src/ada
 **Context.** M6 shows a selected workflow's path on the diagram, and a selected step's component and the edge its call arrives on ([#121](https://github.com/alanbickel/wind-tunnel/issues/121), [UX design §4.1](../design/user-experience.md#41-selection)). A step marks a box and an arrow at once, which the single `selected` item the 2026-10-25 addendum quotes can't say.
 
 **What changed.** The `selected` prop is now `marks`, in our own types (`DiagramMarks`: the `selected` items, and the items on a `path`), and the classes that draw them stay inside `src/ui/diagram/`. The decision is unchanged: the diagram still marks only what it's given, and React Flow's own selection stays off.
+
+## Addendum, 2026-11-11
+
+The UX design was rewritten for M7 ([#188](https://github.com/alanbickel/wind-tunnel/issues/188)), and its sections were renumbered. The links above to its §4.1, §2.1, and §2.4 were written for the M6 version, [kept at its last commit](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md). Selection is now the new page's [§5](../design/user-experience.md#5-selection-and-focus), and connecting and moving boxes its [§4](../design/user-experience.md#4-the-canvas). This decision is unchanged.

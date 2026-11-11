@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { Selection } from "../../application/details/selection";
+import type { FindingKey } from "../../application/run-analysis/findings/finding";
 
 /** The right column's tabs, in a wide window. */
 export type SideTab = "details" | "run";
@@ -39,6 +40,12 @@ export interface ProjectSelection {
    * focus to: the one that has it now is in Details, and goes with it.
    */
   readonly selectWithin: (selection: Selection, focus?: FocusTarget) => void;
+  /**
+   * Selects a finding of the run, which marks its component on the
+   * diagram and nothing more: the tab stays, the focus stays on the
+   * finding, and the opener isn't changed (UX design §5).
+   */
+  readonly selectFinding: (key: FindingKey) => void;
   /** Clears the selection and shows Run, leaving the focus where it is. */
   readonly clear: () => void;
   /**
@@ -84,10 +91,40 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
     showTab("run");
   }, [request]);
   const { select, close } = useOpener({ selectWithin, clear, reveal });
+  const selectFinding = useFindingSelect({
+    request,
+    setSelection,
+    showInspector,
+  });
 
-  const changes = { select, selectWithin, clear, close };
+  const changes = { select, selectWithin, selectFinding, clear, close };
   const inspector = { inspectorOpen, showInspector };
   return { selection, tab, showTab, ...inspector, ...changes, takeFocus };
+}
+
+/** What selecting a finding changes. */
+interface FindingSelectInput {
+  readonly request: FocusRequest["request"];
+  readonly setSelection: (selection: Selection) => void;
+  readonly showInspector: (open: boolean) => void;
+}
+
+/**
+ * Selects a finding: no focus is asked for and the tab stays, so only the
+ * selection changes, and the inspector opens if it was closed.
+ */
+function useFindingSelect(
+  input: FindingSelectInput,
+): ProjectSelection["selectFinding"] {
+  const { request, setSelection, showInspector } = input;
+  return useCallback(
+    (key: FindingKey) => {
+      request(undefined);
+      setSelection({ kind: "finding", key });
+      showInspector(true);
+    },
+    [request, setSelection, showInspector],
+  );
 }
 
 /** Shows an element, if something has hidden it, so it can take the focus. */

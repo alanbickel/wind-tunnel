@@ -78,6 +78,24 @@ const PATH = {
 };
 
 describe("selectionOnArchitecture", () => {
+  // Fails if a finding rings nothing, rings a component other than its
+  // key's, or marks a path, or rings a component the project no longer has.
+  it("rings a finding's component, if the project has it, and no path", () => {
+    const keyAt = (componentId: string) => ({
+      kind: "finding" as const,
+      key: { kind: "k", componentId, reason: undefined, limitName: undefined },
+    });
+
+    expect(selectionOnArchitecture(project, keyAt("db"))).toEqual({
+      ringed: { componentIds: ["db"], edgeIds: [] },
+      path: { componentIds: [], edgeIds: [] },
+    });
+    expect(selectionOnArchitecture(project, keyAt("gone")).ringed).toEqual({
+      componentIds: [],
+      edgeIds: [],
+    });
+  });
+
   // Fails if the path leaves out async work or a call's own calls, takes in
   // a component or an edge no step uses (spare, fn-db), or rings anything.
   it("highlights exactly the components and edges a workflow uses", () => {

@@ -23,6 +23,7 @@ import {
 import { awsNameComponents } from "../../application/testing/aws-name-components";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
+import type { FindingSelecting } from "./finding-selecting";
 import { Findings } from "./Findings";
 
 // `sampleRecord`'s names differ from its IDs: `fn` is "Function".
@@ -81,7 +82,17 @@ const cause = sampleFinding({
   summary: said(say`Requests waited.`),
 });
 
-function renderFindings(findings: readonly Finding[]) {
+const NO_SELECTION: FindingSelecting = {
+  selected: undefined,
+  onSelect: () => undefined,
+  onClear: () => undefined,
+  isGone: () => false,
+};
+
+function renderFindings(
+  findings: readonly Finding[],
+  selecting: FindingSelecting = NO_SELECTION,
+) {
   const run = sampleRun(oneSecond);
   render(
     <Findings
@@ -90,6 +101,7 @@ function renderFindings(findings: readonly Finding[]) {
         findings: orderFindings(findings),
       }}
       wording={wording}
+      selecting={selecting}
     />,
   );
 }
@@ -140,6 +152,50 @@ describe("Findings", () => {
       "1. Failure: 1,234 requests failed at Function.",
     );
     expect(time.closest("p")?.textContent).toBe("Cause began at 14 s.");
+  });
+
+  // Fails if a finding's summary isn't a button that selects its key, the
+  // selected one isn't marked current, Escape doesn't clear it (or another key does), or an open
+  // explanation's Escape clears it too.
+  it("selects a finding from its summary, and clears on Escape", () => {
+    const calls: string[] = [];
+    const selecting: FindingSelecting = {
+      selected: failure.key,
+      onSelect: (key) => calls.push(`select ${key.kind}`),
+      onClear: () => calls.push("clear"),
+      isGone: () => false,
+    };
+    renderFindings([failure, cause], selecting);
+    const [first, second] = screen.getAllByRole("button", { name: /^\d+/ });
+
+    fireEvent.click(second as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "About finding 1" }));
+    fireEvent.keyDown(screen.getByText("fn ran out."), { key: "Escape" });
+    fireEvent.keyDown(first as HTMLElement, { key: "a" });
+    expect(calls).toEqual(["select cause"]);
+    fireEvent.keyDown(first as HTMLElement, { key: "Escape" });
+
+    expect(first?.getAttribute("aria-current")).toBe("true");
+    expect(second?.getAttribute("aria-current")).toBeNull();
+    expect(calls).toEqual(["select cause", "clear"]);
+  });
+
+  // Fails if the missing-component line shows for a finding that isn't
+  // selected, or names the component by its ID.
+  it("says a selected finding's component is gone, in a region that was already there", () => {
+    renderFindings([failure], { ...NO_SELECTION, selected: failure.key });
+    expect(screen.getAllByRole("status")[0]?.textContent).toBe("");
+    cleanup();
+
+    renderFindings([failure], {
+      ...NO_SELECTION,
+      selected: failure.key,
+      isGone: () => true,
+    });
+
+    expect(screen.getAllByRole("status")[0]?.textContent).toBe(
+      "Function isn't in the project any more.",
+    );
   });
 
   // Fails if the control stops being a native button (which is what makes

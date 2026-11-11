@@ -38,3 +38,23 @@
 .note {
   color: var(--color-text-muted);
 }
+
+/* The summary is a button that selects the finding: a line of the list,
+   with the selected one barred, bold, and underlined, as the text
+   version's rows are. */
+.select {
+  composes: item from "../shared/SelectableItem.module.css";
+  display: block;
+  width: 100%;
+}
+
+/* Said when the selected finding's component has gone; empty, and taking
+   no room, otherwise. */
+.gone {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.gone:empty {
+  display: none;
+}

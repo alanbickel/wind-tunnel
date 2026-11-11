@@ -6,6 +6,7 @@ import type { ProjectRun } from "../run/useProjectRun";
 import { Button } from "../shared/Button";
 import { Panel } from "../shared/Panel";
 import { Tabs } from "../shared/Tabs";
+import { useFindingSelecting } from "./useFindingSelecting";
 import styles from "./Inspector.module.css";
 import { NothingSelected, SelectionDetails } from "./SelectionDetails";
 import type { AddAndRemove } from "./useAddAndRemove";
@@ -64,8 +65,9 @@ type InspectorContentProps = Omit<InspectorProps, "ref">;
 
 /** Details and Run, in the inspector; Run first. */
 function SideTabs(props: InspectorContentProps) {
-  const { projectRun, selecting } = props;
+  const { project, projectRun, selecting } = props;
   const { tab, showTab } = selecting;
+  const finding = useFindingSelecting(project, selecting);
   return (
     <Tabs
       label="Project"
@@ -73,7 +75,11 @@ function SideTabs(props: InspectorContentProps) {
       onSelect={showTab}
       tabs={[
         { id: "details", label: "Details", content: <DetailsTab {...props} /> },
-        { id: "run", label: "Run", content: <RunResults {...projectRun} /> },
+        {
+          id: "run",
+          label: "Run",
+          content: <RunResults {...projectRun} findingSelecting={finding} />,
+        },
       ]}
     />
   );
@@ -85,7 +91,8 @@ function SideTabs(props: InspectorContentProps) {
  */
 function DetailsTab(props: InspectorContentProps) {
   const { project, selecting, onEdit, onRemove } = props;
-  const { selection, selectWithin, close, takeFocus } = selecting;
+  const { selectWithin, close, takeFocus } = selecting;
+  const selection = detailsSelection(selecting);
   if (selection === undefined) {
     return (
       <>
@@ -114,7 +121,9 @@ function DetailsTab(props: InspectorContentProps) {
  */
 export function StackedInspector(props: InspectorContentProps) {
   const { project, projectRun, selecting, onEdit, onRemove } = props;
-  const { selection, selectWithin, close, takeFocus } = selecting;
+  const { selectWithin, close, takeFocus } = selecting;
+  const selection = detailsSelection(selecting);
+  const finding = useFindingSelecting(project, selecting);
   return (
     <div className={styles.stacked}>
       {selection !== undefined && (
@@ -136,7 +145,7 @@ export function StackedInspector(props: InspectorContentProps) {
           <ProjectDescription project={project} />
         </Panel>
       )}
-      <RunPanel {...projectRun} />
+      <RunPanel {...projectRun} findingSelecting={finding} />
     </div>
   );
 }
@@ -149,4 +158,12 @@ interface ProjectDescriptionProps {
 function ProjectDescription({ project }: ProjectDescriptionProps) {
   if (!project.description) return null;
   return <p className={styles.description}>{project.description}</p>;
+}
+
+/**
+ * What Details describes: the selection, unless it's a finding, which
+ * has no Details and leaves them as if nothing were selected.
+ */
+function detailsSelection({ selection }: ProjectSelection) {
+  return selection?.kind === "finding" ? undefined : selection;
 }

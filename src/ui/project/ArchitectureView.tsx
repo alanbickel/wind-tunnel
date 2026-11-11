@@ -241,6 +241,8 @@ const TEXT_ITEMS: KindHandlers<Selection, DiagramItem | undefined> = {
   workflow: () => undefined,
   step: () => undefined,
   "new-workflow": () => undefined,
+  // The finding's component is the text version's marked row.
+  finding: ({ key }) => ({ kind: "node", id: key.componentId }),
 };
 
 /** The selection each kind of diagram item stands for. */

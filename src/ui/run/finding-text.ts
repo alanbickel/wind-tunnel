@@ -10,4 +10,6 @@ import type { Statement } from "../../application/run-analysis/findings/phrase";
 export interface FindingText {
   readonly statement: (statement: Statement) => ReactNode;
   readonly message: (message: Message) => ReactNode;
+  /** A component's name, from the run's copy of the project. */
+  readonly componentName: (componentId: string) => string;
 }

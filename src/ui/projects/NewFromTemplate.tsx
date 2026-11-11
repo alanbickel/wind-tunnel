@@ -33,7 +33,7 @@ export function NewFromTemplate({ onCreated }: NewFromTemplateProps) {
           />
         )}
       </LoadableView>
-      {pending && <p role="status">Creating the project…</p>}
+      <p role="status">{pending ? "Creating the project…" : ""}</p>
       {problem && <p role="alert">{problem}</p>}
     </section>
   );

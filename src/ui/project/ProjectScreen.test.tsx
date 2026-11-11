@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLookup } from "../../application/ports/project-repository";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import { ProjectScreen } from "./ProjectScreen";
+import { TEST_SHELL } from "./testing/canvas-panels";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { stubWindowWidth } from "../shared/testing/stub-window-width";
 
@@ -15,7 +16,7 @@ function renderLookup(lookup: ProjectLookup) {
   });
   return render(
     <UseCasesProvider useCases={useCases}>
-      <ProjectScreen id="p1" />
+      <ProjectScreen id="p1" name="Sample project" shell={TEST_SHELL} />
     </UseCasesProvider>,
   );
 }
@@ -56,7 +57,9 @@ describe("ProjectScreen", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("heading", { name: "This project can't be opened" }),
     );
-    const items = screen.getAllByRole("listitem").map((li) => li.textContent);
+    const items = within(screen.getByRole("main"))
+      .getAllByRole("listitem")
+      .map((li) => li.textContent);
     expect(items).toEqual([
       "workflows.0.root: Unknown component",
       "Not a project",

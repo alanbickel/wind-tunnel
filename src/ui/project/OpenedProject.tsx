@@ -1,24 +1,30 @@
-import { useCallback, useMemo, type ReactNode } from "react";
+import { memo, useCallback, useId, useMemo, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { nameOf } from "../../application/details/name-of";
+import type { Selection } from "../../application/details/selection";
 import { moveComponent } from "../../application/edits/layout-edits";
 import type {
   Point,
   ProjectRecord,
 } from "../../application/ports/project-record";
 import type { Project } from "../../domain/model/project";
-import { RunPanel } from "../run/RunPanel";
-import { RunResults } from "../run/RunResults";
 import { useProjectRun, type ProjectRun } from "../run/useProjectRun";
-import { Panel } from "../shared/Panel";
-import { Tabs } from "../shared/Tabs";
 import { useWideWindow } from "../shared/useWideWindow";
 import type { AddComponentProps } from "./AddComponent";
 import { ArchitectureView } from "./ArchitectureView";
+import { Inspector, StackedInspector } from "./Inspector";
 import type { AddWorkflowProps } from "./WorkflowList";
 import styles from "./OpenedProject.module.css";
-import { ProjectBar } from "./ProjectBar";
-import { NothingSelected, SelectionDetails } from "./SelectionDetails";
+import { ProjectBar, ProjectStatus } from "./ProjectBar";
+import {
+  ProjectFrame,
+  type ProjectFrameProps,
+  type ShellParts,
+} from "./ProjectFrame";
+import { ProjectName } from "./ProjectName";
 import { useAddAndRemove, type AddAndRemove } from "./useAddAndRemove";
+import { useCanvasPanels, type CanvasPanels } from "./useCanvasPanels";
+import { useCoveredWidth, type CoveredWidth } from "./useCoveredWidth";
 import { useProjectEdits, type ProjectEdits } from "./useProjectEdits";
 import { useSelection, type ProjectSelection } from "./useSelection";
 import { useUndoRedo, type UndoRedo } from "./useUndoRedo";
@@ -26,60 +32,94 @@ import { useUndoShortcuts } from "./useUndoShortcuts";
 
 export interface OpenedProjectProps {
   readonly record: ProjectRecord;
+  readonly shell: ShellParts;
   /** Follows the saved record's name, including after Undo and Redo. */
   readonly onProjectNameChange?: (name: string) => void;
 }
 
 /**
- * A project that opened: the project bar, then its architecture beside
- * the Details and Run tabs in a wide window, or above Details (while
- * something is selected) and the run's results in a narrow one. The
- * record with its edits, the run, and the selection are held here, so
- * every part of the screen reads the same ones, and a tab or layout change
- * doesn't stop the run.
+ * A project that opened, canvas first: one top bar, with the project's
+ * name, Rename, and its controls, and under it the canvas. In a wide
+ * window the canvas fills the rest of it, with the inspector over its
+ * right; in a narrow one it keeps a fixed height, and the inspector's
+ * content follows it, full-width. The record with its edits, the run, and
+ * the selection are held here, so every part of the screen reads the same
+ * ones, and a tab or layout change doesn't stop the run.
  */
-export function OpenedProject({
-  record: loaded,
-  onProjectNameChange,
-}: OpenedProjectProps) {
+export function OpenedProject(props: OpenedProjectProps) {
+  const { record: loaded, shell, onProjectNameChange } = props;
   const screen = useProjectScreen({ loaded, onProjectNameChange });
-  const { edits, projectRun, undoRedo } = screen;
-  const { project } = edits.record;
-  const Column = useWideWindow() ? SideTabs : Stacked;
-
+  const cantRunReasonId = useId();
   return (
-    <div className={styles.project}>
+    <ProjectFrame shell={shell} {...barParts({ screen, cantRunReasonId })}>
+      <ProjectCanvas screen={screen} />
+    </ProjectFrame>
+  );
+}
+
+/** What the screen holds, and the id Run and the can't-run line share. */
+interface BarPartsInput {
+  readonly screen: ProjectScreen;
+  readonly cantRunReasonId: string;
+}
+
+type BarParts = Pick<ProjectFrameProps, "current" | "controls" | "status">;
+
+/**
+ * The project's parts of the top bar: its name and Rename as the last
+ * crumb, its controls, and its status line. Run opens the inspector, where
+ * the run's results are.
+ */
+function barParts({ screen, cantRunReasonId }: BarPartsInput): BarParts {
+  const { edits, projectRun, undoRedo, selecting } = screen;
+  const { project } = edits.record;
+  return {
+    current: <ProjectName project={project} onEdit={edits.edit} />,
+    controls: (
       <ProjectBar
         project={project}
         projectRun={projectRun}
         undoRedo={undoRedo}
+        cantRunReasonId={cantRunReasonId}
+        onRunStart={() => {
+          selecting.showInspector(true);
+        }}
+      />
+    ),
+    status: (
+      <ProjectStatus
+        projectRun={projectRun}
+        cantRunReasonId={cantRunReasonId}
         saveFailed={edits.saveFailed}
         onRetry={edits.retry}
-        onEdit={edits.edit}
       />
-      <ProjectColumns screen={screen} Column={Column} />
-    </div>
-  );
+    ),
+  };
 }
 
-interface ProjectColumnsProps {
+interface ProjectCanvasProps {
   readonly screen: ProjectScreen;
-  readonly Column: typeof SideTabs | typeof Stacked;
 }
 
-/** The architecture diagram beside or above the secondary column. */
-function ProjectColumns({ screen, Column }: ProjectColumnsProps) {
-  const { edits, projectRun, selecting, changes } = screen;
+/** The canvas, and the inspector over it or under it, by the window's width. */
+function ProjectCanvas({ screen }: ProjectCanvasProps) {
+  const { edits, projectRun, selecting, remove } = screen;
+  const { screenRef, inspectorRef } = screen.covered;
+  const inspector = {
+    project: edits.record.project,
+    projectRun,
+    selecting,
+    onEdit: edits.edit,
+    onRemove: remove,
+  };
   return (
-    <div className={styles.columns}>
+    <div ref={screenRef} className={styles.screen}>
       {screen.architecture}
-      <Column
-        project={edits.record.project}
-        projectRun={projectRun}
-        selecting={selecting}
-        onEdit={edits.edit}
-        onRemove={changes.remove}
-      />
+      {useWideWindow() ? (
+        <Inspector ref={inspectorRef} {...inspector} />
+      ) : (
+        <StackedInspector {...inspector} />
+      )}
     </div>
   );
 }
@@ -89,8 +129,11 @@ interface ProjectScreen {
   readonly edits: ProjectEdits;
   readonly projectRun: ProjectRun;
   readonly selecting: ProjectSelection;
-  readonly changes: AddAndRemove;
   readonly undoRedo: UndoRedo;
+  /** Removes as `changes.remove` does, opening the panel the focus goes to. */
+  readonly remove: AddAndRemove["remove"];
+  /** How much of the canvas the inspector covers, which the diagram fits around. */
+  readonly covered: CoveredWidth;
   readonly architecture: ReactNode;
 }
 
@@ -107,7 +150,8 @@ interface ProjectScreenInput {
 function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   const edits = useProjectEdits(input.loaded, input.onProjectNameChange);
   const projectRun = useProjectRun(edits.record.project);
-  const selecting = useSelection();
+  const panels = useCanvasPanels();
+  const selecting = useSelection(panels.reveal);
   const changes = useAddAndRemove(edits, selecting);
   const undoRedo = useUndoRedo(edits, selecting);
   useUndoShortcuts(undoRedo);
@@ -116,49 +160,57 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     project: edits.record.project,
     announce: changes.announce,
   });
-  const architecture = useArchitecture({ edits, selecting, changes, move });
-  return { edits, projectRun, selecting, changes, undoRedo, architecture };
+  const remove = useRevealingRemove(changes, panels);
+  const covered = useCoveredWidth();
+  const architecture = useArchitecture({
+    edits,
+    selecting,
+    changes,
+    move,
+    panels,
+    coveredRightPx: covered.coveredRightPx,
+  });
+  const held = { edits, projectRun, selecting, undoRedo };
+  return { ...held, remove, covered, architecture };
 }
 
 /**
- * The architecture, as the same element while the record and the selection
- * are, so React skips it: the run's snapshots re-render the screen several
- * times a second.
+ * The architecture, drawn again only when one of its props changes, so
+ * React skips it otherwise: the run's snapshots re-render the screen
+ * several times a second. Each prop is the same object while what it holds
+ * is.
  */
+const MemoArchitectureView = memo(ArchitectureView);
+
+/** The architecture, from what the screen holds. */
 function useArchitecture(input: ArchitectureInput) {
-  const { edits, selecting, changes, move } = input;
-  const { record } = edits;
-  const { connect } = changes;
+  const { edits, selecting, changes, move, panels, coveredRightPx } = input;
+  const { selection, select, clear } = selecting;
   const adding = useAdding(changes);
   const addingWorkflow = useAddingWorkflow(changes);
-  const { selection, select, clear } = selecting;
-  return useMemo(
-    () => (
-      <ArchitectureView
-        record={record}
-        selection={selection}
-        onSelect={select}
-        onClear={clear}
-        onConnect={connect}
-        onMove={move}
-        adding={adding}
-        addingWorkflow={addingWorkflow}
-      />
-    ),
-    [record, selection, select, clear, connect, move, adding, addingWorkflow],
+  return (
+    <MemoArchitectureView
+      record={edits.record}
+      selection={selection}
+      onSelect={select}
+      onClear={clear}
+      onConnect={changes.connect}
+      onMove={move}
+      adding={adding}
+      addingWorkflow={addingWorkflow}
+      workflowAnnouncement={changes.workflowAnnouncement}
+      panels={panels}
+      coveredRightPx={coveredRightPx}
+    />
   );
 }
 
 /** "Add workflow"'s props, the same object while its parts are. */
 function useAddingWorkflow(changes: AddAndRemove): AddWorkflowProps {
-  const { addWorkflow, addWorkflowButtonRef, workflowAnnouncement } = changes;
+  const { addWorkflow, addWorkflowButtonRef } = changes;
   return useMemo(
-    () => ({
-      onAdd: addWorkflow,
-      buttonRef: addWorkflowButtonRef,
-      announcement: workflowAnnouncement,
-    }),
-    [addWorkflow, addWorkflowButtonRef, workflowAnnouncement],
+    () => ({ onAdd: addWorkflow, buttonRef: addWorkflowButtonRef }),
+    [addWorkflow, addWorkflowButtonRef],
   );
 }
 
@@ -177,6 +229,8 @@ interface ArchitectureInput {
   readonly selecting: ProjectSelection;
   readonly changes: AddAndRemove;
   readonly move: Move;
+  readonly panels: CanvasPanels;
+  readonly coveredRightPx: number;
 }
 
 /** Moves a component on the diagram. */
@@ -217,74 +271,26 @@ function useMove({ edit, project, announce }: MoveInput): Move {
   );
 }
 
-/** The column beside or under the architecture, by the window's width. */
-interface ColumnProps {
-  readonly project: Project;
-  readonly projectRun: ProjectRun;
-  readonly selecting: ProjectSelection;
-  readonly onEdit: ProjectEdits["edit"];
-  readonly onRemove: AddAndRemove["remove"];
-}
-
-/** Details and Run, beside the architecture; Run first. */
-function SideTabs(props: ColumnProps) {
-  const { projectRun, selecting } = props;
-  const { tab, showTab } = selecting;
-  return (
-    <Tabs
-      label="Project"
-      selected={tab}
-      onSelect={showTab}
-      tabs={[
-        { id: "details", label: "Details", content: <DetailsTab {...props} /> },
-        {
-          id: "run",
-          label: "Run",
-          content: <RunResults {...projectRun} />,
-        },
-      ]}
-    />
-  );
-}
-
-/** The Details tab's content: the selection's details, or that there's none. */
-function DetailsTab({ project, selecting, onEdit, onRemove }: ColumnProps) {
-  const { selection, selectWithin, close, takeFocus } = selecting;
-  if (selection === undefined) return <NothingSelected />;
-  return (
-    <SelectionDetails
-      project={project}
-      selection={selection}
-      onEdit={onEdit}
-      onRemove={onRemove}
-      onSelect={selectWithin}
-      onClose={close}
-      takeFocus={takeFocus}
-    />
-  );
-}
-
-/** Under the architecture: Details while something is selected, then Run. */
-function Stacked(props: ColumnProps) {
-  const { project, projectRun, selecting, onEdit, onRemove } = props;
-  const { selection, selectWithin, close, takeFocus } = selecting;
-  return (
-    <>
-      {selection !== undefined && (
-        <Panel heading="Details">
-          <SelectionDetails
-            project={project}
-            selection={selection}
-            onEdit={onEdit}
-            onRemove={onRemove}
-            onSelect={selectWithin}
-            onClose={close}
-            takeFocus={takeFocus}
-            closable
-          />
-        </Panel>
-      )}
-      <RunPanel {...projectRun} />
-    </>
+/**
+ * A remove, as `AddAndRemove` has it, that first opens "Workflows" for a
+ * workflow's: the focus goes to "Add workflow", in that panel, which may be
+ * closed. Opened at once, so the button is there to take the focus.
+ */
+function useRevealingRemove(
+  changes: AddAndRemove,
+  panels: CanvasPanels,
+): AddAndRemove["remove"] {
+  const { remove } = changes;
+  const { show } = panels;
+  return useCallback(
+    (target: Selection) => {
+      if (target.kind === "workflow") {
+        flushSync(() => {
+          show("workflows");
+        });
+      }
+      remove(target);
+    },
+    [remove, show],
   );
 }

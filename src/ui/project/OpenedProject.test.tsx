@@ -23,6 +23,8 @@ import {
   statusRegions,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 const twoWorkloads: Project = {
   ...sampleRecord.project,
   workloads: sampleRecord.project.workloads.flatMap((steady) => [
@@ -61,7 +63,7 @@ function requestsSoFar(): (string | null)[] {
 
 /** Clicks a component's or connection's button in the diagram's text version. */
 function selectFromText(name: string): HTMLElement {
-  const button = screen.getByRole("button", { name });
+  const button = revealButton(name);
   button.focus();
   fireEvent.click(button);
   return button;
@@ -92,15 +94,14 @@ describe("OpenedProject's project bar", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the bar loses the project's name or description, the picker,
-  // or Run, or a run started from the bar doesn't fill the Run tab.
+  // Fails if the top bar loses the project's name, the picker, or Run, or
+  // a run started from the bar doesn't fill the Run tab.
   it("shows the project and runs it, filling the Run tab", () => {
     const { runner } = renderProject();
     const inBar = within(bar());
     expect(
       inBar.getByRole("heading", { level: 2, name: "Sample project" }),
     ).toBeTruthy();
-    expect(inBar.getByText("A small project for tests.")).toBeTruthy();
     expect(inBar.getByRole("combobox", { name: "Workload" })).toBeTruthy();
     expect(inBar.getByRole("button", { name: "Run" })).toBeTruthy();
     expect(screen.getByText("Nothing has run yet.")).toBeTruthy();
@@ -470,12 +471,12 @@ describe("OpenedProject in a narrow window", () => {
     expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
   });
 
-  // Fails if Details shows before anything is selected, stops following
-  // the model, loses its Close button, or Close leaves it showing or drops
-  // the focus.
+  // Fails if Details shows a selection before anything is selected, stops
+  // following the model, loses its Close button, or Close leaves the
+  // selection showing or drops the focus.
   it("shows Details under the model while something is selected, until Close", () => {
     renderProject({ width: "narrow" });
-    expect(screen.queryByRole("region", { name: "Details" })).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
 
     const button = selectFromText("API → Function");
     const details = screen.getByRole("region", { name: "Details" });
@@ -488,7 +489,7 @@ describe("OpenedProject in a narrow window", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     fireEvent.click(within(details).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("region", { name: "Details" })).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
     expect(document.activeElement).toBe(button);
   });
 });

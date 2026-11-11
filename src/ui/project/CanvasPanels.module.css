@@ -1,0 +1,57 @@
+/* The canvas's bottom left: the open panel, then the buttons under it. It
+   stops short of the canvas's top, and of the inspector in a wide window. */
+.corner {
+  position: absolute;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-height: calc(100% - 2 * var(--space-4));
+  max-width: calc(100% - 2 * var(--space-4));
+}
+
+/* No display here: one would override a closed panel's display: none. */
+.panel {
+  min-height: 0;
+  overflow: auto;
+  width: var(--prose-max-width);
+  max-width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: var(--line-width) solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+
+.panel > :first-child {
+  margin-top: 0;
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (min-width: 64rem) {
+  .corner {
+    max-width: calc(100% - var(--run-panel-min-width) - 3 * var(--space-4));
+  }
+}
+
+/* Heard, not seen: the focus is on "Add workflow", and the list shows the change. */
+.announcement {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -4,6 +4,11 @@ import styles from "./StorageHint.module.css";
 export interface StorageHintProps {
   /** The browser's answer; undefined until it has been asked. */
   readonly status: PersistenceStatus | undefined;
+  /**
+   * A slim line across the window, under a project's top bar, rather than
+   * a box in the project list's column.
+   */
+  readonly slim?: boolean;
 }
 
 const MAY_BE_CLEARED =
@@ -20,9 +25,9 @@ const HINTS: Record<PersistenceStatus, string> = {
  * The live region stays mounted, so screen readers announce the warning
  * when it appears.
  */
-export function StorageHint({ status }: StorageHintProps) {
+export function StorageHint({ status, slim = false }: StorageHintProps) {
   return (
-    <p role="status" className={styles.hint}>
+    <p role="status" className={slim ? styles.slim : styles.hint}>
       {status === undefined ? "" : HINTS[status]}
     </p>
   );

@@ -8,6 +8,13 @@
   padding: 0;
 }
 
+/* The open project's crumb: its name, or its heading and Rename, on the
+   separator's line. */
+.current {
+  display: flex;
+  align-items: center;
+}
+
 .separator {
   color: var(--color-text-muted);
   margin-right: var(--space-2);

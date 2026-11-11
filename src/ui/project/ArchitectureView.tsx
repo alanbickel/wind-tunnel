@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useId, useMemo, type ReactNode } from "react";
 import type {
   Point,
   ProjectRecord,
@@ -20,9 +20,10 @@ import {
   type DiagramItemKind,
   type DiagramMarks,
 } from "../diagram/diagram-model";
-import { Panel } from "../shared/Panel";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { AddComponent, type AddComponentProps } from "./AddComponent";
+import { CanvasPanels } from "./CanvasPanels";
+import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
@@ -37,77 +38,108 @@ export interface ArchitectureViewProps {
   readonly onConnect: (from: string, to: string) => void;
   /** Moves a component to where it was put on the diagram. */
   readonly onMove: (componentId: string, position: Point) => void;
-  /** "Add component", above the diagram. */
+  /** "Add component", on the tool rail. */
   readonly adding: AddComponentProps;
   /** "Add workflow", in the workflows list. */
   readonly addingWorkflow: AddWorkflowProps;
+  /**
+   * What a workflow's remove announces: "Removed Get order." Said beside
+   * the canvas's panel buttons, not in the list, whose panel may be hidden.
+   */
+  readonly workflowAnnouncement: string;
+  /** Which of the "Workflows" and "As text" panels is open. */
+  readonly panels: CanvasPanelState;
+  /** How much of the canvas's right edge the inspector covers, in pixels. */
+  readonly coveredRightPx?: number;
 }
 
 /**
- * "Add component", then the project's components and connections as a
- * diagram, with the same facts as lists for anyone who can't see the
- * canvas. Either selects a component or a connection: a click on the
- * diagram, or a button in the list, which is the way every user can rely
- * on. The text version also gives a line for each workflow's path. The
- * diagram marks the selection, and a selected workflow's path, or a
- * selected step's and its workflow's. A drag from one box to another on
- * the diagram connects them;
- * "Connect to…" in a component's Details is the keyboard's way. A box
- * moves by dragging it, or with the arrow keys once it has the focus; its
- * place is only visual, so the text version doesn't change. With no
- * components, a line under "Add component" says what to do instead (UX
- * design §2.1 step 1). Under them all, the workflows, each a button that
- * selects it, and "Add workflow".
+ * The canvas: the project's components and connections as a diagram that
+ * fills the room it's given, with "Add component" on a tool rail at its top
+ * left, and at its bottom left "Workflows" and "As text", each opening a
+ * panel over it. The text version has the same facts as lists, for anyone
+ * who can't see the canvas, and a line for each workflow's path. Either
+ * selects a component or a connection: a click on the diagram, or a button
+ * in the list, which is the way every user can rely on. The diagram marks
+ * the selection, and a selected workflow's path, or a selected step's and
+ * its workflow's. A drag from one box to another on the diagram connects
+ * them; "Connect to…" in a component's Details is the keyboard's way. A
+ * box moves by dragging it, or with the arrow keys once it has the focus;
+ * its place is only visual, so the text version doesn't change. With no
+ * components, a line on the canvas says what to do instead (UX design
+ * §2.1 step 1), and there's no text version. "Workflows" lists them, each
+ * a button that selects it, and "Add workflow". "Add component" comes
+ * first in the tab order, as it did above the diagram.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
   const content = useMemo(() => diagramOf(props.record), [props.record]);
+  const headingId = useId();
+  const selecting = useDiagramSelection(props);
+  const empty = content.nodes.length === 0;
+  const drawn = { ...props, content, selecting };
   return (
-    <Panel heading="Architecture" scrolls>
-      <AddComponent {...props.adding} />
-      {content.nodes.length === 0 ? (
-        <p>No components yet. Add one to start describing your system.</p>
-      ) : (
-        <Drawing {...props} content={content} />
-      )}
-      <WorkflowList
-        project={props.record.project}
-        selection={props.selection}
-        onSelect={props.onSelect}
-        adding={props.addingWorkflow}
+    <section aria-labelledby={headingId} className={styles.canvas}>
+      <h3 id={headingId} className={styles.heading}>
+        Architecture
+      </h3>
+      <div className={styles.rail}>
+        <AddComponent {...props.adding} />
+      </div>
+      {empty ? <EmptyCanvas /> : <Drawing {...drawn} />}
+      <CanvasPanels
+        panels={props.panels}
+        announcement={props.workflowAnnouncement}
+        workflows={<Workflows {...props} />}
+        text={empty ? undefined : <TextVersion {...drawn} />}
       />
-    </Panel>
+    </section>
   );
 }
 
-interface DrawingProps extends ArchitectureViewProps {
-  readonly content: DiagramContent;
+/** What the canvas says while there are no components to draw. */
+function EmptyCanvas() {
+  return (
+    <p className={styles.empty}>
+      No components yet. Add one to start describing your system.
+    </p>
+  );
 }
 
-/** The diagram, and its text version, of a project with components. */
-function Drawing(props: DrawingProps) {
-  const { record, content, onConnect, onMove } = props;
-  const { marks, selected, onItem } = useDiagramSelection(props);
+/** The workflows list, for the "Workflows" panel. */
+function Workflows(props: ArchitectureViewProps) {
   return (
-    <>
-      <Diagram
-        content={content}
-        label={`Architecture diagram of ${record.project.name}`}
-        marks={marks}
-        onSelect={onItem}
-        onConnect={({ source, target }) => {
-          onConnect(source, target);
-        }}
-        onMove={({ id, position }) => {
-          onMove(id, position);
-        }}
-      />
-      <TextVersion
-        content={content}
-        paths={pathsOf(record.project)}
-        selected={selected}
-        onSelect={onItem}
-      />
-    </>
+    <WorkflowList
+      project={props.record.project}
+      selection={props.selection}
+      onSelect={props.onSelect}
+      adding={props.addingWorkflow}
+    />
+  );
+}
+
+/** What the diagram and its text version draw, and their shared selection. */
+interface DrawingProps extends ArchitectureViewProps {
+  readonly content: DiagramContent;
+  readonly selecting: DiagramSelection;
+}
+
+/** The diagram of a project with components. */
+function Drawing(props: DrawingProps) {
+  const { record, content, onConnect, onMove, selecting } = props;
+  return (
+    <Diagram
+      content={content}
+      label={`Architecture diagram of ${record.project.name}`}
+      marks={selecting.marks}
+      onSelect={selecting.onItem}
+      onConnect={({ source, target }) => {
+        onConnect(source, target);
+      }}
+      onMove={({ id, position }) => {
+        onMove(id, position);
+      }}
+      coveredRightPx={props.coveredRightPx}
+    />
   );
 }
 
@@ -193,18 +225,11 @@ const SELECTIONS: Readonly<Record<DiagramItemKind, (id: string) => Selection>> =
     edge: (edgeId) => ({ kind: "edge", edgeId }),
   };
 
-interface TextVersionProps {
-  readonly content: DiagramContent;
-  readonly paths: readonly PathLine[];
-  readonly selected: DiagramItem | undefined;
-  readonly onSelect: (item: DiagramItem) => void;
-}
-
 /**
  * The diagram's boxes and arrows as two lists of buttons, then the path
- * each workflow takes along them, one line each, behind a disclosure.
+ * each workflow takes along them, one line each.
  */
-function TextVersion({ content, paths, selected, onSelect }: TextVersionProps) {
+function TextVersion({ record, content, selecting }: DrawingProps) {
   const names = new Map(content.nodes.map((node) => [node.id, node.label]));
   const nameOf = (id: string) => names.get(id) ?? id;
   const components = content.nodes.map(({ id, label, caption }) => ({
@@ -215,14 +240,14 @@ function TextVersion({ content, paths, selected, onSelect }: TextVersionProps) {
     item: { kind: "edge", id } as const,
     text: `${nameOf(source)} → ${nameOf(target)}`,
   }));
-  const lists = { selected, onSelect };
+  const lists = { selected: selecting.selected, onSelect: selecting.onItem };
+  const paths = pathsOf(record.project);
   return (
-    <details className={styles.text}>
-      <summary>Components, connections, and paths as text</summary>
+    <>
       <ItemList label="Components" entries={components} {...lists} />
       <ItemList label="Connections" entries={connections} {...lists} />
       {paths.length > 0 && <PathList paths={paths} />}
-    </details>
+    </>
   );
 }
 

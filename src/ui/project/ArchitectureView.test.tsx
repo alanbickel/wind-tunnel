@@ -16,7 +16,12 @@ import type {
 import { sampleRecord } from "../../application/testing/sample-record";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
-import { ArchitectureView } from "./ArchitectureView";
+import {
+  ArchitectureView,
+  type ArchitectureViewProps,
+} from "./ArchitectureView";
+import { openPanel, type CanvasPanelButton } from "./testing/canvas-panels";
+import { useCanvasPanels } from "./useCanvasPanels";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { ON_PATH_CLASS } from "../diagram/to-react-flow";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
@@ -56,6 +61,11 @@ function boxesWith(nodes: Element[], className: string): (string | null)[] {
     .map((node) => node.getAttribute("data-id"));
 }
 
+/** The view, holding which canvas panel is open, as the screen does. */
+function WithPanels(props: Omit<ArchitectureViewProps, "panels">) {
+  return <ArchitectureView {...props} panels={useCanvasPanels()} />;
+}
+
 /** The view, with spies for what it reports. */
 function renderView({
   selection,
@@ -67,17 +77,14 @@ function renderView({
   const onMove = vi.fn<(componentId: string, position: Point) => void>();
   render(
     <UseCasesProvider useCases={fakeUseCases()}>
-      <ArchitectureView
+      <WithPanels
         record={record}
         selection={selection}
         onSelect={onSelect}
         onClear={onClear}
         onConnect={vi.fn()}
-        addingWorkflow={{
-          onAdd: vi.fn(),
-          buttonRef: { current: null },
-          announcement: "",
-        }}
+        addingWorkflow={{ onAdd: vi.fn(), buttonRef: { current: null } }}
+        workflowAnnouncement=""
         onMove={onMove}
         adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
       />
@@ -209,6 +216,7 @@ describe("ArchitectureView", () => {
 
   it("lists the components and connections as text", () => {
     renderView();
+    openPanel("As text");
 
     expect(itemsOf("Components")).toEqual([
       "API (api-gateway)",
@@ -224,6 +232,7 @@ describe("ArchitectureView", () => {
   // Fails if the text version stops listing each workflow's path.
   it("lists each workflow's path as text", () => {
     renderView();
+    openPanel("As text");
 
     expect(itemsOf("Workflow paths")).toEqual([
       "Read item: API → Function → Table (read).",
@@ -239,6 +248,7 @@ describe("ArchitectureView", () => {
         project: { ...sampleRecord.project, workflows: [] },
       },
     });
+    openPanel("As text");
 
     expect(itemsOf("Components")).toHaveLength(3);
     expect(screen.queryByRole("list", { name: "Workflow paths" })).toBeNull();
@@ -250,6 +260,7 @@ describe("ArchitectureView", () => {
     const { onSelect } = renderView({
       selection: { kind: "edge", edgeId: "api-fn" },
     });
+    openPanel("As text");
 
     fireEvent.click(screen.getByRole("button", { name: "Table (dynamodb)" }));
     fireEvent.click(screen.getByRole("button", { name: "Function → Table" }));
@@ -264,14 +275,86 @@ describe("ArchitectureView", () => {
     ]);
   });
 
-  // Fails if ArchitectureView stops passing `scrolls` to its Panel: in a
-  // short wide window the panel scrolls on its own, and the keyboard
-  // couldn't scroll it.
-  it("is a region the keyboard can focus, to scroll it", () => {
+  // Fails if the canvas stops being a region named "Architecture", so a
+  // screen reader can't jump to it.
+  it("is a region named Architecture", () => {
     renderView();
 
-    expect(screen.getByRole("region", { name: "Architecture" }).tabIndex).toBe(
-      0,
-    );
+    expect(screen.getByRole("region", { name: "Architecture" })).toBeTruthy();
+  });
+});
+
+/** The region a canvas panel's button opens, by the name it gives it. */
+const PANEL_REGIONS: Record<CanvasPanelButton, string> = {
+  Workflows: "Workflows",
+  "As text": "Components, connections, and paths as text",
+};
+
+describe("ArchitectureView's canvas panels", () => {
+  preloadBeforeAll(() => import("../diagram/DiagramCanvas"));
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  // Fails if a panel starts open, or its button stops saying whether it's
+  // open, or opening one leaves the other open over it.
+  it("opens one panel at a time over the canvas, each from its button", () => {
+    renderView();
+    const workflows = screen.getByRole("button", { name: "Workflows" });
+    const text = screen.getByRole("button", { name: "As text" });
+    expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
+
+    fireEvent.click(workflows);
+    expect(workflows.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("list", { name: "Workflows" })).toBeTruthy();
+
+    fireEvent.click(text);
+    expect(workflows.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
+    expect(screen.getByRole("list", { name: "Components" })).toBeTruthy();
+
+    fireEvent.click(text);
+    expect(text.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("list", { name: "Components" })).toBeNull();
+  });
+
+  // Fails if Escape in a panel doesn't close it, or leaves the focus in
+  // the hidden panel rather than on the button that opened it.
+  it.each(["Workflows", "As text"] as const)(
+    "closes %s on Escape from inside it, the focus back on its button",
+    (name) => {
+      renderView();
+      const button = openPanel(name);
+      const panel = screen.getByRole("region", { name: PANEL_REGIONS[name] });
+      const inside = within(panel).getAllByRole("button")[0] as HTMLElement;
+      inside.focus();
+
+      fireEvent.keyDown(inside, { key: "Escape" });
+
+      expect(
+        screen.queryByRole("region", { name: PANEL_REGIONS[name] }),
+      ).toBeNull();
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(button);
+    },
+  );
+
+  // Fails if a project with no components offers an empty text version.
+  it("offers no text version without components, but still the workflows", () => {
+    renderView({
+      record: {
+        ...sampleRecord,
+        project: {
+          ...sampleRecord.project,
+          architecture: { components: [], edges: [] },
+          workflows: [],
+        },
+      },
+    });
+
+    expect(screen.queryByRole("button", { name: "As text" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Workflows" })).toBeTruthy();
   });
 });

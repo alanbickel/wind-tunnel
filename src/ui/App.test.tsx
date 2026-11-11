@@ -22,6 +22,21 @@ import { UseCasesProvider } from "./app/UseCasesProvider";
 import { StartupFailure } from "./StartupFailure";
 import { stubDiagramBrowserApis } from "./diagram/testing/stub-diagram-browser-apis";
 import { stubWindowWidth } from "./shared/testing/stub-window-width";
+import { openPanel } from "./project/testing/canvas-panels";
+
+/**
+ * The breadcrumb's crumbs: "Projects", then the open project's name, read
+ * from its heading, without the separator or Rename beside it.
+ */
+function breadcrumbTrail(): (string | null)[] {
+  const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
+  return within(breadcrumb)
+    .getAllByRole("listitem")
+    .map(
+      (crumb) =>
+        within(crumb).queryByRole("heading")?.textContent ?? crumb.textContent,
+    );
+}
 
 describe("App", () => {
   beforeEach(() => {
@@ -83,15 +98,14 @@ describe("App", () => {
   // breadcrumb stays at "Projects" on the project screen.
   it("names the open project in the breadcrumb", async () => {
     await renderAppWithSample();
-    const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(breadcrumb.textContent).toBe("Projects");
+    expect(breadcrumbTrail()).toEqual(["Projects"]);
 
     fireEvent.click(
       await screen.findByRole("button", { name: "Sample project" }),
     );
     await screen.findByRole("heading", { name: "Sample project" });
 
-    expect(breadcrumb.textContent).toBe("Projects›Sample project");
+    expect(breadcrumbTrail()).toEqual(["Projects", "Sample project"]);
   });
 
   // Fails if the breadcrumb doesn't update to the new name on rename or doesn't restore on undo.
@@ -114,8 +128,7 @@ describe("App", () => {
     );
     await screen.findByRole("heading", { name: "Sample project" });
 
-    const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(breadcrumb.textContent).toBe("Projects›Sample project");
+    expect(breadcrumbTrail()).toEqual(["Projects", "Sample project"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
@@ -124,7 +137,7 @@ describe("App", () => {
 
     await screen.findByRole("heading", { name: "Orders API" });
     await waitFor(() => {
-      expect(breadcrumb.textContent).toBe("Projects›Orders API");
+      expect(breadcrumbTrail()).toEqual(["Projects", "Orders API"]);
     });
 
     fireEvent.click(
@@ -134,7 +147,7 @@ describe("App", () => {
     );
     await screen.findByRole("heading", { name: "Sample project" });
     await waitFor(() => {
-      expect(breadcrumb.textContent).toBe("Projects›Sample project");
+      expect(breadcrumbTrail()).toEqual(["Projects", "Sample project"]);
     });
   });
 
@@ -233,8 +246,7 @@ describe("App's blank project", () => {
     const heading = await createOrdersService();
 
     expect(document.activeElement).toBe(heading);
-    const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(breadcrumb.textContent).toBe("Projects›Orders service");
+    expect(breadcrumbTrail()).toEqual(["Projects", "Orders service"]);
     expect(screen.getByText(PROMPT)).toBeTruthy();
     expect(
       screen.queryByRole("group", { name: /Architecture diagram/ }),
@@ -262,6 +274,7 @@ describe("App's blank project", () => {
         name: "Architecture diagram of Orders service",
       }),
     ).toBeTruthy();
+    openPanel("As text");
     const components = screen.getByRole("list", { name: "Components" });
     expect(components.textContent).toBe("lambda-1 (lambda)");
   });

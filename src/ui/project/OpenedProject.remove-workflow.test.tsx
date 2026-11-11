@@ -15,6 +15,8 @@ import {
   statusRegions,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 const [read] = sampleRecord.project.workflows;
 const [steady] = sampleRecord.project.workloads;
 if (read === undefined || steady === undefined) {
@@ -53,19 +55,23 @@ const twoWorkloads: Project = {
 };
 
 function select(name: string): void {
-  const button = screen.getByRole("button", { name });
+  const button = revealButton(name);
   button.focus();
   fireEvent.click(button);
 }
 
 function addWorkflowButton(): HTMLElement {
-  return screen.getByRole("button", { name: "Add workflow" });
+  return revealButton("Add workflow");
 }
 
-/** The polite region beside "Add workflow". */
+/**
+ * The polite region that says what a workflow's remove took: beside the
+ * canvas's panel buttons, which always show.
+ */
 function removedRegion(): HTMLElement {
-  const region =
-    addWorkflowButton().parentElement?.querySelector('[role="status"]');
+  const region = screen
+    .getByRole("button", { name: "Workflows" })
+    .parentElement?.querySelector('[role="status"]');
   if (!(region instanceof HTMLElement)) throw new Error("No removed region");
   return region;
 }

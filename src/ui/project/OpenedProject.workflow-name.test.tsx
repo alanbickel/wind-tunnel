@@ -14,6 +14,8 @@ import {
   undoneRegion,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 /** The sample project with a second workflow, "Write item". */
 const twoWorkflows: Project = {
   ...sampleRecord.project,
@@ -29,7 +31,7 @@ const twoWorkflows: Project = {
 
 /** Selects "Read item" from the Workflows list. */
 function selectRead(): void {
-  const button = screen.getByRole("button", { name: "Read item" });
+  const button = revealButton("Read item");
   button.focus();
   fireEvent.click(button);
 }

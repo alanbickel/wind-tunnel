@@ -33,6 +33,7 @@ import {
   type WindowWidth,
 } from "../../shared/testing/stub-window-width";
 import { OpenedProject } from "../OpenedProject";
+import { TEST_SHELL } from "./canvas-panels";
 
 export interface RenderOpenedProjectInput {
   /** The sample record's project, unless given. */
@@ -88,6 +89,7 @@ export function renderOpenedProject(
     <UseCasesProvider useCases={useCases}>
       <OpenedProject
         record={{ ...sampleRecord, project: shown, layout }}
+        shell={TEST_SHELL}
         onProjectNameChange={onProjectNameChange}
       />
     </UseCasesProvider>
@@ -142,9 +144,9 @@ export function detailsHeading(): HTMLElement {
   return heading;
 }
 
-/** The project bar, named by the sample project. */
+/** The top bar, which holds the project's name and controls. */
 export function bar(): HTMLElement {
-  return screen.getByRole("region", { name: "Sample project" });
+  return screen.getByRole("banner");
 }
 
 /** The bar's status regions: the run's status, then whether it's out of date. */

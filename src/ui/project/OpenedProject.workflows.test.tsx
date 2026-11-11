@@ -9,9 +9,11 @@ import {
   renderOpenedProject as renderProject,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 /** Clicks a button, as the keyboard would: the list's row, or a step. */
 function selectFromText(name: string): HTMLElement {
-  const button = screen.getByRole("button", { name });
+  const button = revealButton(name);
   button.focus();
   fireEvent.click(button);
   return button;
@@ -133,7 +135,7 @@ describe("OpenedProject's workflows", () => {
   // or doesn't count it on the workflow's row.
   it("shows a removed component's issue on its step, and counts it on the row", () => {
     renderProject();
-    expect(screen.getByRole("button", { name: "Read item" })).toBeTruthy();
+    expect(revealButton("Read item")).toBeTruthy();
     selectFromText("Table (dynamodb)");
 
     removeSelected();
@@ -175,7 +177,7 @@ describe("OpenedProject's workflows", () => {
     expect(document.activeElement).toBe(detailsHeading());
     expect(within(details).getByRole("list", { name: "Steps" })).toBeTruthy();
     fireEvent.click(within(details).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("region", { name: "Details" })).toBeNull();
+    expect(queryDetailsHeading()).toBeNull();
     expect(document.activeElement).toBe(row);
   });
 });

@@ -1,5 +1,6 @@
+/* On the canvas's tool rail: the button, and the types under it. */
 .add {
-  margin-bottom: var(--space-3);
+  margin: 0;
 }
 
 /* The types, one to a line, under the button. */

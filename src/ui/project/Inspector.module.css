@@ -1,0 +1,62 @@
+/* Floats over the canvas's right, below the top bar and above the
+   canvas's bottom edge. Close sits over the tab list's far end. */
+.inspector,
+.collapsed {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.inspector {
+  width: var(--run-panel-min-width);
+  max-width: calc(100% - 2 * var(--space-4));
+}
+
+/* Collapsed: a narrow strip on the right edge, its button read top to
+   bottom. */
+.collapsed {
+  padding: var(--space-2) var(--space-1);
+  background: var(--color-surface);
+  border: var(--line-width) solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+
+.collapsed button {
+  writing-mode: vertical-rl;
+}
+
+.inspector .toggle {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-3);
+  z-index: 1;
+}
+
+/* No display while hidden: it would override display: none. */
+.body:not([hidden]) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.body > * {
+  flex: 1;
+}
+
+/* A narrow window: the inspector's content under the canvas, full-width. */
+.stacked {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  padding: var(--space-5);
+}
+
+.description {
+  max-width: var(--prose-max-width);
+  color: var(--color-text-muted);
+}

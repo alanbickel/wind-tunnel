@@ -79,7 +79,7 @@ Each use case is a class: ports go into the constructor as one object, and the w
 | `SaveProject` | projects, clock, registry | `saved` with the new `updatedAt`, or `invalid` with the issues |
 | `DeleteProject` | projects | nothing; deleting a missing project does nothing |
 | `RunSimulation` | runner, registry | `finished` with the run, `stopped`, `workload-missing`, or `cant-run` with the workload's run check |
-| `CheckWorkloads` | registry | Each workload's run check: whether it can run, its issues worded by name, and a summary for the project bar. Synchronous: it reads no port |
+| `CheckWorkloads` | registry | Each workload's run check: whether it can run, its issues worded by name, and a summary for the top bar. Synchronous: it reads no port |
 | `CheckWorkflows` | registry | Each workflow's run check: its problem count for the workflows list, and each step's issues worded for the outline. Synchronous |
 | `DescribeSelection` | registry, field descriptors | What the Details tab shows for a selected component, edge, workflow, or step, or undefined if the project has no such item. Synchronous: it reads no port |
 | `ListComponentTypes` | registry, field descriptors | The types "Add component" offers, in registration order, each with its line on what it's for. Synchronous |

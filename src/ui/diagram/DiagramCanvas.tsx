@@ -20,6 +20,7 @@ import {
   type DiagramMove,
   type DiagramNode,
 } from "./diagram-model";
+import { fitOptions, OPENING_FIT } from "./fit-options";
 import { nodeIdOf } from "./node-id-of";
 import { toFlowEdge, toFlowNode } from "./to-react-flow";
 import { useMeasuredSizes, type MeasuredSizes } from "./useMeasuredSizes";
@@ -41,20 +42,24 @@ const MOVE_SENTENCE = "Press the arrow keys, or drag it, to move it.";
 const CONNECT_SENTENCE =
   "Drag from its right edge to another box to connect them.";
 
+interface FitViewOnResizeProps {
+  readonly coveredRightPx: number;
+}
+
 /**
- * Fits the diagram to its box again whenever the box changes size. React
- * Flow's `fitView` fits only once, when the diagram opens, but in a
- * fixed-height column the box grows and shrinks with the window and with
- * what's open below it. Render it inside `<ReactFlow>`.
+ * Fits the diagram to its box again whenever the box changes size, or
+ * what covers its right edge does. React Flow's `fitView` fits only once,
+ * when the diagram opens, but the box grows and shrinks with the window,
+ * and an inspector over it opens and closes. Render it inside `<ReactFlow>`.
  */
-function FitViewOnResize() {
+function FitViewOnResize({ coveredRightPx }: FitViewOnResizeProps) {
   const { fitView } = useReactFlow();
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
 
   useEffect(() => {
-    void fitView();
-  }, [fitView, width, height]);
+    void fitView(fitOptions({ width, coveredRightPx }));
+  }, [fitView, width, height, coveredRightPx]);
 
   return null;
 }
@@ -65,6 +70,7 @@ export interface DiagramCanvasProps {
   readonly onSelect?: ((item: DiagramItem | undefined) => void) | undefined;
   readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
   readonly onMove?: ((move: DiagramMove) => void) | undefined;
+  readonly coveredRightPx?: number | undefined;
 }
 
 /**
@@ -77,6 +83,7 @@ export function DiagramCanvas({
   onSelect,
   onConnect,
   onMove,
+  coveredRightPx = 0,
 }: DiagramCanvasProps) {
   const items = useFlowItems({ content, marks, onMove });
   return (
@@ -94,10 +101,13 @@ export function DiagramCanvas({
       {...items.nodeProps}
       ariaLabelConfig={descriptionsOf({ onSelect, onConnect, onMove })}
       fitView
+      fitViewOptions={OPENING_FIT}
     >
       <Background />
-      <Controls showInteractive={false} />
-      <FitViewOnResize />
+      {/* At the left edge's middle: the screen puts its own controls at the
+          canvas's top and bottom left. */}
+      <Controls showInteractive={false} position="center-left" />
+      <FitViewOnResize coveredRightPx={coveredRightPx} />
     </ReactFlow>
   );
 }

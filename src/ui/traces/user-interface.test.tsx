@@ -199,9 +199,10 @@ function tracedUseCases(trace: Trace, runner: SimulationRunner): UseCases {
 }
 
 function status(): string {
-  // The project bar's second status region is the run's, after what Undo
-  // did; the storage hint and the bar's other regions are status regions too.
-  const bar = screen.getByRole("region", { name: "Sample project" });
+  // The top bar's second status region is the run's, after what Undo did;
+  // the bar's other regions are status regions too, and so is the storage
+  // hint, under the bar.
+  const bar = screen.getByRole("banner");
   return within(bar).getAllByRole("status")[1]?.textContent ?? "";
 }
 
@@ -233,7 +234,11 @@ function breadcrumb(): string {
   const nav = screen.getByRole("navigation", { name: "Breadcrumb" });
   const crumbs = within(nav)
     .getAllByRole("listitem")
-    .map((item) => item.textContent.replace("›", ""));
+    .map(
+      (item) =>
+        within(item).queryByRole("heading")?.textContent ??
+        item.textContent.replace("›", ""),
+    );
   return `breadcrumb "${crumbs.join(" › ")}"`;
 }
 
@@ -276,9 +281,13 @@ async function createAndOpen(trace: Trace): Promise<void> {
   trace.action('User clicks "Sample project"');
   fireEvent.click(screen.getByRole("button", { name: "Sample project" }));
   await screen.findByRole("heading", { name: "Sample project" });
-  const components = screen.getByRole("list", { name: "Components" });
+  // In the canvas's "As text" panel, closed: counted, not opened.
+  const components = screen.getByRole("list", {
+    name: "Components",
+    hidden: true,
+  });
   trace.screen(
-    `project screen: heading, architecture (${String(within(components).getAllByRole("listitem").length)} components), run controls`,
+    `project screen: heading, architecture (${String(within(components).getAllByRole("listitem", { hidden: true }).length)} components), run controls`,
   );
   trace.screen(breadcrumb());
 }

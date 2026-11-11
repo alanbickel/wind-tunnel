@@ -4,3 +4,8 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* A long workload name doesn't widen the top bar; the open list shows it whole. */
+.controls select {
+  max-width: var(--text-field-width);
+}

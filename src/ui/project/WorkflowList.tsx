@@ -11,7 +11,7 @@ export interface WorkflowListProps {
   readonly project: Project;
   readonly selection: Selection | undefined;
   readonly onSelect: (selection: Selection) => void;
-  /** "Add workflow", and the region beside it. */
+  /** "Add workflow". */
   readonly adding: AddWorkflowProps;
 }
 
@@ -20,8 +20,6 @@ export interface AddWorkflowProps {
   readonly onAdd: () => void;
   /** The "Add workflow" button, where the focus goes after a workflow's remove. */
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
-  /** What a workflow's remove announces: "Removed Get order." */
-  readonly announcement: string;
 }
 
 /**
@@ -121,12 +119,10 @@ const ADD_A_COMPONENT_FIRST = "Add a component first.";
 /**
  * "Add workflow", which opens a new workflow in Details as a draft. A
  * workflow's first step calls a component, so with none the button is
- * unusable, and says why in words its description points at. Beside it, a
- * polite region, on the page from the start, empty, so a screen reader
- * announces a message put in it: what a workflow's remove took.
+ * unusable, and says why in words its description points at.
  */
 function AddWorkflow({ project, adding }: WorkflowListProps) {
-  const { onAdd, buttonRef, announcement } = adding;
+  const { onAdd, buttonRef } = adding;
   const whyId = useId();
   const usable = project.architecture.components.length > 0;
   return (
@@ -139,9 +135,6 @@ function AddWorkflow({ project, adding }: WorkflowListProps) {
       >
         Add workflow
       </Button>
-      <p role="status" className={styles.announcement}>
-        {announcement}
-      </p>
       {!usable && (
         <p id={whyId} className={styles.whyNot}>
           {ADD_A_COMPONENT_FIRST}

@@ -1,16 +1,23 @@
+/* One slim row, wrapping onto more when the window is too narrow for it.
+   Rows are spaced by their items' margins, not a row gap, so a project's
+   status line takes no room while it's empty. */
 .topBar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-5);
-  padding: var(--space-3) var(--space-5);
+  column-gap: var(--space-5);
+  padding: var(--space-1) var(--space-5);
   background: var(--color-surface);
   border-bottom: var(--line-width) solid var(--color-divider);
 }
 
+.topBar > * {
+  margin-block: var(--space-1);
+}
+
 .name {
   font-size: var(--font-size-md);
-  margin: 0;
+  margin-inline: 0;
 }
 
 /* Pushes the theme control to the far end. */

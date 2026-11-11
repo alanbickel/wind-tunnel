@@ -11,7 +11,12 @@ import type { RunSoFar } from "./run-so-far";
  */
 export type ComponentStatus = "refused" | "waited" | "ok";
 
-/** Each status's word, as the findings say it: "refused" means the same in both. */
+/**
+ * Each status's word, as a badge says it. The findings' phrasebook words
+ * "refused" in its own sentences and has no entry to share, so these are
+ * written to match it, not built from it; nothing in code keeps the two
+ * together.
+ */
 export const STATUS_WORDS: Readonly<Record<ComponentStatus, string>> = {
   refused: "refused",
   waited: "waited",

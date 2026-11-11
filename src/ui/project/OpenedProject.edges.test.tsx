@@ -86,6 +86,22 @@ describe("OpenedProject's edges", () => {
     expect(screen.getByRole("button", { name: "Function → API" })).toBeTruthy();
   });
 
+  // Fails if the line takes the focus whenever it mounts, not only after
+  // Connect connects the last one.
+  it("leaves the focus on the heading when selecting a component that's connected to every other", () => {
+    renderOpenedProject();
+    select("Function (lambda)");
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    select("Table (dynamodb)");
+
+    select("Function (lambda)");
+
+    expect(
+      screen.getByText("Connected to every other component already."),
+    ).toBeTruthy();
+    expect(document.activeElement).toBe(detailsHeading());
+  });
+
   // Fails if an edge's timeout field doesn't check its draft (0 would save
   // a project that can't open), or Reset doesn't put back the caller
   // type's default: 29,000 ms from API Gateway, where the callee, a Lambda,

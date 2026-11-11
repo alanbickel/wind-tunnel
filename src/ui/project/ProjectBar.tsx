@@ -112,13 +112,14 @@ function ProjectRunSection(props: ProjectRunSectionProps) {
  * anywhere on the screen; it's hidden from sight, as the screen shows it.
  */
 function UndoControls(props: UndoRedo) {
-  const { undo, redo, nextUndo, nextRedo, announcement } = props;
+  const { undo, redo, undoButton, redoButton } = props;
+  const { nextUndo, nextRedo, announcement } = props;
   return (
     <div className={styles.undo}>
-      <Button onClick={undo} usable={nextUndo !== undefined}>
+      <Button ref={undoButton} onClick={undo} usable={nextUndo !== undefined}>
         {buttonText("Undo", nextUndo)}
       </Button>
-      <Button onClick={redo} usable={nextRedo !== undefined}>
+      <Button ref={redoButton} onClick={redo} usable={nextRedo !== undefined}>
         {buttonText("Redo", nextRedo)}
       </Button>
       <span role="status" className={styles.undone}>

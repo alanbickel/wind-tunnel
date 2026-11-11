@@ -395,7 +395,7 @@ describe("OpenedProject's selection in a wide window", () => {
   it("opens Details on a selection, and Escape goes back to Run and the button", () => {
     renderProject();
 
-    const button = selectFromText("Function (lambda)");
+    const button = selectFromText("Function (Lambda)");
 
     expect(selectedTab()).toBe("Details");
     expect(document.activeElement).toBe(detailsHeading());
@@ -411,7 +411,7 @@ describe("OpenedProject's selection in a wide window", () => {
   // on zooming in): the focus would jump away from where the user is.
   it("leaves the focus where it is when the window crosses the breakpoint", () => {
     const { resize } = renderProject();
-    const button = selectFromText("Function (lambda)");
+    const button = selectFromText("Function (Lambda)");
     button.focus();
 
     act(() => {

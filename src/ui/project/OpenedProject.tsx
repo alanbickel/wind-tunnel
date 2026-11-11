@@ -168,6 +168,7 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     changes,
     move,
     panels,
+    badges: projectRun.badges,
     coveredRightPx: covered.coveredRightPx,
   });
   const held = { edits, projectRun, selecting, undoRedo };
@@ -184,7 +185,8 @@ const MemoArchitectureView = memo(ArchitectureView);
 
 /** The architecture, from what the screen holds. */
 function useArchitecture(input: ArchitectureInput) {
-  const { edits, selecting, changes, move, panels, coveredRightPx } = input;
+  const { edits, selecting, changes, move, panels, badges } = input;
+  const { coveredRightPx } = input;
   const { selection, select, clear } = selecting;
   const adding = useAdding(changes);
   const addingWorkflow = useAddingWorkflow(changes);
@@ -200,6 +202,7 @@ function useArchitecture(input: ArchitectureInput) {
       addingWorkflow={addingWorkflow}
       workflowAnnouncement={changes.workflowAnnouncement}
       panels={panels}
+      badges={badges}
       coveredRightPx={coveredRightPx}
     />
   );
@@ -230,6 +233,7 @@ interface ArchitectureInput {
   readonly changes: AddAndRemove;
   readonly move: Move;
   readonly panels: CanvasPanels;
+  readonly badges: ProjectRun["badges"];
   readonly coveredRightPx: number;
 }
 

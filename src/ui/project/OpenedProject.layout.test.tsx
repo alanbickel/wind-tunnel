@@ -74,7 +74,7 @@ describe("OpenedProject's canvas-first layout", () => {
     const [first] = within(details).getAllByText(/./, { selector: "p" });
     expect(first?.textContent).toBe("A small project for tests.");
 
-    fireEvent.click(revealButton("Function (lambda)"));
+    fireEvent.click(revealButton("Function (Lambda)"));
     expect(
       within(details).queryByText("A small project for tests."),
     ).toBeNull();
@@ -127,8 +127,8 @@ describe("OpenedProject's inspector", () => {
     renderProject();
     fireEvent.click(inspectorToggle());
 
-    revealButton("Function (lambda)").focus();
-    fireEvent.click(revealButton("Function (lambda)"));
+    revealButton("Function (Lambda)").focus();
+    fireEvent.click(revealButton("Function (Lambda)"));
 
     expect(tabList()).toBeTruthy();
     expect(document.activeElement).toBe(detailsHeading());
@@ -192,7 +192,7 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
   // panel closed since it made the selection without opening the panel,
   // so in a browser the focus falls to the page.
   it.each([
-    ["As text", "Function (lambda)", "Workflows"],
+    ["As text", "Function (Lambda)", "Workflows"],
     ["Workflows", "Read item", "As text"],
   ] as const)(
     "opens %s again when Escape returns the focus to %s in it",

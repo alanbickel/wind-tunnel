@@ -9,6 +9,7 @@ import {
   simulatedSec,
   statusText,
 } from "./run-status";
+import { runBadgesOf, type RunBadges } from "./run-badges";
 import { useRunFindings, type RunMeaning } from "./useRunFindings";
 import {
   useSimulationRun,
@@ -38,6 +39,8 @@ export interface ProjectRun {
    * project in what makes its results (ADR-0018); false before the first.
    */
   readonly outOfDate: boolean;
+  /** The status badges the diagram draws; undefined before the first run. */
+  readonly badges: RunBadges | undefined;
 }
 
 /**
@@ -48,11 +51,7 @@ export interface ProjectRun {
  */
 export function useProjectRun(project: Project): ProjectRun {
   const run = useSimulationRun(project);
-  const { checkWorkloads } = useUseCases();
-  const checks = useMemo(
-    () => checkWorkloads.execute({ project }),
-    [checkWorkloads, project],
-  );
+  const checks = useWorkloadChecks(project);
   const [picked, pick] = useState(project.workloads[0]);
   const ranModel = ranModelOf(run.phase);
   const meaning = useRunFindings({ ran: ranModel, received: run });
@@ -68,7 +67,36 @@ export function useProjectRun(project: Project): ProjectRun {
     [ranModel, project],
   );
   const ran = ranModel?.workload;
-  return { run, picked, pick, checks, ran, meaning, status, outOfDate };
+  const badges = useBadges(meaning, outOfDate);
+  return {
+    run,
+    picked,
+    pick,
+    checks,
+    ran,
+    meaning,
+    status,
+    outOfDate,
+    badges,
+  };
+}
+
+/** Which of the project's workloads can run, and why not. */
+function useWorkloadChecks(project: Project): WorkloadRunChecks {
+  const { checkWorkloads } = useUseCases();
+  return useMemo(
+    () => checkWorkloads.execute({ project }),
+    [checkWorkloads, project],
+  );
+}
+
+/** The diagram's badges for the run on screen, the same object while it is. */
+function useBadges(
+  meaning: RunMeaning | undefined,
+  outOfDate: boolean,
+): RunBadges | undefined {
+  const run = meaning?.run;
+  return useMemo(() => runBadgesOf(run, outOfDate), [run, outOfDate]);
 }
 
 /** Whether there has been a run, and its copy no longer matches `project`. */

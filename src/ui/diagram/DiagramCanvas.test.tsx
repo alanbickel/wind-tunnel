@@ -68,8 +68,20 @@ describe("DiagramCanvas", () => {
 describe("DiagramCanvas's connections", () => {
   const boxes: DiagramContent = {
     nodes: [
-      { id: "a", label: "A", caption: "a", position: { x: 0, y: 0 } },
-      { id: "b", label: "B", caption: "b", position: { x: 200, y: 0 } },
+      {
+        id: "a",
+        label: "A",
+        caption: "a",
+        icon: "a",
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: "b",
+        label: "B",
+        caption: "b",
+        icon: "b",
+        position: { x: 200, y: 0 },
+      },
     ],
     edges: [],
   };
@@ -105,8 +117,20 @@ describe("DiagramCanvas's connections", () => {
 describe("DiagramCanvas's moves", () => {
   const boxes: DiagramContent = {
     nodes: [
-      { id: "a", label: "A", caption: "a", position: { x: 0, y: 0 } },
-      { id: "b", label: "B", caption: "b", position: { x: 200, y: 0 } },
+      {
+        id: "a",
+        label: "A",
+        caption: "a",
+        icon: "a",
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: "b",
+        label: "B",
+        caption: "b",
+        icon: "b",
+        position: { x: 200, y: 0 },
+      },
     ],
     edges: [],
   };

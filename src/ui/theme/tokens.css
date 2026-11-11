@@ -112,6 +112,10 @@
      takes a typical component name, and wraps its row on a narrow panel. */
   --number-field-width: 9ch;
   --text-field-width: 24ch;
+  /* The icon on a component's card on the diagram. */
+  --node-icon-size: 1.5rem;
+  /* The shape on a status badge: a circle, triangle, or square, beside its word. */
+  --badge-shape-size: 0.75em;
   /* The window's height, less any browser toolbars showing. */
   --window-height: 100dvh;
   /* A round icon button, such as an info control, sized to its text. */

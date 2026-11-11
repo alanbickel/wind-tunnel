@@ -219,9 +219,9 @@ describe("ArchitectureView", () => {
     openPanel("As text");
 
     expect(itemsOf("Components")).toEqual([
-      "API (api-gateway)",
-      "Function (lambda)",
-      "Table (dynamodb)",
+      "API (API Gateway)",
+      "Function (Lambda)",
+      "Table (DynamoDB)",
     ]);
     expect(itemsOf("Connections")).toEqual([
       "API → Function",
@@ -262,7 +262,7 @@ describe("ArchitectureView", () => {
     });
     openPanel("As text");
 
-    fireEvent.click(screen.getByRole("button", { name: "Table (dynamodb)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table (DynamoDB)" }));
     fireEvent.click(screen.getByRole("button", { name: "Function → Table" }));
 
     expect(onSelect.mock.calls).toEqual([

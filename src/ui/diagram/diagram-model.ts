@@ -7,13 +7,36 @@ export interface DiagramPoint {
   readonly y: number;
 }
 
+/** What a box's status badge says, and how it's drawn. */
+export type DiagramStatusKind = "refused" | "waited" | "ok";
+
+/** A box's status badge: a shape and a word, never color alone. */
+export interface DiagramStatus {
+  readonly kind: DiagramStatusKind;
+  /** The word on the badge, and its accessible name. */
+  readonly word: string;
+  /** Whether it's from a run of an earlier version of the project: drawn hollow. */
+  readonly outOfDate: boolean;
+}
+
+/**
+ * Said after a badge from a run of an earlier version of the project. Kept
+ * here, not in `NodeCard`, so the text version can say it without loading
+ * the icons, which belong to the lazy chunk.
+ */
+export const OUT_OF_DATE_NOTE = "from an earlier version of the project";
+
 /** A box on the diagram, such as one component. */
 export interface DiagramNode {
   readonly id: string;
   /** The main text, e.g. the component's name. */
   readonly label: string;
-  /** Smaller text under the label, e.g. the component's type. */
+  /** Smaller text under the label, e.g. the component's type in words. */
   readonly caption: string;
+  /** What picks the icon, e.g. the component's type ID; an unknown one has no icon. */
+  readonly icon: string;
+  /** How the box did in the run on screen; none with no run, or none for it. */
+  readonly status?: DiagramStatus | undefined;
   readonly position: DiagramPoint;
 }
 

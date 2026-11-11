@@ -136,7 +136,7 @@ describe("OpenedProject's workflows", () => {
   it("shows a removed component's issue on its step, and counts it on the row", () => {
     renderProject();
     expect(revealButton("Read item")).toBeTruthy();
-    selectFromText("Table (dynamodb)");
+    selectFromText("Table (DynamoDB)");
 
     removeSelected();
     selectFromText("Read item · 1 problem");

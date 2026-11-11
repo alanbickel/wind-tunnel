@@ -62,7 +62,7 @@ describe("OpenedProject's edges", () => {
   // last one leaves the focus on <body>, outside Details.
   it("connects a component from Connect to…, and saves the edge", async () => {
     const { projects } = renderOpenedProject();
-    select("Function (lambda)");
+    select("Function (Lambda)");
     const picker = screen.getByRole("combobox", { name: "Connect to" });
     expect(
       within(picker)
@@ -92,11 +92,11 @@ describe("OpenedProject's edges", () => {
   // Connect connects the last one.
   it("leaves the focus on the heading when selecting a component that's connected to every other", () => {
     renderOpenedProject();
-    select("Function (lambda)");
+    select("Function (Lambda)");
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-    select("Table (dynamodb)");
+    select("Table (DynamoDB)");
 
-    select("Function (lambda)");
+    select("Function (Lambda)");
 
     expect(
       screen.getByText("Connected to every other component already."),

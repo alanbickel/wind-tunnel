@@ -11,7 +11,8 @@ const content: DiagramContent = {
     {
       id: "api",
       label: "API",
-      caption: "api-gateway",
+      caption: "API Gateway",
+      icon: "api-gateway",
       position: { x: 0, y: 0 },
     },
   ],

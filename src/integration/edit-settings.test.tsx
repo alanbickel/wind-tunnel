@@ -31,6 +31,12 @@ import {
 
 import { revealButton } from "../ui/project/testing/canvas-panels";
 
+/** A component's line in the text version: its name and its type in words. */
+function textLine(component: Component): string {
+  const type = createAwsComponentRegistry().get(component.type);
+  return `${component.name} (${type?.displayName ?? component.type})`;
+}
+
 /** Renders the project, and selects a component from the diagram's text version. */
 function openAndSelect(
   project: Project,
@@ -42,7 +48,7 @@ function openAndSelect(
     (c) => c.name === componentName,
   );
   if (component === undefined) throw new Error(`no ${componentName}`);
-  fireEvent.click(revealButton(`${component.name} (${component.type})`));
+  fireEvent.click(revealButton(textLine(component)));
   return rendered;
 }
 

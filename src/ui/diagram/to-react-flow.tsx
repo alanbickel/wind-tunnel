@@ -6,6 +6,7 @@ import {
   type DiagramMarks,
   type DiagramNode,
 } from "./diagram-model";
+import { NodeCard } from "./NodeCard";
 
 /**
  * The class on a box or an arrow on the marked path, which
@@ -22,7 +23,7 @@ function pathClassOf(marks: DiagramMarks, item: DiagramItem): ItemClass {
 }
 
 /**
- * A node as React Flow takes it: the label is rendered inside the box. Arrows
+ * A node as React Flow takes it: its card is rendered inside the box. Arrows
  * leave from the right and arrive on the left, since layouts run left to
  * right, from the entry point to the data stores. React Flow marks a selected
  * node with its `selected` class, which Diagram.module.css rings; a node on
@@ -38,13 +39,7 @@ export function toFlowNode(node: DiagramNode, marks: DiagramMarks): Node {
     selected: isAmong(marks.selected, item),
     ...pathClassOf(marks, item),
     data: {
-      label: (
-        <>
-          <strong>{node.label}</strong>
-          <br />
-          <small>{node.caption}</small>
-        </>
-      ),
+      label: <NodeCard node={node} />,
     },
   };
 }

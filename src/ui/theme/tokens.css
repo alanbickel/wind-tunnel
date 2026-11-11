@@ -89,6 +89,8 @@
   /* Line widths: borders and rules; thick for the focus ring and accents. */
   --line-width: 1px;
   --line-width-thick: 2px;
+  /* The bar down the left edge of what's selected (UX design §4.1). */
+  --selection-bar-width: 6px;
 
   /* Text for screen readers only: one pixel, not none, since some screen
      readers skip an element with no size. */

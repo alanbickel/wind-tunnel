@@ -111,9 +111,9 @@ flowchart TB
 A selected workflow's path, or a selected step's, is drawn on the diagram as the [UX design §4.1](../design/user-experience.md#41-selection) table says. [`selectionOnArchitecture`](../../src/application/details/selection-on-architecture.ts) works out which parts, and `ArchitectureView` hands them to `Diagram` as its `marks`:
 
 - **The path** is every component the workflow's steps call, and the edge each call follows, from its caller's component to its own; async work's edge runs from the queue to its consumer. `stepLinksOf` (in `step-tree.ts`) pairs each step with its caller. A step selection keeps its workflow's path, as the list keeps its row marked.
-- **A step** rings its component and the edge its call arrives on. The root step has no caller, since the user calls it, so it rings only its component.
+- **A step** marks its component and the edge its call arrives on. The root step has no caller, since the user calls it, so it marks only its component.
 - **Only what the architecture has.** A step whose component was removed rings nothing, and a call with no edge arrives on none; the outline says why ([How an issue finds its step](#how-an-issue-finds-its-step)). A workflow or step the project doesn't have shows nothing.
-- **How it looks.** A path's boxes get a thick accent border inside their own, and its arrows are drawn at the thick line's width, in the accent color. The selection's ring sits outside the box, apart from it, and a selected arrow is twice as thick again, so a step's ring reads apart from its workflow's path by shape and width, not color alone. `Diagram.module.css` draws both, from the `on-path` class and React Flow's `selected` class.
+- **How it looks.** A path's boxes get a thick accent border inside their own, and its arrows are drawn at the thick line's width, in the accent color. The selection's bar runs down the box's left edge, and a selected arrow is twice as thick again, so a step's mark reads apart from its workflow's path by shape and width, not color alone. `Diagram.module.css` draws both, from the `on-path` class and React Flow's `selected` class.
 
 ## How an issue finds its step
 

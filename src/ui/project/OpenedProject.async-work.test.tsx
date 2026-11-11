@@ -18,6 +18,8 @@ import {
 // edge to the writer. "Orders" is 1 API > 1.1 Function > 1.1.1 Queue
 // (enqueue), with the async work the test gives it.
 
+import { revealButton } from "./testing/canvas-panels";
+
 const QUEUE_EDGE = {
   id: "fn-queue",
   from: "fn",
@@ -71,7 +73,7 @@ const WRITER_STEP = step("writer-step", {
 const ADD_ASYNC = "Add async work, done when a consumer takes the message";
 
 function openOutline(): void {
-  const row = screen.getByRole("button", { name: /^Orders/ });
+  const row = revealButton(/^Orders/);
   row.focus();
   fireEvent.click(row);
 }

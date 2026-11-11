@@ -15,30 +15,30 @@ import { Button } from "../shared/Button";
 import { ScreenHeading } from "../shared/ScreenHeading";
 import { describedBy, fieldKeys } from "./fields/field-parts";
 import { useDraft, type Draft } from "./fields/useDraft";
-import styles from "./ProjectBar.module.css";
+import styles from "./ProjectName.module.css";
 import type { Edit } from "./useProjectEdits";
 
 export interface ProjectNameProps {
   readonly project: Project;
-  readonly headingId: string;
   readonly onEdit: (edit: Edit) => void;
 }
 
 /**
- * The project's heading and "Rename", or the rename field while renaming.
+ * The project's heading and "Rename", or the rename field while renaming,
+ * as the top bar's last crumb.
  * Choosing Rename reads the other projects' names, then turns the heading
  * into a text field holding the name, selected; Enter or leaving saves the
  * new name through the queue, and Escape puts back the saved name (UX
  * design §2.3). The field opens once the list arrives.
  */
-export function ProjectName({ project, headingId, onEdit }: ProjectNameProps) {
+export function ProjectName({ project, onEdit }: ProjectNameProps) {
   const { projects, openField, closeField } = useOpenField();
   const renameRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   useRenameFocus({ open: projects !== undefined, inputRef, renameRef });
   return (
     <div className={styles.titleRow}>
-      <ScreenHeading id={headingId} hidden={projects !== undefined}>
+      <ScreenHeading hidden={projects !== undefined}>
         {project.name}
       </ScreenHeading>
       {projects === undefined ? (

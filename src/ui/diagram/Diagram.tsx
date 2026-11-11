@@ -47,6 +47,12 @@ export interface DiagramProps {
    * Without it, nothing can be moved.
    */
   readonly onMove?: ((move: DiagramMove) => void) | undefined;
+  /**
+   * How wide, in pixels, what floats over the diagram's right edge is, such
+   * as an inspector: fitting the diagram keeps the boxes clear of it. None
+   * if not given.
+   */
+  readonly coveredRightPx?: number | undefined;
 }
 
 /**
@@ -59,14 +65,16 @@ export interface DiagramProps {
  * selected arrows. A path's boxes get a thick border inside their edge, and
  * its arrows a thick line, so a path reads apart from the selection. It
  * isn't readable by screen readers, so pair it with a text version that
- * can select the same things. Place it in
- * a flex column, such as a `Panel`: it's `--diagram-height` tall, or it
- * fills the room a fixed-height column leaves it, and refits when that
- * room changes. While React Flow loads, or if it can't, the box holds its
- * place.
+ * can select the same things. It has no border, so it can fill a screen
+ * edge to edge, with its zoom controls at the left edge's middle. Place it
+ * in a flex column: it's `--diagram-height` tall, or it fills the room a
+ * fixed-height column leaves it, and refits when that room changes. While
+ * React Flow loads, or if it can't, the box holds its place. It fits the
+ * boxes in, at most at their own size, clear of a covered right edge.
  */
 export function Diagram(props: DiagramProps) {
   const { content, label, marks, onSelect, onConnect, onMove } = props;
+  const { coveredRightPx } = props;
   return (
     <div role="group" aria-label={label} className={styles.diagram}>
       <div className={styles.canvas}>
@@ -86,6 +94,7 @@ export function Diagram(props: DiagramProps) {
               onSelect={onSelect}
               onConnect={onConnect}
               onMove={onMove}
+              coveredRightPx={coveredRightPx}
             />
           </Suspense>
         </LoadFailureBoundary>

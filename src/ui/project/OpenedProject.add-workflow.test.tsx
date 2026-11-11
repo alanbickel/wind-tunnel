@@ -20,6 +20,8 @@ import {
   statusRegions,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 /** A blank project: no components, so no workflow can start. */
 const blank: Project = {
   ...sampleRecord.project,
@@ -32,7 +34,7 @@ const blank: Project = {
 const noWorkflows: Project = { ...sampleRecord.project, workflows: [] };
 
 function addWorkflowButton(): HTMLElement {
-  return screen.getByRole("button", { name: "Add workflow" });
+  return revealButton("Add workflow");
 }
 
 function detailsPanel(): HTMLElement {
@@ -230,7 +232,7 @@ describe("OpenedProject's Add workflow", () => {
     nameDraft("Read item");
     choose("Component", "api");
 
-    fireEvent.click(screen.getByRole("button", { name: /^API \(/ }));
+    fireEvent.click(revealButton(/^API \(/));
 
     expect(detailsHeading().textContent).toContain("API");
     expect(screen.queryByRole("button", { name: "workflow-1" })).toBeNull();

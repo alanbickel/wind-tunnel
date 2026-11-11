@@ -1,0 +1,21 @@
+/* Narrow windows: the bar, the hint, then the content, and the page
+   scrolls, bar and all. */
+.frame {
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Wide windows: the frame stops at the window's bottom edge, so the bar
+   stays put and the content takes the height it leaves. */
+@media (min-width: 64rem) {
+  .frame {
+    height: var(--window-height);
+  }
+}

@@ -1,0 +1,43 @@
+/* The project's name and Rename, on the breadcrumb's line. */
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Sized for a slim bar: the crumb is the screen's heading, not a banner. */
+.titleRow h2 {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.renameField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.renameInput {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--line-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  width: var(--text-field-width);
+  max-width: 100%;
+}
+
+.renameInput[aria-invalid="true"] {
+  border-color: var(--color-status-error);
+  border-width: var(--line-width-thick);
+}
+
+.renameMessage {
+  margin: 0;
+  color: var(--color-status-error);
+  font-size: var(--font-size-sm);
+}

@@ -11,8 +11,10 @@ import {
 // The sample's "Read item": 1 API > 1.1 Function > 1.1.1 Table (read). The
 // architecture has API → Function and Function → Table, and no API → Table.
 
+import { revealButton } from "./testing/canvas-panels";
+
 function openOutline(): void {
-  const row = screen.getByRole("button", { name: /^Read item/ });
+  const row = revealButton(/^Read item/);
   row.focus();
   fireEvent.click(row);
 }
@@ -156,7 +158,7 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
     expect(detailsStatus().textContent).toBe(
       "Added a call from API to Table. Added the edge from API to Table.",
     );
-    expect(screen.getByRole("button", { name: "API → Table" })).toBeTruthy();
+    expect(revealButton("API → Table")).toBeTruthy();
     const saved = await savedRecord(
       projects,
       (r) => r.project.architecture.edges.length === 3,

@@ -22,7 +22,13 @@ export interface ProjectSelection {
   readonly tab: SideTab;
   readonly showTab: (tab: SideTab) => void;
   /**
-   * Selects, and shows Details, whose `focus` takes the focus: its heading
+   * Whether the wide layout's inspector is open, or collapsed to a strip
+   * on the canvas's right edge. Selecting opens it.
+   */
+  readonly inspectorOpen: boolean;
+  readonly showInspector: (open: boolean) => void;
+  /**
+   * Selects, and shows Details in an open inspector, whose `focus` takes the focus: its heading
    * unless given. Remembers the element that had the focus, such as the
    * button that made the selection, so `close` can return it.
    */
@@ -57,6 +63,7 @@ export interface ProjectSelection {
 export function useSelection(): ProjectSelection {
   const [selection, setSelection] = useState<Selection>();
   const [tab, showTab] = useState<SideTab>("run");
+  const [inspectorOpen, showInspector] = useState(true);
   const { request, takeFocus } = useFocusRequest();
 
   const selectWithin = useCallback(
@@ -64,6 +71,7 @@ export function useSelection(): ProjectSelection {
       request(focus);
       setSelection(next);
       showTab("details");
+      showInspector(true);
     },
     [request],
   );
@@ -75,7 +83,8 @@ export function useSelection(): ProjectSelection {
   const { select, close } = useOpener({ selectWithin, clear });
 
   const changes = { select, selectWithin, clear, close };
-  return { selection, tab, showTab, ...changes, takeFocus };
+  const inspector = { inspectorOpen, showInspector };
+  return { selection, tab, showTab, ...inspector, ...changes, takeFocus };
 }
 
 /** The changes the opener is remembered and returned around. */

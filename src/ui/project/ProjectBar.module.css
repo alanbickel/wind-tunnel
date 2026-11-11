@@ -1,71 +1,49 @@
-/* The project on one side, its run on the other, wrapping onto two lines
-   when the window is too narrow for both. */
+/* In the top bar's row, after the project's name: Undo and Redo, then
+   the run's controls. Each group is an item of the bar's own row, so the
+   bar wraps whole groups, never one group inside a narrow box; the run's
+   controls take the room left, at its end. */
 .bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-5);
+  display: contents;
 }
 
-.intro > :last-child {
-  margin-bottom: 0;
+.bar > * {
+  margin-block: var(--space-1);
 }
 
-.titleRow {
+.bar > :last-child {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+/* The status line: the whole width of the bar, under its row, its items
+   at the end, under the run's controls. Spaced with margins, not a column
+   gap, so an empty status takes no room. */
+.line {
+  flex-basis: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: flex-end;
 }
 
-.renameField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+/* While every status is empty, the line takes no height either. A run
+   gives the run's status its text, so a line with progress has one. */
+.line:not(
+  :has(
+    > .status > :first-child:not(:empty),
+    > .cantRun:not(:empty),
+    > .saveStatus > :first-child:not(:empty)
+  )
+) {
+  margin-block: 0;
 }
 
-.renameInput {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  font-family: inherit;
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: var(--line-width) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-  width: var(--text-field-width);
-  max-width: 100%;
-}
-
-.renameInput[aria-invalid="true"] {
-  border-color: var(--color-status-error);
-  border-width: var(--line-width-thick);
-}
-
-.renameMessage {
-  margin: 0;
-  color: var(--color-status-error);
-  font-size: var(--font-size-sm);
-}
-
-.description {
-  max-width: var(--prose-max-width);
-  color: var(--color-text-muted);
-}
-
-/* Spaced with margins, not gap, so an empty status takes no room. */
-.run {
-  display: flex;
-  flex-direction: column;
-}
-
-.run > * {
+.line > * {
   margin: 0;
 }
 
-.run > :not(:first-child) {
-  margin-top: var(--space-2);
+.line > :not(:first-child) {
+  margin-inline-start: var(--space-3);
 }
 
 /* The status regions stay rendered while they're empty, so screen readers
@@ -78,8 +56,11 @@
   column-gap: var(--space-2);
 }
 
-.run > .status:has(> :first-child:empty) {
-  margin-top: 0;
+/* Rendered, so screen readers keep them, but without room or a margin. */
+.line > .status:has(> :first-child:empty),
+.line > .saveStatus:has(> :first-child:empty),
+.line > .cantRun:empty {
+  margin-inline-start: 0;
 }
 
 .outOfDate {
@@ -96,10 +77,6 @@
   column-gap: var(--space-2);
 }
 
-.run > .saveStatus:has(> :first-child:empty) {
-  margin-top: 0;
-}
-
 .saveFailed {
   color: var(--color-status-error);
   font-weight: var(--font-weight-bold);
@@ -107,22 +84,17 @@
 
 /* Like the run's status: there from the start, taking no room while the
    picked workload can run. */
-.run > .cantRun:empty {
-  margin-top: 0;
-}
-
 .cantRun {
   max-width: var(--prose-max-width);
   color: var(--color-status-warn);
 }
 
-/* Undo and Redo under the project's name. */
+/* Undo and Redo, after the project's name. */
 .undo {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
-  margin-top: var(--space-2);
 }
 
 /* Heard, not seen: the screen shows the change, and the buttons name the

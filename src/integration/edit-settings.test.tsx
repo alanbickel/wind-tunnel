@@ -29,6 +29,8 @@ import {
   renderOpenedProject,
 } from "../ui/project/testing/render-opened-project";
 
+import { revealButton } from "../ui/project/testing/canvas-panels";
+
 /** Renders the project, and selects a component from the diagram's text version. */
 function openAndSelect(
   project: Project,
@@ -40,11 +42,7 @@ function openAndSelect(
     (c) => c.name === componentName,
   );
   if (component === undefined) throw new Error(`no ${componentName}`);
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: `${component.name} (${component.type})`,
-    }),
-  );
+  fireEvent.click(revealButton(`${component.name} (${component.type})`));
   return rendered;
 }
 
@@ -80,8 +78,8 @@ function firstDescription(input: HTMLElement): string | null | undefined {
  * The project bar's status regions after Undo's: run status, out of date,
  * why the workload can't run, save failure.
  */
-function barStatus(project: Project): (string | null)[] {
-  const bar = screen.getByRole("region", { name: project.name });
+function barStatus(): (string | null)[] {
+  const bar = screen.getByRole("banner");
   return within(bar)
     .getAllByRole("status")
     .slice(1)
@@ -122,13 +120,13 @@ describe("editing a component's settings", () => {
     const { runner, projects } = openAndSelect(projectA, "orders-db");
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
     await runner.finish();
-    expect(barStatus(projectA)[1]).toBe("");
+    expect(barStatus()[1]).toBe("");
 
     typeAndLeave(field("Query workers"), "64");
 
     const saved = await savedRecord(projects, projectA);
     expect(configIn(saved, "orders-db")?.["queryWorkers"]).toBe(64);
-    expect(barStatus(projectA)[1]).toBe("Out of date");
+    expect(barStatus()[1]).toBe("Out of date");
     expect(field("Query workers").value).toBe("64");
   });
 
@@ -145,7 +143,7 @@ describe("editing a component's settings", () => {
 
     expect(workers.getAttribute("aria-invalid")).toBe("true");
     expect(firstDescription(workers)).toBe("Query workers must be at least 1.");
-    expect(barStatus(projectA)[1]).toBe("");
+    expect(barStatus()[1]).toBe("");
     fireEvent.keyDown(workers, { key: "Escape" });
     expect(workers.value).toBe("16");
     expect(workers.getAttribute("aria-invalid")).toBe("false");
@@ -284,14 +282,14 @@ describe("editing a component's settings", () => {
     typeAndLeave(field("Query workers"), "64");
 
     await waitFor(() => {
-      expect(barStatus(projectA)[3]).toBe("Couldn't save your last change.");
+      expect(barStatus()[3]).toBe("Couldn't save your last change.");
     });
     expect(field("Query workers").value).toBe("64");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     const saved = await savedRecord(projects, projectA);
     expect(configIn(saved, "orders-db")?.["queryWorkers"]).toBe(64);
     await waitFor(() => {
-      expect(barStatus(projectA)[3]).toBe("");
+      expect(barStatus()[3]).toBe("");
     });
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });

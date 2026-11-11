@@ -34,7 +34,7 @@ flowchart TB
 
 **3. The path on the diagram.** Selecting the workflow highlights its path: every component a step calls, and every edge a call follows, async work included. Here that's the five components above, and the four edges `api → fn-api`, `fn-api → orders-queue`, `orders-queue → fn-writer`, and `fn-writer → orders-db`; orders-read and `fn-api → orders-read`, which only "Get order" uses, aren't on it. Selecting the step `1.1.1.1  fn-writer · invoke` keeps the path and marks fn-writer and `orders-queue → fn-writer`, the edge the queue delivers its message along. [The path on the diagram](#the-path-on-the-diagram) says how.
 
-**4. The path in the text version.** Under the diagram's components and connections, its text version gives each workflow's path as one line, for a reader who can't see the diagram. [`workflowPathText`](../../src/application/details/workflow-path-text.ts) names each step by its component, and the last step of a path by its action too; a workflow that branches gets a path per leaf, joined by semicolons, and async work follows its queue after "then":
+**4. The path in the text version.** Under the diagram's components and connections, in the canvas's "As text" panel, its text version gives each workflow's path as one line, for a reader who can't see the diagram. [`workflowPathText`](../../src/application/details/workflow-path-text.ts) names each step by its component, and the last step of a path by its action too; a workflow that branches gets a path per leaf, joined by semicolons, and async work follows its queue after "then":
 
 ```text
 Create order: API Gateway → fn-api → orders-queue (enqueue), then fn-writer → orders-db (write).
@@ -101,7 +101,7 @@ flowchart TB
 
 ## Selecting a workflow or a step
 
-- **The list.** Under the diagram's text version, "Workflows" lists the project's workflows in project order, each a button that selects it. A workflow with run issues says how many after its name, one per issue: "Get order · 1 problem". Its row is marked `aria-current` while the workflow, or one of its steps, is selected. With no workflows, it says "No workflows yet. A workflow is the path one kind of request takes through your architecture."
+- **The list.** The canvas's "Workflows" panel, opened from its bottom left, lists the project's workflows in project order, each a button that selects it. A workflow with run issues says how many after its name, one per issue: "Get order · 1 problem". Its row is marked `aria-current` while the workflow, or one of its steps, is selected. With no workflows, it says "No workflows yet. A workflow is the path one kind of request takes through your architecture."
 - **Details.** `DescribeSelection` answers both kinds with one `WorkflowDetails`: the name, the names of the workloads whose mix has it (`usedBy`), the outline, and `currentStepId`, the selected step's or undefined. It describes nothing for a workflow the project doesn't have, or a step that isn't in that workflow. The heading is the workflow's name, "· Workflow"; then "Used by: Lunch rush, Steady day", or "Used by: no workload yet", joined with semicolons when a name has a comma of its own, as the templates' do; then the outline, the selected step marked `aria-current`. A step whose component is gone reads "a removed component · read", since a component's ID is never shown. Remove, in the header, asks first ([Removing a workflow](#removing-a-workflow)); `removal` in `WorkflowDetails` holds its words.
 - **Focus.** As for a component: selecting a workflow or a step moves the focus to the Details heading, and Escape, or Close in a narrow window, clears the selection and returns the focus to whatever made it. A step is selected from inside Details, so the outline selects it with `selectWithin`, which keeps the element remembered before, the workflow's row; the step's own button goes when Details closes.
 - **Undo and redo.** `selectionAfterUndo` keeps a selected workflow while the project still has it, and a selected step while its workflow still has a step with its ID, async work included; otherwise it clears the selection. Either stays even through an undo that brings a component or an edge back, which would otherwise select what came back: undoing a component's removal while one of its steps is selected leaves the step selected, and its issue goes from the outline. Undoing a workflow's remove while it's selected can't happen, since the remove cleared the selection; an undo that takes a selected workflow away (undoing its add) clears it. Undoing a step's remove puts its step and everything under it back, and the selection, which the remove moved to the step's caller, stays there, since the caller is still in the workflow. An undo of a move leaves the selection on its step, whose id didn't change. Otherwise an undo only redraws the outline, with any renamed component's new name and the issues as they now are.
@@ -136,9 +136,9 @@ flowchart TB
 
 - **`stepAt`** ([`step-tree.ts`](../../src/domain/model/step-tree.ts)) follows `calls` and an index, or `async`, as far as the path goes, and stops at anything else: a path that runs on into the step's `componentId` or `action` names that step.
 - **A path that ends in `async` is the one that needs care.** It's the async work's own path, so a missing edge from a queue to its consumer, whose path is to the step called, lands on the consumer. But the two issues about a step's async work itself (`async-not-on-enqueue`, `async-not-delivered`) name the step's `async` field too, so `stepPathOf` drops that last part first, by a table keyed by the issue's kind: they land on the step that has the async work.
-- **The words** come from the same phrasebook as the project bar's, with the step as the subject: "This step calls orders-db from fn-orders, which has no edge to it." Like the outline's labels, they name components by name and never show an ID; a removed component has no name to give, so the step says only that it's gone ([M6 UX design §2.4 step 5](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md#24-add-a-component-and-remove-one)).
+- **The words** come from the same phrasebook as the top bar's, with the step as the subject: "This step calls orders-db from fn-orders, which has no edge to it." Like the outline's labels, they name components by name and never show an ID; a removed component has no name to give, so the step says only that it's gone ([M6 UX design §2.4 step 5](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md#24-add-a-component-and-remove-one)).
 - **The count** is one per issue, so a step with two issues counts twice, and it matches the sentences under the steps. The row says it in words, and the outline sets an issue off by a line down its side, so neither relies on color. The issues also describe the step's button (`aria-describedby`), so a screen reader hears them on it.
-- **Opening a project with run issues** still works, as it has since [#94](https://github.com/alanbickel/wind-tunnel/issues/94): the outline is where they now show, alongside the project bar's reason.
+- **Opening a project with run issues** still works, as it has since [#94](https://github.com/alanbickel/wind-tunnel/issues/94): the outline is where they now show, alongside the top bar's reason.
 
 ## The commands
 
@@ -347,11 +347,11 @@ sequenceDiagram
     participant D as Details (ui)
     participant R as useAddAndRemove (ui)
     participant E as useProjectEdits (ui)
-    participant P as ProjectBar (ui)
+    participant P as ProjectStatus (ui)
     User->>D: Remove, on Get order
     D->>D: asks "Remove Get order?" and "Lunch rush and Steady day run it#59; it leaves their mixes." Focus on Cancel
     User->>D: confirms
-    D->>R: remove(workflow)
+    D->>R: remove(workflow), after opening the Workflows panel
     R->>E: edit(removeWorkflow), described "Remove workflow Get order"
     E->>E: the workflow and its mix entries go, and the run goes out of date
     R->>R: clear the selection, focus "Add workflow", announce "Removed Get order."
@@ -359,7 +359,7 @@ sequenceDiagram
 ```
 
 - **The words** come from `describeSelection` (`workflowRemovalText`): the question, and a warning naming the workloads whose mix has the workflow, which is absent when none does. A single workload reads "Steady day runs it; it leaves its mix."
-- **The focus** goes to "Add workflow", with "Removed Get order." said from a polite region beside it that's on the page from the start, as for a component with "Add component".
+- **The focus** goes to "Add workflow", in the canvas's "Workflows" panel, which the remove opens first if it was closed, with "Removed Get order." said from a polite region beside it that's on the page from the start, as for a component with "Add component".
 - **Undo** puts back the workflow at its place and the mix entries in one step, because the history keeps the record from before.
 
 ## When a new workflow exists

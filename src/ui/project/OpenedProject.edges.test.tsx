@@ -12,9 +12,11 @@ import {
   savedRecord,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 /** Selects a component or a connection from the diagram's text version. */
 function select(name: string): void {
-  const button = screen.getByRole("button", { name });
+  const button = revealButton(name);
   button.focus();
   fireEvent.click(button);
 }
@@ -83,7 +85,7 @@ describe("OpenedProject's edges", () => {
     expect(document.activeElement?.textContent).toBe(
       "Connected to every other component already.",
     );
-    expect(screen.getByRole("button", { name: "Function → API" })).toBeTruthy();
+    expect(revealButton("Function → API")).toBeTruthy();
   });
 
   // Fails if the line takes the focus whenever it mounts, not only after

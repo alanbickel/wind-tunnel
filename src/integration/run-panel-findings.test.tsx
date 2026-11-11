@@ -37,6 +37,7 @@ import { UseCasesProvider } from "../ui/app/UseCasesProvider";
 import { sampleRecord } from "../application/testing/sample-record";
 import { stubDiagramBrowserApis } from "../ui/diagram/testing/stub-diagram-browser-apis";
 import { OpenedProject } from "../ui/project/OpenedProject";
+import { TEST_SHELL } from "../ui/project/testing/canvas-panels";
 import { stubWindowWidth } from "../ui/shared/testing/stub-window-width";
 
 const registry = createAwsComponentRegistry();
@@ -103,6 +104,7 @@ async function runInPanel(input: PanelRunInput): Promise<PanelRun> {
     <UseCasesProvider useCases={useCases}>
       <OpenedProject
         record={{ ...sampleRecord, project, layout: { nodes: {} } }}
+        shell={TEST_SHELL}
       />
     </UseCasesProvider>,
   );

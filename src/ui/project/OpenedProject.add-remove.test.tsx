@@ -12,6 +12,8 @@ import {
   savedRecord,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 function componentIds(record: ProjectRecord): string[] {
   return record.project.architecture.components.map((c) => c.id);
 }
@@ -33,7 +35,7 @@ function add(name: string): void {
 
 /** Selects a component from the diagram's text version. */
 function select(name: string): void {
-  const button = screen.getByRole("button", { name });
+  const button = revealButton(name);
   button.focus();
   fireEvent.click(button);
 }

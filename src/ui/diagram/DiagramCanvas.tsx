@@ -5,6 +5,7 @@ import {
   useReactFlow,
   useStore,
   type AriaLabelConfig,
+  type FitViewOptions,
   type Node,
   type ReactFlowProps,
 } from "@xyflow/react";
@@ -42,19 +43,61 @@ const CONNECT_SENTENCE =
   "Drag from its right edge to another box to connect them.";
 
 /**
- * Fits the diagram to its box again whenever the box changes size. React
- * Flow's `fitView` fits only once, when the diagram opens, but in a
- * fixed-height column the box grows and shrinks with the window and with
- * what's open below it. Render it inside `<ReactFlow>`.
+ * The room left around the boxes when the diagram fits them, as React
+ * Flow reads a number: about 5% of the box on each side, its default.
  */
-function FitViewOnResize() {
+const FIT_MARGIN = 0.1;
+
+/** The same room, in pixels, beside what covers the right edge. */
+const FIT_MARGIN_SHARE = 0.05;
+
+/**
+ * The most a fit zooms in: the boxes at their own size. A diagram that
+ * fills a window would otherwise draw a small architecture huge.
+ */
+const FIT_MAX_ZOOM = 1;
+
+/** The diagram's width, and how much of its right edge is covered. */
+interface FitInput {
+  readonly width: number;
+  readonly coveredRightPx: number;
+}
+
+/** How to fit the boxes: clear of the covered right edge, at most at their size. */
+function fitOptions({ width, coveredRightPx }: FitInput): FitViewOptions {
+  const right = Math.floor(coveredRightPx + width * FIT_MARGIN_SHARE);
+  return {
+    maxZoom: FIT_MAX_ZOOM,
+    padding: {
+      top: FIT_MARGIN,
+      bottom: FIT_MARGIN,
+      left: FIT_MARGIN,
+      right: `${String(right)}px` as `${number}px`,
+    },
+  };
+}
+
+/** The first fit, before the box is measured: at most at the boxes' size. */
+const OPENING_FIT: FitViewOptions = { maxZoom: FIT_MAX_ZOOM };
+
+interface FitViewOnResizeProps {
+  readonly coveredRightPx: number;
+}
+
+/**
+ * Fits the diagram to its box again whenever the box changes size, or
+ * what covers its right edge does. React Flow's `fitView` fits only once,
+ * when the diagram opens, but the box grows and shrinks with the window,
+ * and an inspector over it opens and closes. Render it inside `<ReactFlow>`.
+ */
+function FitViewOnResize({ coveredRightPx }: FitViewOnResizeProps) {
   const { fitView } = useReactFlow();
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
 
   useEffect(() => {
-    void fitView();
-  }, [fitView, width, height]);
+    void fitView(fitOptions({ width, coveredRightPx }));
+  }, [fitView, width, height, coveredRightPx]);
 
   return null;
 }
@@ -65,6 +108,7 @@ export interface DiagramCanvasProps {
   readonly onSelect?: ((item: DiagramItem | undefined) => void) | undefined;
   readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
   readonly onMove?: ((move: DiagramMove) => void) | undefined;
+  readonly coveredRightPx?: number | undefined;
 }
 
 /**
@@ -77,6 +121,7 @@ export function DiagramCanvas({
   onSelect,
   onConnect,
   onMove,
+  coveredRightPx = 0,
 }: DiagramCanvasProps) {
   const items = useFlowItems({ content, marks, onMove });
   return (
@@ -94,10 +139,13 @@ export function DiagramCanvas({
       {...items.nodeProps}
       ariaLabelConfig={descriptionsOf({ onSelect, onConnect, onMove })}
       fitView
+      fitViewOptions={OPENING_FIT}
     >
       <Background />
-      <Controls showInteractive={false} />
-      <FitViewOnResize />
+      {/* At the left edge's middle: the screen puts its own controls at the
+          canvas's top and bottom left. */}
+      <Controls showInteractive={false} position="center-left" />
+      <FitViewOnResize coveredRightPx={coveredRightPx} />
     </ReactFlow>
   );
 }

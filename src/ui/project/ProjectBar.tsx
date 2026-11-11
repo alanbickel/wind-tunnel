@@ -1,4 +1,3 @@
-import { useId } from "react";
 import type { Project } from "../../domain/model/project";
 import { RunControls } from "../run/RunControls";
 import { RunProgress } from "../run/RunProgress";
@@ -6,94 +5,53 @@ import { Button } from "../shared/Button";
 import type { ProjectRun } from "../run/useProjectRun";
 import { inSentence } from "../shared/in-sentence";
 import styles from "./ProjectBar.module.css";
-import { ProjectName } from "./ProjectName";
-import type { Edit } from "./useProjectEdits";
 import type { UndoRedo } from "./useUndoRedo";
 
 export interface ProjectBarProps {
   readonly project: Project;
   readonly projectRun: ProjectRun;
   readonly undoRedo: UndoRedo;
-  /** True once the last change failed to save, until a save works. */
-  readonly saveFailed: boolean;
-  /** Saves the change that failed again. */
-  readonly onRetry: () => void;
-  /** Saves an edit made in the bar, such as a rename. */
-  readonly onEdit: (edit: Edit) => void;
+  /** The ID of `ProjectStatus`'s line on why the picked workload can't run. */
+  readonly cantRunReasonId: string;
+  /** Called when Run starts a run, so the screen can show its results. */
+  readonly onRunStart: () => void;
 }
 
 /**
- * The top of a project screen, above both columns: the project's name and
- * description, Undo and Redo, then what runs it, how far the run has got, its status, and
- * whether it's out of date, and whether the last change saved.
- * A region named by the project, so a screen reader can jump to it.
+ * The project's controls in the top bar's row, after its name: Undo and
+ * Redo, then what runs it. `ProjectStatus` says what they did, on the
+ * line under them.
  */
-export function ProjectBar(props: ProjectBarProps) {
-  const { project, projectRun, undoRedo, saveFailed, onRetry, onEdit } = props;
-  const headingId = useId();
-  const cantRunReasonId = useId();
+export function ProjectBar({ undoRedo, ...run }: ProjectBarProps) {
   return (
-    <section aria-labelledby={headingId} className={styles.bar}>
-      <ProjectIntro
-        project={project}
-        headingId={headingId}
-        onEdit={onEdit}
-        undoRedo={undoRedo}
-      />
-      <ProjectRunSection
-        project={project}
-        projectRun={projectRun}
-        cantRunReasonId={cantRunReasonId}
-        saveFailed={saveFailed}
-        onRetry={onRetry}
-      />
-    </section>
-  );
-}
-
-interface ProjectIntroProps extends Pick<
-  ProjectBarProps,
-  "project" | "onEdit" | "undoRedo"
-> {
-  readonly headingId: string;
-}
-
-/** The project heading, description, and undo controls. */
-function ProjectIntro({
-  project,
-  headingId,
-  onEdit,
-  undoRedo,
-}: ProjectIntroProps) {
-  return (
-    <div className={styles.intro}>
-      <ProjectName project={project} headingId={headingId} onEdit={onEdit} />
-      {project.description && (
-        <p className={styles.description}>{project.description}</p>
-      )}
+    <div className={styles.bar}>
       <UndoControls {...undoRedo} />
+      <WorkloadControls {...run} />
     </div>
   );
 }
 
-interface ProjectRunSectionProps extends Pick<
-  ProjectBarProps,
-  "project" | "projectRun" | "saveFailed" | "onRetry"
-> {
+export interface ProjectStatusProps {
+  readonly projectRun: ProjectRun;
+  /** For the line on why the picked workload can't run, which Run points to. */
   readonly cantRunReasonId: string;
+  /** True once the last change failed to save, until a save works. */
+  readonly saveFailed: boolean;
+  /** Saves the change that failed again. */
+  readonly onRetry: () => void;
 }
 
-/** The workload controls, progress, run status, and save failure message. */
-function ProjectRunSection(props: ProjectRunSectionProps) {
-  const { project, projectRun, cantRunReasonId, saveFailed, onRetry } = props;
+/**
+ * The top bar's status line, across the window under its row: how far the
+ * run has got, its status, whether it's out of date, why the picked
+ * workload can't run, and whether the last change saved. Its regions are
+ * there from the start; while they're all empty, it takes no room.
+ */
+export function ProjectStatus(props: ProjectStatusProps) {
+  const { projectRun, cantRunReasonId, saveFailed, onRetry } = props;
   const { run, ran, status, outOfDate } = projectRun;
   return (
-    <div className={styles.run}>
-      <WorkloadControls
-        project={project}
-        projectRun={projectRun}
-        cantRunReasonId={cantRunReasonId}
-      />
+    <div className={styles.line}>
       {ran !== undefined && (
         <RunProgress workload={ran} snapshots={run.snapshots} />
       )}
@@ -172,7 +130,7 @@ function CantRunReason({ id, projectRun }: CantRunReasonProps) {
   );
 }
 
-type SaveStatusProps = Pick<ProjectBarProps, "saveFailed" | "onRetry">;
+type SaveStatusProps = Pick<ProjectStatusProps, "saveFailed" | "onRetry">;
 
 /**
  * Says when the last change didn't save, and offers to save it again
@@ -191,17 +149,11 @@ function SaveStatus({ saveFailed, onRetry }: SaveStatusProps) {
   );
 }
 
-interface WorkloadControlsProps extends Pick<
-  ProjectBarProps,
-  "project" | "projectRun"
-> {
-  /** The ID of the element that says why the picked workload can't run. */
-  readonly cantRunReasonId: string;
-}
+type WorkloadControlsProps = Omit<ProjectBarProps, "undoRedo">;
 
 /** The run controls, on the picked workload; a line instead if there are none. */
 function WorkloadControls(props: WorkloadControlsProps) {
-  const { project, projectRun, cantRunReasonId } = props;
+  const { project, projectRun, cantRunReasonId, onRunStart } = props;
   const { run, picked, pick } = projectRun;
   if (picked === undefined) {
     return <p>This project has no workloads to run.</p>;
@@ -216,6 +168,7 @@ function WorkloadControls(props: WorkloadControlsProps) {
       running={run.phase.status === "running"}
       onStart={() => {
         run.start(picked);
+        onRunStart();
       }}
       onStop={run.stop}
     />

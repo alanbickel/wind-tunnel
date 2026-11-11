@@ -12,8 +12,10 @@ import {
 // The sample's "Read item": 1 API > 1.1 Function > 1.1.1 Table (read). The
 // architecture has API → Function and Function → Table, and no API → Table.
 
+import { revealButton } from "./testing/canvas-panels";
+
 function selectStep(text: string): void {
-  const row = screen.getByRole("button", { name: /^Read item/ });
+  const row = revealButton(/^Read item/);
   row.focus();
   fireEvent.click(row);
   const outline = screen.getByRole("list", { name: "Steps" });
@@ -117,7 +119,7 @@ describe("OpenedProject's changing a workflow's step", () => {
     expect(detailsStatus().textContent).toBe(
       "Changed Table · read to API · invoke. Added the edge from Function to API.",
     );
-    expect(screen.getByRole("button", { name: "Function → API" })).toBeTruthy();
+    expect(revealButton("Function → API")).toBeTruthy();
     await savedRecord(
       projects,
       (r) => r.project.architecture.edges.length === 3,
@@ -195,7 +197,7 @@ describe("OpenedProject's changing a workflow's step", () => {
         calls: [{ id: "fn", componentId: "fn", action: "read" }],
       }),
     });
-    const row = screen.getByRole("button", { name: "Read item · 1 problem" });
+    const row = revealButton("Read item · 1 problem");
     fireEvent.click(row);
     fireEvent.click(
       screen.getByRole("button", { name: /^1\.1 Function · read/ }),
@@ -204,7 +206,7 @@ describe("OpenedProject's changing a workflow's step", () => {
 
     pick("Action", "invoke");
 
-    expect(screen.getByRole("button", { name: "Read item" })).toBeTruthy();
+    expect(revealButton("Read item")).toBeTruthy();
     expect(screen.queryByText(/accepts only/)).toBeNull();
   });
 

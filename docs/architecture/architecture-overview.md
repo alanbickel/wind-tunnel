@@ -82,7 +82,7 @@ flowchart LR
     R -->|"produces"| M[Metrics]
 ```
 
-A project is checked in two groups ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)). The **architecture checks** (components, their settings and names, edges, unique IDs) must pass for a project to be saved or opened. The **run checks** (each workflow's steps, each workload's mix and profile) find **run issues**, which save and open with the project and stop only a run of the workloads they affect: `RunSimulation` refuses such a workload, and the project bar says why.
+A project is checked in two groups ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)). The **architecture checks** (components, their settings and names, edges, unique IDs) must pass for a project to be saved or opened. The **run checks** (each workflow's steps, each workload's mix and profile) find **run issues**, which save and open with the project and stop only a run of the workloads they affect: `RunSimulation` refuses such a workload, and the top bar says why.
 
 For how these fit together in code, including workflows as call trees and the validation rules, see [The domain model](domain-model.md).
 

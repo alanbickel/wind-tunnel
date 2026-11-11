@@ -1,5 +1,6 @@
 /* The live region stays mounted; it shows only when it has something to say. */
-.hint:empty {
+.hint:empty,
+.slim:empty {
   margin: 0;
 }
 
@@ -10,4 +11,14 @@
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-5);
+}
+
+/* Under a project's top bar: one line across the window. */
+.slim:not(:empty) {
+  margin: 0;
+  background: var(--color-surface-raised);
+  border-bottom: var(--line-width) solid var(--color-divider);
+  border-left: var(--line-width-thick) solid var(--color-status-warn);
+  padding: var(--space-1) var(--space-5);
+  font-size: var(--font-size-sm);
 }

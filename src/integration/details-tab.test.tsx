@@ -24,6 +24,7 @@ import { fakeUseCases } from "../ui/app/testing/fake-use-cases";
 import { UseCasesProvider } from "../ui/app/UseCasesProvider";
 import { stubDiagramBrowserApis } from "../ui/diagram/testing/stub-diagram-browser-apis";
 import { OpenedProject } from "../ui/project/OpenedProject";
+import { TEST_SHELL, revealButton } from "../ui/project/testing/canvas-panels";
 import { preloadBeforeAll } from "../ui/shared/testing/preload-before-all";
 import { stubWindowWidth } from "../ui/shared/testing/stub-window-width";
 
@@ -43,6 +44,7 @@ function renderProject(project: Project): void {
     <UseCasesProvider useCases={useCases}>
       <OpenedProject
         record={{ ...sampleRecord, project, layout: { nodes: {} } }}
+        shell={TEST_SHELL}
       />
     </UseCasesProvider>,
   );
@@ -50,7 +52,7 @@ function renderProject(project: Project): void {
 
 /** Clicks an item's button in the diagram's text version, as the keyboard would. */
 function selectFromText(name: string): HTMLElement {
-  const button = screen.getByRole("button", { name });
+  const button = revealButton(name);
   button.focus();
   fireEvent.click(button);
   return button;
@@ -161,9 +163,7 @@ describe("the Details tab, for the templates", () => {
     expect(document.activeElement).toBe(button);
     expect(screen.queryByRole("tabpanel", { name: "Details" })).toBeNull();
     expect(
-      screen
-        .getByRole("button", { name: "orders-db (rds)" })
-        .getAttribute("aria-current"),
+      revealButton("orders-db (rds)").getAttribute("aria-current"),
     ).toBeNull();
   });
 

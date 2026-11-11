@@ -22,9 +22,11 @@ import {
   undoneRegion,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 /** Selects a component from the diagram's text version, as the keyboard does. */
 function select(name: string): void {
-  const button = screen.getByRole("button", { name });
+  const button = revealButton(name);
   button.focus();
   fireEvent.click(button);
 }
@@ -260,7 +262,7 @@ describe("OpenedProject's undo and redo", () => {
     expect(step.getAttribute("aria-current")).toBe("true");
     expect(step.getAttribute("aria-describedby")).toBeNull();
     expect(screen.queryByText(/isn't in the architecture any more/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Read item" })).toBeTruthy();
+    expect(revealButton("Read item")).toBeTruthy();
   });
 
   // Fails if undoing the add of the selected component leaves it

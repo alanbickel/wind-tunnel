@@ -10,6 +10,8 @@ import {
   savedRecord,
 } from "./testing/render-opened-project";
 
+import { revealButton } from "./testing/canvas-panels";
+
 const [read] = sampleRecord.project.workflows;
 if (read === undefined) throw new Error("The sample has a workflow");
 
@@ -48,7 +50,7 @@ const twoCalls: Project = {
 };
 
 function openOutline(): void {
-  const row = screen.getByRole("button", { name: /^Read item/ });
+  const row = revealButton(/^Read item/);
   row.focus();
   fireEvent.click(row);
 }
@@ -259,7 +261,7 @@ describe("OpenedProject's moving and removing a workflow's steps", () => {
       ],
     };
     renderProject({ project });
-    const row = screen.getByRole("button", { name: "Read item · 1 problem" });
+    const row = revealButton("Read item · 1 problem");
     row.focus();
     fireEvent.click(row);
     const outline = () => within(screen.getByRole("list", { name: "Steps" }));
@@ -268,6 +270,6 @@ describe("OpenedProject's moving and removing a workflow's steps", () => {
     fireEvent.click(button("Remove 1.1.3 API · invoke"));
 
     expect(outline().queryByText(/has no edge to it/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Read item" })).toBeTruthy();
+    expect(revealButton("Read item")).toBeTruthy();
   });
 });

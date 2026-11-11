@@ -9,9 +9,7 @@
   flex: 1 1 var(--diagram-height);
   min-height: var(--diagram-min-height);
   position: relative;
-  border: var(--line-width) solid var(--color-divider);
-  border-radius: var(--radius-sm);
-  /* The canvas's corners follow the border's. */
+  /* Full bleed: no border, and nothing drawn past its edges. */
   overflow: hidden;
   --xy-background-color: var(--color-bg);
   --xy-background-pattern-color: var(--color-divider);

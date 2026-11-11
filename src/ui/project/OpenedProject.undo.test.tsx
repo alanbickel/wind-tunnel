@@ -288,4 +288,44 @@ describe("OpenedProject's undo and redo", () => {
     expect(undoneRegion().textContent).toBe("Undid: add sqs-1.");
     expect(document.activeElement).toBe(historyButton("Undo"));
   });
+
+  // Fails if Ctrl+Z, undoing the add of the selected component while the
+  // focus is on a button in its Details, leaves the focus on the page.
+  it("moves the focus to Undo when Ctrl+Z takes away the Details that had it", () => {
+    renderOpenedProject();
+    addSqs();
+    screen.getByRole("button", { name: "Remove" }).focus();
+
+    pressCtrl("z");
+
+    expect(queryDetailsHeading()).toBeNull();
+    expect(document.activeElement).toBe(historyButton("Undo"));
+  });
+
+  // Fails if Ctrl+Shift+Z, redoing the remove of the selected component
+  // while the focus is on a button in its Details, leaves the focus on the
+  // page, or moves it to Undo instead of Redo.
+  it("moves the focus to Redo when Ctrl+Shift+Z takes away the Details that had it", () => {
+    renderOpenedProject();
+    select("Table (dynamodb)");
+    removeSelected();
+    fireEvent.click(historyButton("Undo"));
+    screen.getByRole("button", { name: "Remove" }).focus();
+
+    pressCtrl("z", true);
+
+    expect(queryDetailsHeading()).toBeNull();
+    expect(document.activeElement).toBe(historyButton("Redo"));
+  });
 });
+
+/** Adds an SQS component from the palette, which selects it. */
+function addSqs(): void {
+  fireEvent.click(screen.getByRole("button", { name: "Add component" }));
+  const list = screen.getByRole("list", { name: "Component types" });
+  const sqs = within(list)
+    .getAllByRole("button")
+    .find((button) => button.textContent.startsWith("SQS:"));
+  if (sqs === undefined) throw new Error("No SQS type");
+  fireEvent.click(sqs);
+}

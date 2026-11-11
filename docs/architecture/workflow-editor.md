@@ -329,7 +329,7 @@ sequenceDiagram
     E->>C: changeStep adds the edge fn-orders → orders-queue; the step's async slot is empty
     S->>D: announce "Changed … Added the edge from fn-orders to orders-queue. It has no async work yet."
     User->>O: "Add async work…", picks fn-writer, picks invoke
-    O->>S: addAsyncWork({ queueStepId, start, choice, action })
+    O->>S: addAsync({ callerStepId, start, choice, action })
     S->>E: edit(addAsyncWork), described "Add async work from orders-queue to fn-writer, and its edge"
     E->>C: addAsyncWork sets the queue's async step; connectIfMissing adds orders-queue → fn-writer
     E-->>D: the diagram draws the edge; the outline shows fn-writer, selected

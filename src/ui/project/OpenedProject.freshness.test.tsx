@@ -5,6 +5,7 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import type { Project } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
+import { revealButton } from "./testing/canvas-panels";
 import {
   clickRun,
   renderOpenedProject as renderProject,
@@ -87,6 +88,33 @@ describe("OpenedProject's run when the project changes", () => {
     expect(status()).toBe("Finished Steady. Failing so far.");
     expect(
       within(runTab()).getByRole("heading", { name: "Failing so far" }),
+    ).toBeTruthy();
+  });
+
+  // Fails if a finished run puts no status on the components (useProjectRun
+  // or OpenedProject drops `badges`), takes it from the wrong component, or
+  // an edit after the run doesn't mark the status as from an earlier
+  // version.
+  it("shows each component's status from the run, and marks it out of date after an edit", async () => {
+    const { runner, change } = renderProject();
+    clickRun();
+    runner.send(throttledSecond(1));
+    await runner.finish();
+
+    expect(revealButton("Table (DynamoDB): refused")).toBeTruthy();
+    expect(revealButton("Function (Lambda): ok")).toBeTruthy();
+
+    change(withTableNamed("Orders"));
+
+    expect(
+      revealButton(
+        "Orders (DynamoDB): refused, from an earlier version of the project",
+      ),
+    ).toBeTruthy();
+    expect(
+      revealButton(
+        "Function (Lambda): ok, from an earlier version of the project",
+      ),
     ).toBeTruthy();
   });
 

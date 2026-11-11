@@ -13,7 +13,9 @@ import type {
   Point,
   ProjectRecord,
 } from "../../application/ports/project-record";
+import type { ComponentStatus } from "../../application/run-analysis/component-status";
 import { sampleRecord } from "../../application/testing/sample-record";
+import type { RunBadges } from "../run/run-badges";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
 import {
@@ -36,6 +38,7 @@ async function drawnNodes(diagram: HTMLElement): Promise<Element[]> {
 
 interface RenderViewInput {
   readonly selection?: Selection;
+  readonly badges?: RunBadges;
   readonly record?: ProjectRecord;
 }
 
@@ -70,16 +73,18 @@ function WithPanels(props: Omit<ArchitectureViewProps, "panels">) {
 function renderView({
   selection,
   record = sampleRecord,
+  badges,
 }: RenderViewInput = {}) {
   const onSelect = vi.fn<(selection: Selection) => void>();
   const onClear = vi.fn<() => void>();
   const onAdd = vi.fn<(type: string) => void>();
   const onMove = vi.fn<(componentId: string, position: Point) => void>();
-  render(
+  const tree = (shown: RunBadges | undefined) => (
     <UseCasesProvider useCases={fakeUseCases()}>
       <WithPanels
         record={record}
         selection={selection}
+        badges={shown}
         onSelect={onSelect}
         onClear={onClear}
         onConnect={vi.fn()}
@@ -88,9 +93,19 @@ function renderView({
         onMove={onMove}
         adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
       />
-    </UseCasesProvider>,
+    </UseCasesProvider>
   );
-  return { onSelect, onClear, onAdd, onMove };
+  const { rerender } = render(tree(badges));
+  return {
+    onSelect,
+    onClear,
+    onAdd,
+    onMove,
+    /** Draws the same view again, with other badges. */
+    showBadges: (shown: RunBadges | undefined) => {
+      rerender(tree(shown));
+    },
+  };
 }
 
 function diagram(): HTMLElement {
@@ -226,6 +241,34 @@ describe("ArchitectureView", () => {
     expect(itemsOf("Connections")).toEqual([
       "API → Function",
       "Function → Table",
+    ]);
+  });
+
+  // Fails if the text version drops the status after a name, leaves it off
+  // a component the run has no entry for, or loses the note when the run is
+  // out of date (componentLine).
+  it("lists each component's status as text, with a note when the run is out of date", () => {
+    const statuses = new Map<string, ComponentStatus>([
+      ["api", "ok"],
+      ["fn", "waited"],
+    ]);
+    const { showBadges } = renderView({
+      badges: { statuses, outOfDate: false },
+    });
+    openPanel("As text");
+
+    expect(itemsOf("Components")).toEqual([
+      "API (API Gateway): ok",
+      "Function (Lambda): waited",
+      "Table (DynamoDB)",
+    ]);
+
+    showBadges({ statuses, outOfDate: true });
+
+    expect(itemsOf("Components")).toEqual([
+      "API (API Gateway): ok, from an earlier version of the project",
+      "Function (Lambda): waited, from an earlier version of the project",
+      "Table (DynamoDB)",
     ]);
   });
 

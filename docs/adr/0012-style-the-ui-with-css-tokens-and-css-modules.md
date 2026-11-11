@@ -68,3 +68,7 @@ The app shell issue ([#30](https://github.com/alanbickel/wind-tunnel/issues/30))
 ## Addendum, 2026-10-19 (the project screen layout)
 
 The project screen layout issue ([#42](https://github.com/alanbickel/wind-tunnel/issues/42)) needed a breakpoint, and `@media` can't read a custom property. So `tokens.css` declares breakpoints as `--breakpoint-*` tokens, a media query writes out the value, and `tests/architecture/stylesheets.test.ts` allows a length literal in a stylesheet only on an `@media` or `@container` line, and only if it equals a breakpoint token's value. Changing a breakpoint token without its media queries fails the test.
+
+## Addendum, 2026-11-10 (focus and selection marks)
+
+The focus and selection marks issue ([#105](https://github.com/alanbickel/wind-tunnel/issues/105)) changed two details this ADR quotes. The base stylesheet's one ring now shows on `:focus`, not `:focus-visible`, so it appears on whatever has the DOM focus, whatever put it there. And selection is no longer a ring: it's a filled bar down the left edge of the selected box, row, or Details panel, whose width is the `--selection-bar-width` token. The decision to style with tokens and CSS Modules is unchanged.

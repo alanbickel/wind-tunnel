@@ -1,9 +1,10 @@
 import { useId, type KeyboardEvent, type ReactNode } from "react";
 import { Button } from "../shared/Button";
 import styles from "./CanvasPanels.module.css";
-import type {
-  CanvasPanelId,
-  CanvasPanels as PanelState,
+import {
+  CANVAS_PANEL_ATTRIBUTE,
+  type CanvasPanelId,
+  type CanvasPanels as PanelState,
 } from "./useCanvasPanels";
 
 export interface CanvasPanelsProps {
@@ -12,6 +13,8 @@ export interface CanvasPanelsProps {
   readonly workflows: ReactNode;
   /** The diagram's text version, in the "As text" panel; none without components. */
   readonly text: ReactNode;
+  /** What a workflow's remove announces: "Removed Get order." */
+  readonly announcement: string;
 }
 
 /** One panel: its button's text, the name of its region, and what it holds. */
@@ -30,9 +33,13 @@ type PanelIds = (id: CanvasPanelId) => string;
  * panel over the canvas, above the buttons. Each button shows whether its
  * panel is open (`aria-expanded`); Escape anywhere in the corner closes the
  * open one and puts the focus back on its button. A closed panel stays
- * mounted, hidden, so its live regions and its scroll are still there.
+ * mounted, hidden, so its scroll is still there when it opens. A live
+ * region in a hidden panel says nothing, so a workflow's remove is said
+ * from a polite region beside the buttons, which always show, on the page
+ * from the start, empty.
  */
-export function CanvasPanels({ panels, workflows, text }: CanvasPanelsProps) {
+export function CanvasPanels(props: CanvasPanelsProps) {
+  const { panels, workflows, text } = props;
   const baseId = useId();
   const ids: PanelIds = (id) => `${baseId}-${id}`;
   const entries = panelEntries({ workflows, text });
@@ -46,18 +53,42 @@ export function CanvasPanels({ panels, workflows, text }: CanvasPanelsProps) {
       {entries.map(({ id, label, content }) => (
         <PanelBody
           key={id}
-          id={ids(id)}
+          id={id}
+          elementId={ids(id)}
           label={label}
           open={panels.open === id}
         >
           {content}
         </PanelBody>
       ))}
-      <div className={styles.buttons}>
-        {entries.map((entry) => (
-          <PanelButton key={entry.id} entry={entry} ids={ids} panels={panels} />
-        ))}
-      </div>
+      <PanelButtons {...props} entries={entries} ids={ids} />
+    </div>
+  );
+}
+
+interface PanelButtonsProps extends Pick<
+  CanvasPanelsProps,
+  "panels" | "announcement"
+> {
+  readonly entries: readonly PanelEntry[];
+  readonly ids: PanelIds;
+}
+
+/** The panels' buttons, in a row, and the region a workflow's remove speaks from. */
+function PanelButtons({
+  entries,
+  ids,
+  panels,
+  announcement,
+}: PanelButtonsProps) {
+  return (
+    <div className={styles.buttons}>
+      {entries.map((entry) => (
+        <PanelButton key={entry.id} entry={entry} ids={ids} panels={panels} />
+      ))}
+      <p role="status" className={styles.announcement}>
+        {announcement}
+      </p>
     </div>
   );
 }
@@ -84,18 +115,23 @@ function panelEntries({ workflows, text }: PanelContents): PanelEntry[] {
 }
 
 interface PanelBodyProps {
-  readonly id: string;
+  readonly id: CanvasPanelId;
+  readonly elementId: string;
   /** Names the panel's region for screen readers. */
   readonly label: string;
   readonly open: boolean;
   readonly children: ReactNode;
 }
 
-/** One panel: a region that scrolls, and so takes a tab stop. */
-function PanelBody({ id, label, open, children }: PanelBodyProps) {
+/**
+ * One panel: a region that scrolls, and so takes a tab stop. It names its
+ * panel in `CANVAS_PANEL_ATTRIBUTE`, so `reveal` can open it.
+ */
+function PanelBody({ id, elementId, label, open, children }: PanelBodyProps) {
   return (
     <section
-      id={id}
+      id={elementId}
+      {...{ [CANVAS_PANEL_ATTRIBUTE]: id }}
       aria-label={label}
       hidden={!open}
       tabIndex={0}

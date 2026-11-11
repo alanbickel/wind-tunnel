@@ -359,7 +359,7 @@ sequenceDiagram
 ```
 
 - **The words** come from `describeSelection` (`workflowRemovalText`): the question, and a warning naming the workloads whose mix has the workflow, which is absent when none does. A single workload reads "Steady day runs it; it leaves its mix."
-- **The focus** goes to "Add workflow", in the canvas's "Workflows" panel, which the remove opens first if it was closed, with "Removed Get order." said from a polite region beside it that's on the page from the start, as for a component with "Add component".
+- **The focus** goes to "Add workflow", in the canvas's "Workflows" panel, which the remove opens first if it was closed, with "Removed Get order." said from a polite region beside the canvas's panel buttons, on the page from the start: a region inside the panel, hidden while it was closed, might not be announced.
 - **Undo** puts back the workflow at its place and the mix entries in one step, because the history keeps the record from before.
 
 ## When a new workflow exists

@@ -44,3 +44,14 @@
     max-width: calc(100% - var(--run-panel-min-width) - 3 * var(--space-4));
   }
 }
+
+/* Heard, not seen: the focus is on "Add workflow", and the list shows the change. */
+.announcement {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

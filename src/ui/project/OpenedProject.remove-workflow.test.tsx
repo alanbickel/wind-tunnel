@@ -64,10 +64,14 @@ function addWorkflowButton(): HTMLElement {
   return revealButton("Add workflow");
 }
 
-/** The polite region beside "Add workflow". */
+/**
+ * The polite region that says what a workflow's remove took: beside the
+ * canvas's panel buttons, which always show.
+ */
 function removedRegion(): HTMLElement {
-  const region =
-    addWorkflowButton().parentElement?.querySelector('[role="status"]');
+  const region = screen
+    .getByRole("button", { name: "Workflows" })
+    .parentElement?.querySelector('[role="status"]');
   if (!(region instanceof HTMLElement)) throw new Error("No removed region");
   return region;
 }

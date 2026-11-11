@@ -83,6 +83,7 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       {empty ? <EmptyCanvas /> : <Drawing {...drawn} />}
       <CanvasPanels
         panels={props.panels}
+        announcement={props.addingWorkflow.announcement}
         workflows={<Workflows {...props} />}
         text={empty ? undefined : <TextVersion {...drawn} />}
       />

@@ -150,7 +150,8 @@ interface ProjectScreenInput {
 function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   const edits = useProjectEdits(input.loaded, input.onProjectNameChange);
   const projectRun = useProjectRun(edits.record.project);
-  const selecting = useSelection();
+  const panels = useCanvasPanels();
+  const selecting = useSelection(panels.reveal);
   const changes = useAddAndRemove(edits, selecting);
   const undoRedo = useUndoRedo(edits, selecting);
   useUndoShortcuts(undoRedo);
@@ -159,7 +160,6 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     project: edits.record.project,
     announce: changes.announce,
   });
-  const panels = useCanvasPanels();
   const remove = useRevealingRemove(changes, panels);
   const covered = useCoveredWidth();
   const architecture = useArchitecture({

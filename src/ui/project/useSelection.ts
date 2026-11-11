@@ -59,8 +59,11 @@ export interface ProjectSelection {
  * The selection a project screen holds above both columns (UX design
  * §4.1), so the diagram, its text version, and Details read the same one.
  * It lasts while the screen is open, and isn't saved with the project.
+ * `reveal` shows an element that may have been hidden since it made the
+ * selection, such as a button in a canvas panel closed since, so `close`
+ * can return the focus to it.
  */
-export function useSelection(): ProjectSelection {
+export function useSelection(reveal: RevealElement): ProjectSelection {
   const [selection, setSelection] = useState<Selection>();
   const [tab, showTab] = useState<SideTab>("run");
   const [inspectorOpen, showInspector] = useState(true);
@@ -80,23 +83,33 @@ export function useSelection(): ProjectSelection {
     setSelection(undefined);
     showTab("run");
   }, [request]);
-  const { select, close } = useOpener({ selectWithin, clear });
+  const { select, close } = useOpener({ selectWithin, clear, reveal });
 
   const changes = { select, selectWithin, clear, close };
   const inspector = { inspectorOpen, showInspector };
   return { selection, tab, showTab, ...inspector, ...changes, takeFocus };
 }
 
-/** The changes the opener is remembered and returned around. */
-type OpenerInput = Pick<ProjectSelection, "selectWithin" | "clear">;
+/** Shows an element, if something has hidden it, so it can take the focus. */
+export type RevealElement = (element: HTMLElement) => void;
+
+/**
+ * The changes the opener is remembered and returned around, and what
+ * shows it again.
+ */
+interface OpenerInput extends Pick<ProjectSelection, "selectWithin" | "clear"> {
+  readonly reveal: RevealElement;
+}
 
 /**
  * `select`, which remembers the element that had the focus, and `close`,
- * which returns the focus to it.
+ * which shows it again if it's been hidden since, and returns the focus
+ * to it.
  */
 function useOpener({
   selectWithin,
   clear,
+  reveal,
 }: OpenerInput): Pick<ProjectSelection, "select" | "close"> {
   const opener = useRef<HTMLElement | null>(null);
   const select = useCallback(
@@ -110,8 +123,10 @@ function useOpener({
     const element = opener.current;
     opener.current = null;
     clear();
-    if (element?.isConnected) element.focus();
-  }, [clear]);
+    if (!element?.isConnected) return;
+    reveal(element);
+    element.focus();
+  }, [clear, reveal]);
   return { select, close };
 }
 

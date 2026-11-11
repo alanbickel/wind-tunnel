@@ -51,6 +51,12 @@ describe("OpenedProject's canvas-first layout", () => {
       expect(inBar.getByRole("button", { name })).toBeTruthy();
     }
     const canvas = screen.getByRole("region", { name: "Architecture" });
+    for (const under of [canvas, inspector()]) {
+      expect(bar().contains(under)).toBe(false);
+      expect(
+        bar().compareDocumentPosition(under) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
     expect(
       canvas.compareDocumentPosition(inspector()) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -159,10 +165,13 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
   });
 
   // Fails if a workflow's remove leaves the Workflows panel closed, so
-  // the focus can't land on "Add workflow" and falls to the page.
+  // the focus can't land on "Add workflow" and falls to the page, or says
+  // what it removed from a region inside the panel, hidden until the
+  // remove reveals it, so a screen reader may not announce it.
   it("opens Workflows to put the focus on Add workflow", () => {
     renderProject();
     const workflows = openPanel("Workflows");
+    const region = workflows.parentElement?.querySelector('[role="status"]');
     fireEvent.click(revealButton("Read item"));
     fireEvent.click(workflows);
     expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
@@ -175,5 +184,35 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Add workflow" }),
     );
+    expect(region?.closest("[hidden]")).toBeNull();
+    expect(region?.textContent).toBe("Removed Read item.");
   });
+
+  // Fails if Escape in Details returns the focus to a button in a canvas
+  // panel closed since it made the selection without opening the panel,
+  // so in a browser the focus falls to the page.
+  it.each([
+    ["As text", "Function (lambda)", "Workflows"],
+    ["Workflows", "Read item", "As text"],
+  ] as const)(
+    "opens %s again when Escape returns the focus to %s in it",
+    (panel, name, other) => {
+      renderProject();
+      const button = revealButton(name);
+      button.focus();
+      fireEvent.click(button);
+      openPanel(other);
+      expect(button.closest("[hidden]")).not.toBeNull();
+
+      fireEvent.keyDown(detailsHeading(), { key: "Escape" });
+
+      expect(
+        screen
+          .getByRole("button", { name: panel })
+          .getAttribute("aria-expanded"),
+      ).toBe("true");
+      expect(button.closest("[hidden]")).toBeNull();
+      expect(document.activeElement).toBe(button);
+    },
+  );
 });

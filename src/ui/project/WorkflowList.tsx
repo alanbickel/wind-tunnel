@@ -20,11 +20,6 @@ export interface AddWorkflowProps {
   readonly onAdd: () => void;
   /** The "Add workflow" button, where the focus goes after a workflow's remove. */
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
-  /**
-   * What a workflow's remove announces: "Removed Get order." Said by the
-   * canvas's panel buttons, not in the list, whose panel may be hidden.
-   */
-  readonly announcement: string;
 }
 
 /**

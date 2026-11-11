@@ -198,6 +198,7 @@ function useArchitecture(input: ArchitectureInput) {
       onMove={move}
       adding={adding}
       addingWorkflow={addingWorkflow}
+      workflowAnnouncement={changes.workflowAnnouncement}
       panels={panels}
       coveredRightPx={coveredRightPx}
     />
@@ -206,14 +207,10 @@ function useArchitecture(input: ArchitectureInput) {
 
 /** "Add workflow"'s props, the same object while its parts are. */
 function useAddingWorkflow(changes: AddAndRemove): AddWorkflowProps {
-  const { addWorkflow, addWorkflowButtonRef, workflowAnnouncement } = changes;
+  const { addWorkflow, addWorkflowButtonRef } = changes;
   return useMemo(
-    () => ({
-      onAdd: addWorkflow,
-      buttonRef: addWorkflowButtonRef,
-      announcement: workflowAnnouncement,
-    }),
-    [addWorkflow, addWorkflowButtonRef, workflowAnnouncement],
+    () => ({ onAdd: addWorkflow, buttonRef: addWorkflowButtonRef }),
+    [addWorkflow, addWorkflowButtonRef],
   );
 }
 

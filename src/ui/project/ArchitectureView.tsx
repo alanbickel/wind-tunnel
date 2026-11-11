@@ -42,6 +42,11 @@ export interface ArchitectureViewProps {
   readonly adding: AddComponentProps;
   /** "Add workflow", in the workflows list. */
   readonly addingWorkflow: AddWorkflowProps;
+  /**
+   * What a workflow's remove announces: "Removed Get order." Said beside
+   * the canvas's panel buttons, not in the list, whose panel may be hidden.
+   */
+  readonly workflowAnnouncement: string;
   /** Which of the "Workflows" and "As text" panels is open. */
   readonly panels: CanvasPanelState;
   /** How much of the canvas's right edge the inspector covers, in pixels. */
@@ -83,7 +88,7 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       {empty ? <EmptyCanvas /> : <Drawing {...drawn} />}
       <CanvasPanels
         panels={props.panels}
-        announcement={props.addingWorkflow.announcement}
+        announcement={props.workflowAnnouncement}
         workflows={<Workflows {...props} />}
         text={empty ? undefined : <TextVersion {...drawn} />}
       />

@@ -45,7 +45,10 @@ export interface AddAndRemove {
   readonly announce: (message: string) => void;
   /** The "Add workflow" button, where the focus goes after a workflow's remove. */
   readonly addWorkflowButtonRef: RefObject<HTMLButtonElement | null>;
-  /** "Removed Get order.", for the polite region beside "Add workflow". */
+  /**
+   * "Removed Get order.", for the polite region beside the canvas's panel
+   * buttons, which always show, unlike "Add workflow"'s panel.
+   */
   readonly workflowAnnouncement: string;
 }
 

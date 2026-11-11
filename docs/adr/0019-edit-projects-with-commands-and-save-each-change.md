@@ -31,3 +31,7 @@ The design's journeys ([§2](../design/user-experience.md#2-journeys)) showed th
 - Commands are pure functions over the record, so each is tested without a UI or a database, and undo needs only the records before and after.
 - Editing a component no longer touches the workflows. To swap a database, the user points the steps at the new one before or after removing the old ([§2.4](../design/user-experience.md#24-add-a-component-and-remove-one)); in between, the workflows can't run. A "replace" command could do both at once later.
 - Undo doesn't survive leaving the project. A stored history would need its own design.
+
+## Addendum, 2026-11-11
+
+The UX design was rewritten for M7 ([#188](https://github.com/alanbickel/wind-tunnel/issues/188)), and its journeys were taken out. The links above to the page, its §2, and its §2.4 were written for the M6 version, [kept at its last commit](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md). How editing and saving work is now the new page's [§6](../design/user-experience.md#6-editing-and-saving). This decision is unchanged.

@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mock: the workload editor in the bottom dock</title>
+    <link rel="stylesheet" href="./mock-tokens.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"
+    />
+    <style>
+      .wf {
+        position: relative;
+        border: 1px solid var(--border-strong);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--surface-1);
+        font-size: 12px;
+      }
+      .bar {
+        height: 40px;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px;
+      }
+      .pill {
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        padding: 3px 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+      }
+      .strip {
+        height: 104px;
+        position: relative;
+        background-image: radial-gradient(
+          var(--border-strong) 1px,
+          transparent 1px
+        );
+        background-size: 16px 16px;
+      }
+      .n {
+        position: absolute;
+        top: 12px;
+        width: 96px;
+        height: 40px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 4px 8px;
+        box-sizing: border-box;
+        color: var(--text-secondary);
+      }
+      .dock {
+        background: var(--surface-2);
+        border-top: 1px solid var(--border-strong);
+        padding: 10px 12px 12px;
+      }
+      .lbl {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin: 0 0 4px;
+      }
+      .wf input {
+        height: 28px;
+        padding: 0 6px;
+      }
+      .mrow {
+        display: grid;
+        grid-template-columns: 10px minmax(0, 1fr) 58px 44px 18px;
+        gap: 6px;
+        align-items: center;
+        padding: 5px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .muted {
+        color: var(--text-secondary);
+      }
+      #chart {
+        touch-action: none;
+        outline: none;
+      }
+      #chart:focus-visible {
+        box-shadow: var(--focus-shadow);
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="mock-page">
+      <p class="mock-caption">
+        Sketch, 2026-11-11, for #188: the workload editor. Drag a point, click
+        the line to add one, or focus the chart and use the arrow keys; change
+        the duration or a weight. Not the app; docs/design/user-experience.md is
+        the authority.
+      </p>
+      <h1 class="sr-only">The workload editor in the bottom dock</h1>
+      <div class="wf">
+        <div class="bar">
+          <i class="ti ti-wind" aria-hidden="true" style="font-size: 16px"></i>
+          <span class="muted">Projects /</span
+          ><span style="font-weight: 500">Orders service</span>
+          <span style="flex: 1"></span>
+          <span class="pill"
+            ><i class="ti ti-activity" aria-hidden="true"></i>Lunch rush<i
+              class="ti ti-chevron-down"
+              aria-hidden="true"
+            ></i
+          ></span>
+          <span
+            class="pill"
+            style="
+              background: var(--fill-accent);
+              color: var(--on-accent);
+              border-color: transparent;
+            "
+            ><i class="ti ti-player-play" aria-hidden="true"></i>Run</span
+          >
+        </div>
+        <div class="strip">
+          <div class="n" style="left: 150px">
+            <i class="ti ti-api" aria-hidden="true"></i> api
+          </div>
+          <div class="n" style="left: 290px">
+            <i class="ti ti-lambda" aria-hidden="true"></i> fn-orders
+          </div>
+          <div class="n" style="left: 430px">
+            <i class="ti ti-database" aria-hidden="true"></i> orders-db
+          </div>
+          <span
+            class="pill"
+            style="
+              position: absolute;
+              left: 12px;
+              bottom: 8px;
+              background: var(--surface-2);
+            "
+            ><i class="ti ti-activity" aria-hidden="true"></i>Workloads: Lunch
+            rush, Steady day, +</span
+          >
+        </div>
+        <div class="dock">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              margin-bottom: 10px;
+              flex-wrap: wrap;
+            "
+          >
+            <i
+              class="ti ti-activity"
+              aria-hidden="true"
+              style="font-size: 16px"
+            ></i>
+            <input
+              type="text"
+              value="Lunch rush"
+              aria-label="Workload name"
+              style="width: 130px; font-weight: 500"
+            />
+            <label
+              class="muted"
+              style="display: flex; align-items: center; gap: 4px"
+              >Duration
+              <input
+                id="dur"
+                type="number"
+                min="1"
+                step="1"
+                value="60"
+                style="width: 56px"
+              />
+              s</label
+            >
+            <label
+              class="muted"
+              style="display: flex; align-items: center; gap: 4px"
+              >Seed <input type="number" value="42" style="width: 64px"
+            /></label>
+            <span style="flex: 1"></span>
+            <span class="muted"
+              ><i class="ti ti-trash" aria-label="Remove workload"></i
+            ></span>
+            <span class="muted"
+              ><i class="ti ti-chevron-down" aria-label="Collapse"></i
+            ></span>
+          </div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+              gap: 14px;
+            "
+          >
+            <div>
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: baseline;
+                "
+              >
+                <p class="lbl">
+                  Request rate over time: drag a point, or click the line to add
+                  one
+                </p>
+                <span class="pill" style="font-size: 11px"
+                  ><i class="ti ti-table" aria-hidden="true"></i>As table</span
+                >
+              </div>
+              <svg
+                id="chart"
+                viewBox="0 0 400 168"
+                width="100%"
+                tabindex="0"
+                role="img"
+                aria-label="Request rate profile"
+              ></svg>
+              <div
+                id="readout"
+                class="muted"
+                style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: center;
+                  min-height: 26px;
+                "
+              ></div>
+            </div>
+            <div>
+              <p class="lbl">Mix</p>
+              <div
+                id="sbar"
+                style="
+                  display: flex;
+                  height: 10px;
+                  border-radius: var(--radius);
+                  overflow: hidden;
+                  margin-bottom: 6px;
+                "
+              ></div>
+              <div id="mix"></div>
+              <div class="pill muted" style="margin-top: 6px">
+                <i class="ti ti-plus" aria-hidden="true"></i>Add to mix<i
+                  class="ti ti-chevron-down"
+                  aria-hidden="true"
+                ></i>
+              </div>
+              <div
+                style="
+                  margin-top: 12px;
+                  background: var(--surface-1);
+                  border-radius: var(--radius);
+                  padding: 8px 10px;
+                "
+              >
+                <p class="lbl" style="margin: 0 0 2px">What this sends</p>
+                <div id="total" style="font-size: 15px; font-weight: 500"></div>
+                <div
+                  id="split"
+                  class="muted"
+                  style="font-size: 11px; line-height: 1.6"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      const state = {
+        durationS: 60,
+        points: [
+          { t: 0, r: 200 },
+          { t: 10, r: 200 },
+          { t: 20, r: 2000 },
+          { t: 40, r: 2000 },
+          { t: 50, r: 200 },
+        ],
+        selected: 2,
+        mix: [
+          { name: "Get order", weight: 80, color: "#1D9E75" },
+          { name: "Create order", weight: 20, color: "#7F77DD" },
+        ],
+      };
+      const X0 = 44,
+        X1 = 392,
+        Y0 = 14,
+        Y1 = 142;
+      const svg = document.getElementById("chart");
+      let scale = null;
+      let dragging = false;
+
+      const fmt = (n) => Math.round(n).toLocaleString();
+      function niceCeiling(v) {
+        const p = Math.pow(10, Math.floor(Math.log10(v)));
+        return [1, 1.2, 1.6, 2, 2.4, 3, 4, 5, 6, 8, 10]
+          .map((m) => m * p)
+          .find((x) => x >= v);
+      }
+      function computeScale() {
+        const lastT = state.points[state.points.length - 1].t;
+        return {
+          tMax: Math.ceil((Math.max(state.durationS, lastT) * 1.12) / 10) * 10,
+          rMax: niceCeiling(
+            Math.max(100, ...state.points.map((p) => p.r)) * 1.15,
+          ),
+        };
+      }
+      const sx = (t) => X0 + (t / scale.tMax) * (X1 - X0);
+      const sy = (r) => Y1 - (r / scale.rMax) * (Y1 - Y0);
+
+      function rateAt(t) {
+        const p = state.points;
+        if (t <= p[0].t) return p[0].r;
+        for (let i = 1; i < p.length; i++) {
+          if (t <= p[i].t)
+            return (
+              p[i - 1].r +
+              ((p[i].r - p[i - 1].r) * (t - p[i - 1].t)) / (p[i].t - p[i - 1].t)
+            );
+        }
+        return p[p.length - 1].r;
+      }
+      function totalRequests() {
+        let sum = 0;
+        for (let t = 0; t < state.durationS; t += 0.1)
+          sum += rateAt(t + 0.05) * 0.1;
+        return sum;
+      }
+
+      function draw() {
+        if (!dragging) scale = computeScale();
+        const p = state.points;
+        let h = "";
+        for (let i = 0; i <= 4; i++) {
+          const r = (scale.rMax * i) / 4,
+            y = sy(r);
+          h += `<line x1="${X0}" x2="${X1}" y1="${y}" y2="${y}" stroke="var(--border)"/>`;
+          h += `<text x="${X0 - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--text-secondary)">${r >= 1000 ? r / 1000 + "k" : r}</text>`;
+        }
+        const step = scale.tMax > 120 ? 30 : 10;
+        for (let t = 0; t <= scale.tMax; t += step) {
+          h += `<text x="${sx(t)}" y="${Y1 + 16}" text-anchor="middle" font-size="11" fill="var(--text-secondary)">${t}s</text>`;
+        }
+        h += `<rect x="${sx(state.durationS)}" y="${Y0}" width="${Math.max(0, X1 - sx(state.durationS))}" height="${Y1 - Y0}" fill="var(--surface-1)"/>`;
+        const line = [
+          [sx(0), sy(p[0].r)],
+          ...p.map((q) => [sx(q.t), sy(q.r)]),
+          [X1, sy(p[p.length - 1].r)],
+        ]
+          .map((q) => q.join(","))
+          .join(" ");
+        h += `<polygon points="${sx(0)},${Y1} ${line} ${X1},${Y1}" fill="var(--bg-accent-muted)"/>`;
+        h += `<polyline id="line" points="${line}" fill="none" stroke="var(--text-accent)" stroke-width="2" style="cursor:copy"/>`;
+        h += `<line x1="${sx(state.durationS)}" x2="${sx(state.durationS)}" y1="${Y0}" y2="${Y1}" stroke="var(--border-stronger)" stroke-dasharray="3 3"/>`;
+        h += `<text x="${sx(state.durationS) - 4}" y="${Y0 + 10}" text-anchor="end" font-size="11" fill="var(--text-secondary)">Run ends at ${state.durationS} s</text>`;
+        p.forEach((q, i) => {
+          const past = q.t > state.durationS,
+            on = i === state.selected;
+          h += `<circle data-i="${i}" cx="${sx(q.t)}" cy="${sy(q.r)}" r="${on ? 7 : 5.5}" fill="${on ? "var(--fill-accent)" : "var(--surface-2)"}" stroke="${past ? "var(--text-muted)" : "var(--text-accent)"}" stroke-width="2" style="cursor:grab"/>`;
+        });
+        svg.innerHTML = h;
+        drawReadout();
+        drawSums();
+      }
+
+      function drawReadout() {
+        const q = state.points[state.selected];
+        const el = document.getElementById("readout");
+        const past =
+          q.t > state.durationS
+            ? ` <span style="color:var(--text-warning)">after the run's end</span>`
+            : "";
+        const remove =
+          state.points.length > 1
+            ? `<button id="rm" style="font-size:11px;padding:2px 8px">Remove point</button>`
+            : `<span style="font-size:11px">A profile needs at least one point</span>`;
+        el.innerHTML = `<span>Point ${state.selected + 1} of ${state.points.length}: <b style="font-weight:500;color:var(--text-primary)">${q.t} s · ${fmt(q.r)} req/s</b>${past}</span><span style="flex:1"></span>${remove}`;
+        const button = document.getElementById("rm");
+        if (button) {
+          button.onclick = () => {
+            state.points.splice(state.selected, 1);
+            state.selected = Math.min(state.selected, state.points.length - 1);
+            draw();
+          };
+        }
+      }
+
+      // Each weight ÷ the total, in tenths of a percent, the last tenths by largest remainder.
+      function shares(weights) {
+        const total = weights.reduce((a, b) => a + b, 0);
+        const raw = weights.map((w) => (w / total) * 1000);
+        const tenths = raw.map(Math.floor);
+        const left = 1000 - tenths.reduce((a, b) => a + b, 0);
+        raw
+          .map((v, i) => [v - tenths[i], i])
+          .sort((a, b) => b[0] - a[0])
+          .slice(0, left)
+          .forEach(([, i]) => tenths[i]++);
+        return tenths.map((v) => v / 10);
+      }
+
+      function buildMix() {
+        document.getElementById("mix").innerHTML = state.mix
+          .map(
+            (m, i) =>
+              `<div class="mrow"><span style="width:10px;height:10px;border-radius:2px;background:${m.color}"></span><span>${m.name}</span><input type="number" min="1" step="1" value="${m.weight}" data-w="${i}" aria-label="${m.name} weight"><span id="share${i}" style="text-align:right;font-weight:500"></span><i class="ti ti-x muted" aria-label="Remove ${m.name} from mix"></i></div>`,
+          )
+          .join("");
+        for (const input of document.querySelectorAll("[data-w]")) {
+          input.addEventListener("input", () => {
+            const v = Math.round(Number(input.value));
+            if (v > 0) {
+              state.mix[Number(input.dataset.w)].weight = v;
+              drawSums();
+            }
+          });
+        }
+      }
+
+      function drawSums() {
+        const s = shares(state.mix.map((m) => m.weight));
+        state.mix.forEach(
+          (m, i) =>
+            (document.getElementById("share" + i).textContent =
+              s[i].toFixed(1) + "%"),
+        );
+        document.getElementById("sbar").innerHTML = state.mix
+          .map(
+            (m, i) =>
+              `<span style="width:${s[i]}%;background:${m.color}"></span>`,
+          )
+          .join("");
+        const total = Math.round(totalRequests());
+        const parts = state.mix.map((m, i) => Math.round((total * s[i]) / 100));
+        parts[parts.length - 1] =
+          total - parts.slice(0, -1).reduce((a, b) => a + b, 0);
+        const inRun = state.points
+          .filter((q) => q.t <= state.durationS)
+          .map((q) => q.r);
+        const peak = Math.max(...inRun, rateAt(state.durationS));
+        document.getElementById("total").textContent =
+          `≈ ${fmt(total)} requests in ${state.durationS} s`;
+        document.getElementById("split").innerHTML =
+          state.mix
+            .map((m, i) => `${m.name}: ≈ ${fmt(parts[i])}`)
+            .join("<br>") + `<br>Peak ${fmt(peak)} req/s. Same seed, same run.`;
+      }
+
+      function toSvg(e) {
+        const b = svg.getBoundingClientRect();
+        return {
+          x: ((e.clientX - b.left) * 400) / b.width,
+          y: ((e.clientY - b.top) * 168) / b.height,
+        };
+      }
+      function moveSelected(t, r) {
+        const q = state.points[state.selected];
+        t = Math.max(0, Math.min(scale.tMax, Math.round(t)));
+        r = Math.max(0, Math.round(r / 50) * 50);
+        if (!state.points.some((o) => o !== q && o.t === t)) q.t = t;
+        q.r = r;
+        state.points.sort((a, b) => a.t - b.t);
+        state.selected = state.points.indexOf(q);
+        draw();
+      }
+
+      svg.addEventListener("pointerdown", (e) => {
+        const i = e.target.dataset.i;
+        if (i !== undefined) {
+          state.selected = Number(i);
+          dragging = true;
+          svg.setPointerCapture(e.pointerId);
+          draw();
+          return;
+        }
+        if (e.target.id !== "line") return;
+        const t = Math.round(((toSvg(e).x - X0) / (X1 - X0)) * scale.tMax);
+        if (state.points.some((o) => o.t === t)) return;
+        const q = { t, r: Math.round(rateAt(t) / 50) * 50 };
+        state.points.push(q);
+        state.points.sort((a, b) => a.t - b.t);
+        state.selected = state.points.indexOf(q);
+        draw();
+      });
+      svg.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const { x, y } = toSvg(e);
+        moveSelected(
+          ((x - X0) / (X1 - X0)) * scale.tMax,
+          ((Y1 - y) / (Y1 - Y0)) * scale.rMax,
+        );
+      });
+      svg.addEventListener("pointerup", () => {
+        if (!dragging) return;
+        dragging = false;
+        draw();
+      });
+      svg.addEventListener("keydown", (e) => {
+        const q = state.points[state.selected];
+        const step = {
+          ArrowLeft: [-1, 0],
+          ArrowRight: [1, 0],
+          ArrowUp: [0, 50],
+          ArrowDown: [0, -50],
+        }[e.key];
+        if (step) {
+          e.preventDefault();
+          moveSelected(q.t + step[0], q.r + step[1]);
+        } else if (
+          e.key === "Tab" &&
+          !e.shiftKey &&
+          state.selected < state.points.length - 1
+        ) {
+          e.preventDefault();
+          state.selected++;
+          draw();
+        }
+      });
+      document.getElementById("dur").addEventListener("change", (e) => {
+        const v = Math.round(Number(e.target.value));
+        if (v > 0) {
+          state.durationS = v;
+          draw();
+        }
+      });
+
+      buildMix();
+      draw();
+    </script>
+  </body>
+</html>

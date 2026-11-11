@@ -24,3 +24,7 @@ The screen also has to say when the run no longer matches the project, and the u
 - No document change and no migration.
 - The comparison says only *whether* the project changed, not what changed. Saying what changed ("you changed orders-db's query workers") is the start of comparing runs, which isn't scheduled; a revision number or a stored run can be added for it then without changing this decision.
 - A rename of a component counts as a change, because names are part of the architecture, even though it changes no number. That's the simpler rule, and once findings word components by name ([§5](../design/user-experience.md#5-data-needs)), a rename changes what the run's report would say.
+
+## Addendum, 2026-11-11
+
+The UX design was rewritten for M7 ([#188](https://github.com/alanbickel/wind-tunnel/issues/188)), and its sections were renumbered. The links above to its §1, §4.2, and §5 were written for the M6 version, [kept at its last commit](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md). The modeling loop is now the new page's [§1](../design/user-experience.md#1-the-modeling-loop), and run freshness is in its [§9](../design/user-experience.md#9-runs-and-results). This decision is unchanged.

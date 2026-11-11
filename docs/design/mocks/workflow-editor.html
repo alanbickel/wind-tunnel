@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mock: the workflow editor on the canvas</title>
+    <link rel="stylesheet" href="./mock-tokens.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"
+    />
+    <style>
+      .wf {
+        position: relative;
+        height: 440px;
+        border: 1px solid var(--border-strong);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--surface-1);
+        font-size: 12px;
+      }
+      .a {
+        position: absolute;
+      }
+      .bar {
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 40px;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px;
+      }
+      .pill {
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        padding: 3px 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+        background: var(--surface-2);
+      }
+      .cv {
+        left: 0;
+        right: 0;
+        top: 40px;
+        bottom: 0;
+        background-image: radial-gradient(
+          var(--border-strong) 1px,
+          transparent 1px
+        );
+        background-size: 16px 16px;
+      }
+      .n {
+        width: 104px;
+        height: 46px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        border-radius: 8px;
+        padding: 5px 8px;
+        box-sizing: border-box;
+        cursor: pointer;
+      }
+      .n b {
+        white-space: nowrap;
+        font-weight: 500;
+        display: block;
+      }
+      .n span {
+        color: var(--text-secondary);
+        font-size: 11px;
+      }
+      .n.on {
+        border: 2px solid var(--border-accent);
+        padding: 4px 7px;
+      }
+      .chip {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--surface-2);
+        border: 1.5px solid var(--text-accent);
+        color: var(--text-accent);
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+      }
+      .chip.on {
+        background: var(--fill-accent);
+        color: var(--on-accent);
+        border-color: var(--fill-accent);
+      }
+      .insp {
+        right: 8px;
+        top: 48px;
+        bottom: 8px;
+        width: 222px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+      .st {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px;
+        border-radius: var(--radius);
+        cursor: pointer;
+      }
+      .st:hover {
+        background: var(--fill-ghost-hover);
+      }
+      .st.on {
+        background: var(--bg-accent-muted);
+        border-left: 3px solid var(--text-accent);
+        border-radius: 0;
+        padding-left: 1px;
+      }
+      .muted {
+        color: var(--text-secondary);
+      }
+      .act {
+        font-size: 11px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0 5px;
+        color: var(--text-secondary);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="mock-page">
+      <p class="mock-caption">
+        Sketch, 2026-11-11, for #188: the workflow editor, with a call being
+        dragged from fn-writer to orders-db. Click a box or an outline row to
+        select its step. Not the app; docs/design/user-experience.md is the
+        authority.
+      </p>
+      <h1 class="sr-only">The workflow editor on the canvas</h1>
+      <div class="wf">
+        <div class="a bar">
+          <i class="ti ti-wind" aria-hidden="true" style="font-size: 16px"></i>
+          <span class="muted">Projects /</span
+          ><span style="font-weight: 500">Orders service</span>
+          <span style="flex: 1"></span>
+          <span class="pill"
+            ><i class="ti ti-activity" aria-hidden="true"></i>Lunch rush<i
+              class="ti ti-chevron-down"
+              aria-hidden="true"
+            ></i
+          ></span>
+          <span
+            class="pill"
+            style="
+              background: var(--fill-accent);
+              color: var(--on-accent);
+              border-color: transparent;
+            "
+            ><i class="ti ti-player-play" aria-hidden="true"></i>Run</span
+          >
+        </div>
+        <div class="a cv">
+          <span class="a pill" style="left: 12px; top: 10px"
+            ><i class="ti ti-route" aria-hidden="true"></i>Workflow: Create
+            order<i class="ti ti-chevron-down" aria-hidden="true"></i
+          ></span>
+          <span class="a muted" style="left: 190px; top: 15px; font-size: 11px"
+            >Off-path parts are faded</span
+          >
+          <svg
+            class="a"
+            style="left: 0; top: 0"
+            width="450"
+            height="400"
+            aria-hidden="true"
+          >
+            <defs>
+              <marker
+                id="ah"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path
+                  d="M2 1L8 5L2 9"
+                  fill="none"
+                  stroke="context-stroke"
+                  stroke-width="1.5"
+                />
+              </marker>
+            </defs>
+            <line
+              x1="127"
+              y1="93"
+              x2="148"
+              y2="93"
+              stroke="var(--text-accent)"
+              stroke-width="2"
+              marker-end="url(#ah)"
+            />
+            <line
+              x1="255"
+              y1="93"
+              x2="298"
+              y2="93"
+              stroke="var(--border-strong)"
+              stroke-width="1.5"
+              marker-end="url(#ah)"
+            />
+            <line
+              x1="202"
+              y1="118"
+              x2="202"
+              y2="208"
+              stroke="var(--text-accent)"
+              stroke-width="2"
+              marker-end="url(#ah)"
+            />
+            <line
+              x1="255"
+              y1="233"
+              x2="298"
+              y2="233"
+              stroke="var(--text-accent)"
+              stroke-width="2"
+              stroke-dasharray="5 4"
+              marker-end="url(#ah)"
+            />
+            <path
+              d="M352 208 C 352 170, 352 150, 352 120"
+              fill="none"
+              stroke="var(--text-accent)"
+              stroke-width="2"
+              stroke-dasharray="2 4"
+              marker-end="url(#ah)"
+            />
+          </svg>
+          <div class="a n" data-n="api" style="left: 22px; top: 70px">
+            <b><i class="ti ti-api" aria-hidden="true"></i> api</b
+            ><span>API Gateway</span>
+          </div>
+          <div class="a n" data-n="fn-orders" style="left: 150px; top: 70px">
+            <b><i class="ti ti-lambda" aria-hidden="true"></i> fn-orders</b
+            ><span>Lambda</span>
+          </div>
+          <div
+            class="a n"
+            data-n="orders-db"
+            style="left: 300px; top: 70px; border-style: dashed"
+          >
+            <b><i class="ti ti-database" aria-hidden="true"></i> orders-db</b
+            ><span>RDS</span>
+          </div>
+          <div
+            class="a n"
+            data-n="orders-queue"
+            style="left: 150px; top: 210px"
+          >
+            <b><i class="ti ti-stack-2" aria-hidden="true"></i> orders-queue</b
+            ><span>SQS</span>
+          </div>
+          <div class="a n" data-n="fn-writer" style="left: 300px; top: 210px">
+            <b><i class="ti ti-lambda" aria-hidden="true"></i> fn-writer</b
+            ><span>Lambda</span>
+          </div>
+          <div class="a chip" data-c="1" style="left: 124px; top: 72px">1</div>
+          <div class="a chip" data-c="2" style="left: 205px; top: 150px">2</div>
+          <div class="a chip" data-c="3" style="left: 263px; top: 212px">3</div>
+          <span class="a muted" style="left: 252px; top: 240px; font-size: 11px"
+            >async</span
+          >
+          <span class="a muted" style="left: 256px; top: 76px; font-size: 11px"
+            >Get order</span
+          >
+          <div
+            class="a"
+            style="
+              left: 368px;
+              top: 122px;
+              background: var(--surface-2);
+              border: 1px solid var(--border-accent);
+              border-radius: 8px;
+              padding: 6px 8px;
+              width: 118px;
+            "
+          >
+            <div class="muted" style="font-size: 11px">
+              Add a call from fn-writer
+            </div>
+            <div style="display: flex; gap: 4px; margin-top: 4px">
+              <span class="pill" style="font-size: 11px">read</span>
+              <span
+                class="pill"
+                style="
+                  font-size: 11px;
+                  background: var(--fill-accent);
+                  color: var(--on-accent);
+                  border-color: transparent;
+                "
+                >write</span
+              >
+            </div>
+            <div class="muted" style="font-size: 11px; margin-top: 4px">
+              Adds the edge too
+            </div>
+          </div>
+          <div
+            class="a"
+            style="left: 22px; bottom: 12px; display: flex; gap: 6px"
+          >
+            <span class="pill"
+              ><i class="ti ti-player-skip-back" aria-label="Previous step"></i
+              ><i class="ti ti-player-play" aria-label="Play the path"></i
+              ><i class="ti ti-player-skip-forward" aria-label="Next step"></i
+            ></span>
+            <span class="pill muted"
+              ><i class="ti ti-hand-move" aria-hidden="true"></i>Drag from a
+              box's edge to add a call</span
+            >
+          </div>
+        </div>
+        <div class="a insp">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            "
+          >
+            <span style="font-weight: 500"
+              ><i class="ti ti-route" aria-hidden="true"></i> Create order</span
+            >
+            <i class="ti ti-x muted" aria-label="Close"></i>
+          </div>
+          <div class="muted" style="font-size: 11px; margin: 2px 0 8px">
+            In Lunch rush (20%) and Long rush
+          </div>
+          <div class="st" data-s="0" data-n="api">
+            <i class="ti ti-grip-vertical muted" aria-hidden="true"></i>api<span
+              class="act"
+              >invoke</span
+            >
+          </div>
+          <div
+            class="st"
+            data-s="1"
+            data-n="fn-orders"
+            style="margin-left: 12px"
+          >
+            <i class="ti ti-grip-vertical muted" aria-hidden="true"></i
+            >fn-orders<span class="act">invoke</span>
+          </div>
+          <div
+            class="st"
+            data-s="2"
+            data-n="orders-queue"
+            style="margin-left: 24px"
+          >
+            <i class="ti ti-grip-vertical muted" aria-hidden="true"></i
+            >orders-queue<span class="act">enqueue</span>
+          </div>
+          <div
+            class="muted"
+            style="
+              margin: 3px 0 2px 36px;
+              font-size: 11px;
+              border-left: 1px dashed var(--border-strong);
+              padding-left: 6px;
+            "
+          >
+            Async, when a consumer takes the message
+          </div>
+          <div
+            class="st"
+            data-s="3"
+            data-n="fn-writer"
+            style="margin-left: 36px"
+          >
+            <i class="ti ti-grip-vertical muted" aria-hidden="true"></i
+            >fn-writer<span class="act">invoke</span>
+          </div>
+          <div
+            style="
+              margin: 2px 0 0 52px;
+              font-size: 11px;
+              color: var(--text-accent);
+            "
+          >
+            <i class="ti ti-plus" aria-hidden="true"></i> orders-db · write,
+            adding
+          </div>
+          <div class="muted" style="margin: 6px 0 0 24px; font-size: 11px">
+            <i class="ti ti-plus" aria-hidden="true"></i> Add a call from
+            fn-orders
+          </div>
+          <div
+            style="
+              border-top: 1px solid var(--border);
+              margin-top: 12px;
+              padding-top: 8px;
+              font-size: 11px;
+              line-height: 1.6;
+            "
+            class="muted"
+          >
+            Click a row or a box to select its step. Drag the grip to reorder.
+            Delete removes a step and the calls under it, after asking.
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      const rows = [...document.querySelectorAll(".st")];
+      const nodes = [...document.querySelectorAll(".n")];
+      const chips = [...document.querySelectorAll(".chip")];
+      function select(i) {
+        for (const r of rows)
+          r.classList.toggle("on", Number(r.dataset.s) === i);
+        const name = rows[i].dataset.n;
+        for (const n of nodes) n.classList.toggle("on", n.dataset.n === name);
+        for (const c of chips)
+          c.classList.toggle("on", Number(c.dataset.c) === i);
+      }
+      for (const r of rows)
+        r.addEventListener("click", () => select(Number(r.dataset.s)));
+      for (const n of nodes) {
+        n.addEventListener("click", () => {
+          const row = rows.find((r) => r.dataset.n === n.dataset.n);
+          if (row) select(Number(row.dataset.s));
+        });
+      }
+      select(2);
+    </script>
+  </body>
+</html>

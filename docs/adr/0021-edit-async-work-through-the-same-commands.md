@@ -139,3 +139,7 @@ The maintainer settled the four questions this design raised (2026-11-10):
 - **The empty slot is derived, not stored**, so there's nothing to migrate and nothing to get out of step; the cost is that the screen derives the state from two fields.
 - **Nesting is allowed**, so the outline, the path and the findings have to keep working at any depth. They already do: they walk the tree recursively.
 - **The plan is on the issues.** The scope and tests for #164 to #166, which follow from this, are on those issues ([#162](https://github.com/alanbickel/wind-tunnel/issues/162)), not here.
+
+## Addendum, 2026-11-11
+
+The UX design was rewritten for M7 ([#188](https://github.com/alanbickel/wind-tunnel/issues/188)), and its journeys were taken out. The link above to its §2.6 was written for the M6 version, [kept at its last commit](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md#26-sketch-put-a-queue-in-front-of-a-slow-component). Async work on the new screen is in its [§7](../design/user-experience.md#7-workflows). This decision is unchanged.

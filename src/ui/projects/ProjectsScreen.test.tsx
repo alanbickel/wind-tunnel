@@ -16,6 +16,7 @@ import { UseCasesProvider } from "../app/UseCasesProvider";
 import { ProjectsScreen } from "./ProjectsScreen";
 
 const CREATE_SAMPLE = "Create a project from Sample project";
+const CREATE_STATUS = "Project creation";
 
 function renderScreen(useCases: UseCases, onOpen = vi.fn()) {
   return render(
@@ -160,12 +161,42 @@ describe("ProjectsScreen", () => {
     const templates = screen.getByRole("region", {
       name: "Create from template",
     });
-    expect(within(templates).getByRole("status").textContent).toBe(
-      "Creating the project…",
-    );
+    expect(
+      within(templates).getByRole("status", { name: CREATE_STATUS })
+        .textContent,
+    ).toBe("Creating the project…");
     expect(create.getAttribute("aria-disabled")).toBe("true");
     await screen.findByRole("button", { name: "Sample project" });
     expect(await projects.list()).toHaveLength(1);
+  });
+
+  // Fails if the template create's status region mounts with its message
+  // instead of being there, empty, before the create starts.
+  it("announces the template create in a status region that was already there", async () => {
+    const { useCases } = inMemoryUseCases([sampleRecord]);
+    renderScreen({
+      ...useCases,
+      createProjectFromTemplate: {
+        execute: () => new Promise(() => undefined),
+      },
+    });
+    const create = await screen.findByLabelText(CREATE_SAMPLE);
+    const templates = screen.getByRole("region", {
+      name: "Create from template",
+    });
+    const status = within(templates).getByRole("status", {
+      name: CREATE_STATUS,
+    });
+    expect(status.textContent).toBe("");
+
+    fireEvent.click(create);
+
+    await waitFor(() => {
+      expect(status.textContent).toBe("Creating the project…");
+    });
+    expect(within(templates).getByRole("status", { name: CREATE_STATUS })).toBe(
+      status,
+    );
   });
 });
 

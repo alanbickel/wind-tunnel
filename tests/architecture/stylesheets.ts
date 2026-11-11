@@ -21,10 +21,12 @@ export interface StyleFinding {
 // reviewers check for those.
 const COLOR_LITERAL =
   /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/gi;
-// A number with an absolute or font-relative unit. Unitless numbers (0,
-// line heights, weights) and percentages are fine.
+// A number with an absolute, font-relative, viewport, or container unit.
+// Viewport units come in small, large, and dynamic forms (`svh`, `lvw`,
+// `dvmin`) and logical forms (`vi`, `vb`); container units are `cqw` and the
+// rest. Unitless numbers (0, line heights, weights) and percentages are fine.
 const LENGTH_LITERAL =
-  /(?<![\w.#-])(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch|ex|vh|vw|vmin|vmax|pt|pc|cm|mm|in)\b/gi;
+  /(?<![\w.#-])(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch|ex|[sdl]?(?:v[hwib]|vmin|vmax)|cq(?:[whib]|min|max)|pt|pc|cm|mm|in)\b/gi;
 const FOCUS_RING_REMOVAL = /\boutline(?:-style|-width)?\s*:\s*(?:none|0)\b/gi;
 // A breakpoint token's declaration, `--breakpoint-wide: 64rem;`, capturing
 // the value.

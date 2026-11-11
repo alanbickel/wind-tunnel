@@ -12,13 +12,17 @@ import {
 import { workflowPathText } from "../../application/details/workflow-path-text";
 import type { Project } from "../../domain/model/project";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
+import { useUseCases } from "../app/useUseCases";
+import type { RunBadges } from "../run/run-badges";
 import { Diagram } from "../diagram/Diagram";
 import {
   isSelected,
+  OUT_OF_DATE_NOTE,
   type DiagramContent,
   type DiagramItem,
   type DiagramItemKind,
   type DiagramMarks,
+  type DiagramNode,
 } from "../diagram/diagram-model";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { AddComponent, type AddComponentProps } from "./AddComponent";
@@ -49,6 +53,11 @@ export interface ArchitectureViewProps {
   readonly workflowAnnouncement: string;
   /** Which of the "Workflows" and "As text" panels is open. */
   readonly panels: CanvasPanelState;
+  /**
+   * The run on screen's status badges, drawn on the boxes and listed in
+   * the text version; none before the first run.
+   */
+  readonly badges?: RunBadges | undefined;
   /** How much of the canvas's right edge the inspector covers, in pixels. */
   readonly coveredRightPx?: number;
 }
@@ -72,7 +81,12 @@ export interface ArchitectureViewProps {
  * first in the tab order, as it did above the diagram.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
-  const content = useMemo(() => diagramOf(props.record), [props.record]);
+  const displayNameOf = useDisplayNames();
+  const { record, badges } = props;
+  const content = useMemo(
+    () => diagramOf(record, { displayNameOf, badges }),
+    [record, displayNameOf, badges],
+  );
   const headingId = useId();
   const selecting = useDiagramSelection(props);
   const empty = content.nodes.length === 0;
@@ -94,6 +108,17 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       />
     </section>
   );
+}
+
+/** A component type's name in words, from the types "Add component" offers. */
+function useDisplayNames(): (type: string) => string {
+  const { listComponentTypes } = useUseCases();
+  return useMemo(() => {
+    const names = new Map(
+      listComponentTypes.execute().map((t) => [t.type, t.displayName]),
+    );
+    return (type) => names.get(type) ?? type;
+  }, [listComponentTypes]);
 }
 
 /** What the canvas says while there are no components to draw. */
@@ -232,9 +257,9 @@ const SELECTIONS: Readonly<Record<DiagramItemKind, (id: string) => Selection>> =
 function TextVersion({ record, content, selecting }: DrawingProps) {
   const names = new Map(content.nodes.map((node) => [node.id, node.label]));
   const nameOf = (id: string) => names.get(id) ?? id;
-  const components = content.nodes.map(({ id, label, caption }) => ({
-    item: { kind: "node", id } as const,
-    text: `${label} (${caption})`,
+  const components = content.nodes.map((node) => ({
+    item: { kind: "node", id: node.id } as const,
+    text: componentLine(node),
   }));
   const connections = content.edges.map(({ id, source, target }) => ({
     item: { kind: "edge", id } as const,
@@ -249,6 +274,18 @@ function TextVersion({ record, content, selecting }: DrawingProps) {
       {paths.length > 0 && <PathList paths={paths} />}
     </>
   );
+}
+
+/**
+ * A component's line in the text version: its name and type, then its
+ * status if it has one, and when the status is from an earlier version of
+ * the project, that.
+ */
+function componentLine({ label, caption, status }: DiagramNode): string {
+  const line = `${label} (${caption})`;
+  if (status === undefined) return line;
+  const note = status.outOfDate ? `, ${OUT_OF_DATE_NOTE}` : "";
+  return `${line}: ${status.word}${note}`;
 }
 
 interface PathListProps {

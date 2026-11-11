@@ -92,7 +92,7 @@ describe("OpenedProject's adding and removing components", () => {
   // workflow called it isn't stopped, with the reason, after it.
   it("confirms a remove, then saves it, and the workload can't run", async () => {
     const { projects } = renderOpenedProject();
-    select("Table (dynamodb)");
+    select("Table (DynamoDB)");
 
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     const asking = confirmation(TABLE_QUESTION);
@@ -125,7 +125,7 @@ describe("OpenedProject's adding and removing components", () => {
     renderOpenedProject();
     const region = removedRegion();
     expect(region.textContent).toBe("");
-    select("Function (lambda)");
+    select("Function (Lambda)");
 
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     const asking = screen.getByRole("group", { name: /^Remove Function/ });
@@ -139,7 +139,7 @@ describe("OpenedProject's adding and removing components", () => {
   // Details, or the focus isn't returned to Remove.
   it("keeps the component on Cancel or Escape", () => {
     renderOpenedProject();
-    select("Table (dynamodb)");
+    select("Table (DynamoDB)");
     const remove = () => screen.getByRole("button", { name: "Remove" });
 
     fireEvent.click(remove());
@@ -157,7 +157,7 @@ describe("OpenedProject's adding and removing components", () => {
     expect(document.activeElement).toBe(remove());
     expect(detailsHeading().textContent).toBe("Table · DynamoDB");
     expect(
-      screen.getByRole("button", { name: "Table (dynamodb)" }),
+      screen.getByRole("button", { name: "Table (DynamoDB)" }),
     ).toBeTruthy();
   });
 });

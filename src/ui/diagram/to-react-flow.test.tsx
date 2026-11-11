@@ -19,14 +19,15 @@ function selecting(item: DiagramItem): DiagramMarks {
 const fn: DiagramNode = {
   id: "fn",
   label: "Function",
-  caption: "lambda",
+  caption: "Lambda",
+  icon: "lambda",
   position: { x: 250, y: 40 },
 };
 
 const aToB: DiagramEdge = { id: "a-b", source: "a", target: "b" };
 
 describe("toFlowNode", () => {
-  it("keeps the ID and position and shows the label over the caption", () => {
+  it("keeps the ID and position and draws a card with the label over the caption", () => {
     const node = toFlowNode(fn, NO_MARKS);
 
     expect(node.id).toBe("fn");
@@ -34,8 +35,10 @@ describe("toFlowNode", () => {
     // Layouts run left to right, so arrows leave right and arrive left.
     expect(node.sourcePosition).toBe(Position.Right);
     expect(node.targetPosition).toBe(Position.Left);
-    expect(renderToStaticMarkup(node.data.label as ReactNode)).toBe(
-      "<strong>Function</strong><br/><small>lambda</small>",
+    const card = renderToStaticMarkup(node.data.label as ReactNode);
+    expect(card).toContain("<strong");
+    expect(card.indexOf(">Function<")).toBeLessThan(
+      card.indexOf(">Lambda</small>"),
     );
   });
 

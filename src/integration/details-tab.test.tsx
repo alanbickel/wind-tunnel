@@ -19,6 +19,7 @@ import {
 import { createFieldCatalog } from "../application/details/create-field-catalog";
 import { awsDescribeSelection } from "../application/testing/aws-describe-selection";
 import { sampleRecord } from "../application/testing/sample-record";
+import { createAwsComponentRegistry } from "../domain/components/aws";
 import type { Component, Edge, Project } from "../domain/model/project";
 import { fakeUseCases } from "../ui/app/testing/fake-use-cases";
 import { UseCasesProvider } from "../ui/app/UseCasesProvider";
@@ -48,6 +49,12 @@ function renderProject(project: Project): void {
       />
     </UseCasesProvider>,
   );
+}
+
+/** A component's line in the text version: its name and its type in words. */
+function textLine(component: Component): string {
+  const type = createAwsComponentRegistry().get(component.type);
+  return `${component.name} (${type?.displayName ?? component.type})`;
 }
 
 /** Clicks an item's button in the diagram's text version, as the keyboard would. */
@@ -119,7 +126,7 @@ describe("the Details tab, for the templates", () => {
   it("shows orders-db's name and three settings, each with its unit and default", () => {
     renderProject(projectA);
 
-    selectFromText("orders-db (rds)");
+    selectFromText("orders-db (RDS)");
 
     expect(document.activeElement).toBe(detailsHeading());
     expect(detailsHeading().textContent).toBe("orders-db · RDS");
@@ -155,7 +162,7 @@ describe("the Details tab, for the templates", () => {
   // the focus instead of returning it to the button that selected.
   it("clears on Escape, shows Run, and returns the focus to the button", () => {
     renderProject(projectA);
-    const button = selectFromText("orders-db (rds)");
+    const button = selectFromText("orders-db (RDS)");
 
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
 
@@ -163,7 +170,7 @@ describe("the Details tab, for the templates", () => {
     expect(document.activeElement).toBe(button);
     expect(screen.queryByRole("tabpanel", { name: "Details" })).toBeNull();
     expect(
-      revealButton("orders-db (rds)").getAttribute("aria-current"),
+      revealButton("orders-db (RDS)").getAttribute("aria-current"),
     ).toBeNull();
   });
 
@@ -215,11 +222,11 @@ describe("the Details tab, for the templates", () => {
       },
     });
 
-    selectFromText("fn-orders (lambda)");
+    selectFromText("fn-orders (Lambda)");
     expect(
       within(detailsTab()).getByText("Called by: Get order, Create order"),
     ).toBeTruthy();
-    selectFromText("fn-spare (lambda)");
+    selectFromText("fn-spare (Lambda)");
     expect(
       within(detailsTab()).getByText(
         "Called by: nothing yet. A component does nothing until a workflow step calls it.",
@@ -241,7 +248,7 @@ describe("the Details tab, for the templates", () => {
       const { components, edges } = project.architecture;
 
       for (const component of components) {
-        selectFromText(`${component.name} (${component.type})`);
+        selectFromText(textLine(component));
         expectComponentDetails(component);
       }
       for (const edge of edges) {

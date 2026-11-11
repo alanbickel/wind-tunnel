@@ -276,7 +276,7 @@ describe("App's blank project", () => {
     ).toBeTruthy();
     openPanel("As text");
     const components = screen.getByRole("list", { name: "Components" });
-    expect(components.textContent).toBe("lambda-1 (lambda)");
+    expect(components.textContent).toBe("lambda-1 (Lambda)");
   });
 
   // Fails if the new project isn't saved, or is saved without a later

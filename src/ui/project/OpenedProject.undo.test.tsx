@@ -103,7 +103,7 @@ describe("OpenedProject's undo and redo", () => {
   // position, doesn't save, or doesn't select what it brought back.
   it("brings back a removed component, its edges, and its place, and selects it", async () => {
     const { projects } = renderOpenedProject();
-    select("Table (dynamodb)");
+    select("Table (DynamoDB)");
     removeSelected();
     await savedRecord(
       projects,
@@ -133,7 +133,7 @@ describe("OpenedProject's undo and redo", () => {
     expect(historyButton("Undo").textContent).toBe("Undo");
     expect(historyButton("Undo").getAttribute("aria-disabled")).toBe("true");
     expect(historyButton("Redo").getAttribute("aria-disabled")).toBe("true");
-    select("Function (lambda)");
+    select("Function (Lambda)");
 
     typeAndLeave(field("Concurrency"), "50");
     expect(historyButton("Undo").textContent).toBe(
@@ -158,7 +158,7 @@ describe("OpenedProject's undo and redo", () => {
   it("saves each undo and redo once, after the save in flight", async () => {
     const { saved, release, saveProject } = heldFirstSave();
     renderOpenedProject({ saveProject });
-    select("Function (lambda)");
+    select("Function (Lambda)");
     typeAndLeave(field("Name"), "Orders");
 
     fireEvent.click(historyButton("Undo"));
@@ -179,7 +179,7 @@ describe("OpenedProject's undo and redo", () => {
   // Ctrl+Shift+Z or Ctrl+Y don't redo.
   it("undoes with Ctrl+Z, except in a text field, and redoes with Ctrl+Y", async () => {
     const { projects } = renderOpenedProject();
-    select("Function (lambda)");
+    select("Function (Lambda)");
     const before = field("Concurrency").value;
     typeAndLeave(field("Concurrency"), "50");
     await savedRecord(projects, (r) => concurrencyIn(r) === 50);
@@ -206,7 +206,8 @@ describe("OpenedProject's undo and redo", () => {
     const { runner } = renderOpenedProject();
     clickRun();
     await runner.finish();
-    select("Function (lambda)");
+    // After a run the text version adds the component's status.
+    select("Function (Lambda): ok");
 
     typeAndLeave(field("Concurrency"), "50");
     expect(statusRegions()[1].textContent).toBe("Out of date");
@@ -221,7 +222,7 @@ describe("OpenedProject's undo and redo", () => {
   // project the undo went to.
   it("keeps a selected step through an undo that leaves it there", () => {
     renderOpenedProject();
-    select("Function (lambda)");
+    select("Function (Lambda)");
     typeAndLeave(field("Name"), "Orders");
     select("Read item");
     select("1.1 Orders · invoke");
@@ -243,7 +244,7 @@ describe("OpenedProject's undo and redo", () => {
   // issue or the row's count showing once the component is back.
   it("keeps a selected step through undoing its component's removal, and its issue goes", () => {
     renderOpenedProject();
-    select("Table (dynamodb)");
+    select("Table (DynamoDB)");
     removeSelected();
     select("Read item · 1 problem");
     select("1.1.1 a removed component · read");
@@ -309,7 +310,7 @@ describe("OpenedProject's undo and redo", () => {
   // page, or moves it to Undo instead of Redo.
   it("moves the focus to Redo when Ctrl+Shift+Z takes away the Details that had it", () => {
     renderOpenedProject();
-    select("Table (dynamodb)");
+    select("Table (DynamoDB)");
     removeSelected();
     fireEvent.click(historyButton("Undo"));
     screen.getByRole("button", { name: "Remove" }).focus();

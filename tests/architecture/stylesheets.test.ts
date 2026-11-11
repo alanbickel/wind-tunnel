@@ -132,6 +132,29 @@ describe("the style checks", () => {
     expect(lengthLiterals(file(text)).map((f) => f.found)).toEqual([found]);
   });
 
+  // Fails if LENGTH_LITERAL drops a unit family: classic, small, large, and
+  // dynamic viewport units, logical viewport units, or container units.
+  it.each([
+    ["height: 100vh;", "100vh"],
+    ["width: 50vmax;", "50vmax"],
+    ["height: 100svh;", "100svh"],
+    ["height: 100lvh;", "100lvh"],
+    ["height: 100dvh;", "100dvh"],
+    ["width: 10dvw;", "10dvw"],
+    ["min-height: 20svmin;", "20svmin"],
+    ["max-height: 20dvmax;", "20dvmax"],
+    ["inline-size: 50vi;", "50vi"],
+    ["block-size: 50vb;", "50vb"],
+    ["width: 50cqw;", "50cqw"],
+    ["height: 50cqh;", "50cqh"],
+    ["inline-size: 50cqi;", "50cqi"],
+    ["block-size: 50cqb;", "50cqb"],
+    ["width: 50cqmin;", "50cqmin"],
+    ["width: 50cqmax;", "50cqmax"],
+  ])("finds the viewport or container length in %s", (text, found) => {
+    expect(lengthLiterals(file(text)).map((f) => f.found)).toEqual([found]);
+  });
+
   // Fails if LENGTH_LITERAL matches unitless numbers, percentages, or a
   // class name that happens to end in a unit.
   it.each([

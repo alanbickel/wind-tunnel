@@ -244,14 +244,14 @@ sequenceDiagram
     participant C as addCall (application)
     participant E as useProjectEdits (ui)
     participant D as Diagram, Details
-    User->>P: picks orders-db, marked "No edge from API Gateway yet; choosing it adds one."
+    User->>P: picks orders-db, marked "No edge from API Gateway yet#59; choosing it adds one."
     User->>P: picks read
     P->>S: add({ callerStepId, start, choice, action })
     S->>E: edit(addCall), described "Add a call from API Gateway to orders-db, and its edge"
     E->>C: addCall(record, { stepId, callId, componentId, action, edgeId, edgeSettings })
     C->>C: appends the call, then connectIfMissing adds the edge with newEdge's defaults
-    E->>E: one history step; the run goes out of date; the save queue saves the record
-    E-->>D: the diagram draws the edge; the outline shows the new step, selected
+    E->>E: one history step, the run goes out of date, the save queue saves the record
+    E-->>D: the diagram draws the edge, the outline shows the new step, selected
     S->>D: announce "Added a call from API Gateway to orders-db. Added the edge from API Gateway to orders-db."
 ```
 
@@ -326,13 +326,13 @@ sequenceDiagram
     User->>O: picks orders-queue for orders-db · write
     O->>S: change(step, orders-queue · enqueue)
     S->>E: edit(changeStep), described "Change orders-db · write to orders-queue · enqueue, and its edge"
-    E->>C: changeStep adds the edge fn-orders → orders-queue; the step's async slot is empty
+    E->>C: changeStep adds the edge fn-orders → orders-queue, and the step's async slot is empty
     S->>D: announce "Changed … Added the edge from fn-orders to orders-queue. It has no async work yet."
     User->>O: "Add async work…", picks fn-writer, picks invoke
     O->>S: addAsync({ callerStepId, start, choice, action })
     S->>E: edit(addAsyncWork), described "Add async work from orders-queue to fn-writer, and its edge"
-    E->>C: addAsyncWork sets the queue's async step; connectIfMissing adds orders-queue → fn-writer
-    E-->>D: the diagram draws the edge; the outline shows fn-writer, selected
+    E->>C: addAsyncWork sets the queue's async step, and connectIfMissing adds orders-queue → fn-writer
+    E-->>D: the diagram draws the edge, the outline shows fn-writer, selected
     S->>D: announce "Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer."
     User->>E: Undo: one step takes back the async work and its edge
 ```
@@ -349,11 +349,11 @@ sequenceDiagram
     participant E as useProjectEdits (ui)
     participant P as ProjectBar (ui)
     User->>D: Remove, on Get order
-    D->>D: asks "Remove Get order?" and "Lunch rush and Steady day run it; it leaves their mixes." Focus on Cancel
+    D->>D: asks "Remove Get order?" and "Lunch rush and Steady day run it#59; it leaves their mixes." Focus on Cancel
     User->>D: confirms
     D->>R: remove(workflow)
     R->>E: edit(removeWorkflow), described "Remove workflow Get order"
-    E->>E: the workflow and its mix entries go; the run goes out of date
+    E->>E: the workflow and its mix entries go, and the run goes out of date
     R->>R: clear the selection, focus "Add workflow", announce "Removed Get order."
     E-->>P: a workload left with an empty mix can't run: "The mix has no workflows."
 ```

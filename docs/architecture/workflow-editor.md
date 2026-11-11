@@ -70,6 +70,7 @@ flowchart TB
         pathText["<b>workflowPathText</b><br/>[Component: details/]<br/>A workflow's path line, for the text version"]:::component
         afterUndo["<b>selectionAfterUndo</b><br/>[Component: details/]<br/>Keeps a step while it's there"]:::component
         onDiagram["<b>selectionOnArchitecture</b><br/>[Component: details/]<br/>The path, and what a step rings"]:::component
+        edits["<b>workflow-edits</b><br/>[Component: edits/]<br/>addCall, addAsyncWork, changeStep (drops what's under the step), moveStep, removeStep (an async root empties its slot)"]:::component
     end
     diagram["<b>Diagram</b><br/>[ui/diagram/]"]:::external
     stepTree["<b>stepsOfWorkflow, stepAt, stepLinksOf</b><br/>[domain/model/step-tree.ts]"]:::external
@@ -84,6 +85,8 @@ flowchart TB
     checks --> phrases
     describeUc & afterUndo & checks & onDiagram --> stepTree
     undo --> afterUndo
+    details -->|"edit(command)"| edits
+    edits --> stepTree
     list --> onDiagram
     list --> pathText
     list -->|"marks"| diagram
@@ -264,6 +267,40 @@ Selecting a step puts two pickers under its line, Component and Action, showing 
 `ChangeStep` (a use case, since the edge's id comes from the `IdGenerator` port) says what the pickers need: the step's component, action, and label, the caller's name, the caller type's `edgeDefaults`, and the components to offer, by the same `callChoices` that `NewCall` uses (the caller's neighbours first, the others marked as adding an edge; for the root, every component and none adding one), and how many steps are under the step. A change along a missing edge is one command and so one undo step, announced as an add is: "Changed fn-orders · invoke to orders-db · read. Added the edge from API Gateway to orders-db." The words are `changeStepText`.
 
 - **A change drops what's under the step, after asking.** Any change to a step's component or action drops every step under it, calls and async work, so when `stepsBelow` isn't 0 the pickers hold the change and ask first, as a remove does, with `RemoveConfirmation` (its button says "Change"): "Change fn-orders · invoke to fn-writer · invoke? The 3 steps under it go." (`changeStepQuestion`), the count taking in everything nested, with the focus on Cancel. Cancel changes nothing and puts the pickers back to what the step is; either answer returns the focus to the Component picker. A step with nothing under it changes at once. Undo's name and the announcement say how many went ("Change … , and remove the 3 steps under it"; "Changed …. The 3 steps under it are gone."), and a change to `enqueue` adds "It has no async work yet." Both pickers offer every component and action, async work or not. An `enqueue` offers no "Add a call": its follow-up work is its async work (a stored project with such calls still opens).
+- **Changing an `enqueue` back to a `write`** shows what goes. The question is "Change orders-queue · enqueue to orders-db · write? The 2 steps under it go." Before, from [the async sketch](#async-work):
+
+```mermaid
+flowchart TB
+    subgraph tree["Before: the steps"]
+        fnStep["fn-orders · invoke"]
+        queueStep["orders-queue · enqueue"]
+        writerStep["fn-writer · invoke"]
+        dbStep["orders-db · write"]
+        fnStep -->|calls 1| queueStep
+        queueStep -.->|async| writerStep
+        writerStep -->|calls 1| dbStep
+    end
+    subgraph arch["The architecture's edges"]
+        fn["fn-orders"] --> queue["orders-queue"] --> writer["fn-writer"] --> db["orders-db"]
+        fn --> db
+    end
+```
+
+After, the step keeps its id and its place, and the async root and everything under it goes. All the edges stay, since edges belong to the architecture: `fn-orders → orders-db`, which the changed step now calls along, was there all along, and `fn-orders → orders-queue`, `orders-queue → fn-writer` and `fn-writer → orders-db` are used by no step, which their Details say:
+
+```mermaid
+flowchart TB
+    subgraph tree["After changeStep: orders-db · write"]
+        fnStep["fn-orders · invoke"]
+        dbStep["orders-db · write"]
+        fnStep -->|calls 1| dbStep
+    end
+    subgraph arch["The architecture's edges, unchanged"]
+        fn["fn-orders"] --> queue["orders-queue"] --> writer["fn-writer"] --> db["orders-db"]
+        fn --> db
+    end
+```
+
 - **The selection** stays on the step, whose id doesn't change; so does the focus, which stays on the picker.
 - **Undo** puts back the step and any edge the change added, because the history keeps the record from before.
 
@@ -275,6 +312,30 @@ An `enqueue` step with no async work shows its slot: the heading "Async work, do
 - **Remove** on the async root leaves the slot empty and takes no edge; it asks first only if something is under it. The selection and the focus go to the queue step, whose slot's button is now there, and the announcement says so: "Removed fn-writer · invoke. orders-queue · enqueue has no async work now."
 - **A chain of queues** works: an `enqueue` under async work gets a slot like any other.
 - **A stored project's issues** (`async-not-on-enqueue`, `async-not-delivered`) show on the step that has the async work. Remove on the root, or changing the step's action, fixes them.
+
+The sketch's first two steps, as one flow. Each is one command, so each is one undo step, and each says what appeared away from the focus:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant O as WorkflowOutline (ui)
+    participant S as useStepEdits (ui)
+    participant C as changeStep, addAsyncWork (application)
+    participant E as useProjectEdits (ui)
+    participant D as Diagram, Details
+    User->>O: picks orders-queue for orders-db · write
+    O->>S: change(step, orders-queue · enqueue)
+    S->>E: edit(changeStep), described "Change orders-db · write to orders-queue · enqueue, and its edge"
+    E->>C: changeStep adds the edge fn-orders → orders-queue; the step's async slot is empty
+    S->>D: announce "Changed … Added the edge from fn-orders to orders-queue. It has no async work yet."
+    User->>O: "Add async work…", picks fn-writer, picks invoke
+    O->>S: addAsyncWork({ queueStepId, start, choice, action })
+    S->>E: edit(addAsyncWork), described "Add async work from orders-queue to fn-writer, and its edge"
+    E->>C: addAsyncWork sets the queue's async step; connectIfMissing adds orders-queue → fn-writer
+    E-->>D: the diagram draws the edge; the outline shows fn-writer, selected
+    S->>D: announce "Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer."
+    User->>E: Undo: one step takes back the async work and its edge
+```
 
 [`async-work-sequence.test.ts`](../../src/adapters/templates/details/async-work-sequence.test.ts) builds UX design §2.6's sketch in a copy of Template A, through the same edit history the screen keeps, and writes each stage to [`async-work-sequence.txt`](../../src/adapters/templates/details/async-work-sequence.txt): three calls and their three edges (`fn-orders → orders-queue`, `orders-queue → fn-writer`, `fn-writer → orders-db`), each undone in turn, and the announcement of each. It also checks that the result has no run issues and that a run of it delivers messages. If a stage changes, run `npx vitest run src/adapters/templates/details --update` and read the diff.
 

@@ -48,13 +48,11 @@
   width: 100%;
 }
 
-/* Said when the selected finding's component has gone; empty, and taking
-   no room, otherwise. */
+/* Said when the selected finding's component has gone. It's a live region,
+   so it stays rendered when empty (display: none would take it out of the
+   accessibility tree, and a screen reader wouldn't announce its first
+   text); with no margin or padding, an empty one takes no room. */
 .gone {
   margin: 0;
   color: var(--color-text-muted);
-}
-
-.gone:empty {
-  display: none;
 }

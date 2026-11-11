@@ -155,8 +155,8 @@ describe("Findings", () => {
   });
 
   // Fails if a finding's summary isn't a button that selects its key, the
-  // selected one isn't marked current, Escape doesn't clear it (or another key does), or an open
-  // explanation's Escape clears it too.
+  // selected one isn't marked current, Escape doesn't clear it (or another
+  // key does), or an open explanation's Escape clears it too.
   it("selects a finding from its summary, and clears on Escape", () => {
     const calls: string[] = [];
     const selecting: FindingSelecting = {

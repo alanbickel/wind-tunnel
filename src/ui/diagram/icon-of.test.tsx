@@ -4,6 +4,7 @@ import { iconOf, type Icon } from "./icon-of";
 const Drawn: Icon = () => null;
 
 describe("iconOf", () => {
+  // Fails if iconOf unwraps a plain component into undefined.
   it("returns an icon imported as the component", () => {
     expect(iconOf(Drawn)).toBe(Drawn);
   });

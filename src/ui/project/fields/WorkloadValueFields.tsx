@@ -69,6 +69,7 @@ function DurationField({
   );
 }
 
+/** The seed, a whole number in the engine's 32 bits. */
 function SeedField({ details, onEdit, announce }: WorkloadValueFieldsProps) {
   const { workloadId, name } = details;
   return (

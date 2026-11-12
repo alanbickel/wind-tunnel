@@ -76,11 +76,16 @@ describe("durationMsOf", () => {
 });
 
 describe("the fields' words", () => {
-  // Fails if the labels or help drift from the design's.
+  // Fails if a label, the unit, or either help text changes from the issue's words.
   it("say what the design says", () => {
     expect(DURATION_FIELD.label).toBe("Duration");
     expect(DURATION_FIELD.unit).toBe("s");
+    expect(DURATION_FIELD.help).toBe(
+      "How long requests keep arriving, in simulated seconds. The run stops at this time, and requests still in progress then are reported as such.",
+    );
     expect(SEED_FIELD.label).toBe("Seed");
-    expect(SEED_FIELD.help).toMatch(/^The same seed gives the same run/);
+    expect(SEED_FIELD.help).toBe(
+      "The same seed gives the same run: when requests arrive, which workflow each one is, and how long each step takes. Change it to see how much a result depends on luck.",
+    );
   });
 });

@@ -219,8 +219,6 @@ export interface WorkloadDetails {
   readonly workloadId: string;
   readonly name: string;
   readonly durationSec: number;
-  /** "1 second", "60 seconds". */
-  readonly durationText: string;
   readonly seed: number;
   /** What Remove's confirmation says. */
   readonly removal: RemovalText;

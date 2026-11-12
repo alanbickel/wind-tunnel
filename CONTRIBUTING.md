@@ -68,10 +68,12 @@ These apply everywhere. A gotcha that belongs to one area is in its guide: the V
 
 ## Milestones and the roadmap
 
-The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) is the plan: the milestones in order, each with its items in order. A filed item is an issue number. Work not yet filed is a short *unfiled* stub that says what it is and records any decision already made about it. When a milestone becomes the current one, it gets a GitHub milestone, and its filed issues join it; items filed later join as they're filed. Until then, its filed issues have no GitHub milestone.
+The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) is the plan: the milestones in order, each with its items in order. A filed item is an issue number. Work not yet filed is a short *unfiled* stub that says what it is and records any decision already made about it. A milestone is a section of the Roadmap; the repository doesn't use GitHub milestones.
+
+**Every open issue is on the Roadmap:** listed in a section ("Not scheduled" counts), or a sub-issue of one that is. Whoever files an issue lists it in the same sitting, so anyone can reach any open work from the Roadmap.
 
 - **The next task** is the first item, in order, that isn't done (an open issue or an unfiled stub) in the first milestone that still has one. If it's a stub, file it, with at most the one or two after it, and put their numbers in the Roadmap before starting. Filing in small batches keeps the issue list to work that's about to start.
-- **Edit the Roadmap** only to file stubs, reorder, add or reshape a milestone, or finish one. An ordinary PR doesn't touch it: `Closes #<number>` closes the issue, and the Roadmap shows it as done. To edit it, read the current body (`gh issue view 32 --json body --jq .body`), change that, and write it back with `gh issue edit 32 --body-file <file>`, so you don't overwrite someone else's edit.
+- **Edit the Roadmap** only to file stubs, list a newly filed issue, reorder, add or reshape a milestone, or finish one. An ordinary PR doesn't touch it: `Closes #<number>` closes the issue, and the Roadmap shows it as done. To edit it, read the current body (`gh issue view 32 --json body --jq .body`), change that, and write it back with `gh issue edit 32 --body-file <file>`, so you don't overwrite someone else's edit.
 - **Lessons for later work** go in [Gotchas](#gotchas) or the guide they belong to, not the Roadmap.
 
 ### Finishing a milestone
@@ -79,12 +81,12 @@ The pinned [Roadmap issue](https://github.com/alanbickel/wind-tunnel/issues/32) 
 1. Every item is closed, and the milestone's goal is met. The maintainer checks anything that needs a browser.
 2. The docs are current: the architecture overview, the design docs where reality differs from them, ADRs for significant decisions, a guide for each new subsystem, and every new document reachable from the README map ([Documentation](docs/contributing/documentation.md)).
 3. Anything the next milestone needs to know is in Gotchas or the relevant guide.
-4. The milestone moves to the Roadmap's "Done" list as one line with its PR numbers, and its GitHub milestone is closed.
+4. The milestone moves to the Roadmap's "Done" list as one line with its PR numbers. Any open issue left in its section moves to another one first.
 5. The next milestone's stubs are revised if what we learned changes them, and its first items are filed.
 
 ## Branches and pull requests
 
-The backlog is the repository's [GitHub issues](https://github.com/alanbickel/wind-tunnel/issues). File an idea for future work as an issue with its type label; an issue joins a milestone once it's scheduled. Feature work is filed in small batches, as [Milestones and the roadmap](#milestones-and-the-roadmap) describes. A defect is different: anyone, a Claude session included, may file a `fix` issue for a bug they find, at any time.
+The backlog is the repository's [GitHub issues](https://github.com/alanbickel/wind-tunnel/issues). File an idea for future work as an issue with its type label, and [list it on the Roadmap](#milestones-and-the-roadmap). Feature work is filed in small batches, as [Milestones and the roadmap](#milestones-and-the-roadmap) describes. A defect is different: anyone, a Claude session included, may file a `fix` issue for a bug they find, at any time, and list it on the Roadmap like any other.
 
 Every change reaches `main` through a pull request. People and Claude sessions follow the same steps:
 

@@ -1,6 +1,7 @@
 /* The title keeps its own margins; the control sits on its first line. */
 .title {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
 }

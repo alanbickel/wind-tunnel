@@ -158,6 +158,42 @@ describe("the Details tab, for the templates", () => {
     ]);
   });
 
+  // Fails if a setting's help or default evidence shows before its info
+  // control is opened, the control doesn't open and close it, the hidden
+  // help stops describing the field, or Reset to default needs the control
+  // opened first.
+  it("keeps a setting's help and default behind its info control, still describing the field", () => {
+    renderProject(projectA);
+    selectFromText("orders-db (RDS)");
+    const info = within(detailsTab()).getByRole("button", {
+      name: "About Max connections",
+    });
+    const help = document.getElementById(
+      field("Max connections")
+        .getAttribute("aria-describedby")
+        ?.split(" ")
+        .at(-1) ?? "",
+    );
+
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+    expect(help?.closest("[hidden]")).not.toBeNull();
+    expect(description(field("Max connections"))).toMatch(
+      /Default 90: an assumption \(RDS-1\)\.$/,
+    );
+    expect(
+      within(detailsTab()).getByRole("button", {
+        name: "Reset to default: Max connections",
+      }),
+    ).toBeTruthy();
+
+    fireEvent.click(info);
+    expect(info.getAttribute("aria-expanded")).toBe("true");
+    expect(help?.closest("[hidden]")).toBeNull();
+
+    fireEvent.click(info);
+    expect(help?.closest("[hidden]")).not.toBeNull();
+  });
+
   // Fails if Escape leaves the selection, keeps Details showing, or drops
   // the focus instead of returning it to the button that selected.
   it("clears on Escape, shows Run, and returns the focus to the button", () => {

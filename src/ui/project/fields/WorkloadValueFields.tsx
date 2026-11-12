@@ -16,6 +16,7 @@ import {
   setWorkloadDuration,
   setWorkloadSeed,
 } from "../../../application/edits/workload-edits";
+import { Explained } from "../../shared/Explained";
 import type { Edit } from "../useProjectEdits";
 import { commitNumber } from "./commit-number";
 import type { FieldProps } from "./field-parts";
@@ -107,20 +108,26 @@ function WorkloadNumberField(props: WorkloadNumberFieldProps) {
   const check = checkDraft(draft.value);
   return (
     <div className={styles.setting}>
-      <TextField
-        label={field.label}
-        unit={field.unit}
-        inputMode={field.kind === "whole-number" ? "numeric" : "decimal"}
-        draft={draft}
-        message={check.status === "fails" ? check.message : undefined}
-        onCommit={() => {
-          commitNumber({ ...props, check, reset: draft.reset });
-        }}
-        helpId={helpId}
-      />
-      <p id={helpId} className={styles.help}>
-        {field.help}
-      </p>
+      <Explained
+        title={
+          <TextField
+            label={field.label}
+            unit={field.unit}
+            inputMode={field.kind === "whole-number" ? "numeric" : "decimal"}
+            draft={draft}
+            message={check.status === "fails" ? check.message : undefined}
+            onCommit={() => {
+              commitNumber({ ...props, check, reset: draft.reset });
+            }}
+            helpId={helpId}
+          />
+        }
+        subject={field.label}
+      >
+        <p id={helpId} className={styles.help}>
+          {field.help}
+        </p>
+      </Explained>
     </div>
   );
 }

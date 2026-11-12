@@ -3,6 +3,7 @@ import type {
   ProfileDetails,
   WorkloadDetails,
 } from "../../application/details/details";
+import type { RangedFieldDescriptor } from "../../application/details/field-descriptor";
 import {
   RATE_FIELD,
   TIME_FIELD,
@@ -12,6 +13,7 @@ import { addedPointName } from "../../application/edits/profile-step-names";
 import { addProfilePoint } from "../../application/edits/workload-edits";
 import { ProfileChart } from "../charts/ProfileChart";
 import { Button } from "../shared/Button";
+import { Explained } from "../shared/Explained";
 import fieldStyles from "./fields/Fields.module.css";
 import { markOf } from "./mark-of";
 import { pointKeys, type ProfileEditing } from "./profile-editing";
@@ -95,12 +97,29 @@ interface ProfileHelpProps {
 function ProfileHelp({ ids }: ProfileHelpProps) {
   return (
     <>
-      <p id={ids.time} className={fieldStyles.help}>
-        {TIME_FIELD.help}
-      </p>
-      <p id={ids.rate} className={fieldStyles.help}>
-        {RATE_FIELD.help}
-      </p>
+      <ProfileFieldHelp id={ids.time} field={TIME_FIELD} />
+      <ProfileFieldHelp id={ids.rate} field={RATE_FIELD} />
+    </>
+  );
+}
+
+interface ProfileFieldHelpProps {
+  readonly id: string;
+  readonly field: RangedFieldDescriptor;
+}
+
+/** One field's help behind an info control; its id is what the fields' descriptions point at. */
+function ProfileFieldHelp({ id, field }: ProfileFieldHelpProps) {
+  return (
+    <>
+      <Explained
+        title={<span className={fieldStyles.label}>{field.label}</span>}
+        subject={field.label}
+      >
+        <p id={id} className={fieldStyles.help}>
+          {field.help}
+        </p>
+      </Explained>
     </>
   );
 }

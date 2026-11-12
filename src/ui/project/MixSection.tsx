@@ -5,6 +5,7 @@ import type {
 } from "../../application/details/details";
 import { WEIGHT_FIELD } from "../../application/details/workload-fields";
 import { addToMix } from "../../application/edits/workload-edits";
+import { Explained } from "../shared/Explained";
 import fieldStyles from "./fields/Fields.module.css";
 import { Picker } from "./fields/Picker";
 import { markOf } from "./mark-of";
@@ -72,9 +73,7 @@ function MixTable({ mix, editing, labelledBy }: MixTableProps) {
   const keys = rowKeys(mix.rows);
   return (
     <>
-      <p id={helpId} className={fieldStyles.help}>
-        {WEIGHT_FIELD.help}
-      </p>
+      <WeightHelp id={helpId} />
       <table className={styles.table} aria-labelledby={labelledBy}>
         <MixTableHead />
         <tbody>
@@ -91,6 +90,24 @@ function MixTable({ mix, editing, labelledBy }: MixTableProps) {
         </tbody>
       </table>
     </>
+  );
+}
+
+interface WeightHelpProps {
+  readonly id: string;
+}
+
+/** What a weight means, behind an info control; each weight's description points at `id`. */
+function WeightHelp({ id }: WeightHelpProps) {
+  return (
+    <Explained
+      title={<span className={fieldStyles.label}>{WEIGHT_FIELD.label}</span>}
+      subject={WEIGHT_FIELD.label}
+    >
+      <p id={id} className={fieldStyles.help}>
+        {WEIGHT_FIELD.help}
+      </p>
+    </Explained>
   );
 }
 

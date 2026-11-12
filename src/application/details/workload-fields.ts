@@ -35,6 +35,25 @@ export const SEED_FIELD: RangedFieldDescriptor = {
 };
 
 /**
+ * How often a mix entry's workflow runs compared with the others. Relative,
+ * so it needn't be a whole number; the schema's only rule is that it's more
+ * than 0.
+ */
+export const WEIGHT_FIELD: RangedFieldDescriptor = {
+  key: "weight",
+  label: "Weight",
+  unit: undefined,
+  kind: "number",
+  range: { min: 0, minExclusive: true, max: undefined },
+  help: "How often this workflow runs compared with the others in the mix. Weights are relative: 80 and 20 mean four requests in five are this workflow's.",
+};
+
+/** A weight draft, checked: a number more than 0, fractions allowed. */
+export function checkWeightDraft(text: string): DraftCheck<number> {
+  return checkNumberDraft(text, settingRule(WEIGHT_FIELD));
+}
+
+/**
  * Seconds as the stored milliseconds. Rounded to 12 significant digits, so
  * the drift of a product such as 1.005 × 1000 (1004.9999999999999) doesn't
  * reach the project, and the field shows what was typed.

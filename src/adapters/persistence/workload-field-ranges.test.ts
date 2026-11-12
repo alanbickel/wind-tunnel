@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DURATION_FIELD,
   SEED_FIELD,
+  WEIGHT_FIELD,
 } from "../../application/details/workload-fields";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { toProjectDocument } from "./project-document-mapper";
@@ -45,5 +46,32 @@ describe("the workload fields' ranges", () => {
     expect(stored("durationSec", -1)).toBe(false);
     expect(stored("durationSec", 0.5)).toBe(true);
     expect(stored("durationSec", 1e9)).toBe(true);
+  });
+
+  /** Whether the stored schema accepts the sample with its first entry's weight set. */
+  function storedWeight(weight: number): boolean {
+    const document = toProjectDocument(sampleRecord);
+    const [workload] = document.workloads;
+    const [entry] = workload?.mix ?? [];
+    if (workload === undefined || entry === undefined) {
+      throw new Error("The sample has a workload with a mix entry");
+    }
+    const mix = [{ ...entry, weight }];
+    const changed = { ...document, workloads: [{ ...workload, mix }] };
+    return projectDocumentV2Schema.safeParse(changed).success;
+  }
+
+  // Fails if the weight descriptor's range disagrees with the stored schema:
+  // 0 and -5 must fail, 0.5 must pass, and there's no top.
+  it("agree with the stored schema for a mix weight", () => {
+    expect(WEIGHT_FIELD.range).toEqual({
+      min: 0,
+      minExclusive: true,
+      max: undefined,
+    });
+    expect(storedWeight(0)).toBe(false);
+    expect(storedWeight(-5)).toBe(false);
+    expect(storedWeight(0.5)).toBe(true);
+    expect(storedWeight(1e9)).toBe(true);
   });
 });

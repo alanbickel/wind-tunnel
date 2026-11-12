@@ -239,10 +239,25 @@ export interface MixDetails {
   readonly totalText: string | undefined;
   /** The mix's own issues, such as an empty mix, as sentences. */
   readonly issues: readonly string[];
+  /** The project's workflows not in the mix, in project order: what "Add to mix" offers. */
+  readonly addable: readonly AddableWorkflow[];
+  /**
+   * Why "Add to mix" can't offer anything: "Every workflow is already in the
+   * mix." or "Add a workflow first."; undefined when `addable` has some.
+   */
+  readonly addUnusableText: string | undefined;
+}
+
+/** A workflow the mix can take. */
+export interface AddableWorkflow {
+  readonly workflowId: string;
+  readonly name: string;
 }
 
 /** One mix entry. */
 export interface MixRowDetails {
+  /** The entry's workflow, which a command names it by. */
+  readonly workflowId: string;
   /** The workflow's name; for one the project no longer has, what says so. */
   readonly workflowName: string;
   /** Whether the project no longer has the workflow. */

@@ -181,15 +181,19 @@ describe("OpenedProject's workloads", () => {
     ).toBe("1");
     const [mix, profile] = within(details).getAllByRole("table");
     expect(rowsOf(mix)).toEqual([
-      ["Workflow", "Weight", "Share"],
-      ["Read item", "1", "100.0%"],
+      ["Workflow", "Weight", "Share", "Actions"],
+      ["Read item", "Weight", "100.0%", "Remove from mix"],
     ]);
+    expect(
+      within(details).getByRole<HTMLInputElement>("textbox", { name: "Weight" })
+        .value,
+    ).toBe("1");
     expect(within(details).getByText("Shares total 100%")).toBeTruthy();
     expect(rowsOf(profile)).toEqual([
       ["Time (s)", "Rate (requests/s)", "Notes"],
       ["0", "20", ""],
     ]);
-    expect(details.textContent).not.toContain("read");
+    expect(details.textContent).not.toMatch(/\bread\b/);
   });
 
   // Fails if a stored empty mix isn't said once on the mix, and in the bar, or

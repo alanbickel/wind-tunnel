@@ -1,6 +1,6 @@
 # The Workload Editor
 
-How a workload gets from the project document to what the screen shows, for maintainers new to the code. A workload is the traffic: which workflows run, in what mix, at what rate over time, for how long, from which seed ([UX design §8](../design/user-experience.md#8-workloads)). Today the screen lists a project's workloads, adds, renames, and removes them, and shows a selected one's duration and seed as fields, and its mix and profile read-only, in Details; the pieces that edit those ([#183](https://github.com/alanbickel/wind-tunnel/issues/183) and [#184](https://github.com/alanbickel/wind-tunnel/issues/184)) extend this guide. A workload isn't a workflow: [the workflow editor](workflow-editor.md) says how workflows work, and the two meet at "Used by" (a workflow's Details names the workloads whose mix has it) and at the mix entries a removed workflow takes with it. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workload gets from the project document to what the screen shows, for maintainers new to the code. A workload is the traffic: which workflows run, in what mix, at what rate over time, for how long, from which seed ([UX design §8](../design/user-experience.md#8-workloads)). Today the screen lists a project's workloads, adds, renames, and removes them, and shows a selected one's duration and seed as fields, its mix as an editable table, and its profile read-only, in Details; the piece that edits the profile ([#184](https://github.com/alanbickel/wind-tunnel/issues/184)) extends this guide. A workload isn't a workflow: [the workflow editor](workflow-editor.md) says how workflows work, and the two meet at "Used by" (a workflow's Details names the workloads whose mix has it) and at the mix entries a removed workflow takes with it. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workload, three ways
 
@@ -53,8 +53,11 @@ Five commands in [`workload-edits.ts`](../../src/application/edits/workload-edit
 | `removeWorkload` | Takes the workload. The workflows its mix named stay as they are. | "Remove workload Lunch rush" | "Removed Lunch rush." |
 | `setWorkloadDuration` | `durationMs`, and nothing else: the profile keeps every point, past the new end or not. | "Change Lunch rush's duration to 45 s" | Nothing: the field shows it. |
 | `setWorkloadSeed` | `seed`, and nothing else. | "Change Lunch rush's seed to 7" | Nothing: the field shows it. |
+| `addToMix` | Appends an entry for a workflow at weight 1. A workflow already in the mix, or one the project doesn't have, returns the record unchanged. | "Add Get order to Lunch rush's mix" | Nothing: the new row's weight field takes the focus. |
+| `setMixWeight` | One entry's `weight`, and nothing else: the entry keeps its place. An entry that isn't there, or the weight it has, returns the record unchanged. | "Change Get order's weight in Lunch rush to 80" | Nothing: the field and the shares show it. |
+| `removeFromMix` | Takes one entry; the others keep their weights and order. The last one may go, leaving an empty mix. | "Remove Get order from Lunch rush's mix" | Nothing: the focus goes to the next row's weight, or to "Add to mix". |
 
-#183 and #184 add their commands to this table. Both new commands share a private `changeWorkload`, which finds the workload, applies the change, and returns the record itself when the workload is missing or the change changes nothing.
+#184 adds its commands to this table. The commands that change a workload share a private `changeWorkload`, which finds the workload, applies the change, and returns the record itself when the workload is missing or the change changes nothing. The mix commands name an entry by its workflow's id. A stored mix that repeats a workflow (a run issue, so only a hand-edited document has one) has two entries with one id; `setMixWeight` and `removeFromMix` act on the first, so the user can remove the repeats one at a time.
 
 ## Duration and seed
 
@@ -69,6 +72,23 @@ Details starts with two draft number fields, `WorkloadValueFields`, built from t
 - **Seconds typed, milliseconds held.** The user enters seconds, as the stored document holds them, and the domain holds milliseconds. `durationMsOf` converts, rounded to 12 significant digits so 1.005 s is 1,005 ms and not 1,004.9999999999999. The check returns the seconds typed, so the field compares it with the saved seconds and "45.0" is no change.
 - **One message for the seed.** Whatever is wrong with a seed draft, the field says the range once, since "must be a whole number" and "at most 4,294,967,295" would both be true of 1.5e10 and say less than the range does.
 - **The run.** Editing the workload that ran makes the run on screen out of date; editing another doesn't ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md), which compares the workload the run used).
+
+## The mix
+
+[`MixSection`](../../src/ui/project/MixSection.tsx) edits a workload's mix in Details, from the same `WorkloadDetails` the read-only view used. Above the rows is "Shares total 100%" (or, for an empty mix, "No workflows in the mix. A workload with an empty mix can't run." and no total). Each row has the workflow's name, a weight field, its share, and "Remove from mix"; below them, "Add to mix".
+
+- **Weight** is a draft number field ([`WEIGHT_FIELD`](../../src/application/details/workload-fields.ts)): more than 0, fractions allowed, so 0 and -5 are refused with "Weight must be more than 0." The help says weights are relative, once, above the table, and each field's `aria-describedby` lists its row's workflow, then the help. The range, like the duration's, is checked against the stored schema in `workload-field-ranges.test.ts`.
+- **Add to mix** is a picker of the project's workflows not in the mix, in project order (`MixDetails.addable`). Choosing one saves `addToMix` and moves the focus to the new row's weight field. With nothing to offer it stays focusable but unusable, and says "Every workflow is already in the mix." or, for a project with no workflows, "Add a workflow first."
+- **Remove from mix** asks nothing, since an entry is a name and a number and Undo restores it. The focus goes to the next row's weight field, or to "Add to mix" when the last row went. [`useMixFocus`](../../src/ui/project/useMixFocus.ts) holds the request and acts on it after the mix has drawn, as the step outline's `useFocusAfterRedraw` does.
+- **Issues** show on the row they belong to, as for any workload. The screen can make only the empty mix; a stored 0 weight shows its issue on a weight field that accepts a positive value, and an entry whose workflow is gone can be removed. The bar says why the workload can't run, from the same `checkWorkloads` answer, and clears it when an entry comes back.
+
+### How the shares are computed, and why they reconcile
+
+A share is an entry's weight over the total, shown to a tenth of a percent. Rounding each on its own breaks the total: three equal weights are each 33.333…%, which rounds to 33.3% three times and adds to 99.9%. `mixShares` instead rounds each share *down* to a tenth, counts the tenths short of 1,000, and gives one each to the entries with the largest remainders (the earlier entry wins a tie). Three weights of 1: the exact shares are 333.33 tenths each; the floors, 333 each, total 999, so one tenth is left, and the first entry (a three-way tie on remainder) takes it: 33.4%, 33.3%, 33.3%. That adds to 100.0% for any weights, so "Shares total 100%" is always true. Nothing in the screen sums them: `mixShares` computes them from the weights again after every command, so a share never goes stale. [`workload-mix-edits.test.ts`](../../src/application/edits/workload-mix-edits.test.ts) builds that example with `addToMix` and checks the sum, after adding, re-weighting, and removing.
+
+### The relation from both sides
+
+A workload names workflows (its mix); a workflow is "used by" the workloads whose mix has it ([the workflow editor's guide](workflow-editor.md#removing-a-workflow)). Removing a workflow takes its entries out of every mix (`removeWorkflow`), and the remaining shares re-sum to 100.0% because they're computed from what's left. **Undo needs no extra code:** the history step holds the whole record from before, so the workflow returns with its entries at their old weights and places. `removeFromMix` then `addToMix` is not an undo: the entry returns last, at weight 1. Only Undo restores weight and place. The workflow removal's confirmation still says "Lunch rush runs it; it leaves its mix."
 
 ## A point past the run's end
 

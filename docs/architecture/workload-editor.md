@@ -1,6 +1,6 @@
 # The Workload Editor
 
-How a workload gets from the project document to what the screen shows, for maintainers new to the code. A workload is the traffic: which workflows run, in what mix, at what rate over time, for how long, from which seed ([UX design §8](../design/user-experience.md#8-workloads)). Today the screen lists a project's workloads and shows a selected one read-only in Details; the editing pieces ([#181](https://github.com/alanbickel/wind-tunnel/issues/181) to [#184](https://github.com/alanbickel/wind-tunnel/issues/184)) extend this guide. A workload isn't a workflow: [the workflow editor](workflow-editor.md) says how workflows work, and the two meet at "Used by" (a workflow's Details names the workloads whose mix has it) and at the mix entries a removed workflow takes with it. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workload gets from the project document to what the screen shows, for maintainers new to the code. A workload is the traffic: which workflows run, in what mix, at what rate over time, for how long, from which seed ([UX design §8](../design/user-experience.md#8-workloads)). Today the screen lists a project's workloads, adds, renames, and removes them, and shows a selected one's duration, seed, mix, and profile read-only in Details; the pieces that edit those ([#182](https://github.com/alanbickel/wind-tunnel/issues/182) to [#184](https://github.com/alanbickel/wind-tunnel/issues/184)) extend this guide. A workload isn't a workflow: [the workflow editor](workflow-editor.md) says how workflows work, and the two meet at "Used by" (a workflow's Details names the workloads whose mix has it) and at the mix entries a removed workflow takes with it. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workload, three ways
 
@@ -38,9 +38,55 @@ The issues the project bar says (`WorkloadRunCheck.issues`) are these plus the s
 ## Selecting a workload
 
 - **The list.** Under the workflows list, in the canvas's "Workflows" panel, "Workloads" lists them in project order, a button each, marked `aria-current` while selected, with "· 1 problem" after the name when it has issues. With none, it says what a workload is.
-- **Details.** Selecting a workload is a `WorkloadSelection` held by the project screen like any other: the focus goes to Details' heading, and Escape clears the selection and returns the focus to whatever made it, the row or the top bar's Edit. Details has no Remove for a workload yet ([#181](https://github.com/alanbickel/wind-tunnel/issues/181)).
-- **The picker follows one way.** Selecting a workload picks it in the top bar, so Run runs what the user is looking at; picking in the bar changes only the bar. Edit, beside the picker, selects the picked workload. `usePickSelectedWorkload` does the picking, and only when the selection changes: a change to the project doesn't pick the selected workload again, or it would undo a pick made in the bar since.
-- **Undo and redo.** `selectionAfterUndo` keeps a selected workload while the project has it, and clears it once it doesn't.
+- **Details.** Selecting a workload is a `WorkloadSelection` held by the project screen like any other: the focus goes to Details' heading, and Escape clears the selection and returns the focus to whatever made it, the row or the top bar's Edit. Details' header has Remove, and its body starts with the name field ([below](#adding-renaming-and-removing)).
+- **The picker follows one way.** Selecting a workload picks it in the top bar, so Run runs what the user is looking at; picking in the bar changes only the bar. The picker remembers the workload's id and reads the workload from the project each time (`usePickedWorkload`), so a rename shows in it at once; if the project no longer has the picked workload, as after an Undo of its add, the picker shows the project's first. Edit, beside the picker, selects the picked workload. `usePickSelectedWorkload` does the picking, and only when the selection changes: a change to the project doesn't pick the selected workload again, or it would undo a pick made in the bar since.
+- **Undo and redo.** `selectionAfterUndo` keeps a selected workload while the project has it, and clears it once it doesn't; an undo or redo that brings a workload back, such as an Undo of its remove, selects it, unless a workflow or a step is selected and still there.
+
+## Adding, renaming, and removing
+
+Three commands in [`workload-edits.ts`](../../src/application/edits/workload-edits.ts) change which workloads a project has and what they're called. Each is pure: it takes the project record and returns the next one, and for a workload the project doesn't have, or a change that changes nothing, it returns the record it was given, so `edit` saves nothing for it ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)).
+
+| Command | What it changes | Undo is named | What it announces |
+|---|---|---|---|
+| `addWorkload` | Appends a workload with the editor's defaults and a new id. Its name is the first free "workload-1", "workload-2", … (`firstFreeName`, comparing names as the name check does). | "Add workload workload-1" | The bar's status regions say why it can't run: "workload-1 can't run yet: The mix has no workflows." |
+| `renameWorkload` | The name, and nothing else. | "Rename workload-1 to Lunch rush" | Nothing: the field shows it. A name that fails its check is announced from Details' region. |
+| `removeWorkload` | Takes the workload. The workflows its mix named stay as they are. | "Remove workload Lunch rush" | "Removed Lunch rush." |
+
+#182 to #184 add their commands to this table.
+
+**The defaults** are 60 s, seed 42, an empty mix, and one profile point: 0 s at 100 requests/s. `addWorkload` is the only place that writes them, as named constants (`NEW_WORKLOAD_DURATION_MS`, …). They're the editor's choices, an assumption, not a claim about any system.
+
+**A new workload is complete at once.** A new workflow has to wait as a draft, because a workflow can't be stored without a first step. A workload can be stored with an empty mix: that's a run issue, not an error in the stored document, and it stops only a run of that workload ([UX design §8](../design/user-experience.md#8-workloads), "Problems"). So "Add workload" saves and selects it in one event, and its empty-mix issue shows on its list row, in Details, and in the bar, where the user can see why Run waits. Nothing is held in the UI.
+
+**The name field** ([`WorkloadNameField`](../../src/ui/project/fields/WorkloadNameField.tsx)) is a draft like a workflow's: `useDraft`, `TextField`, and the check `checkWorkloadName` on every render, since the other workloads' names are in the project. It uses the same `nameKey` as the workflow and project names, so "lunch rush" can become "Lunch rush" and another workload's name is refused in any case. Enter or leaving the field saves; Escape puts the saved name back; a bad name stays in the field, `aria-invalid`, with its message in `aria-describedby`. After "Add workload" the field takes the focus with its text selected, as a new component's does.
+
+**Remove** in Details' header asks first, with the focus on Cancel ("Remove Lunch rush?", worded by `workloadRemovalText`, with no warning: a workload's remove takes nothing but itself). Confirming does all of this in one event:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant D as Details header (ui)
+    participant R as useRevealingRemove (ui)
+    participant A as useAddAndRemove (ui)
+    participant E as useProjectEdits (ui)
+    participant P as useProjectRun (ui)
+    User->>D: Remove
+    D->>User: "Remove Lunch rush?" with the focus on Cancel
+    User->>D: Remove (confirms)
+    D->>R: remove({ kind: "workload", workloadId })
+    R->>R: opens the Workflows panel, so Add workload is there to take the focus
+    R->>P: pick(workloadAfterRemoval): the next in the list, else the one before, else none
+    R->>A: remove(target)
+    A->>E: edit(removeWorkload), named "Remove workload Lunch rush"
+    E->>E: history keeps the record before; the screen shows the next; the run on screen is compared with it
+    A->>A: clear the selection, focus Add workload
+    A-->>User: "Removed Lunch rush." from the region beside the panel buttons
+```
+
+- **Why undo brings it back whole.** The history step holds the whole record from before the remove, so Undo puts back the workload with its mix and profile at its place in the list; `removeWorkload` has no inverse to get wrong. `selectionAfterUndo` then selects it, which picks it in the bar.
+- **The next pick.** `workloadAfterRemoval` reads the list as it was, before the edit: the workload after the removed one, or the one before if it was last, or none. With none left, the bar says "This project has no workloads to run."
+- **The run.** A run of the removed workload stays on screen, out of date: `runIsCurrent` compares the workload the run used, and the project no longer has it. Renaming or removing the workload that ran makes the run out of date; changing any other workload doesn't, and neither does adding one, since no workload a run used has changed.
+- **Where the announcement is said.** "Add workload" is in the "Workflows" panel, which may be closed, and a live region in a hidden panel says nothing. So a workload's remove, like a workflow's, is announced from the one region beside the panel buttons, which always show, not from beside "Add workload".
 
 ## Worked example
 

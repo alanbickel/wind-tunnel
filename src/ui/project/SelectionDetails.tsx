@@ -24,6 +24,7 @@ import { ConnectTo } from "./ConnectTo";
 import { ComponentSettings } from "./fields/ComponentSettings";
 import { EdgeSettings } from "./fields/EdgeSettings";
 import { WorkflowNameField } from "./fields/WorkflowNameField";
+import { WorkloadNameField } from "./fields/WorkloadNameField";
 import { NewWorkflowDetails } from "./NewWorkflowDetails";
 import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
@@ -55,7 +56,8 @@ export interface SelectionDetailsProps {
  * The selected component's or edge's settings, each a field that saves a
  * change once it passes its checks, and a component's "Connect to…"; then
  * what calls it (UX design §4.1, §4.3). Or the selected workflow's name field
- * and outline, with the selected step marked in it. Takes the focus to its
+ * and outline, with the selected step marked in it; or the selected
+ * workload's name field and values. Takes the focus to its
  * heading when `takeFocus` says a selection was just made, so the keyboard and
  * a screen reader land on it. Escape anywhere in it closes it, unless a field
  * has a draft to put back first. Remove asks before it removes.
@@ -196,7 +198,7 @@ interface Removal {
   readonly target: Selection;
 }
 
-/** Each kind's remove; a workload has none yet (issue 181). */
+/** Each kind's remove. */
 const REMOVALS: KindHandlers<Details, Removal | undefined> = {
   component: ({ componentId, removal }: ComponentDetails) => ({
     text: removal,
@@ -210,7 +212,10 @@ const REMOVALS: KindHandlers<Details, Removal | undefined> = {
     text: removal,
     target: { kind: "workflow", workflowId },
   }),
-  workload: () => undefined,
+  workload: ({ workloadId, removal }: WorkloadDetails) => ({
+    text: removal,
+    target: { kind: "workload", workloadId },
+  }),
 };
 
 function closeOnEscape(
@@ -279,7 +284,7 @@ function DetailsBody(props: DetailsBodyProps) {
 
 /**
  * A component's settings, then "Connect to…"; an edge's settings; a
- * workflow's name, then its outline. Each is keyed by what's selected, so no
+ * workflow's name, then its outline; a workload's name, then its values. Each is keyed by what's selected, so no
  * draft carries over to the next one.
  */
 const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
@@ -298,8 +303,11 @@ const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
       <WorkflowOutline details={details} {...context} />
     </div>
   ),
-  workload: (details: WorkloadDetails) => () => (
-    <WorkloadView key={details.workloadId} details={details} />
+  workload: (details: WorkloadDetails) => (context) => (
+    <div key={details.workloadId}>
+      <WorkloadNameField details={details} {...context} />
+      <WorkloadView details={details} />
+    </div>
   ),
 };
 

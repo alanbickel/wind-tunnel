@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renameComponent, removeComponent } from "../edits/component-edits";
 import { removeEdge } from "../edits/edge-edits";
 import { addWorkflow } from "../edits/workflow-edits";
+import { addWorkload, removeWorkload } from "../edits/workload-edits";
 import { sampleRecord } from "../testing/sample-record";
 import type { Selection } from "./selection";
 import { selectionAfterUndo } from "./selection-after-undo";
@@ -70,6 +71,62 @@ describe("selectionAfterUndo", () => {
       kind: "select",
       selection: { kind: "edge", edgeId: "api-fn" },
     });
+  });
+
+  // Fails if bringing a workload back, as undoing its remove does, leaves
+  // nothing selected, or a redo of its add doesn't select it.
+  it("selects a workload brought back", () => {
+    const added = addWorkload(sampleRecord, { workloadId: "new" }).project;
+    const removed = removeWorkload(sampleRecord, {
+      workloadId: "steady",
+    }).project;
+
+    expect(
+      selectionAfterUndo({ from: removed, to: sample, selection: undefined }),
+    ).toEqual({
+      kind: "select",
+      selection: { kind: "workload", workloadId: "steady" },
+    });
+    expect(
+      selectionAfterUndo({ from: sample, to: added, selection: undefined }),
+    ).toEqual({
+      kind: "select",
+      selection: { kind: "workload", workloadId: "new" },
+    });
+  });
+
+  // Fails if an undo that brings a workload back moves a selected
+  // workflow, or a step in it, off what the user is reading (UX §4.1).
+  it("keeps a selected workflow or step through an undo that brings a workload back", () => {
+    const removed = removeWorkload(sampleRecord, {
+      workloadId: "steady",
+    }).project;
+    const workflow = { kind: "workflow", workflowId: "read" } as const;
+    const step = {
+      kind: "step",
+      workflowId: "read",
+      stepId: "table-read",
+    } as const;
+
+    const changes = [workflow, step].map((selection) =>
+      selectionAfterUndo({ from: removed, to: sample, selection }),
+    );
+
+    expect(changes).toEqual([{ kind: "keep" }, { kind: "keep" }]);
+  });
+
+  // Fails if undoing the add of the selected workload keeps the selection,
+  // so Details would show a workload that isn't there.
+  it("clears a selected workload the undo takes away", () => {
+    const added = addWorkload(sampleRecord, { workloadId: "new" }).project;
+
+    expect(
+      selectionAfterUndo({
+        from: added,
+        to: sample,
+        selection: { kind: "workload", workloadId: "new" },
+      }),
+    ).toEqual({ kind: "clear" });
   });
 
   // Fails if taking away the selected component or edge keeps the

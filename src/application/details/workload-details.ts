@@ -9,6 +9,7 @@ import type {
 } from "./details";
 import { mixShares, shareText } from "./mix-shares";
 import { profileNotes } from "./profile-notes";
+import { workloadRemovalText } from "./removal-text";
 
 /** A workload, in its project, with its own issues. */
 export interface WorkloadDetailsInput {
@@ -41,6 +42,7 @@ export function workloadDetails(input: WorkloadDetailsInput): WorkloadDetails {
     durationSec,
     durationText: `${String(durationSec)} ${durationSec === 1 ? "second" : "seconds"}`,
     seed: workload.seed,
+    removal: workloadRemovalText(workload),
     mix: mixDetails(input),
     profile: profileDetails(input),
   };

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { nameOf } from "../../application/details/name-of";
+import { workloadAfterRemoval } from "../../application/details/workload-after-removal";
 import type { Selection } from "../../application/details/selection";
 import { moveComponent } from "../../application/edits/layout-edits";
 import type {
@@ -22,6 +23,7 @@ import type { AddComponentProps } from "./AddComponent";
 import { ArchitectureView } from "./ArchitectureView";
 import { Inspector, StackedInspector } from "./Inspector";
 import type { AddWorkflowProps } from "./WorkflowList";
+import type { AddWorkloadProps } from "./WorkloadList";
 import styles from "./OpenedProject.module.css";
 import { ProjectBar, ProjectStatus } from "./ProjectBar";
 import {
@@ -172,7 +174,7 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     project: edits.record.project,
     announce: changes.announce,
   });
-  const remove = useRevealingRemove(changes, panels);
+  const remove = useRevealingRemove({ changes, panels, edits, projectRun });
   const covered = useCoveredWidth();
   const architecture = useArchitecture({
     edits,
@@ -233,6 +235,7 @@ function useArchitecture(input: ArchitectureInput) {
   const { selection, select, clear } = selecting;
   const adding = useAdding(changes);
   const addingWorkflow = useAddingWorkflow(changes);
+  const addingWorkload = useAddingWorkload(changes);
   return (
     <MemoArchitectureView
       record={edits.record}
@@ -243,6 +246,7 @@ function useArchitecture(input: ArchitectureInput) {
       onMove={move}
       adding={adding}
       addingWorkflow={addingWorkflow}
+      addingWorkload={addingWorkload}
       workflowAnnouncement={changes.workflowAnnouncement}
       panels={panels}
       badges={badges}
@@ -257,6 +261,15 @@ function useAddingWorkflow(changes: AddAndRemove): AddWorkflowProps {
   return useMemo(
     () => ({ onAdd: addWorkflow, buttonRef: addWorkflowButtonRef }),
     [addWorkflow, addWorkflowButtonRef],
+  );
+}
+
+/** "Add workload"'s props, the same object while its parts are. */
+function useAddingWorkload(changes: AddAndRemove): AddWorkloadProps {
+  const { addWorkload, addWorkloadButtonRef } = changes;
+  return useMemo(
+    () => ({ onAdd: addWorkload, buttonRef: addWorkloadButtonRef }),
+    [addWorkload, addWorkloadButtonRef],
   );
 }
 
@@ -318,26 +331,44 @@ function useMove({ edit, project, announce }: MoveInput): Move {
   );
 }
 
+/** What a remove opens, and picks, around `AddAndRemove`'s. */
+interface RevealingRemoveInput {
+  readonly changes: AddAndRemove;
+  readonly panels: CanvasPanels;
+  readonly edits: ProjectEdits;
+  readonly projectRun: ProjectRun;
+}
+
 /**
  * A remove, as `AddAndRemove` has it, that first opens "Workflows" for a
- * workflow's: the focus goes to "Add workflow", in that panel, which may be
- * closed. Opened at once, so the button is there to take the focus.
+ * workflow's or a workload's: the focus goes to "Add workflow" or "Add
+ * workload", in that panel, which may be closed. Opened at once, so the
+ * button is there to take the focus. A workload's remove also picks the
+ * workload after it in the project bar, or the one before if it was last,
+ * which only the project's list, as it was, can say (UX design §2.7 step
+ * 11).
  */
 function useRevealingRemove(
-  changes: AddAndRemove,
-  panels: CanvasPanels,
+  input: RevealingRemoveInput,
 ): AddAndRemove["remove"] {
-  const { remove } = changes;
-  const { show } = panels;
+  const { remove } = input.changes;
+  const { show } = input.panels;
+  const { pick } = input.projectRun;
+  const { workloads } = input.edits.record.project;
   return useCallback(
     (target: Selection) => {
-      if (target.kind === "workflow") {
+      if (target.kind === "workflow" || target.kind === "workload") {
         flushSync(() => {
           show("workflows");
         });
       }
+      if (target.kind === "workload") {
+        const removedId = target.workloadId;
+        const next = workloadAfterRemoval({ workloads, removedId });
+        if (next !== undefined) pick(next);
+      }
       remove(target);
     },
-    [remove, show],
+    [remove, show, pick, workloads],
   );
 }

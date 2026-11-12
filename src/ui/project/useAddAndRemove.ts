@@ -7,6 +7,11 @@ import {
 } from "../../application/edits/component-edits";
 import { removeEdge } from "../../application/edits/edge-edits";
 import { removeWorkflow } from "../../application/edits/workflow-edits";
+import {
+  addWorkload,
+  removeWorkload,
+} from "../../application/edits/workload-edits";
+import type { Project } from "../../domain/model/project";
 import type { ProjectRecord } from "../../application/ports/project-record";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
@@ -26,14 +31,19 @@ export interface AddAndRemove {
    */
   readonly addWorkflow: () => void;
   /**
+   * Adds a workload with the editor's defaults, saves, and selects it for
+   * naming. It's complete at once, so nothing waits as a draft.
+   */
+  readonly addWorkload: () => void;
+  /**
    * Connects two components, as drawn on the diagram, saves, and announces
    * it, since the canvas says nothing to a screen reader.
    */
   readonly connect: (from: string, to: string) => void;
   /**
-   * Removes the component, edge, or workflow and saves, clears the
-   * selection, moves the focus to "Add component" ("Add workflow" for a
-   * workflow), since what made the selection may be gone, and announces it
+   * Removes the component, edge, workflow, or workload and saves, clears
+   * the selection, moves the focus to "Add component" ("Add workflow" for
+   * a workflow, "Add workload" for a workload), since what made the selection may be gone, and announces it
    * in the region beside that button, since the focus has left what changed.
    */
   readonly remove: (target: Selection) => void;
@@ -45,9 +55,12 @@ export interface AddAndRemove {
   readonly announce: (message: string) => void;
   /** The "Add workflow" button, where the focus goes after a workflow's remove. */
   readonly addWorkflowButtonRef: RefObject<HTMLButtonElement | null>;
+  /** The "Add workload" button, where the focus goes after a workload's remove. */
+  readonly addWorkloadButtonRef: RefObject<HTMLButtonElement | null>;
   /**
-   * "Removed Get order.", for the polite region beside the canvas's panel
-   * buttons, which always show, unlike "Add workflow"'s panel.
+   * "Removed Get order.", or "Removed Lunch rush." for a workload, for the
+   * polite region beside the canvas's panel buttons, which always show,
+   * unlike the "Workflows" panel that holds both Add buttons.
    */
   readonly workflowAnnouncement: string;
 }
@@ -59,7 +72,7 @@ interface RemovalPlace {
 }
 
 /** The button a remove sends the focus to: by what it removed. */
-type RemovalPlaceName = "component" | "workflow";
+type RemovalPlaceName = "component" | "workflow" | "workload";
 
 type RemovalPlaces = Readonly<Record<RemovalPlaceName, RemovalPlace>>;
 
@@ -76,24 +89,57 @@ export function useAddAndRemove(
   const [announcement, announce] = useAnnouncement();
   const add = useAdd(edit, selecting.select);
   const addWorkflow = useAddWorkflow(selecting.select);
+  const addWorkload = useAddWorkload(edit, selecting.select);
   const connect = useAnnouncedConnect(edits, announce);
-  const [workflowAnnouncement, announceWorkflow] = useAnnouncement();
-  const addWorkflowButtonRef = useRef<HTMLButtonElement>(null);
-  const places: RemovalPlaces = {
+  const panel = useRemovalPlaces({
     component: { buttonRef: addButtonRef, announce },
-    workflow: { buttonRef: addWorkflowButtonRef, announce: announceWorkflow },
-  };
+  });
+  const { places, addWorkflowButtonRef, addWorkloadButtonRef } = panel;
   const remove = useRemove({ edits, selecting, places });
   return {
     add,
     addWorkflow,
+    addWorkload,
     connect,
     remove,
     addButtonRef,
     announcement,
     announce,
     addWorkflowButtonRef,
-    workflowAnnouncement,
+    addWorkloadButtonRef,
+    workflowAnnouncement: panel.announcement,
+  };
+}
+
+/** The places a remove can leave the focus. */
+interface RemovalPlacesResult {
+  readonly places: RemovalPlaces;
+  readonly addWorkflowButtonRef: RefObject<HTMLButtonElement | null>;
+  readonly addWorkloadButtonRef: RefObject<HTMLButtonElement | null>;
+  /** What the "Workflows" panel's removes announced. */
+  readonly announcement: string;
+}
+
+/**
+ * The places for each kind of remove. A workflow's and a workload's
+ * buttons are in the same panel, which may be closed, so both announce
+ * from the one region beside the panel buttons.
+ */
+function useRemovalPlaces(
+  places: Pick<RemovalPlaces, "component">,
+): RemovalPlacesResult {
+  const addWorkflowButtonRef = useRef<HTMLButtonElement>(null);
+  const addWorkloadButtonRef = useRef<HTMLButtonElement>(null);
+  const [announcement, announce] = useAnnouncement();
+  return {
+    places: {
+      ...places,
+      workflow: { buttonRef: addWorkflowButtonRef, announce },
+      workload: { buttonRef: addWorkloadButtonRef, announce },
+    },
+    addWorkflowButtonRef,
+    addWorkloadButtonRef,
+    announcement,
   };
 }
 
@@ -120,6 +166,29 @@ function useAddWorkflow(
   return useCallback(() => {
     select({ kind: "new-workflow" }, "name");
   }, [select]);
+}
+
+/** Add workload, as `AddAndRemove` describes it. */
+function useAddWorkload(
+  edit: ProjectEdits["edit"],
+  select: ProjectSelection["select"],
+): AddAndRemove["addWorkload"] {
+  const { newWorkload } = useUseCases();
+  return useCallback(() => {
+    const input = newWorkload.execute();
+    edit({
+      command: (current) => addWorkload(current, input),
+      // The command names it, so the name is read from the record it made.
+      describe: ({ project }) =>
+        `Add workload ${workloadNameIn(project, input.workloadId)}`,
+    });
+    select({ kind: "workload", workloadId: input.workloadId }, "name");
+  }, [newWorkload, edit, select]);
+}
+
+/** The workload's name, or its id if the project has no such workload. */
+function workloadNameIn(project: Project, workloadId: string): string {
+  return project.workloads.find((w) => w.id === workloadId)?.name ?? workloadId;
 }
 
 /** Add, as `AddAndRemove` describes it. */
@@ -156,19 +225,22 @@ function useRemove({
 }: RemoveInput): AddAndRemove["remove"] {
   const { edit, record } = edits;
   const { clear } = selecting;
-  const { component, workflow } = places;
+  const { component, workflow, workload } = places;
   return useCallback(
     (target: Selection) => {
       const removal = dispatchKind(REMOVALS, target)(record);
       if (removal === undefined) return;
-      const { buttonRef, announce } =
-        removal.place === "workflow" ? workflow : component;
+      const { buttonRef, announce } = {
+        component,
+        workflow,
+        workload,
+      }[removal.place];
       edit(removal.edit);
       clear();
       buttonRef.current?.focus();
       announce(removal.message);
     },
-    [record, edit, clear, component, workflow],
+    [record, edit, clear, component, workflow, workload],
   );
 }
 
@@ -237,8 +309,20 @@ const REMOVALS: KindHandlers<
     },
   // Nothing removes a step yet (issue 117).
   step: () => () => undefined,
-  // Nothing removes a workload yet (issue 181).
-  workload: () => () => undefined,
+  workload:
+    ({ workloadId }) =>
+    ({ project }) => {
+      const removed = project.workloads.find((w) => w.id === workloadId);
+      if (removed === undefined) return undefined;
+      return {
+        edit: {
+          command: (current) => removeWorkload(current, { workloadId }),
+          describe: () => `Remove workload ${removed.name}`,
+        },
+        place: "workload",
+        message: `Removed ${removed.name}.`,
+      };
+    },
   // A draft is dropped, not removed.
   "new-workflow": () => () => undefined,
   // A finding is of the run; there's nothing to remove.

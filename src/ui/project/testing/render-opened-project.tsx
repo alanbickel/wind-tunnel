@@ -12,6 +12,7 @@ import {
   awsChangeStep,
   awsNewCall,
   awsNewWorkflow,
+  newWorkload,
 } from "../../../application/testing/aws-component-types";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import { awsSaveProject } from "../../../application/testing/aws-save-project";
@@ -121,6 +122,7 @@ function buildUseCases({
     changeStep: awsChangeStep(),
     newEdge: awsNewEdge(),
     newWorkflow: awsNewWorkflow(),
+    newWorkload: newWorkload(),
     saveProject: input.saveProject ?? awsSaveProject(projects),
   });
 }

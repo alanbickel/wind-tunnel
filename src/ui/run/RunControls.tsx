@@ -1,5 +1,6 @@
 import { useId } from "react";
 import type { WorkloadRunChecks } from "../../application/run-checks/workload-run-checks";
+import { workloadSummary } from "../../application/details/workload-summary";
 import type { Workload } from "../../domain/model/project";
 import { Button } from "../shared/Button";
 import styles from "./RunControls.module.css";
@@ -90,6 +91,7 @@ function WorkloadPicker(props: WorkloadPickerProps) {
           </option>
         ))}
       </select>
+      <span className={styles.summary}>{workloadSummary(workload)}</span>
     </>
   );
 }

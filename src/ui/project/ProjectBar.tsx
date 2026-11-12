@@ -1,8 +1,10 @@
+import type { ReactNode, Ref } from "react";
 import type { Project, Workload } from "../../domain/model/project";
 import { RunControls } from "../run/RunControls";
 import { RunProgress } from "../run/RunProgress";
 import { Button } from "../shared/Button";
 import type { ProjectRun } from "../run/useProjectRun";
+import { RedoIcon, UndoIcon } from "../shared/ArrowIcons";
 import { inSentence } from "../shared/in-sentence";
 import styles from "./ProjectBar.module.css";
 import type { UndoRedo } from "./useUndoRedo";
@@ -82,16 +84,56 @@ function UndoControls(props: UndoRedo) {
   const { nextUndo, nextRedo, announcement } = props;
   return (
     <div className={styles.undo}>
-      <Button ref={undoButton} onClick={undo} usable={nextUndo !== undefined}>
-        {buttonText("Undo", nextUndo)}
-      </Button>
-      <Button ref={redoButton} onClick={redo} usable={nextRedo !== undefined}>
-        {buttonText("Redo", nextRedo)}
-      </Button>
+      <HistoryButton
+        ref={undoButton}
+        onClick={undo}
+        usable={nextUndo !== undefined}
+        text={buttonText("Undo", nextUndo)}
+      >
+        <UndoIcon />
+      </HistoryButton>
+      <HistoryButton
+        ref={redoButton}
+        onClick={redo}
+        usable={nextRedo !== undefined}
+        text={buttonText("Redo", nextRedo)}
+      >
+        <RedoIcon />
+      </HistoryButton>
       <span role="status" className={styles.undone}>
         {announcement}
       </span>
     </div>
+  );
+}
+
+interface HistoryButtonProps {
+  /** What it says, and its tooltip: "Undo remove orders-db". */
+  readonly text: string;
+  readonly usable: boolean;
+  readonly onClick: () => void;
+  readonly ref: Ref<HTMLButtonElement>;
+  /** The icon. */
+  readonly children: ReactNode;
+}
+
+/**
+ * An icon button whose name is its text, hidden from sight: the same text
+ * is the tooltip.
+ */
+function HistoryButton(props: HistoryButtonProps) {
+  const { text, usable, onClick, ref, children } = props;
+  return (
+    <Button
+      ref={ref}
+      variant="icon"
+      onClick={onClick}
+      usable={usable}
+      title={text}
+    >
+      {children}
+      <span className={styles.undone}>{text}</span>
+    </Button>
   );
 }
 

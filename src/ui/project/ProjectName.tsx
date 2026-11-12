@@ -11,7 +11,6 @@ import { renameProject } from "../../application/edits/project-edits";
 import type { ProjectSummary } from "../../application/ports/project-record";
 import type { Project } from "../../domain/model/project";
 import { useUseCases } from "../app/useUseCases";
-import { Button } from "../shared/Button";
 import { ScreenHeading } from "../shared/ScreenHeading";
 import { describedBy, fieldKeys } from "./fields/field-parts";
 import { useDraft, type Draft } from "./fields/useDraft";
@@ -24,9 +23,10 @@ export interface ProjectNameProps {
 }
 
 /**
- * The project's heading and "Rename", or the rename field while renaming,
- * as the top bar's last crumb.
- * Choosing Rename reads the other projects' names, then turns the heading
+ * The project's name, a button inside its heading, or the rename field while
+ * renaming, as the top bar's last crumb.
+ * Choosing the name (a click, or Enter on it) reads the other projects'
+ * names, then turns the heading
  * into a text field holding the name, selected; Enter or leaving saves the
  * new name through the queue, and Escape puts back the saved name (UX
  * design §2.3). The field opens once the list arrives.
@@ -38,14 +38,10 @@ export function ProjectName({ project, onEdit }: ProjectNameProps) {
   useRenameFocus({ open: projects !== undefined, inputRef, renameRef });
   return (
     <div className={styles.titleRow}>
-      <ScreenHeading hidden={projects !== undefined}>
-        {project.name}
+      <ScreenHeading hidden={projects !== undefined} label={project.name}>
+        <NameButton ref={renameRef} name={project.name} onClick={openField} />
       </ScreenHeading>
-      {projects === undefined ? (
-        <Button ref={renameRef} onClick={openField}>
-          Rename
-        </Button>
-      ) : (
+      {projects !== undefined && (
         <RenameField
           project={project}
           projects={projects}
@@ -55,6 +51,28 @@ export function ProjectName({ project, onEdit }: ProjectNameProps) {
         />
       )}
     </div>
+  );
+}
+
+interface NameButtonProps {
+  readonly name: string;
+  readonly onClick: () => void;
+  readonly ref: RefObject<HTMLButtonElement | null>;
+}
+
+/** The name, as the button that starts renaming it. */
+function NameButton({ name, onClick, ref }: NameButtonProps) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className={styles.nameButton}
+      aria-label={`Rename ${name}`}
+      title="Rename"
+      onClick={onClick}
+    >
+      {name}
+    </button>
   );
 }
 

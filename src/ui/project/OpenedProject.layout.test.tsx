@@ -47,7 +47,13 @@ describe("OpenedProject's canvas-first layout", () => {
         { level: 2, name: "Sample project" },
       ),
     ).toBeTruthy();
-    for (const name of ["Rename", "Undo", "Redo", "Run", "Stop"]) {
+    for (const name of [
+      "Rename Sample project",
+      "Undo",
+      "Redo",
+      "Run",
+      "Stop",
+    ]) {
       expect(inBar.getByRole("button", { name })).toBeTruthy();
     }
     const canvas = screen.getByRole("region", { name: "Architecture" });

@@ -130,7 +130,7 @@ describe("App", () => {
 
     expect(breadcrumbTrail()).toEqual(["Projects", "Sample project"]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -176,7 +176,7 @@ describe("App", () => {
     );
     await screen.findByRole("heading", { name: "Sample project" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });

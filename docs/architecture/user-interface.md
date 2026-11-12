@@ -202,6 +202,14 @@ A run keeps the model it ran ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-r
 
 When the run is out of date, the status line's second status region says "Out of date", after the run's status, and the Run tab opens with "This run is of an earlier version of the project. Run again to see your changes." above the findings, which stay as they were. Both status regions are on the page from the start, empty, so screen readers announce their text when it arrives, and the focus doesn't move.
 
+### The top bar's controls
+
+- **The app mark** (`AppMark` in `TopBar`) is three streamlines beside the name; it's decorative (`aria-hidden`), so the name stays the only label.
+- **Undo and Redo** are icon buttons (`Button`'s `icon` look, `HistoryButton` in `ProjectBar`). Each holds its icon and the same visually hidden text as before ("Undo change orders-db's query workers"), so the text is the accessible name, and it's the tooltip (`title`) too.
+- **Rename** is the project's name itself: a button inside the heading (`NameButton`, accessibly "Rename Orders API"; the heading keeps the name alone). A click or Enter on it opens the field with the draft, Enter, leaving, and Escape rules unchanged, and focus returns to the name.
+- **The workload picker** stays a styled native `<select>`: it gives the keyboard and screen-reader behaviour a menu would have to rebuild. It sizes to the picked name (`field-sizing: content`, capped), and the picked workload's run, from `workloadSummary` ("20 s · 2k req/s": duration and peak rate), shows beside it in full.
+- **Not yet moved:** the theme control and the storage hint, pending the maintainer's answer on issue #216.
+
 ### A workload that can't run
 
 A project can be saved with run issues: a step that calls a removed component, say, or a workload whose mix is empty ([the two groups of checks](domain-model.md#validation-who-checks-what)). `useProjectRun` asks the `checkWorkloads` use case which workloads can run, once per change to the project, and exposes the answer as `checks`. The screen shows it in three places:

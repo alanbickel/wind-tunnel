@@ -315,6 +315,13 @@ export function setProfilePoint(
       ) {
         return w;
       }
+      if (next.atMs === found.atMs) {
+        // Same time: the point keeps its place, even beside a stored twin.
+        return {
+          ...w,
+          profile: inTimeOrder(w.profile.map((p) => (p === found ? next : p))),
+        };
+      }
       const others = w.profile.filter((p) => p !== found);
       if (others.some((p) => p.atMs === next.atMs)) return w;
       return { ...w, profile: inTimeOrder([...others, next]) };

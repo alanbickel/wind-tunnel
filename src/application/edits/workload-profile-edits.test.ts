@@ -194,6 +194,24 @@ describe("setProfilePoint", () => {
     ]);
   });
 
+  // Fails if the duplicate-time refusal runs when the time didn't change:
+  // a rate edit on the first of a stored duplicate time would be dropped.
+  it("changes the rate of the first of a stored duplicate time", () => {
+    const stored = recordWith(points([0, 100], [10, 100], [10, 500]));
+
+    const next = setProfilePoint(stored, {
+      workloadId: "steady",
+      atMs: 10_000,
+      change: { requestsPerSec: 7 },
+    });
+
+    expect(pairsOf(next)).toEqual([
+      [0, 100],
+      [10, 7],
+      [10, 500],
+    ]);
+  });
+
   // Fails if the first edit to a stored out-of-order profile doesn't sort
   // all of it.
   it("sorts a stored out-of-order profile on its first edit", () => {

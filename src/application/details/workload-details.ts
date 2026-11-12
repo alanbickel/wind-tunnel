@@ -40,7 +40,6 @@ export function workloadDetails(input: WorkloadDetailsInput): WorkloadDetails {
     workloadId: workload.id,
     name: workload.name,
     durationSec,
-    durationText: `${String(durationSec)} ${durationSec === 1 ? "second" : "seconds"}`,
     seed: workload.seed,
     removal: workloadRemovalText(workload),
     mix: mixDetails(input),

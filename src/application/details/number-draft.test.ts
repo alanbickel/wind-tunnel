@@ -53,4 +53,12 @@ describe("checkNumberDraft", () => {
   ])("words what's wrong with %j", (text, rule, message) => {
     expect(messageFor(text, rule)).toBe(message);
   });
+
+  // Fails if a rule's limit suffix is left out of a range message, or
+  // added to a rule without one: component messages would gain a unit.
+  it("puts a rule's limit suffix after the limit it names", () => {
+    const seconds = { ...RATE, limitSuffix: " s" };
+    expect(messageFor("0", seconds)).toBe("Rate must be more than 0 s.");
+    expect(messageFor("0", RATE)).toBe("Rate must be more than 0.");
+  });
 });

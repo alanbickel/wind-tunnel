@@ -102,3 +102,69 @@ export function removeWorkload(
     },
   };
 }
+
+/** A workload, and how to change it. */
+interface ChangeWorkloadInput {
+  readonly workloadId: string;
+  /** Returns the workload itself if there's nothing to change. */
+  readonly change: (workload: Workload) => Workload;
+}
+
+/** A workload, and the duration to give it. */
+export interface SetWorkloadDurationInput {
+  readonly workloadId: string;
+  readonly durationMs: number;
+}
+
+/**
+ * Sets how long a workload's run lasts. Nothing else changes, the profile
+ * included: a point now past the end stays (UX design §5). The value it
+ * already has returns the record as it was.
+ */
+export function setWorkloadDuration(
+  record: ProjectRecord,
+  { workloadId, durationMs }: SetWorkloadDurationInput,
+): ProjectRecord {
+  return changeWorkload(record, {
+    workloadId,
+    change: (w) => (w.durationMs === durationMs ? w : { ...w, durationMs }),
+  });
+}
+
+/** A workload, and the seed to give it. */
+export interface SetWorkloadSeedInput {
+  readonly workloadId: string;
+  readonly seed: number;
+}
+
+/**
+ * Sets a workload's seed. Nothing else changes. The value it already has
+ * returns the record as it was.
+ */
+export function setWorkloadSeed(
+  record: ProjectRecord,
+  { workloadId, seed }: SetWorkloadSeedInput,
+): ProjectRecord {
+  return changeWorkload(record, {
+    workloadId,
+    change: (w) => (w.seed === seed ? w : { ...w, seed }),
+  });
+}
+
+/**
+ * The record with one workload replaced by what `change` makes of it. If
+ * the project has no such workload, or `change` returns it as it was, the
+ * record comes back as it was.
+ */
+function changeWorkload(
+  record: ProjectRecord,
+  { workloadId, change }: ChangeWorkloadInput,
+): ProjectRecord {
+  const { project } = record;
+  const found = project.workloads.find((w) => w.id === workloadId);
+  if (found === undefined) return record;
+  const changed = change(found);
+  if (changed === found) return record;
+  const workloads = project.workloads.map((w) => (w === found ? changed : w));
+  return { ...record, project: { ...project, workloads } };
+}

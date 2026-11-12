@@ -69,10 +69,17 @@ export type ConfigFieldDescriptor =
 export type SettingFieldDescriptor =
   ConfigFieldDescriptor | RetryFieldDescriptor;
 
-/** A setting that's one number, such as a limit or a rate. */
-export interface NumberFieldDescriptor extends FieldDescriptor {
+/**
+ * A field that's one number with a range. A workload's duration and seed
+ * are this and no more: they have no AWS default, so no evidence.
+ */
+export interface RangedFieldDescriptor extends FieldDescriptor {
   readonly kind: "number" | "whole-number";
   readonly range: FieldRange;
+}
+
+/** A setting that's one number, such as a limit or a rate. */
+export interface NumberFieldDescriptor extends RangedFieldDescriptor {
   readonly evidence: DefaultEvidence;
 }
 

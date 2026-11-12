@@ -1,5 +1,5 @@
 import { count } from "../run-analysis/number-format";
-import type { FieldRange, NumberFieldDescriptor } from "./field-descriptor";
+import type { FieldRange, RangedFieldDescriptor } from "./field-descriptor";
 
 // A field holds what's typed as a draft until it passes the field's checks
 // (UX design §4.3). These check a draft, and word what's wrong with it as a
@@ -26,6 +26,8 @@ export interface NumberRule {
   readonly subject: string;
   readonly wholeNumber: boolean;
   readonly range: FieldRange;
+  /** Follows the limit in a range message, e.g. " s" for "more than 0 s". */
+  readonly limitSuffix?: string;
 }
 
 /** The message if `value` breaks one rule, or undefined. */
@@ -37,19 +39,24 @@ const RANGE_CHECKS: readonly RangeCheck[] = [
     wholeNumber && !Number.isInteger(value)
       ? `${subject} must be a whole number.`
       : undefined,
-  (value, { subject, range }) =>
-    range.minExclusive && value <= range.min
-      ? `${subject} must be more than ${count(range.min)}.`
+  (value, rule) =>
+    rule.range.minExclusive && value <= rule.range.min
+      ? `${rule.subject} must be more than ${limitText(rule.range.min, rule)}.`
       : undefined,
-  (value, { subject, range }) =>
-    !range.minExclusive && value < range.min
-      ? `${subject} must be at least ${count(range.min)}.`
+  (value, rule) =>
+    !rule.range.minExclusive && value < rule.range.min
+      ? `${rule.subject} must be at least ${limitText(rule.range.min, rule)}.`
       : undefined,
-  (value, { subject, range }) =>
-    range.max !== undefined && value > range.max
-      ? `${subject} must be at most ${count(range.max)}.`
+  (value, rule) =>
+    rule.range.max !== undefined && value > rule.range.max
+      ? `${rule.subject} must be at most ${limitText(rule.range.max, rule)}.`
       : undefined,
 ];
+
+/** A limit as a message says it: "1,000", or "0 s" for a rule with a suffix. */
+function limitText(limit: number, { limitSuffix = "" }: NumberRule): string {
+  return `${count(limit)}${limitSuffix}`;
+}
 
 /**
  * A number field's draft, checked against its rule. It may have thousands
@@ -87,7 +94,7 @@ function parseNumber(text: string): number | undefined {
 }
 
 /** A number setting's rule, from its descriptor. */
-export function settingRule(field: NumberFieldDescriptor): NumberRule {
+export function settingRule(field: RangedFieldDescriptor): NumberRule {
   return {
     subject: field.label,
     wholeNumber: field.kind === "whole-number",

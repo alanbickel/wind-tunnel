@@ -31,7 +31,7 @@ function linesOf(details: WorkloadDetails): string[] {
   const { mix, profile } = details;
   return [
     details.name,
-    `Duration: ${details.durationText}. Seed: ${String(details.seed)}.`,
+    `Duration: ${String(details.durationSec)} s. Seed: ${String(details.seed)}.`,
     "Mix",
     // An empty mix's words already say its problem, as the screen has it.
     ...(mix.emptyText === undefined

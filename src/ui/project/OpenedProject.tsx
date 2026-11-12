@@ -343,17 +343,17 @@ interface RevealingRemoveInput {
  * A remove, as `AddAndRemove` has it, that first opens "Workflows" for a
  * workflow's or a workload's: the focus goes to "Add workflow" or "Add
  * workload", in that panel, which may be closed. Opened at once, so the
- * button is there to take the focus. A workload's remove also picks the
- * workload after it in the project bar, or the one before if it was last,
- * which only the project's list, as it was, can say (UX design §2.7 step
- * 11).
+ * button is there to take the focus. A remove of the workload the project
+ * bar has picked also picks the one after it, or the one before if it was
+ * last, which only the project's list, as it was, can say (UX design §2.7
+ * step 11). Removing another leaves the bar's pick alone.
  */
 function useRevealingRemove(
   input: RevealingRemoveInput,
 ): AddAndRemove["remove"] {
   const { remove } = input.changes;
   const { show } = input.panels;
-  const { pick } = input.projectRun;
+  const { pick, picked } = input.projectRun;
   const { workloads } = input.edits.record.project;
   return useCallback(
     (target: Selection) => {
@@ -362,13 +362,14 @@ function useRevealingRemove(
           show("workflows");
         });
       }
-      if (target.kind === "workload") {
+      // Only the bar's own pick moves; another stays where it is.
+      if (target.kind === "workload" && picked?.id === target.workloadId) {
         const removedId = target.workloadId;
         const next = workloadAfterRemoval({ workloads, removedId });
         if (next !== undefined) pick(next);
       }
       remove(target);
     },
-    [remove, show, pick, workloads],
+    [remove, show, pick, picked, workloads],
   );
 }

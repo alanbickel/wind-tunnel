@@ -284,8 +284,9 @@ function DetailsBody(props: DetailsBodyProps) {
 
 /**
  * A component's settings, then "Connect to…"; an edge's settings; a
- * workflow's name, then its outline; a workload's name, then its values. Each is keyed by what's selected, so no
- * draft carries over to the next one.
+ * workflow's name, then its outline; a workload's name, then its values.
+ * Each is keyed by what's selected, so no draft carries over to the next
+ * one.
  */
 const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
   component: (details: ComponentDetails) => (context) => (

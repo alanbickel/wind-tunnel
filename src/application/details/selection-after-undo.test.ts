@@ -298,7 +298,6 @@ describe("selectionAfterUndo of an added workflow", () => {
 
   // Fails if a workload that's still in the project is cleared, or one the
   // project no longer has is kept, so Details would show what isn't there.
-  // No edit removes a workload yet (#181), so the project is built here.
   it("keeps a selected workload that's still there, and clears one that isn't", () => {
     const withoutWorkloads = { ...sample, workloads: [] };
     const workload = { kind: "workload", workloadId: "steady" } as const;

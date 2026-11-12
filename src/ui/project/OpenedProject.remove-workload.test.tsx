@@ -167,6 +167,24 @@ describe("OpenedProject's removing a workload", () => {
     expect(pickedName()).toBe("Dinner");
   });
 
+  // Fails if removing a workload other than the picked one moves the bar's
+  // pick, here to the one after the removed.
+  it("leaves the bar's pick alone when another workload is removed", () => {
+    renderProject({ project: threeWorkloads });
+    select("Lunch rush");
+    fireEvent.change(picker(), { target: { value: "steady" } });
+    expect(pickedName()).toBe("Steady");
+
+    fireEvent.click(removeButton());
+    fireEvent.click(
+      within(asking("Remove Lunch rush?")).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+
+    expect(pickedName()).toBe("Steady");
+  });
+
   // Fails if removing the last workload picks nothing, or the first
   // instead of the one before it.
   it("picks the one before when it was last", () => {

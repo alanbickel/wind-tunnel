@@ -153,9 +153,10 @@ The [Roadmap](https://github.com/alanbickel/wind-tunnel/issues/32)'s M7 items, i
 2. **The shell:** the full-bleed canvas, the top bar, and the inspector, holding today's Details and Run content unchanged. §2, §3.
 3. **Node cards:** icon, name, type, and the run's badges, hollow when out of date. §4, §9.
 4. **Select a finding:** marks its boxes on the canvas. §5, §9.
-5. **Workflows on the canvas:** the highlighted path, numbered steps, the player, and drawing a call. §7.
-6. **The workload editor** in the dock ([#178](https://github.com/alanbickel/wind-tunnel/issues/178)), its sub-issues rewritten against §8 before they start. §8.
+5. **The workload editor** in the dock ([#178](https://github.com/alanbickel/wind-tunnel/issues/178)), its sub-issues rewritten against §8 before they start. §8.
+6. **Workflows on the canvas** ([#197](https://github.com/alanbickel/wind-tunnel/issues/197)): the highlighted path with the rest faded, numbered calls, and drawing a call. §7.
 7. **The timeline dock:** the run over time, read-only, with the full charts behind it. §9.
+8. **The player:** steps through a workflow's path one call at a time, after the timeline dock so the two can share a playback model. §7.
 
 ## 12. Not yet
 

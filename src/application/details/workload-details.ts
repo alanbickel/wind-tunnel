@@ -33,11 +33,13 @@ export const EMPTY_MIX_TEXT =
  */
 export function workloadDetails(input: WorkloadDetailsInput): WorkloadDetails {
   const { workload } = input;
+  const durationSec = workload.durationMs / 1000;
   return {
     kind: "workload",
     workloadId: workload.id,
     name: workload.name,
-    durationSec: workload.durationMs / 1000,
+    durationSec,
+    durationText: `${String(durationSec)} ${durationSec === 1 ? "second" : "seconds"}`,
     seed: workload.seed,
     mix: mixDetails(input),
     profile: profileDetails(input),

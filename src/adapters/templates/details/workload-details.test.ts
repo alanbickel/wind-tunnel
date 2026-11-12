@@ -31,10 +31,12 @@ function linesOf(details: WorkloadDetails): string[] {
   const { mix, profile } = details;
   return [
     details.name,
-    `Duration: ${String(details.durationSec)} seconds. Seed: ${String(details.seed)}.`,
+    `Duration: ${details.durationText}. Seed: ${String(details.seed)}.`,
     "Mix",
-    ...mix.issues.map(problem),
-    ...(mix.emptyText === undefined ? [] : [`  ${mix.emptyText}`]),
+    // An empty mix's words already say its problem, as the screen has it.
+    ...(mix.emptyText === undefined
+      ? mix.issues.map(problem)
+      : [`  ${mix.emptyText}`]),
     ...mix.rows.flatMap((row) => [
       `  ${row.workflowName}  weight ${String(row.weight)}  ${row.shareText ?? "-"}`,
       ...row.issues.map(problem),

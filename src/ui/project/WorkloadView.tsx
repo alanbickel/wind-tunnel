@@ -22,7 +22,7 @@ export function WorkloadView({ details }: WorkloadViewProps) {
     <div>
       <dl className={styles.values}>
         <dt>Duration</dt>
-        <dd>{details.durationSec} seconds</dd>
+        <dd>{details.durationText}</dd>
         <dt>Seed</dt>
         <dd>{details.seed}</dd>
       </dl>
@@ -38,8 +38,8 @@ interface IssuesProps {
 
 /** Sentences about a section or a row. */
 function Issues({ messages }: IssuesProps) {
-  return messages.map((message) => (
-    <p key={message} className={styles.issue}>
+  return messages.map((message, index) => (
+    <p key={index} className={styles.issue}>
       {message}
     </p>
   ));
@@ -62,8 +62,12 @@ function MixSection({ mix }: MixSectionProps) {
       <h5 id={headingId} className={styles.sectionHeading}>
         Mix
       </h5>
-      <Issues messages={mix.issues} />
-      {mix.emptyText !== undefined && <p>{mix.emptyText}</p>}
+      {/* An empty mix's words already say its problem, so it isn't said twice. */}
+      {mix.emptyText === undefined ? (
+        <Issues messages={mix.issues} />
+      ) : (
+        <p className={styles.issue}>{mix.emptyText}</p>
+      )}
       <MixTable mix={mix} labelledBy={headingId} />
       {mix.totalText !== undefined && (
         <p className={styles.total}>{mix.totalText}</p>

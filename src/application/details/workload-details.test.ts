@@ -69,6 +69,16 @@ describe("a workload's details", () => {
     ]);
   });
 
+  // Fails if a one-second run reads "1 seconds", or another length loses its "s".
+  it("words the duration in the singular for one second", () => {
+    expect(workloadIn(withWorkload({ durationMs: 1000 })).durationText).toBe(
+      "1 second",
+    );
+    expect(workloadIn(withWorkload({ durationMs: 1500 })).durationText).toBe(
+      "1.5 seconds",
+    );
+  });
+
   // Fails if the rows' shares, as shown, don't add to exactly 100.0%.
   it("shows shares that add up", () => {
     const entries = ["a", "b", "c"].map((id) => ({

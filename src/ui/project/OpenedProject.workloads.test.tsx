@@ -186,17 +186,15 @@ describe("OpenedProject's workloads", () => {
     expect(text).not.toContain("read");
   });
 
-  // Fails if a stored empty mix isn't said on the mix and in the bar, or a
-  // point past the run's end has no note, or a note lands on another row.
+  // Fails if a stored empty mix isn't said once on the mix, and in the bar, or
+  // a point past the run's end has no note, or a note lands on another row.
   it("shows a hand-broken workload's problem and its notes where they are", () => {
     renderProject({ project: twoWorkloads });
     selectFromList("Broken · 1 problem");
 
     const details = screen.getByRole("tabpanel", { name: "Details" });
 
-    expect(
-      within(details).getAllByText("The mix has no workflows."),
-    ).toHaveLength(1);
+    expect(within(details).queryByText("The mix has no workflows.")).toBeNull();
     expect(
       within(details).getByText(
         "No workflows in the mix. A workload with an empty mix can't run.",

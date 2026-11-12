@@ -50,7 +50,6 @@ The issues the project bar says (`WorkloadRunCheck.issues`) are these plus the s
 Steady day, broken
 Duration: 30 seconds. Seed: 42.
 Mix
-    Problem: The mix has no workflows.
   No workflows in the mix. A workload with an empty mix can't run.
 Profile (time in s, rate in requests/s)
   0  200

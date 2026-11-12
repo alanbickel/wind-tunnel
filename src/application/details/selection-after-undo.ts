@@ -24,8 +24,8 @@ export interface SelectChange {
 }
 
 /**
- * Clears the selection, whose component, edge, workflow, step, or workload the undo
- * or redo took away.
+ * Clears the selection, whose component, edge, workflow, step, or workload
+ * the undo or redo took away.
  */
 export interface ClearChange {
   readonly kind: "clear";
@@ -39,11 +39,12 @@ export interface KeepChange {
 /**
  * The selection after an undo or a redo (UX design §4.1). A selected
  * workflow, step, or workload that's still there stays selected, so its
- * outline, or its rows, show what the undo did to its issues. Otherwise, one that brings back
- * a component, as undoing its remove does, selects it; one that brings
- * back only an edge selects the edge. One that takes away the selected
- * component, edge, workflow, step, or workload clears the selection: a
- * step goes when it leaves its workflow, or its workflow goes. Anything else keeps it.
+ * outline, or its rows, show what the undo did to its issues. Otherwise,
+ * one that brings back a component, as undoing its remove does, selects
+ * it; one that brings back only an edge selects the edge. One that takes
+ * away the selected component, edge, workflow, step, or workload clears
+ * the selection: a step goes when it leaves its workflow, or its workflow
+ * goes. Anything else keeps it.
  */
 export function selectionAfterUndo({
   from,
@@ -106,7 +107,10 @@ function firstNew<T extends Identified>(
   return items.find((item) => !ids.has(item.id));
 }
 
-/** Whether the project has the selected component, edge, workflow, step, or workload. */
+/**
+ * Whether the project has the selected component, edge, workflow, step, or
+ * workload.
+ */
 function isIn(project: Project, selection: Selection): boolean {
   return handleKind(PRESENCE, selection)(project);
 }

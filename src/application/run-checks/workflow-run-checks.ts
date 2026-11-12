@@ -5,6 +5,7 @@ import type { StepIssue } from "../../domain/model/run-issue";
 import { stepAt } from "../../domain/model/step-tree";
 import type { IssuePath } from "../../domain/model/validation-issue";
 import { lookup } from "../../domain/shared/kind-handlers";
+import { problemCount } from "./problem-count";
 import {
   runIssueNames,
   stepIssueOnStep,
@@ -70,12 +71,6 @@ function checkOf(
     onSteps.set(stepId, [...said, stepIssueOnStep(issue, names)]);
   }
   return { problems: problemCount(issues.length), onSteps };
-}
-
-/** "1 problem", "2 problems"; undefined for none. */
-function problemCount(count: number): string | undefined {
-  if (count === 0) return undefined;
-  return `${String(count)} ${count === 1 ? "problem" : "problems"}`;
 }
 
 /**

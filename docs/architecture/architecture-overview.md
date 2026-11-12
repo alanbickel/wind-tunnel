@@ -99,6 +99,7 @@ Each guide is a short, visual introduction to one part of the system, with a wor
 | [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, the in-process and Web Worker runners, the repository and runner contracts |
 | [The user interface](user-interface.md) | The composition root, `UseCasesProvider` and `useUseCases`, the screens, selection and the Details tab, `useSimulationRun` and the Worker runner, a run traced from click to chart, UI test helpers |
 | [The workflow editor](workflow-editor.md) | A workflow four ways (the stored call tree, the outline in Details, the path on the diagram and in its text version), how a step is addressed, the workflows list, selecting a workflow or a step |
+| [The workload editor](workload-editor.md) | A workload three ways (the stored document, the Details a user reads, the line the engine follows), mix shares that add to 100.0%, how an issue finds its row, selecting a workload |
 | [The headless runner](headless-runner.md) | `npm run simulate`, `runSimulateCommand`, the text report and how to read it, loading TypeScript through Vite |
 | [Findings and detectors](finding-detectors.md) | `Finding`, `Statement` and the phrasebook that words it, `Detector`, `findRun`, the verdict and headroom, the catalog of fixes, adding a detector |
 

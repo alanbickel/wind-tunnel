@@ -1,0 +1,86 @@
+Template A: Serverless API with RDS
+
+Lunch rush, 20 s at 2,000 requests/s
+Duration: 60 seconds. Seed: 42.
+Mix
+  Get order  weight 80  80.0%
+  Create order  weight 20  20.0%
+  Shares total 100%
+Profile (time in s, rate in requests/s)
+  0  200
+  10  200
+  20  2000
+  40  2000
+  50  200
+
+Steady day, 200 requests/s
+Duration: 60 seconds. Seed: 42.
+Mix
+  Get order  weight 80  80.0%
+  Create order  weight 20  20.0%
+  Shares total 100%
+Profile (time in s, rate in requests/s)
+  0  200
+  60  200
+
+Long rush, 2 min at 2,000 requests/s
+Duration: 200 seconds. Seed: 42.
+Mix
+  Get order  weight 80  80.0%
+  Create order  weight 20  20.0%
+  Shares total 100%
+Profile (time in s, rate in requests/s)
+  0  200
+  10  200
+  20  2000
+  140  2000
+  150  200
+
+Template B: Serverless API with DynamoDB + SQS
+
+Lunch rush, 20 s at 2,000 requests/s
+Duration: 60 seconds. Seed: 42.
+Mix
+  Get order  weight 80  80.0%
+  Create order  weight 20  20.0%
+  Shares total 100%
+Profile (time in s, rate in requests/s)
+  0  200
+  10  200
+  20  2000
+  40  2000
+  50  200
+
+Steady day, 200 requests/s
+Duration: 60 seconds. Seed: 42.
+Mix
+  Get order  weight 80  80.0%
+  Create order  weight 20  20.0%
+  Shares total 100%
+Profile (time in s, rate in requests/s)
+  0  200
+  60  200
+
+Long rush, 2 min at 2,000 requests/s
+Duration: 200 seconds. Seed: 42.
+Mix
+  Get order  weight 80  80.0%
+  Create order  weight 20  20.0%
+  Shares total 100%
+Profile (time in s, rate in requests/s)
+  0  200
+  10  200
+  20  2000
+  140  2000
+  150  200
+
+A hand-broken workload
+
+Steady day, broken
+Duration: 30 seconds. Seed: 42.
+Mix
+  No workflows in the mix. A workload with an empty mix can't run.
+Profile (time in s, rate in requests/s)
+  0  200
+  60  200
+    After the run's end (30 s). Arrivals follow the line toward this point, and the run stops at 30 s.

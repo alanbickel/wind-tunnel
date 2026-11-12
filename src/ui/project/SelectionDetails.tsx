@@ -11,6 +11,7 @@ import type {
   EdgeDetails,
   RemovalText,
   WorkflowDetails,
+  WorkloadDetails,
 } from "../../application/details/details";
 import type { Selection } from "../../application/details/selection";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
@@ -31,6 +32,7 @@ import { useConnect, type Connect } from "./useConnect";
 import type { Edit } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
 import { WorkflowOutline } from "./WorkflowOutline";
+import { WorkloadView } from "./WorkloadView";
 
 export interface SelectionDetailsProps {
   readonly project: Project;
@@ -65,7 +67,7 @@ export function SelectionDetails(props: SelectionDetailsProps) {
   return <DescribedSelection {...props} />;
 }
 
-/** A component, an edge, a workflow, or a step: what `describeSelection` says. */
+/** A component, an edge, a workflow, a step, or a workload: what `describeSelection` says. */
 function DescribedSelection(props: SelectionDetailsProps) {
   const { project, selection, onClose } = props;
   const { describeSelection } = useUseCases();
@@ -153,7 +155,7 @@ function DetailsHeader(props: DetailsHeaderProps) {
       <div className={styles.header}>
         <Heading {...props} />
         <div className={styles.actions}>
-          {!open && (
+          {removal !== undefined && !open && (
             <Button ref={openerRef} onClick={ask}>
               Remove
             </Button>
@@ -161,7 +163,7 @@ function DetailsHeader(props: DetailsHeaderProps) {
           {closable && <Button onClick={onClose}>Close</Button>}
         </div>
       </div>
-      {open && (
+      {removal !== undefined && open && (
         <RemoveConfirmation
           text={removal.text}
           onConfirm={() => {
@@ -194,8 +196,8 @@ interface Removal {
   readonly target: Selection;
 }
 
-/** Each kind's remove. */
-const REMOVALS: KindHandlers<Details, Removal> = {
+/** Each kind's remove; a workload has none yet (issue 181). */
+const REMOVALS: KindHandlers<Details, Removal | undefined> = {
   component: ({ componentId, removal }: ComponentDetails) => ({
     text: removal,
     target: { kind: "component", componentId },
@@ -208,6 +210,7 @@ const REMOVALS: KindHandlers<Details, Removal> = {
     text: removal,
     target: { kind: "workflow", workflowId },
   }),
+  workload: () => undefined,
 };
 
 function closeOnEscape(
@@ -237,6 +240,12 @@ const HEADINGS: KindHandlers<Details, ReactNode> = {
     <>
       {name}
       <span className={styles.kind}> · Workflow</span>
+    </>
+  ),
+  workload: ({ name }: WorkloadDetails) => (
+    <>
+      {name}
+      <span className={styles.kind}> · Workload</span>
     </>
   ),
 };
@@ -289,11 +298,15 @@ const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
       <WorkflowOutline details={details} {...context} />
     </div>
   ),
+  workload: (details: WorkloadDetails) => () => (
+    <WorkloadView key={details.workloadId} details={details} />
+  ),
 };
 
 /**
  * What calls the component, or along the edge, or that nothing does yet;
- * undefined for a workflow, whose outline says what uses it.
+ * undefined for a workflow, whose outline says what uses it, and a
+ * workload, which nothing calls.
  */
 const CALLERS: KindHandlers<Details, string | undefined> = {
   component: ({ calledBy }: ComponentDetails) =>
@@ -307,6 +320,7 @@ const CALLERS: KindHandlers<Details, string | undefined> = {
       "nothing yet. A connection carries nothing until a workflow step calls along it.",
     )}`,
   workflow: () => undefined,
+  workload: () => undefined,
 };
 
 /** The items, joined with commas, or `none` if there are none. */

@@ -1,0 +1,59 @@
+/* Duration and seed, a label and its value on each line. */
+.values {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.values dt {
+  color: var(--color-text-muted);
+}
+
+.values dd {
+  margin: 0;
+}
+
+.sectionHeading {
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.table {
+  font-size: var(--font-size-sm);
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--space-1) var(--space-2);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table thead th {
+  color: var(--color-text-muted);
+}
+
+/* Numbers line up by place value, so they read down a column. */
+.table .number {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.total {
+  margin: var(--space-1) 0 0;
+  font-weight: var(--font-weight-bold);
+}
+
+/* A section or a row that can't run: marked by a thick line down its side
+   and said in words, not by color alone. */
+.cantRun {
+  border-inline-start: var(--line-width-thick) solid var(--color-status-warn);
+  padding-inline-start: var(--space-2);
+}
+
+.issue {
+  max-width: var(--prose-max-width);
+  margin: 0 0 var(--space-1);
+  font-weight: normal;
+}

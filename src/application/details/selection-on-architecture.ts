@@ -71,6 +71,8 @@ const ON_ARCHITECTURE: KindHandlers<
       return { ringed: NO_PARTS, path: pathOf(project, workflow) };
     },
   step: (selection) => (project) => stepOn(project, selection),
+  // A workload is traffic, not part of the architecture.
+  workload: () => () => NOTHING_SHOWN,
   // A draft isn't on the diagram until it's saved.
   "new-workflow": () => () => NOTHING_SHOWN,
   // A finding rings its component, if the project still has it: the

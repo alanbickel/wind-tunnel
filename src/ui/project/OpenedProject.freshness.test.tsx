@@ -211,6 +211,8 @@ describe("OpenedProject's run when the project changes", () => {
           workloadId: workload.id,
           canRun: false,
           issues: [],
+          ownIssues: [],
+          problems: undefined,
           reasons,
           summary: "",
         };

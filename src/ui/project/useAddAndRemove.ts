@@ -237,6 +237,8 @@ const REMOVALS: KindHandlers<
     },
   // Nothing removes a step yet (issue 117).
   step: () => () => undefined,
+  // Nothing removes a workload yet (issue 181).
+  workload: () => () => undefined,
   // A draft is dropped, not removed.
   "new-workflow": () => () => undefined,
   // A finding is of the run; there's nothing to remove.

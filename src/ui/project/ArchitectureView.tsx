@@ -29,6 +29,7 @@ import { AddComponent, type AddComponentProps } from "./AddComponent";
 import { CanvasPanels } from "./CanvasPanels";
 import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
+import { WorkloadList } from "./WorkloadList";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
 
@@ -130,15 +131,24 @@ function EmptyCanvas() {
   );
 }
 
-/** The workflows list, for the "Workflows" panel. */
+/** The workflows list, then the workloads list, for the "Workflows" panel. */
 function Workflows(props: ArchitectureViewProps) {
+  const { selection, onSelect } = props;
+  const { project } = props.record;
   return (
-    <WorkflowList
-      project={props.record.project}
-      selection={props.selection}
-      onSelect={props.onSelect}
-      adding={props.addingWorkflow}
-    />
+    <>
+      <WorkflowList
+        project={project}
+        selection={selection}
+        onSelect={onSelect}
+        adding={props.addingWorkflow}
+      />
+      <WorkloadList
+        project={project}
+        selection={selection}
+        onSelect={onSelect}
+      />
+    </>
   );
 }
 
@@ -240,6 +250,7 @@ const TEXT_ITEMS: KindHandlers<Selection, DiagramItem | undefined> = {
   edge: ({ edgeId }) => ({ kind: "edge", id: edgeId }),
   workflow: () => undefined,
   step: () => undefined,
+  workload: () => undefined,
   "new-workflow": () => undefined,
   // The finding's component is the text version's marked row.
   finding: ({ key }) => ({ kind: "node", id: key.componentId }),

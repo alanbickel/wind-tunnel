@@ -60,16 +60,30 @@ describe("OpenedProject rename", () => {
     vi.restoreAllMocks();
   });
 
+  // Fails if the name button's aria-label stops starting with "Rename ", or
+  // stops containing the visible name (WCAG 2.5.3), or the heading stops
+  // being named by the project name alone.
+  it('names the name button "Rename <name>" inside a heading named for the project', () => {
+    renderOpenedProject();
+
+    const heading = screen.getByRole("heading", { name: "Sample project" });
+    const button = screen.getByRole("button", { name: /^Rename / });
+
+    expect(heading.contains(button)).toBe(true);
+    expect(button.getAttribute("aria-label")).toBe("Rename Sample project");
+    expect(button.textContent).toBe("Sample project");
+  });
+
   // Fails if pressing Enter on a valid project rename doesn't save through the
   // queue, doesn't update the heading, doesn't notify the breadcrumb, or fails
-  // to return focus to the Rename button.
+  // to return focus to the name button (found by its "Rename " label).
   it("saves the new name on Enter, updates heading and breadcrumb, and focuses Rename", async () => {
     const onProjectNameChange = vi.fn<(name: string) => void>();
     const { projects, saveProject, execute } = countedSaves();
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject, onProjectNameChange });
 
-    const renameButton = screen.getByRole("button", { name: "Rename" });
+    const renameButton = screen.getByRole("button", { name: /^Rename / });
     fireEvent.click(renameButton);
 
     const input = await screen.findByRole<HTMLInputElement>("textbox", {
@@ -90,7 +104,7 @@ describe("OpenedProject rename", () => {
     expect(screen.getByRole("heading", { name: "Orders API" })).toBeTruthy();
     expect(onProjectNameChange).toHaveBeenCalledWith("Orders API");
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Rename" }),
+      screen.getByRole("button", { name: /^Rename / }),
     );
 
     await waitFor(() => {
@@ -104,7 +118,7 @@ describe("OpenedProject rename", () => {
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
 
     fireEvent.change(input, { target: { value: "Cancelled Name" } });
@@ -115,7 +129,7 @@ describe("OpenedProject rename", () => {
       screen.getByRole("heading", { name: "Sample project" }),
     ).toBeTruthy();
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Rename" }),
+      screen.getByRole("button", { name: /^Rename / }),
     );
     expect(execute).not.toHaveBeenCalled();
   });
@@ -126,7 +140,7 @@ describe("OpenedProject rename", () => {
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
 
     fireEvent.change(input, { target: { value: "   " } });
@@ -153,7 +167,7 @@ describe("OpenedProject rename", () => {
     });
     renderOpenedProject({ projects, saveProject });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
 
     fireEvent.change(input, { target: { value: "other project" } });
@@ -188,7 +202,7 @@ describe("OpenedProject rename", () => {
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -217,7 +231,7 @@ describe("OpenedProject rename", () => {
     const [, outOfDate] = statusRegions();
     expect(outOfDate.textContent).toBe("");
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Renamed Project" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -238,7 +252,7 @@ describe("OpenedProject rename", () => {
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject, onProjectNameChange });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -271,14 +285,14 @@ describe("OpenedProject rename", () => {
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.blur(input);
 
     expect(screen.getByRole("heading", { name: "Orders API" })).toBeTruthy();
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Rename" }),
+      screen.getByRole("button", { name: /^Rename / }),
     );
     await waitFor(() => {
       expect(execute).toHaveBeenCalledOnce();
@@ -292,7 +306,7 @@ describe("OpenedProject rename", () => {
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Cancelled Name" } });
     const blur = blurHandlerOf(input);
@@ -312,7 +326,7 @@ describe("OpenedProject rename", () => {
     await projects.save(sampleRecord);
     renderOpenedProject({ projects, saveProject });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "  Sample project " } });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -330,7 +344,7 @@ describe("OpenedProject rename", () => {
     const onProjectNameChange = vi.fn<(name: string) => void>();
     renderOpenedProject({ onProjectNameChange });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rename / }));
     const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Orders API" } });
     fireEvent.keyDown(input, { key: "Enter" });

@@ -43,7 +43,37 @@
   text-decoration: underline;
 }
 
+/* An icon alone: no border until hovered, so a row of them stays quiet. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: var(--line-width) solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.icon:hover {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border);
+}
+
+.icon svg {
+  display: block;
+  inline-size: var(--icon-size);
+  block-size: var(--icon-size);
+}
+
 /* Unavailable, in any look: muted text on the plain surface, no hover. */
+.icon[aria-disabled="true"] {
+  background: none;
+  border-color: transparent;
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
 .primary[aria-disabled="true"],
 .secondary[aria-disabled="true"] {
   background: var(--color-surface);

@@ -5,7 +5,18 @@
   gap: var(--space-2);
 }
 
-/* A long workload name doesn't widen the top bar; the open list shows it whole. */
+/* The picker is as wide as the picked name, up to a cap, so a name isn't cut
+   short; a longer one doesn't widen the top bar, and the open list shows it
+   whole. A browser without `field-sizing` (the project sets no support
+   policy) ignores it and keeps the select's default width: the cap and the
+   open list still show a long name whole, so only the widening is lost. */
 .controls select {
+  field-sizing: content;
   max-width: var(--text-field-width);
+}
+
+/* The picked workload's run, in full beside the picker. */
+.summary {
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }

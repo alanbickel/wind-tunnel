@@ -47,7 +47,13 @@ describe("OpenedProject's canvas-first layout", () => {
         { level: 2, name: "Sample project" },
       ),
     ).toBeTruthy();
-    for (const name of ["Rename", "Undo", "Redo", "Run", "Stop"]) {
+    for (const name of [
+      "Rename Sample project",
+      "Undo",
+      "Redo",
+      "Run",
+      "Stop",
+    ]) {
       expect(inBar.getByRole("button", { name })).toBeTruthy();
     }
     const canvas = screen.getByRole("region", { name: "Architecture" });
@@ -61,6 +67,18 @@ describe("OpenedProject's canvas-first layout", () => {
       canvas.compareDocumentPosition(inspector()) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  // Fails if the app mark stops being drawn before the name, or stops being
+  // hidden from assistive technology (`aria-hidden` removed from `AppMark`).
+  it("draws the app mark before the name, hidden from screen readers", () => {
+    renderProject();
+    const name = within(bar()).getByRole("heading", { level: 1 });
+
+    const mark = name.previousElementSibling;
+
+    expect(mark?.tagName.toLowerCase()).toBe("svg");
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
   });
 
   // Fails if the description stays in the bar, or leaves the Details tab,

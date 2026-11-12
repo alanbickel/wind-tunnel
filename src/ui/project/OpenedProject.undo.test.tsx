@@ -123,6 +123,20 @@ describe("OpenedProject's undo and redo", () => {
     expect(queryDetailsHeading()?.textContent).toBe("Table · DynamoDB");
   });
 
+  // Fails if the `title` is dropped from `HistoryButton`, or stops matching
+  // its name, so the icon alone no longer says what it does.
+  it("tells each change as a tooltip too, the same as its name", () => {
+    renderOpenedProject();
+    select("Function (Lambda)");
+
+    typeAndLeave(field("Concurrency"), "50");
+
+    expect(historyButton("Undo").getAttribute("title")).toBe(
+      "Undo change Function's concurrency",
+    );
+    expect(historyButton("Redo").getAttribute("title")).toBe("Redo");
+  });
+
   // Fails if the buttons don't name what they'd do, can be used with
   // nothing to do, or Undo isn't announced from a region that was on the
   // page, empty, before (UX §4.4).

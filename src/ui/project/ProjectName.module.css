@@ -12,6 +12,22 @@
   font-size: var(--font-size-md);
 }
 
+/* The name is the control: it reads as text, and shows a border on hover
+   and focus so it can be seen to be editable. */
+.nameButton {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: var(--line-width) solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  cursor: text;
+}
+
+.nameButton:hover {
+  border-color: var(--color-border);
+}
+
 .renameField {
   display: flex;
   flex-direction: column;

@@ -69,6 +69,18 @@ describe("OpenedProject's canvas-first layout", () => {
     ).toBeTruthy();
   });
 
+  // Fails if the app mark stops being drawn before the name, or stops being
+  // hidden from assistive technology (`aria-hidden` removed from `AppMark`).
+  it("draws the app mark before the name, hidden from screen readers", () => {
+    renderProject();
+    const name = within(bar()).getByRole("heading", { level: 1 });
+
+    const mark = name.previousElementSibling;
+
+    expect(mark?.tagName.toLowerCase()).toBe("svg");
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
+  });
+
   // Fails if the description stays in the bar, or leaves the Details tab,
   // or shows over a selection's details.
   it("shows the description at the top of Details while nothing is selected", () => {

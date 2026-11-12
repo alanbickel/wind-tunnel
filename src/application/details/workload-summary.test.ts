@@ -25,6 +25,14 @@ describe("workloadSummary", () => {
     expect(at(1500)).toBe("5 s · 1.5k req/s");
   });
 
+  // Fails if a fractional rate prints raw ("80.54 req/s") instead of to one decimal.
+  it("rounds a fractional rate to one decimal", () => {
+    const at = (rate: number) =>
+      workloadSummary({ durationMs: 5000, profile: [point(0, rate)] });
+    expect(at(80.54)).toBe("5 s · 80.5 req/s");
+    expect(at(80.5)).toBe("5 s · 80.5 req/s");
+  });
+
   // Fails if an empty profile gives "-Infinity req/s".
   it("gives only the duration when there are no profile points", () => {
     expect(workloadSummary({ durationMs: 60_000, profile: [] })).toBe("60 s");

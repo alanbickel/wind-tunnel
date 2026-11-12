@@ -74,8 +74,10 @@
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-5: 1.5rem;
-  --icon-size: 1.25rem;
   --space-6: 2rem;
+
+  /* Sizes. */
+  --icon-size: 1.25rem;
 
   /* Type. */
   --font-family-sans: system-ui, -apple-system, "Segoe UI", sans-serif;

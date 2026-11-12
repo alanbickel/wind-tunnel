@@ -2,10 +2,19 @@ import type { Workload } from "../../domain/model/project";
 
 const THOUSAND = 1000;
 
-/** A rate in words, with thousands as "k": 2000 is "2k", 1500 is "1.5k". */
+/** A number to one decimal place, without a trailing ".0": 80.54 is "80.5". */
+function oneDecimal(value: number): string {
+  return String(Math.round(value * 10) / 10);
+}
+
+/**
+ * A rate in words, to one decimal, with thousands as "k": 2000 is "2k", 1500
+ * is "1.5k", 80.5 is "80.5". A profile's rates may be fractional, since they
+ * only have to be zero or more.
+ */
 function rateText(requestsPerSec: number): string {
-  if (requestsPerSec < THOUSAND) return String(requestsPerSec);
-  return `${String(Math.round(requestsPerSec / 100) / 10)}k`;
+  if (requestsPerSec < THOUSAND) return oneDecimal(requestsPerSec);
+  return `${oneDecimal(requestsPerSec / THOUSAND)}k`;
 }
 
 /**

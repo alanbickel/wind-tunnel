@@ -60,9 +60,23 @@ describe("OpenedProject rename", () => {
     vi.restoreAllMocks();
   });
 
+  // Fails if the name button's aria-label stops starting with "Rename ", or
+  // stops containing the visible name (WCAG 2.5.3), or the heading stops
+  // being named by the project name alone.
+  it('names the name button "Rename <name>" inside a heading named for the project', () => {
+    renderOpenedProject();
+
+    const heading = screen.getByRole("heading", { name: "Sample project" });
+    const button = screen.getByRole("button", { name: /^Rename / });
+
+    expect(heading.contains(button)).toBe(true);
+    expect(button.getAttribute("aria-label")).toBe("Rename Sample project");
+    expect(button.textContent).toBe("Sample project");
+  });
+
   // Fails if pressing Enter on a valid project rename doesn't save through the
   // queue, doesn't update the heading, doesn't notify the breadcrumb, or fails
-  // to return focus to the Rename button.
+  // to return focus to the name button (found by its "Rename " label).
   it("saves the new name on Enter, updates heading and breadcrumb, and focuses Rename", async () => {
     const onProjectNameChange = vi.fn<(name: string) => void>();
     const { projects, saveProject, execute } = countedSaves();

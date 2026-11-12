@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { runIsCurrent } from "../../application/run-analysis/run-freshness";
 import type { WorkloadRunChecks } from "../../application/run-checks/workload-run-checks";
 import type { Project, Workload } from "../../domain/model/project";
@@ -52,7 +52,7 @@ export interface ProjectRun {
 export function useProjectRun(project: Project): ProjectRun {
   const run = useSimulationRun(project);
   const checks = useWorkloadChecks(project);
-  const [picked, pick] = useState(project.workloads[0]);
+  const [picked, pick] = usePickedWorkload(project);
   const ranModel = ranModelOf(run.phase);
   const meaning = useRunFindings({ ran: ranModel, received: run });
   const status = statusText({
@@ -79,6 +79,25 @@ export function useProjectRun(project: Project): ProjectRun {
     outOfDate,
     badges,
   };
+}
+
+/** The picker's workload, and how to change it. */
+type PickedWorkload = readonly [Workload | undefined, ProjectRun["pick"]];
+
+/**
+ * The workload the picker shows. It's remembered by id and read from the
+ * project each time, so a rename shows in the picker, and a run starts on
+ * the workload as it is now. One the project no longer has, as after an
+ * undo of its add, gives way to the first.
+ */
+function usePickedWorkload(project: Project): PickedWorkload {
+  const [pickedId, setPickedId] = useState(project.workloads[0]?.id);
+  const pick = useCallback((workload: Workload) => {
+    setPickedId(workload.id);
+  }, []);
+  const picked =
+    project.workloads.find((w) => w.id === pickedId) ?? project.workloads[0];
+  return [picked, pick];
 }
 
 /** Which of the project's workloads can run, and why not. */

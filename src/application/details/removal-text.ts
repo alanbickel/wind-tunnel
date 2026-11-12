@@ -3,6 +3,7 @@ import type {
   Edge,
   Project,
   Workflow,
+  Workload,
 } from "../../domain/model/project";
 import { listOf } from "../shared/list-of";
 import { stepsCalling, stepsCallingAlong } from "./called-by";
@@ -64,6 +65,15 @@ export function workflowRemovalText({
     question: `Remove ${workflow.name}?`,
     warning: mixesWarning(usedBy),
   };
+}
+
+/**
+ * What removing a workload would take, as Remove's confirmation asks it
+ * (UX design §2.7 step 11): only the workload. Its workflows stay, and a
+ * run of it stays on screen, out of date, so there is nothing to warn of.
+ */
+export function workloadRemovalText(workload: Workload): RemovalText {
+  return { question: `Remove ${workload.name}?`, warning: undefined };
 }
 
 /** A step, by its label, and how many steps are under it. */

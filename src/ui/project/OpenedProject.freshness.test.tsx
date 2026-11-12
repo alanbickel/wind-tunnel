@@ -181,20 +181,23 @@ describe("OpenedProject's run when the project changes", () => {
     expect(status()).toBe("Running Steady 6 s… Healthy so far.");
   });
 
-  // Fails if the run falls back to another of the project's workloads when
-  // the picked one is gone: it would run "Spike", not fail naming "Steady".
-  it("fails naming the picked workload once the project no longer has it", async () => {
+  // Fails if the picker keeps showing a workload the project no longer
+  // has, so Run would fail naming it, or if the fallback is hidden: the
+  // picker must show the workload Run runs, the project's first.
+  it("shows and runs the project's first workload once the picked one is gone", () => {
     const { change } = renderProject();
     const [steady] = sampleRecord.project.workloads;
     if (steady === undefined) throw new Error("the sample has a workload");
     const spike = { ...steady, id: "spike", name: "Spike" };
     change({ ...sampleRecord.project, workloads: [spike] });
 
+    const picked = screen.getByRole<HTMLSelectElement>("combobox", {
+      name: "Workload",
+    }).selectedOptions[0];
     clickRun();
 
-    expect(await screen.findByText(/no longer in the project/)).toBeTruthy();
-    expect(status()).toContain("Steady");
-    expect(status()).not.toContain("Spike");
+    expect(picked?.textContent).toBe("Spike");
+    expect(status()).toBe("Running Spike… Healthy so far.");
   });
 
   // Fails if useSimulationRun drops a cant-run result's reasons: the

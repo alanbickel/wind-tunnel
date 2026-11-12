@@ -41,9 +41,10 @@ export interface KeepChange {
  * workflow, step, or workload that's still there stays selected, so its
  * outline, or its rows, show what the undo did to its issues. Otherwise,
  * one that brings back a component, as undoing its remove does, selects
- * it; one that brings back only an edge selects the edge. One that takes
- * away the selected component, edge, workflow, step, or workload clears
- * the selection: a step goes when it leaves its workflow, or its workflow
+ * it; one that brings back only an edge selects the edge, and one that
+ * brings back only a workload selects that. One that takes away the
+ * selected component, edge, workflow, step, or workload clears the
+ * selection: a step goes when it leaves its workflow, or its workflow
  * goes. Anything else keeps it.
  */
 export function selectionAfterUndo({
@@ -80,7 +81,10 @@ const OUTLASTS_BRINGING_BACK: Record<Selection["kind"], boolean> = {
 /** The projects either side of an undo or a redo. */
 type ProjectsInput = Pick<SelectionAfterUndoInput, "from" | "to">;
 
-/** The first component `to` has that `from` didn't, else the first such edge. */
+/**
+ * The first component `to` has that `from` didn't, else the first such
+ * edge, else the first such workload.
+ */
 function broughtBack({ from, to }: ProjectsInput): Selection | undefined {
   const component = firstNew(
     to.architecture.components,
@@ -90,7 +94,9 @@ function broughtBack({ from, to }: ProjectsInput): Selection | undefined {
     return { kind: "component", componentId: component.id };
   }
   const edge = firstNew(to.architecture.edges, from.architecture.edges);
-  return edge && { kind: "edge", edgeId: edge.id };
+  if (edge !== undefined) return { kind: "edge", edgeId: edge.id };
+  const workload = firstNew(to.workloads, from.workloads);
+  return workload && { kind: "workload", workloadId: workload.id };
 }
 
 /** Something with an id, as components and edges have. */

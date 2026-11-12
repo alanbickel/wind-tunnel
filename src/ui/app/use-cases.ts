@@ -14,6 +14,7 @@ import type { NewEdge } from "../../application/use-cases/new-edge";
 import type { ChangeStep } from "../../application/use-cases/change-step";
 import type { NewCall } from "../../application/use-cases/new-call";
 import type { NewWorkflow } from "../../application/use-cases/new-workflow";
+import type { NewWorkload } from "../../application/use-cases/new-workload";
 import type { OpenProject } from "../../application/use-cases/open-project";
 import type { RunSimulation } from "../../application/use-cases/run-simulation";
 import type { SaveProject } from "../../application/use-cases/save-project";
@@ -52,6 +53,7 @@ export interface UseCases {
   readonly changeStep: UseCase<ChangeStep>;
   readonly newEdge: UseCase<NewEdge>;
   readonly newWorkflow: UseCase<NewWorkflow>;
+  readonly newWorkload: UseCase<NewWorkload>;
   /**
    * The one port the UI calls directly: when to ask for persistent storage
    * is a UI decision (after the first project is created), not a use case.

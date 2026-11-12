@@ -222,6 +222,8 @@ export interface WorkloadDetails {
   /** "1 second", "60 seconds". */
   readonly durationText: string;
   readonly seed: number;
+  /** What Remove's confirmation says. */
+  readonly removal: RemovalText;
   readonly mix: MixDetails;
   readonly profile: ProfileDetails;
 }

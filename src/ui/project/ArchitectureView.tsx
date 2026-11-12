@@ -29,7 +29,7 @@ import { AddComponent, type AddComponentProps } from "./AddComponent";
 import { CanvasPanels } from "./CanvasPanels";
 import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
-import { WorkloadList } from "./WorkloadList";
+import { WorkloadList, type AddWorkloadProps } from "./WorkloadList";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
 
@@ -47,8 +47,11 @@ export interface ArchitectureViewProps {
   readonly adding: AddComponentProps;
   /** "Add workflow", in the workflows list. */
   readonly addingWorkflow: AddWorkflowProps;
+  /** "Add workload", in the workloads list. */
+  readonly addingWorkload: AddWorkloadProps;
   /**
-   * What a workflow's remove announces: "Removed Get order." Said beside
+   * What a workflow's or a workload's remove announces: "Removed Get
+   * order." Said beside
    * the canvas's panel buttons, not in the list, whose panel may be hidden.
    */
   readonly workflowAnnouncement: string;
@@ -147,6 +150,7 @@ function Workflows(props: ArchitectureViewProps) {
         project={project}
         selection={selection}
         onSelect={onSelect}
+        adding={props.addingWorkload}
       />
     </>
   );

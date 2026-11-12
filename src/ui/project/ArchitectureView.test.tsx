@@ -89,6 +89,7 @@ function renderView({
         onClear={onClear}
         onConnect={vi.fn()}
         addingWorkflow={{ onAdd: vi.fn(), buttonRef: { current: null } }}
+        addingWorkload={{ onAdd: vi.fn(), buttonRef: { current: null } }}
         workflowAnnouncement=""
         onMove={onMove}
         adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}

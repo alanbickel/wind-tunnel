@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, type RefObject } from "react";
 import type { Selection } from "../../application/details/selection";
 import type { Project } from "../../domain/model/project";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
+import { Button } from "../shared/Button";
 import { dispatchKind } from "../shared/kind-dispatch";
 import styles from "./ArchitectureView.module.css";
 
@@ -10,18 +11,31 @@ export interface WorkloadListProps {
   readonly project: Project;
   readonly selection: Selection | undefined;
   readonly onSelect: (selection: Selection) => void;
+  /** "Add workload". */
+  readonly adding: AddWorkloadProps;
+}
+
+export interface AddWorkloadProps {
+  /** Adds a workload, and selects it for naming. */
+  readonly onAdd: () => void;
+  /** The "Add workload" button, where the focus goes after a workload's remove. */
+  readonly buttonRef: RefObject<HTMLButtonElement | null>;
 }
 
 /**
  * "Workloads", and a button for each, in project order, marked current
  * while its workload is selected, and saying how many problems it has, if
  * any; or a line on what a workload is, while there are none (UX design
- * §2.7 step 1).
+ * §2.7 step 1). "Add workload" is beside the heading, and always usable: a
+ * new workload needs nothing in the project.
  */
 export function WorkloadList(props: WorkloadListProps) {
   return (
     <>
-      <h4 className={styles.listHeading}>Workloads</h4>
+      <div className={styles.listHeader}>
+        <h4 className={styles.listHeading}>Workloads</h4>
+        <AddWorkload {...props.adding} />
+      </div>
       {props.project.workloads.length === 0 ? (
         <p>
           No workloads yet. A workload says how much traffic your workflows get,
@@ -31,6 +45,15 @@ export function WorkloadList(props: WorkloadListProps) {
         <WorkloadRows {...props} />
       )}
     </>
+  );
+}
+
+/** "Add workload", which adds one and selects it for naming. */
+function AddWorkload({ onAdd, buttonRef }: AddWorkloadProps) {
+  return (
+    <Button ref={buttonRef} onClick={onAdd}>
+      Add workload
+    </Button>
   );
 }
 

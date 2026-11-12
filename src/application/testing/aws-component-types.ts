@@ -7,6 +7,7 @@ import { ChangeStep } from "../use-cases/change-step";
 import { NewCall } from "../use-cases/new-call";
 import { NewEdge } from "../use-cases/new-edge";
 import { NewWorkflow } from "../use-cases/new-workflow";
+import { NewWorkload } from "../use-cases/new-workload";
 import { SequentialIds } from "./sequential-ids";
 
 /**
@@ -68,4 +69,11 @@ export function awsNewWorkflow(
   ids: IdGenerator = new SequentialIds("wf"),
 ): NewWorkflow {
   return new NewWorkflow({ registry: createAwsComponentRegistry(), ids });
+}
+
+/** `NewWorkload` with ids `wl-1`, `wl-2`, … unless given others. */
+export function newWorkload(
+  ids: IdGenerator = new SequentialIds("wl"),
+): NewWorkload {
+  return new NewWorkload({ ids });
 }

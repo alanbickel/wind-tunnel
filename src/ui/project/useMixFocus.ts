@@ -16,7 +16,9 @@ export interface MixFocus {
   readonly picker: RefCallback<HTMLSelectElement>;
   /**
    * Asks for a row's weight field, or `ADD_TO_MIX`, to take the focus once
-   * the mix has drawn again.
+   * the mix has drawn again. Call it only with an edit that changes the mix:
+   * the request is kept until the next draw of the mix, so an edit that
+   * changes nothing would leave it to move the focus on some later draw.
    */
   readonly after: (target: MixFocusTarget) => void;
 }

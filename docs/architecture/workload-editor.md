@@ -38,20 +38,19 @@ The issues the project bar says (`WorkloadRunCheck.issues`) are these plus the s
 ## Selecting a workload
 
 - **The list.** Under the workflows list, in the canvas's "Workflows" panel, "Workloads" lists them in project order, a button each, marked `aria-current` while selected, with "· 1 problem" after the name when it has issues. With none, it says what a workload is.
-- **Details.** Selecting a workload is a `WorkloadSelection` held by the project screen like any other: the focus goes to Details' heading, and Escape clears the selection and returns the focus to whatever made it, the row or the top bar's Edit. Details' header has Remove, and its body starts with the name field ([below](#adding-renaming-and-removing)).
+- **Details.** Selecting a workload is a `WorkloadSelection` held by the project screen like any other: the focus goes to Details' heading, and Escape clears the selection and returns the focus to whatever made it, the row or the top bar's Edit. Details' header has Remove, and its body starts with the name field ([below](#the-commands)).
 - **The picker follows one way.** Selecting a workload picks it in the top bar, so Run runs what the user is looking at; picking in the bar changes only the bar. The picker remembers the workload's id and reads the workload from the project each time (`usePickedWorkload`), so a rename shows in it at once; if the project no longer has the picked workload, as after an Undo of its add, the picker shows the project's first. Edit, beside the picker, selects the picked workload. `usePickSelectedWorkload` does the picking, and only when the selection changes: a change to the project doesn't pick the selected workload again, or it would undo a pick made in the bar since.
 - **Undo and redo.** `selectionAfterUndo` keeps a selected workload while the project has it, and clears it once it doesn't; an undo or redo that brings a workload back, such as an Undo of its remove, selects it, unless a workflow or a step is selected and still there.
 
-## Adding, renaming, and removing
+## The commands
 
-Three commands in [`workload-edits.ts`](../../src/application/edits/workload-edits.ts) change which workloads a project has and what they're called. Each is pure: it takes the project record and returns the next one, and for a workload the project doesn't have, or a change that changes nothing, it returns the record it was given, so `edit` saves nothing for it ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)).
+Five commands in [`workload-edits.ts`](../../src/application/edits/workload-edits.ts) change which workloads a project has, what they're called, and their duration and seed. Each is pure: it takes the project record and returns the next one, and for a workload the project doesn't have, or a change that changes nothing, it returns the record it was given, so `edit` saves nothing for it ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)).
 
 | Command | What it changes | Undo is named | What it announces |
 |---|---|---|---|
 | `addWorkload` | Appends a workload with the editor's defaults and a new id. Its name is the first free "workload-1", "workload-2", … (`firstFreeName`, comparing names as the name check does). | "Add workload workload-1" | The bar's status regions say why it can't run: "workload-1 can't run yet: The mix has no workflows." |
 | `renameWorkload` | The name, and nothing else. | "Rename workload-1 to Lunch rush" | Nothing: the field shows it. A name that fails its check is announced from Details' region. |
 | `removeWorkload` | Takes the workload. The workflows its mix named stay as they are. | "Remove workload Lunch rush" | "Removed Lunch rush." |
-
 | `setWorkloadDuration` | `durationMs`, and nothing else: the profile keeps every point, past the new end or not. | "Change Lunch rush's duration to 45 s" | Nothing: the field shows it. |
 | `setWorkloadSeed` | `seed`, and nothing else. | "Change Lunch rush's seed to 7" | Nothing: the field shows it. |
 
@@ -118,7 +117,7 @@ sequenceDiagram
 
 ```text
 Steady day, broken
-Duration: 30 seconds. Seed: 42.
+Duration: 30 s. Seed: 42.
 Mix
   No workflows in the mix. A workload with an empty mix can't run.
 Profile (time in s, rate in requests/s)

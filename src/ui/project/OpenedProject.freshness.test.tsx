@@ -93,8 +93,8 @@ describe("OpenedProject's run when the project changes", () => {
   });
 
   // Fails if the bar draws no verdict chip beside Run once a run has
-  // finished, if the chip isn't a live region's sibling (it would announce
-  // twice), or if it doesn't carry "Out of date" after an edit.
+  // finished, if the chip is drawn inside a `role=status` region (it would
+  // announce twice), or if it doesn't carry "Out of date" after an edit.
   it("shows the verdict chip in the bar, with Out of date after an edit", async () => {
     const { runner, change } = renderProject();
     expect(within(bar()).queryByText(/Failing/)).toBeNull();

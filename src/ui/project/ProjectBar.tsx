@@ -28,7 +28,13 @@ export function ProjectBar({ undoRedo, ...run }: ProjectBarProps) {
   return (
     <div className={styles.bar}>
       <UndoControls {...undoRedo} />
-      <WorkloadControls {...run} />
+      <div className={styles.runGroup}>
+        <VerdictChip
+          chip={run.projectRun.chip}
+          outOfDate={run.projectRun.outOfDate}
+        />
+        <WorkloadControls {...run} />
+      </div>
     </div>
   );
 }
@@ -93,6 +99,24 @@ function UndoControls(props: UndoRedo) {
 function buttonText(verb: string, description: string | undefined): string {
   if (description === undefined) return verb;
   return `${verb} ${inSentence(description)}`;
+}
+
+type VerdictChipProps = Pick<ProjectRun, "chip" | "outOfDate">;
+
+/**
+ * The run's verdict beside Run, drawn only: the status line's regions still
+ * announce it, so this isn't one. The level colours it and its text says it
+ * in words; with no run, nothing is drawn. "Out of date" goes on it once the
+ * project has changed since the run.
+ */
+function VerdictChip({ chip, outOfDate }: VerdictChipProps) {
+  if (chip === undefined) return null;
+  return (
+    <p className={styles.chip} data-level={chip.level}>
+      <span>{chip.text}</span>
+      {outOfDate && <span className={styles.chipStale}>Out of date</span>}
+    </p>
+  );
 }
 
 type RunStatusProps = Pick<ProjectRun, "status" | "outOfDate">;

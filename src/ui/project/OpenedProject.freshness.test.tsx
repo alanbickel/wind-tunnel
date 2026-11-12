@@ -7,6 +7,7 @@ import type { Project } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { revealButton } from "./testing/canvas-panels";
 import {
+  bar,
   clickRun,
   renderOpenedProject as renderProject,
   status,
@@ -89,6 +90,27 @@ describe("OpenedProject's run when the project changes", () => {
     expect(
       within(runTab()).getByRole("heading", { name: "Failing so far" }),
     ).toBeTruthy();
+  });
+
+  // Fails if the bar draws no verdict chip beside Run once a run has
+  // finished, if the chip is drawn inside a `role=status` region (it would
+  // announce twice), or if it doesn't carry "Out of date" after an edit.
+  it("shows the verdict chip in the bar, with Out of date after an edit", async () => {
+    const { runner, change } = renderProject();
+    expect(within(bar()).queryByText(/Failing/)).toBeNull();
+    clickRun();
+    runner.send(throttledSecond(1));
+    await runner.finish();
+
+    const chip = within(bar()).getByText(/^Failing so far · \d+\.\d%$/);
+    expect(chip.closest("[data-level]")?.getAttribute("data-level")).toBe(
+      "failing",
+    );
+    expect(chip.closest("[role=status]")).toBeNull();
+
+    change(withTableNamed("Orders"));
+
+    expect(chip.parentElement?.textContent).toContain("Out of date");
   });
 
   // Fails if a finished run puts no status on the components (useProjectRun

@@ -8,6 +8,8 @@ import {
   ranModelOf,
   simulatedSec,
   statusText,
+  verdictChipOf,
+  type VerdictChipText,
 } from "./run-status";
 import { runBadgesOf, type RunBadges } from "./run-badges";
 import { useRunFindings, type RunMeaning } from "./useRunFindings";
@@ -34,6 +36,8 @@ export interface ProjectRun {
   readonly meaning: RunMeaning | undefined;
   /** The status line's text; empty before the first run. */
   readonly status: string;
+  /** The verdict chip beside Run; undefined with no run to show. */
+  readonly chip: VerdictChipText | undefined;
   /**
    * True while the latest run's copy of the project differs from the
    * project in what makes its results (ADR-0018); false before the first.
@@ -55,11 +59,7 @@ export function useProjectRun(project: Project): ProjectRun {
   const [picked, pick] = usePickedWorkload(project);
   const ranModel = ranModelOf(run.phase);
   const meaning = useRunFindings({ ran: ranModel, received: run });
-  const status = statusText({
-    phase: run.phase,
-    seconds: simulatedSec(run.snapshots),
-    verdict: currentVerdict(meaning),
-  });
+  const { status, chip } = runWords(run, meaning);
   // Memoized, so the two projects are compared when either changes, not
   // on every snapshot.
   const outOfDate = useMemo(
@@ -76,9 +76,23 @@ export function useProjectRun(project: Project): ProjectRun {
     ran,
     meaning,
     status,
+    chip,
     outOfDate,
     badges,
   };
+}
+
+/** The run in words: the status line's text, and the verdict chip's. */
+function runWords(
+  run: SimulationRun,
+  meaning: RunMeaning | undefined,
+): Pick<ProjectRun, "status" | "chip"> {
+  const wording = {
+    phase: run.phase,
+    seconds: simulatedSec(run.snapshots),
+    verdict: currentVerdict(meaning),
+  };
+  return { status: statusText(wording), chip: verdictChipOf(wording) };
 }
 
 /** The picker's workload, and how to change it. */

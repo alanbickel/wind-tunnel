@@ -15,27 +15,56 @@
   justify-content: flex-end;
 }
 
+/* The verdict chip, then Run and the rest of its controls, at the bar's
+   end. */
+.runGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The verdict: the level colours its border, and its words say it too, so
+   colour is never the only signal. */
+.chip {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border: var(--line-width-thick) solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.chip[data-level="failing"],
+.chip[data-level="error"] {
+  border-color: var(--color-status-error);
+}
+
+.chip[data-level="degraded"] {
+  border-color: var(--color-status-warn);
+}
+
+.chip[data-level="healthy"] {
+  border-color: var(--color-status-ok);
+}
+
+.chipStale {
+  color: var(--color-status-warn);
+}
+
 /* The status line: the whole width of the bar, under its row, its items
    at the end, under the run's controls. Spaced with margins, not a column
-   gap, so an empty status takes no room. */
+   gap, so an empty status takes no room across. It always has the height of
+   one line, so a run's first status doesn't push the canvas down. */
 .line {
   flex-basis: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-}
-
-/* While every status is empty, the line takes no height either. A run
-   gives the run's status its text, so a line with progress has one. */
-.line:not(
-  :has(
-    > .status > :first-child:not(:empty),
-    > .cantRun:not(:empty),
-    > .saveStatus > :first-child:not(:empty)
-  )
-) {
-  margin-block: 0;
+  min-block-size: 1lh;
 }
 
 .line > * {

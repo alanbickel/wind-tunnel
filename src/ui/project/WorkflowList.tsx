@@ -110,6 +110,7 @@ const SHOWN_WORKFLOW: KindHandlers<Selection, string | undefined> = {
   edge: () => undefined,
   workflow: ({ workflowId }) => workflowId,
   step: ({ workflowId }) => workflowId,
+  workload: () => undefined,
   "new-workflow": () => undefined,
   finding: () => undefined,
 };

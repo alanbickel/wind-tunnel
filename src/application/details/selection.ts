@@ -3,13 +3,13 @@ import type { FindingKey } from "../run-analysis/findings/finding";
 /**
  * What the user has selected on a project screen (UX design §4.1). The
  * screen holds one selection or none; it isn't saved with the project.
- * Workloads join the union as they become selectable.
  */
 export type Selection =
   | ComponentSelection
   | EdgeSelection
   | WorkflowSelection
   | StepSelection
+  | WorkloadSelection
   | NewWorkflowSelection
   | FindingSelection;
 
@@ -29,6 +29,12 @@ export interface EdgeSelection {
 export interface WorkflowSelection {
   readonly kind: "workflow";
   readonly workflowId: string;
+}
+
+/** A workload, by its id. */
+export interface WorkloadSelection {
+  readonly kind: "workload";
+  readonly workloadId: string;
 }
 
 /**

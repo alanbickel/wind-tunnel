@@ -6,7 +6,8 @@ import type { SettingFieldDescriptor } from "./field-descriptor";
  * What the Details tab shows for a selection, worded here so every screen
  * that shows it says the same thing.
  */
-export type Details = ComponentDetails | EdgeDetails | WorkflowDetails;
+export type Details =
+  ComponentDetails | EdgeDetails | WorkflowDetails | WorkloadDetails;
 
 /** One setting, read-only. */
 export interface SettingDetails {
@@ -205,4 +206,66 @@ export interface StepMoves {
 export interface StepCall {
   readonly workflowName: string;
   readonly action: StepAction;
+}
+
+/**
+ * A workload, read-only: its name, duration, and seed, its mix with each
+ * entry's share, and its profile with a note on each point past the run's
+ * end, each with the issues that are on it (UX design §2.7). A workload is
+ * its name on screen, and a mix entry its workflow's name, never an id.
+ */
+export interface WorkloadDetails {
+  readonly kind: "workload";
+  readonly workloadId: string;
+  readonly name: string;
+  readonly durationSec: number;
+  readonly seed: number;
+  readonly mix: MixDetails;
+  readonly profile: ProfileDetails;
+}
+
+/** A workload's mix: its rows, what they add up to, and its own issues. */
+export interface MixDetails {
+  /** In stored order. */
+  readonly rows: readonly MixRowDetails[];
+  /**
+   * What an empty mix says: "No workflows in the mix. A workload with an
+   * empty mix can't run."; undefined when there are rows.
+   */
+  readonly emptyText: string | undefined;
+  /** "Shares total 100%"; undefined when there are no shares to add up. */
+  readonly totalText: string | undefined;
+  /** The mix's own issues, such as an empty mix, as sentences. */
+  readonly issues: readonly string[];
+}
+
+/** One mix entry. */
+export interface MixRowDetails {
+  /** The workflow's name; for one the project no longer has, what says so. */
+  readonly workflowName: string;
+  /** Whether the project no longer has the workflow. */
+  readonly workflowGone: boolean;
+  readonly weight: number;
+  /** "80.0%"; undefined when the mix has no positive weights to divide. */
+  readonly shareText: string | undefined;
+  /** The entry's issues, as sentences. */
+  readonly issues: readonly string[];
+}
+
+/** A workload's profile: its rows, and its own issues. */
+export interface ProfileDetails {
+  /** In stored order. */
+  readonly rows: readonly ProfileRowDetails[];
+  /** The profile's own issues, such as having no points, as sentences. */
+  readonly issues: readonly string[];
+}
+
+/** One profile point: a time and the rate the run aims for there. */
+export interface ProfileRowDetails {
+  readonly timeSec: number;
+  readonly requestsPerSec: number;
+  /** What a point past the run's end says; undefined for any other. */
+  readonly note: string | undefined;
+  /** The point's issues, as sentences. */
+  readonly issues: readonly string[];
 }

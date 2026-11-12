@@ -12,6 +12,8 @@ import type { FieldCatalog } from "../details/field-descriptor";
 import type { Selection } from "../details/selection";
 import { workflowDetails } from "../details/workflow-details";
 import { workflowRunChecks } from "../run-checks/workflow-run-checks";
+import { workloadRunCheck } from "../run-checks/workload-run-checks";
+import { workloadDetails } from "../details/workload-details";
 
 export interface DescribeSelectionDependencies {
   /** Each type's display name and default config, and what a step's issues are checked against. */
@@ -32,7 +34,8 @@ export interface DescribeSelectionInput {
  * defaults, what an editor needs, and what calls it; an edge's defaults are
  * its caller type's. For a workflow, or a step in one, the workflow's
  * outline, each step with its run issues, and the workloads that use it.
- * Undefined if the project has no such item, or for a new workflow, which
+ * For a workload, its values, its mix with shares, and its profile, each
+ * issue on its row. Undefined if the project has no such item, or for a new workflow, which
  * isn't an item yet, or for a finding, which has no Details.
  */
 export class DescribeSelection {
@@ -63,6 +66,8 @@ export class DescribeSelection {
         }),
       step: ({ workflowId, stepId }) =>
         describeWorkflow({ project, registry, id: workflowId, stepId }),
+      workload: ({ workloadId }) =>
+        this.describeWorkload({ project, id: workloadId }),
       // A draft has no details to describe: the UI shows it.
       "new-workflow": () => undefined,
       // A finding has no Details: it marks its component on the diagram.
@@ -82,6 +87,15 @@ export class DescribeSelection {
       fields: fields.get(type),
       displayNameOf: (other) => registry.get(other)?.displayName ?? other,
     });
+  }
+
+  /** The workload, read-only, with its own issues where they are. */
+  private describeWorkload({ project, id }: ItemInput): Details | undefined {
+    const workload = project.workloads.find((w) => w.id === id);
+    if (workload === undefined) return undefined;
+    const { registry } = this.deps;
+    const { ownIssues } = workloadRunCheck({ project, registry, workload });
+    return workloadDetails({ project, workload, issues: ownIssues });
   }
 
   /** The edge, with its caller type's edge defaults and their evidence. */

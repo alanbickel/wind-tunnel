@@ -6,6 +6,7 @@ import {
 import type { Project, Workload } from "../../domain/model/project";
 import type { StepIssue, WorkloadIssue } from "../../domain/model/run-issue";
 import type { ValidationIssue } from "../../domain/model/validation-issue";
+import { problemCount } from "./problem-count";
 import {
   runIssueNames,
   stepIssueKey,
@@ -20,6 +21,13 @@ export interface WorkloadRunCheck {
   readonly workloadId: string;
   /** True when nothing stops a run of it. */
   readonly canRun: boolean;
+  /**
+   * The workload's own issues, with their paths and as sentences: its mix
+   * and its profile, not the workflows' steps. They show where they are.
+   */
+  readonly ownIssues: readonly ValidationIssue[];
+  /** "1 problem", "2 problems": one per own issue; undefined for none. */
+  readonly problems: string | undefined;
   /**
    * Each issue that stops it, worded by name, with its path into the
    * project: the workload's own, then those of the workflows in its mix.
@@ -97,8 +105,9 @@ function checkOf(at: CheckInput, names: RunIssueNames): WorkloadRunCheck {
   const { workload, runIssues } = at;
   const own = runIssues.workloads.get(workload.id) ?? [];
   const steps = mixStepIssues(at);
+  const ownIssues = own.map((issue) => ownIssue(issue, names));
   const issues = [
-    ...own.map((issue) => ownIssue(issue, names)),
+    ...ownIssues,
     ...steps.map((owned) => stepIssue(owned, names)),
   ];
   const reasons = [
@@ -109,7 +118,16 @@ function checkOf(at: CheckInput, names: RunIssueNames): WorkloadRunCheck {
   const summary = canRun
     ? ""
     : `${workload.name} can't run yet: ${reasons.join(" ")}`;
-  return { workloadId: workload.id, canRun, issues, reasons, summary };
+  const problems = problemCount(ownIssues.length);
+  return {
+    workloadId: workload.id,
+    canRun,
+    ownIssues,
+    problems,
+    issues,
+    reasons,
+    summary,
+  };
 }
 
 /** The step issues of each workflow in the mix, once each, in mix order. */

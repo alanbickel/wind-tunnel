@@ -24,7 +24,7 @@ export interface SelectChange {
 }
 
 /**
- * Clears the selection, whose component, edge, workflow, or step the undo
+ * Clears the selection, whose component, edge, workflow, step, or workload the undo
  * or redo took away.
  */
 export interface ClearChange {
@@ -38,12 +38,12 @@ export interface KeepChange {
 
 /**
  * The selection after an undo or a redo (UX design §4.1). A selected
- * workflow or step that's still there stays selected, so its outline shows
- * what the undo did to its steps' issues. Otherwise, one that brings back
+ * workflow, step, or workload that's still there stays selected, so its
+ * outline, or its rows, show what the undo did to its issues. Otherwise, one that brings back
  * a component, as undoing its remove does, selects it; one that brings
  * back only an edge selects the edge. One that takes away the selected
- * component, edge, workflow, or step clears the selection: a step goes
- * when it leaves its workflow, or its workflow goes. Anything else keeps it.
+ * component, edge, workflow, step, or workload clears the selection: a
+ * step goes when it leaves its workflow, or its workflow goes. Anything else keeps it.
  */
 export function selectionAfterUndo({
   from,
@@ -70,6 +70,7 @@ const OUTLASTS_BRINGING_BACK: Record<Selection["kind"], boolean> = {
   edge: false,
   workflow: true,
   step: true,
+  workload: true,
   "new-workflow": false,
   // The run's finding stays, whatever the undo does to the project.
   finding: true,
@@ -105,7 +106,7 @@ function firstNew<T extends Identified>(
   return items.find((item) => !ids.has(item.id));
 }
 
-/** Whether the project has the selected component, edge, workflow, or step. */
+/** Whether the project has the selected component, edge, workflow, step, or workload. */
 function isIn(project: Project, selection: Selection): boolean {
   return handleKind(PRESENCE, selection)(project);
 }
@@ -133,6 +134,10 @@ const PRESENCE: KindHandlers<Selection, (project: Project) => boolean> = {
       );
     },
   // A draft isn't in the project, and an undo doesn't touch it.
+  workload:
+    ({ workloadId }) =>
+    ({ workloads }) =>
+      workloads.some((w) => w.id === workloadId),
   "new-workflow": () => () => true,
   // A finding is of the run, not the project.
   finding: () => () => true,

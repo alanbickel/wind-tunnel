@@ -1,4 +1,12 @@
-import { memo, useCallback, useId, useMemo, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from "react";
 import { flushSync } from "react-dom";
 import { nameOf } from "../../application/details/name-of";
 import type { Selection } from "../../application/details/selection";
@@ -84,6 +92,9 @@ function barParts({ screen, cantRunReasonId }: BarPartsInput): BarParts {
         onRunStart={() => {
           selecting.showInspector(true);
         }}
+        onEditWorkload={({ id }) => {
+          selecting.select({ kind: "workload", workloadId: id });
+        }}
       />
     ),
     status: (
@@ -152,6 +163,7 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   const projectRun = useProjectRun(edits.record.project);
   const panels = useCanvasPanels();
   const selecting = useSelection(panels.reveal);
+  usePickSelectedWorkload({ edits, projectRun, selecting });
   const changes = useAddAndRemove(edits, selecting);
   const undoRedo = useUndoRedo(edits, selecting);
   useUndoShortcuts(undoRedo);
@@ -173,6 +185,37 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   });
   const held = { edits, projectRun, selecting, undoRedo };
   return { ...held, remove, covered, architecture };
+}
+
+/** What picking the selected workload needs. */
+interface PickSelectedWorkloadInput {
+  readonly edits: ProjectEdits;
+  readonly selecting: ProjectSelection;
+  readonly projectRun: ProjectRun;
+}
+
+/**
+ * Picks a workload in the project bar when it's selected, so Run runs what
+ * the user is looking at (UX design §2.7 step 1). The link is one way, and
+ * only a selection follows it: picking in the bar changes no selection, and
+ * a change to the project doesn't pick again, so it doesn't undo a pick.
+ */
+function usePickSelectedWorkload(input: PickSelectedWorkloadInput): void {
+  const { selecting, projectRun } = input;
+  const { selection } = selecting;
+  const { pick } = projectRun;
+  const projectRef = useRef(input.edits.record.project);
+  useEffect(() => {
+    projectRef.current = input.edits.record.project;
+  });
+  useEffect(() => {
+    if (selection?.kind !== "workload") return;
+    const { workloadId } = selection;
+    const workload = projectRef.current.workloads.find(
+      (w) => w.id === workloadId,
+    );
+    if (workload !== undefined) pick(workload);
+  }, [selection, pick]);
 }
 
 /**

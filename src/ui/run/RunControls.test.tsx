@@ -20,6 +20,7 @@ function renderControls(running: boolean): Clicks {
       workloads={workloads}
       workload={workload}
       onPick={() => undefined}
+      onEdit={() => undefined}
       checks={new Map()}
       cantRunReasonId="reason"
       running={running}

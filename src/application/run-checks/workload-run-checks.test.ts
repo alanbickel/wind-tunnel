@@ -25,6 +25,8 @@ describe("workloadRunChecks", () => {
     expect(checks.get("steady")).toEqual({
       workloadId: "steady",
       canRun: true,
+      ownIssues: [],
+      problems: undefined,
       issues: [],
       reasons: [],
       summary: "",
@@ -32,6 +34,9 @@ describe("workloadRunChecks", () => {
     expect(checks.get("write-rush")).toEqual({
       workloadId: "write-rush",
       canRun: false,
+      // The workflow's step issue isn't the workload's own.
+      ownIssues: [],
+      problems: undefined,
       issues: [
         {
           path: ["workflows", 1, "root", "calls", 0, "calls", 0, "componentId"],
@@ -75,6 +80,12 @@ describe("workloadRunChecks", () => {
     expect(check?.summary).toBe(
       "Write rush can't run yet: The profile has no points. Write item and Write again call a component that isn't in the architecture any more.",
     );
+    // Fails if the problem count includes the workflows' step issues: the
+    // workload's row would count problems Details shows on its steps.
+    expect(check?.problems).toBe("1 problem");
+    expect(check?.ownIssues.map((issue) => issue.message)).toEqual([
+      "The profile has no points.",
+    ]);
     expect(check?.issues.map((issue) => issue.message)).toEqual([
       "The profile has no points.",
       "Write item calls a component that isn't in the architecture any more.",

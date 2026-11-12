@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   DURATION_FIELD,
+  RATE_FIELD,
   SEED_FIELD,
+  TIME_FIELD,
   WEIGHT_FIELD,
 } from "../../application/details/workload-fields";
 import { sampleRecord } from "../../application/testing/sample-record";
@@ -73,5 +75,36 @@ describe("the workload fields' ranges", () => {
     expect(storedWeight(-5)).toBe(false);
     expect(storedWeight(0.5)).toBe(true);
     expect(storedWeight(1e9)).toBe(true);
+  });
+
+  /** Whether the stored schema accepts the sample with its first point set. */
+  function storedPoint(point: {
+    atSec: number;
+    requestsPerSec: number;
+  }): boolean {
+    const document = toProjectDocument(sampleRecord);
+    const [workload] = document.workloads;
+    if (workload === undefined) throw new Error("The sample has a workload");
+    const changed = {
+      ...document,
+      workloads: [{ ...workload, profile: [point] }],
+    };
+    return projectDocumentV2Schema.safeParse(changed).success;
+  }
+
+  // Fails if the time or rate descriptor's range disagrees with the stored
+  // schema: 0 must pass and -1 must fail, for each, and there's no top.
+  it("agree with the stored schema for a profile point", () => {
+    for (const field of [TIME_FIELD, RATE_FIELD]) {
+      expect(field.range).toEqual({
+        min: 0,
+        minExclusive: false,
+        max: undefined,
+      });
+    }
+    expect(storedPoint({ atSec: 0, requestsPerSec: 0 })).toBe(true);
+    expect(storedPoint({ atSec: 1e9, requestsPerSec: 1e9 })).toBe(true);
+    expect(storedPoint({ atSec: -1, requestsPerSec: 1 })).toBe(false);
+    expect(storedPoint({ atSec: 1, requestsPerSec: -1 })).toBe(false);
   });
 });

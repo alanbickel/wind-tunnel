@@ -53,6 +53,99 @@ export function checkWeightDraft(text: string): DraftCheck<number> {
   return checkNumberDraft(text, settingRule(WEIGHT_FIELD));
 }
 
+/** When a profile point applies: seconds from the start, 0 or more. */
+export const TIME_FIELD: RangedFieldDescriptor = {
+  key: "timeSec",
+  label: "Time",
+  unit: "s",
+  kind: "number",
+  range: { min: 0, minExclusive: false, max: undefined },
+  help: "When this point applies, in seconds from the start of the run.",
+};
+
+/** The target arrival rate at a profile point's time, 0 or more. */
+export const RATE_FIELD: RangedFieldDescriptor = {
+  key: "requestsPerSec",
+  label: "Rate",
+  unit: "requests/s",
+  kind: "number",
+  range: { min: 0, minExclusive: false, max: undefined },
+  help: "The target arrival rate at this time. Requests arrive at random, so a given second may get more or fewer. The rate follows a straight line from one point to the next, and holds before the first point and after the last.",
+};
+
+/** What the time field says when its draft is below 0. */
+export const NEGATIVE_TIME_TEXT = "Time can't be negative.";
+
+/** What the rate field says when its draft is below 0. */
+export const NEGATIVE_RATE_TEXT = "Rate can't be negative.";
+
+/** What a time field says when another point is at the time typed. */
+export function timeTakenText(timeSec: number): string {
+  return `Another point is already at ${String(timeSec)} s.`;
+}
+
+/** A draft that must be 0 or more, and what it says when it's below 0. */
+interface NonNegativeInput {
+  readonly text: string;
+  readonly field: RangedFieldDescriptor;
+  readonly negativeText: string;
+}
+
+/** A number draft that must be 0 or more; below 0 says `negativeText`. */
+function checkNonNegativeDraft({
+  text,
+  field,
+  negativeText,
+}: NonNegativeInput): DraftCheck<number> {
+  // The range is left open below, so a negative number reaches the one
+  // sentence this field says for it.
+  const range = {
+    min: Number.NEGATIVE_INFINITY,
+    minExclusive: false,
+    max: undefined,
+  };
+  const check = checkNumberDraft(text, { ...settingRule(field), range });
+  if (check.status === "fails" || check.value >= 0) return check;
+  return { status: "fails", message: negativeText };
+}
+
+/** A rate draft, checked: a number, 0 or more. */
+export function checkRateDraft(text: string): DraftCheck<number> {
+  return checkNonNegativeDraft({
+    text,
+    field: RATE_FIELD,
+    negativeText: NEGATIVE_RATE_TEXT,
+  });
+}
+
+/** A point's time and the times of the other points. */
+export interface TimeDraftInput {
+  readonly text: string;
+  /** The other points' times, in seconds. */
+  readonly otherTimesSec: readonly number[];
+}
+
+/**
+ * A time draft, in seconds, checked: a number, 0 or more, and not another
+ * point's time, because a line can't have two rates at one moment. A passing
+ * check holds the seconds typed.
+ */
+export function checkTimeDraft({
+  text,
+  otherTimesSec,
+}: TimeDraftInput): DraftCheck<number> {
+  const check = checkNonNegativeDraft({
+    text,
+    field: TIME_FIELD,
+    negativeText: NEGATIVE_TIME_TEXT,
+  });
+  if (check.status === "fails") return check;
+  const timeMs = durationMsOf(check.value);
+  const taken = otherTimesSec.some((other) => durationMsOf(other) === timeMs);
+  if (!taken) return check;
+  return { status: "fails", message: timeTakenText(check.value) };
+}
+
 /**
  * Seconds as the stored milliseconds. Rounded to 12 significant digits, so
  * the drift of a product such as 1.005 × 1000 (1004.9999999999999) doesn't

@@ -8,6 +8,7 @@ import type {
   WorkloadDetails,
 } from "./details";
 import { mixShares, shareText } from "./mix-shares";
+import { profileLine } from "./profile-line";
 import { profileNotes } from "./profile-notes";
 import { workloadRemovalText } from "./removal-text";
 
@@ -132,7 +133,9 @@ function profileDetails({
   const { profile, durationMs } = workload;
   const notes = profileNotes({ profile, durationMs });
   return {
+    line: profileLine(workload),
     rows: profile.map(({ atMs, requestsPerSec }, index): ProfileRowDetails => ({
+      atMs,
       timeSec: atMs / 1000,
       requestsPerSec,
       note: notes[index],

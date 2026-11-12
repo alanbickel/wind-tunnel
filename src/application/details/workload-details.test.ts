@@ -48,6 +48,7 @@ describe("a workload's details", () => {
     expect([details.durationSec, details.seed]).toEqual([45, 7]);
     expect(details.mix.rows).toEqual([
       {
+        workflowId: "read",
         workflowName: "Read item",
         workflowGone: false,
         weight: 4,
@@ -150,6 +151,38 @@ describe("a workload's details", () => {
       workflowName: WORKFLOW_GONE_TEXT,
       workflowGone: true,
     });
+  });
+
+  // Fails if "Add to mix" offers a workflow already in the mix, skips one
+  // that isn't, or lists them out of project order.
+  it("offers the workflows not in the mix, in project order", () => {
+    const names = ["a", "b", "c"];
+    const workflows = names.map((id) => ({ id, name: id, root: read.root }));
+    const details = workloadIn({
+      ...withWorkload({ mix: [{ workflowId: "b", weight: 1 }] }),
+      workflows,
+    });
+
+    expect(details.mix.addable).toEqual([
+      { workflowId: "a", name: "a" },
+      { workflowId: "c", name: "c" },
+    ]);
+    expect(details.mix.addUnusableText).toBeUndefined();
+  });
+
+  // Fails if the two reasons "Add to mix" can't offer anything swap or go
+  // unsaid.
+  it("says why nothing can be added", () => {
+    const full = workloadIn(
+      withWorkload({ mix: [{ workflowId: "read", weight: 1 }] }),
+    );
+    const none = workloadIn({ ...withWorkload({ mix: [] }), workflows: [] });
+
+    expect(full.mix.addable).toEqual([]);
+    expect(full.mix.addUnusableText).toBe(
+      "Every workflow is already in the mix.",
+    );
+    expect(none.mix.addUnusableText).toBe("Add a workflow first.");
   });
 
   // Fails if an empty profile's issue lands on a row, or is dropped.

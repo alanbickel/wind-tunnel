@@ -1,27 +1,28 @@
 import { useId } from "react";
 import type {
-  MixDetails,
-  MixRowDetails,
   ProfileDetails,
   ProfileRowDetails,
   WorkloadDetails,
 } from "../../application/details/details";
 import type { Edit } from "./useProjectEdits";
 import { WorkloadValueFields } from "./fields/WorkloadValueFields";
+import { MixSection } from "./MixSection";
+import { markOf } from "./mark-of";
+import { Issues, type TableProps } from "./WorkloadParts";
 import styles from "./WorkloadView.module.css";
 
 export interface WorkloadViewProps {
   readonly details: WorkloadDetails;
-  /** Saves a change to the duration or the seed. */
+  /** Saves a change to the duration, the seed, or the mix. */
   readonly onEdit: (edit: Edit) => void;
   readonly announce: (message: string) => void;
 }
 
 /**
- * A workload: its duration and seed as fields, then its mix with shares and
- * its profile as tables of times and rates, which are read-only until their
- * own pieces (UX design §2.7). Each issue is said on the row it belongs to,
- * or on its section's own.
+ * A workload: its duration and seed as fields, then its mix, which is
+ * edited, and its profile as a table of times and rates, which is read-only
+ * until its own piece (UX design §2.7). Each issue is said on the row it
+ * belongs to, or on its section's own.
  */
 export function WorkloadView({ details, onEdit, announce }: WorkloadViewProps) {
   return (
@@ -31,106 +32,9 @@ export function WorkloadView({ details, onEdit, announce }: WorkloadViewProps) {
         onEdit={onEdit}
         announce={announce}
       />
-      <MixSection mix={details.mix} />
+      <MixSection details={details} onEdit={onEdit} announce={announce} />
       <ProfileSection profile={details.profile} />
     </div>
-  );
-}
-
-interface IssuesProps {
-  readonly messages: readonly string[];
-}
-
-/** Sentences about a section or a row. */
-function Issues({ messages }: IssuesProps) {
-  return messages.map((message, index) => (
-    <p key={index} className={styles.issue}>
-      {message}
-    </p>
-  ));
-}
-
-/** The class that marks a section or a row with issues. */
-function markOf(messages: readonly string[]): string | undefined {
-  return messages.length > 0 ? styles.cantRun : undefined;
-}
-
-interface MixSectionProps {
-  readonly mix: MixDetails;
-}
-
-/** The mix's rows, or what an empty one says, and the shares' total. */
-function MixSection({ mix }: MixSectionProps) {
-  const headingId = useId();
-  return (
-    <section aria-labelledby={headingId} className={markOf(mix.issues)}>
-      <h5 id={headingId} className={styles.sectionHeading}>
-        Mix
-      </h5>
-      {/* An empty mix's words already say its problem, so it isn't said twice. */}
-      {mix.emptyText === undefined ? (
-        <Issues messages={mix.issues} />
-      ) : (
-        <p className={styles.issue}>{mix.emptyText}</p>
-      )}
-      <MixTable mix={mix} labelledBy={headingId} />
-      {mix.totalText !== undefined && (
-        <p className={styles.total}>{mix.totalText}</p>
-      )}
-    </section>
-  );
-}
-
-interface TableProps {
-  /** The id of the heading that names the table. */
-  readonly labelledBy: string;
-}
-
-interface MixTableProps extends TableProps {
-  readonly mix: MixDetails;
-}
-
-/** The mix's entries as a table; nothing for an empty mix. */
-function MixTable({ mix, labelledBy }: MixTableProps) {
-  if (mix.rows.length === 0) return null;
-  return (
-    <table className={styles.table} aria-labelledby={labelledBy}>
-      <thead>
-        <tr>
-          <th scope="col">Workflow</th>
-          <th scope="col" className={styles.number}>
-            Weight
-          </th>
-          <th scope="col" className={styles.number}>
-            Share
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {mix.rows.map((row, index) => (
-          <MixRow key={index} row={row} />
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-interface MixRowProps {
-  readonly row: MixRowDetails;
-}
-
-/** One mix entry: its workflow's name, weight, and share, then its issues. */
-function MixRow({ row }: MixRowProps) {
-  const { workflowName, weight, shareText, issues } = row;
-  return (
-    <tr className={markOf(issues)}>
-      <th scope="row">
-        {workflowName}
-        <Issues messages={issues} />
-      </th>
-      <td className={styles.number}>{weight}</td>
-      <td className={styles.number}>{shareText ?? "–"}</td>
-    </tr>
   );
 }
 

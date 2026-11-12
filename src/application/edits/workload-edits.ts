@@ -151,6 +151,92 @@ export function setWorkloadSeed(
   });
 }
 
+/** A workload, and the workflow to add to its mix. */
+export interface AddToMixInput {
+  readonly workloadId: string;
+  readonly workflowId: string;
+}
+
+/** What a new mix entry weighs: the same as any other entry that hasn't been set. */
+export const NEW_MIX_WEIGHT = 1;
+
+/**
+ * Appends an entry for a workflow to a workload's mix, at weight 1. A
+ * workflow the mix already has, or the project doesn't, returns the record
+ * as it was: the screen offers neither, and a command shouldn't rely on its
+ * caller. Undo, not a later `removeFromMix`, is what brings back an entry's
+ * weight and place.
+ */
+export function addToMix(
+  record: ProjectRecord,
+  { workloadId, workflowId }: AddToMixInput,
+): ProjectRecord {
+  if (!record.project.workflows.some((w) => w.id === workflowId)) return record;
+  return changeWorkload(record, {
+    workloadId,
+    change: (w) =>
+      w.mix.some((entry) => entry.workflowId === workflowId)
+        ? w
+        : { ...w, mix: [...w.mix, { workflowId, weight: NEW_MIX_WEIGHT }] },
+  });
+}
+
+/** A mix entry, by its workflow, and the weight to give it. */
+export interface SetMixWeightInput {
+  readonly workloadId: string;
+  readonly workflowId: string;
+  readonly weight: number;
+}
+
+/**
+ * Sets the weight of a workload's mix entry for a workflow. Nothing else
+ * changes, the entry's place included. An entry that isn't there, or the
+ * weight it already has, returns the record as it was. Of a stored mix that
+ * repeats a workflow, the first entry is the one it sets.
+ */
+export function setMixWeight(
+  record: ProjectRecord,
+  { workloadId, workflowId, weight }: SetMixWeightInput,
+): ProjectRecord {
+  return changeWorkload(record, {
+    workloadId,
+    change: (w) => {
+      const index = w.mix.findIndex((entry) => entry.workflowId === workflowId);
+      const entry = w.mix[index];
+      if (entry === undefined || entry.weight === weight) return w;
+      const mix = w.mix.map((e) => (e === entry ? { ...e, weight } : e));
+      return { ...w, mix };
+    },
+  });
+}
+
+/** A mix entry to remove, by its workflow. */
+export interface RemoveFromMixInput {
+  readonly workloadId: string;
+  readonly workflowId: string;
+}
+
+/**
+ * Removes a workload's mix entry for a workflow; the other entries keep
+ * their weights and order. An entry that isn't there returns the record as
+ * it was. Removing the last entry leaves an empty mix, which is allowed:
+ * the workload can't run until it has one. Of a stored mix that repeats a
+ * workflow, the first entry is the one it removes.
+ */
+export function removeFromMix(
+  record: ProjectRecord,
+  { workloadId, workflowId }: RemoveFromMixInput,
+): ProjectRecord {
+  return changeWorkload(record, {
+    workloadId,
+    change: (w) => {
+      const index = w.mix.findIndex((entry) => entry.workflowId === workflowId);
+      if (index < 0) return w;
+      return { ...w, mix: w.mix.filter((_, i) => i !== index) };
+    },
+  });
+}
+
 /**
  * The record with one workload replaced by what `change` makes of it. If
  * the project has no such workload, or `change` returns it as it was, the

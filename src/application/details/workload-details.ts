@@ -27,6 +27,12 @@ export const WORKFLOW_GONE_TEXT =
 export const EMPTY_MIX_TEXT =
   "No workflows in the mix. A workload with an empty mix can't run.";
 
+/** What "Add to mix" says when every workflow is already in the mix. */
+export const ALL_IN_MIX_TEXT = "Every workflow is already in the mix.";
+
+/** What "Add to mix" says when the project has no workflows. */
+export const NO_WORKFLOWS_TEXT = "Add a workflow first.";
+
 /**
  * A workload's details: its values, its mix with shares that add to
  * exactly 100.0%, and its profile with a note on each point past the run's
@@ -86,6 +92,7 @@ function mixDetails({ project, workload, issues }: WorkloadDetailsInput) {
     const name = workflowNames.get(entry.workflowId);
     const share = shares?.[index];
     return {
+      workflowId: entry.workflowId,
       workflowName: name ?? WORKFLOW_GONE_TEXT,
       workflowGone: name === undefined,
       weight: entry.weight,
@@ -93,13 +100,28 @@ function mixDetails({ project, workload, issues }: WorkloadDetailsInput) {
       issues: rows.get(index) ?? [],
     };
   });
+  const inMix = new Set(workload.mix.map((entry) => entry.workflowId));
+  const addable = project.workflows
+    .filter((w) => !inMix.has(w.id))
+    .map((w) => ({ workflowId: w.id, name: w.name }));
   const details: MixDetails = {
     rows: mixRows,
     emptyText: mixRows.length === 0 ? EMPTY_MIX_TEXT : undefined,
     totalText: shares && "Shares total 100%",
     issues: own,
+    addable,
+    addUnusableText: addUnusableText(project, addable.length),
   };
   return details;
+}
+
+/** Why nothing can be added to the mix, or undefined if something can. */
+function addUnusableText(
+  project: Project,
+  addableCount: number,
+): string | undefined {
+  if (addableCount > 0) return undefined;
+  return project.workflows.length === 0 ? NO_WORKFLOWS_TEXT : ALL_IN_MIX_TEXT;
 }
 
 function profileDetails({

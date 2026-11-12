@@ -17,6 +17,7 @@ import {
   setWorkloadSeed,
 } from "../../../application/edits/workload-edits";
 import type { Edit } from "../useProjectEdits";
+import { commitNumber } from "./commit-number";
 import type { FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
 import { TextField } from "./TextField";
@@ -122,29 +123,4 @@ function WorkloadNumberField(props: WorkloadNumberFieldProps) {
       </p>
     </div>
   );
-}
-
-interface CommitNumberInput extends Omit<WorkloadNumberFieldProps, "check"> {
-  /** The draft, checked. */
-  readonly check: DraftCheck<number>;
-  /** Puts back the saved number. */
-  readonly reset: () => void;
-}
-
-/**
- * Saves the number if the draft passes and differs; announces its message
- * if it fails. The same number, such as "45.0" for 45, saves nothing and
- * shows the saved number.
- */
-function commitNumber(input: CommitNumberInput): void {
-  const { check, saved, save, announce, reset } = input;
-  if (check.status === "fails") {
-    announce(check.message);
-    return;
-  }
-  if (check.value === saved) {
-    reset();
-    return;
-  }
-  save(check.value);
 }

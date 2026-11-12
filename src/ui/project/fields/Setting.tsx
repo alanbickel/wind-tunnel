@@ -9,6 +9,7 @@ import type {
 import { sameContent } from "../../../application/run-analysis/same-content";
 import type { KindHandlers } from "../../../domain/shared/kind-handlers";
 import { Button } from "../../shared/Button";
+import { Explained } from "../../shared/Explained";
 import { dispatchKind } from "../../shared/kind-dispatch";
 import { DistributionField } from "./DistributionField";
 import type { FieldProps } from "./field-parts";
@@ -23,9 +24,12 @@ export interface SettingProps extends FieldProps {
 }
 
 /**
- * One setting: its field, its help, and its default with Reset beside it.
- * It saves and resets through `save` and `reset`, so it serves a
- * component's settings and an edge's alike.
+ * One setting: its field with Reset beside it, and an info control that
+ * opens its help and its default's evidence. Reset stays out of the info
+ * content so it's reachable without opening anything. The help and the
+ * default note stay in the DOM while hidden, so they still describe the
+ * field to a screen reader. It saves and resets through `save` and
+ * `reset`, so it serves a component's settings and an edge's alike.
  */
 export function Setting(props: SettingProps) {
   const { setting, reset, ...fieldProps } = props;
@@ -35,11 +39,24 @@ export function Setting(props: SettingProps) {
     setting.defaultNote === undefined ? helpId : `${helpId} ${defaultId}`;
   return (
     <div className={styles.setting}>
-      <SettingField setting={setting} helpId={describedBy} {...fieldProps} />
-      <p id={helpId} className={styles.help}>
-        {setting.help}
-      </p>
-      <DefaultLine id={defaultId} setting={setting} reset={reset} />
+      <Explained
+        title={
+          <>
+            <SettingField
+              setting={setting}
+              helpId={describedBy}
+              {...fieldProps}
+            />
+            <ResetButton setting={setting} reset={reset} />
+          </>
+        }
+        subject={setting.label}
+      >
+        <p id={helpId} className={styles.help}>
+          {setting.help}
+        </p>
+        <DefaultNote id={defaultId} setting={setting} />
+      </Explained>
     </div>
   );
 }
@@ -101,28 +118,37 @@ function ReadOnlySetting({ setting }: ReadOnlySettingProps) {
   );
 }
 
-interface DefaultLineProps {
+interface DefaultNoteProps {
   readonly id: string;
+  readonly setting: SettingDetails;
+}
+
+/** "Default 16: an assumption (RDS-2)." */
+function DefaultNote({ id, setting }: DefaultNoteProps) {
+  if (setting.defaultNote === undefined) return null;
+  return (
+    <p id={id} className={styles.default}>
+      {setting.defaultNote}
+    </p>
+  );
+}
+
+interface ResetButtonProps {
   readonly setting: SettingDetails;
   readonly reset: () => void;
 }
 
-/** "Default 16: an assumption (RDS-2)." and a button that resets to it. */
-function DefaultLine({ id, setting, reset }: DefaultLineProps) {
+/** A button that puts the setting's default back; nothing if it has no default or no field. */
+function ResetButton({ setting, reset }: ResetButtonProps) {
   const { editor, defaultNote } = setting;
-  if (defaultNote === undefined) return null;
+  if (defaultNote === undefined || editor === undefined) return null;
   return (
-    <p className={styles.default}>
-      <span id={id}>{defaultNote}</span>
-      {editor !== undefined && (
-        <Button
-          usable={!sameContent(editor.value, editor.defaultValue)}
-          label={`Reset to default: ${setting.label}`}
-          onClick={reset}
-        >
-          Reset to default
-        </Button>
-      )}
-    </p>
+    <Button
+      usable={!sameContent(editor.value, editor.defaultValue)}
+      label={`Reset to default: ${setting.label}`}
+      onClick={reset}
+    >
+      Reset to default
+    </Button>
   );
 }

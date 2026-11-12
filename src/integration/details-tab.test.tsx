@@ -26,6 +26,10 @@ import { UseCasesProvider } from "../ui/app/UseCasesProvider";
 import { stubDiagramBrowserApis } from "../ui/diagram/testing/stub-diagram-browser-apis";
 import { OpenedProject } from "../ui/project/OpenedProject";
 import { TEST_SHELL, revealButton } from "../ui/project/testing/canvas-panels";
+import {
+  describedByIds,
+  explanationOf,
+} from "../ui/shared/testing/explanation-of";
 import { preloadBeforeAll } from "../ui/shared/testing/preload-before-all";
 import { stubWindowWidth } from "../ui/shared/testing/stub-window-width";
 
@@ -156,6 +160,57 @@ describe("the Details tab, for the templates", () => {
       "Query workers",
       "Query time",
     ]);
+  });
+
+  // Fails if a setting's help or default evidence shows before its info
+  // control is opened, the control doesn't open and close it, the hidden
+  // help stops describing the field, or Reset to default needs the control
+  // opened first.
+  it("keeps a setting's help and default behind its info control, still describing the field", () => {
+    renderProject(projectA);
+    selectFromText("orders-db (RDS)");
+    const info = within(detailsTab()).getByRole("button", {
+      name: "About Max connections",
+    });
+    // The explanation the control opens: the help paragraph and the default note.
+    const { explanation, paragraphId } = explanationOf(info);
+
+    expect(explanation.textContent).toMatch(/max_connections/);
+    expect(describedByIds(field("Max connections"))).toContain(paragraphId);
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+    expect(explanation.hidden).toBe(true);
+    expect(description(field("Max connections"))).toMatch(
+      /Default 90: an assumption \(RDS-1\)\.$/,
+    );
+    expect(
+      within(detailsTab()).getByRole("button", {
+        name: "Reset to default: Max connections",
+      }),
+    ).toBeTruthy();
+
+    fireEvent.click(info);
+    expect(info.getAttribute("aria-expanded")).toBe("true");
+    expect(explanation.hidden).toBe(false);
+
+    fireEvent.click(info);
+    expect(explanation.hidden).toBe(true);
+  });
+
+  // Fails if Escape in a field beside an open info control closes Details
+  // instead of the help, or doesn't move the focus to the info button.
+  it("closes an open help first on Escape from its field, keeping Details", () => {
+    renderProject(projectA);
+    selectFromText("orders-db (RDS)");
+    const info = within(detailsTab()).getByRole("button", {
+      name: "About Max connections",
+    });
+    fireEvent.click(info);
+
+    fireEvent.keyDown(field("Max connections"), { key: "Escape" });
+
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(info);
+    expect(screen.getByRole("tabpanel", { name: "Details" })).toBeTruthy();
   });
 
   // Fails if Escape leaves the selection, keeps Details showing, or drops

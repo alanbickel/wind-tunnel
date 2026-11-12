@@ -44,6 +44,11 @@
   --color-divider: light-dark(#dde1e6, #2e333c);
   --color-focus-ring: light-dark(#0b62d6, #8ab4ff);
   --color-diagram-edge: light-dark(#7d8590, #7d8590);
+  /* The canvas's dots: seen against the canvas, but quieter than a box. */
+  --color-diagram-grid: light-dark(#b3bac4, #3d434f);
+  /* The edge of a surface floating over the canvas. A shade clearer than a
+     divider, so a panel stands off the canvas in dark mode too. */
+  --color-floating-edge: light-dark(#c2c8d0, #475060);
 
   /* Status, as text or as a dot beside a label: never color alone. */
   --color-status-ok: light-dark(#15712f, #3fb950);
@@ -86,6 +91,14 @@
   --radius-sm: 4px;
   --radius-md: 8px;
 
+  /* A surface floating over the canvas (the inspector, the canvas panels,
+     the rail): one radius, border, and shadow. The shadow is darker in the
+     dark theme, where a light one wouldn't show. */
+  --floating-radius: var(--radius-md);
+  --floating-border: var(--line-width) solid var(--color-floating-edge);
+  --floating-shadow: 0 var(--space-1) var(--space-3)
+    light-dark(rgb(0 0 0 / 0.16), rgb(0 0 0 / 0.6));
+
   /* Line widths: borders and rules; thick for the focus ring and accents. */
   --line-width: 1px;
   --line-width-thick: 2px;
@@ -113,7 +126,10 @@
   --number-field-width: 9ch;
   --text-field-width: 24ch;
   /* The icon on a component's card on the diagram. */
-  --node-icon-size: 1.5rem;
+  --node-icon-size: 2rem;
+  /* A component's card: wide enough for a name like "Order service" at the
+     body size, with its badge full width beneath. */
+  --node-card-width: 13rem;
   /* The shape on a status badge: a circle, triangle, or square, beside its word. */
   --badge-shape-size: 0.75em;
   /* The window's height, less any browser toolbars showing. */

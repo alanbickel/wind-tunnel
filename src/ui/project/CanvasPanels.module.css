@@ -21,8 +21,9 @@
   max-width: 100%;
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
-  border: var(--line-width) solid var(--color-divider);
-  border-radius: var(--radius-md);
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
 }
 
 .panel > :first-child {

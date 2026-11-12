@@ -14,6 +14,15 @@
 .inspector {
   width: var(--run-panel-min-width);
   max-width: calc(100% - 2 * var(--space-4));
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
+}
+
+/* The panel inside takes the floating edge, not the divider a panel has on
+   the page. */
+.inspector .body > * {
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
 }
 
 /* Collapsed: a narrow strip on the right edge, its button read top to
@@ -21,8 +30,9 @@
 .collapsed {
   padding: var(--space-2) var(--space-1);
   background: var(--color-surface);
-  border: var(--line-width) solid var(--color-divider);
-  border-radius: var(--radius-md);
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
 }
 
 .collapsed button {

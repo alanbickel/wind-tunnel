@@ -1,0 +1,19 @@
+A new workload
+  0/200
+Add a point at 10 s to Lunch rush's profile
+  0/200  10/200
+Add a point at 20 s to Lunch rush's profile
+  0/200  10/200  20/200
+Change Lunch rush's rate at 20 s to 2000 requests/s
+  0/200  10/200  20/2000
+Add a point at 30 s to Lunch rush's profile
+  0/200  10/200  20/2000  30/2000
+Change Lunch rush's point at 30 s to 40 s
+  0/200  10/200  20/2000  40/2000
+Add a point at 50 s to Lunch rush's profile
+  0/200  10/200  20/2000  40/2000  50/2000
+Change Lunch rush's rate at 50 s to 200 requests/s
+  0/200  10/200  20/2000  40/2000  50/200
+Change Lunch rush's point at 20 s to 45 s
+  0/200  10/200  40/2000  45/2000  50/200
+  Announced: Moved to row 4 of 5.

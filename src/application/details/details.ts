@@ -1,6 +1,7 @@
 import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { StepAction } from "../../domain/model/project";
 import type { SettingFieldDescriptor } from "./field-descriptor";
+import type { ProfileLine } from "./profile-line";
 
 /**
  * What the Details tab shows for a selection, worded here so every screen
@@ -275,10 +276,14 @@ export interface ProfileDetails {
   readonly rows: readonly ProfileRowDetails[];
   /** The profile's own issues, such as having no points, as sentences. */
   readonly issues: readonly string[];
+  /** What the preview chart draws, from the committed points. */
+  readonly line: ProfileLine;
 }
 
 /** One profile point: a time and the rate the run aims for there. */
 export interface ProfileRowDetails {
+  /** The point's time as stored, which a command names it by. */
+  readonly atMs: number;
   readonly timeSec: number;
   readonly requestsPerSec: number;
   /** What a point past the run's end says; undefined for any other. */

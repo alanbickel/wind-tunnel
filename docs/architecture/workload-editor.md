@@ -1,6 +1,6 @@
 # The Workload Editor
 
-How a workload gets from the project document to what the screen shows, for maintainers new to the code. A workload is the traffic: which workflows run, in what mix, at what rate over time, for how long, from which seed ([UX design §8](../design/user-experience.md#8-workloads)). Today the screen lists a project's workloads, adds, renames, and removes them, and shows a selected one's duration and seed as fields, its mix as an editable table, and its profile read-only, in Details; the piece that edits the profile ([#184](https://github.com/alanbickel/wind-tunnel/issues/184)) extends this guide. A workload isn't a workflow: [the workflow editor](workflow-editor.md) says how workflows work, and the two meet at "Used by" (a workflow's Details names the workloads whose mix has it) and at the mix entries a removed workflow takes with it. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workload gets from the project document to what the screen shows, for maintainers new to the code. A workload is the traffic: which workflows run, in what mix, at what rate over time, for how long, from which seed ([UX design §8](../design/user-experience.md#8-workloads)). Today the screen lists a project's workloads, adds, renames, and removes them, and shows a selected one's duration and seed as fields, its mix and its profile as editable tables, the profile with a chart of its line, in Details. A workload isn't a workflow: [the workflow editor](workflow-editor.md) says how workflows work, and the two meet at "Used by" (a workflow's Details names the workloads whose mix has it) and at the mix entries a removed workflow takes with it. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workload, three ways
 
@@ -44,7 +44,7 @@ The issues the project bar says (`WorkloadRunCheck.issues`) are these plus the s
 
 ## The commands
 
-Five commands in [`workload-edits.ts`](../../src/application/edits/workload-edits.ts) change which workloads a project has, what they're called, and their duration and seed. Each is pure: it takes the project record and returns the next one, and for a workload the project doesn't have, or a change that changes nothing, it returns the record it was given, so `edit` saves nothing for it ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)).
+The commands in [`workload-edits.ts`](../../src/application/edits/workload-edits.ts) change which workloads a project has, what they're called, and their duration and seed. Each is pure: it takes the project record and returns the next one, and for a workload the project doesn't have, or a change that changes nothing, it returns the record it was given, so `edit` saves nothing for it ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md)).
 
 | Command | What it changes | Undo is named | What it announces |
 |---|---|---|---|
@@ -57,7 +57,11 @@ Five commands in [`workload-edits.ts`](../../src/application/edits/workload-edit
 | `setMixWeight` | One entry's `weight`, and nothing else: the entry keeps its place. An entry that isn't there, or the weight it has, returns the record unchanged. | "Change Get order's weight in Lunch rush to 80" | Nothing: the field and the shares show it. |
 | `removeFromMix` | Takes one entry; the others keep their weights and order. The last one may go, leaving an empty mix. | "Remove Get order from Lunch rush's mix" | Nothing: the focus goes to the next row's weight, or to "Add to mix". |
 
-#184 adds its commands to this table. The commands that change a workload share a private `changeWorkload`, which finds the workload, applies the change, and returns the record itself when the workload is missing or the change changes nothing. The mix commands name an entry by its workflow's id. A stored mix that repeats a workflow (a run issue, so only a hand-edited document has one) has two entries with one id; `setMixWeight` and `removeFromMix` act on the first, so the user can remove the repeats one at a time.
+| `addProfilePoint` | Adds a point in its place in time order, at the rate the line already has at its time. By default it's 10 s after the last point, at its rate. A time another point has returns the record unchanged. | "Add a point at 10 s to Lunch rush's profile" | Nothing: the new row's time field takes the focus. |
+| `setProfilePoint` | A point's time or its rate. A new time moves the point, rate and all, to its place; the other points keep their times and rates. A time another point has, a missing point, or no change returns the record unchanged. | "Change Lunch rush's rate at 50 s to 200 requests/s", or "Change Lunch rush's point at 50 s to 55 s" | "Moved to row 4 of 5." when the row changed. |
+| `removeProfilePoint` | Takes one point. The only point stays: the record comes back unchanged. | "Remove the point at 50 s from Lunch rush's profile" | Nothing: the focus goes to the next row's time field, or to "Add point". |
+
+The commands that change a workload share a private `changeWorkload`, which finds the workload, applies the change, and returns the record itself when the workload is missing or the change changes nothing. The mix commands name an entry by its workflow's id. A stored mix that repeats a workflow (a run issue, so only a hand-edited document has one) has two entries with one id; `setMixWeight` and `removeFromMix` act on the first, so the user can remove the repeats one at a time.
 
 ## Duration and seed
 
@@ -89,6 +93,35 @@ A share is an entry's weight over the total, shown to a tenth of a percent. Roun
 ### The relation from both sides
 
 A workload names workflows (its mix); a workflow is "used by" the workloads whose mix has it ([the workflow editor's guide](workflow-editor.md#removing-a-workflow)). Removing a workflow takes its entries out of every mix (`removeWorkflow`), and the remaining shares re-sum to 100.0% because they're computed from what's left. **Undo needs no extra code:** the history step holds the whole record from before, so the workflow returns with its entries at their old weights and places. `removeFromMix` then `addToMix` is not an undo: the entry returns last, at weight 1. Only Undo restores weight and place. The workflow removal's confirmation still says "Lunch rush runs it; it leaves its mix."
+
+## The profile
+
+[`ProfileSection`](../../src/ui/project/ProfileSection.tsx) edits a workload's profile in Details: a read-only chart of the line, then a table of the points, then "Add point". Each row has a Time (s) field, a Rate (requests/s) field, any note or issues, and "Remove". The fields are drafts like the mix's, with their descriptors, `TIME_FIELD` and `RATE_FIELD`, in `workload-fields.ts`: both 0 or more (checked against the stored schema in `workload-field-ranges.test.ts`), and a time can't be another point's.
+
+- **A point is addressed by its time**, what the user sees, not by its index: a change of time re-sorts the profile, so an index would name another point afterwards. Time is unique in any profile the commands make (`addProfilePoint` and `setProfilePoint` refuse a taken time), so a point needs no stored id. A stored profile can have two points at one time (a run issue). The screen can't tell them apart, so the commands act on the first, and the user can fix it by changing the first's time, or removing it ([`workload-profile-edits.test.ts`](../../src/application/edits/workload-profile-edits.test.ts) and the screen's test do each).
+- **`application/` owns the order.** The commands sort (`inTimeOrder`), and the UI never does. The field only refuses what's wrong with the number, or a duplicate time, with its message. `rowAfterMove` tells the screen where a point will land, to move the focus there and to say "Moved to row 4 of 5." only when the row changed; it counts the earlier points, as the command's sort does. A stored profile that's out of order is shown in stored order, with its issue on the row, and the first edit to it sorts it.
+- **Rows are keyed by time** (`pointKeys`), so a point that moves is a new row with a draft of its own, and the focus goes to its time field in its new place (`useProfileFocus`, as `useMixFocus` does for the mix). Remove moves the focus to the next row's time field, or to "Add point" after the last. The only point's Remove stays focusable but unusable, and says "A profile needs at least one point."
+- **Undo** puts the whole record back, so a moved point returns to its old place at its old rate. The focus isn't moved by Undo: it stays where the user pressed it.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant F as Time field (ui)
+    participant C as setProfilePoint (application)
+    participant E as useProjectEdits (ui)
+    participant T as Table (ui)
+    User->>F: types 45 over the 20 s row, Enter
+    F->>F: checkTimeDraft: a number, 0 or more, not another point's time
+    F->>F: rowAfterMove: row 4 of 5, so focus.after(3) and "Moved to row 4 of 5."
+    F->>E: edit(setProfilePoint at 20 s to 45 s), named "Change Lunch rush's point at 20 s to 45 s"
+    E->>C: command(record)
+    C->>C: replaces the point, then sorts all of them: 0, 10, 40, 45, 50
+    C-->>E: the next record (the history keeps the one before)
+    E-->>T: draws the rows: the moved point is a new row, keyed 45 s
+    T-->>User: the focus is on its time field, row 4; the status region says "Moved to row 4 of 5."
+```
+
+- **The chart** ([`ProfileChart`](../../src/ui/charts/ProfileChart.tsx)) is a picture of what the run reads, labeled "Request rate over time", with the end marked "Run ends at 60 s". `profileLine` makes its vertices, and takes every rate from the engine's `rateAt`, so the chart and the run can't disagree; its test compares them at several times. It's drawn from the committed table values, not from a draft in a field, so it changes when a command saves. Points past the end are drawn dashed and muted after the marker, and their rows carry the note. The chart has a short label and nothing to focus: the table is its accessible version. Dragging points is out of scope.
 
 ## A point past the run's end
 
@@ -144,4 +177,14 @@ Profile (time in s, rate in requests/s)
   0  200
   60  200
     After the run's end (30 s). Arrivals follow the line toward this point, and the run stops at 30 s.
+```
+
+[`workload-profile-sequence.txt`](../../src/adapters/templates/details/workload-profile-sequence.txt) is the "Lunch rush" profile of [UX design §8](../design/user-experience.md#8-workloads), built from a new workload's one point by the commands the screen runs, with the table (`time/rate`) after each. A test writes it and fails when it goes stale (the same `--update`). The last step is the move above:
+
+```text
+Change Lunch rush's rate at 50 s to 200 requests/s
+  0/200  10/200  20/2000  40/2000  50/200
+Change Lunch rush's point at 20 s to 45 s
+  0/200  10/200  40/2000  45/2000  50/200
+  Announced: Moved to row 4 of 5.
 ```

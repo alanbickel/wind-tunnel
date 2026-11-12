@@ -189,10 +189,19 @@ describe("OpenedProject's workloads", () => {
         .value,
     ).toBe("1");
     expect(within(details).getByText("Shares total 100%")).toBeTruthy();
-    expect(rowsOf(profile)).toEqual([
-      ["Time (s)", "Rate (requests/s)", "Notes"],
-      ["0", "20", ""],
+    const [heads] = rowsOf(profile);
+    expect(heads).toEqual([
+      "Point",
+      "Time (s)",
+      "Rate (requests/s)",
+      "Notes",
+      "Actions",
     ]);
+    expect(
+      within(profile as HTMLElement)
+        .getAllByRole<HTMLInputElement>("textbox")
+        .map((input) => input.value),
+    ).toEqual(["0", "20"]);
     expect(details.textContent).not.toMatch(/\bread\b/);
   });
 
@@ -212,7 +221,7 @@ describe("OpenedProject's workloads", () => {
     ).toBeTruthy();
     expect(within(details).queryByText(/Shares total/)).toBeNull();
     const [profile] = within(details).getAllByRole("table");
-    expect(rowsOf(profile).map((row) => row[2])).toEqual([
+    expect(rowsOf(profile).map((row) => row[3])).toEqual([
       "Notes",
       "",
       "After the run's end (4 s). Arrivals follow the line toward this point, and the run stops at 4 s.",

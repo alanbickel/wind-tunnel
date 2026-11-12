@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Project, Workload } from "../../domain/model/project";
 import type { ProjectRecord } from "../ports/project-record";
 import { sampleRecord } from "../testing/sample-record";
-import { addWorkload, removeWorkload, renameWorkload } from "./workload-edits";
+import {
+  addWorkload,
+  removeWorkload,
+  renameWorkload,
+  setWorkloadDuration,
+  setWorkloadSeed,
+} from "./workload-edits";
 
 /** A deep copy, to check later that a command left its input alone. */
 function copyOf(record: ProjectRecord): ProjectRecord {
@@ -134,5 +140,86 @@ describe("removeWorkload", () => {
   // become an undo step, for nothing.
   it("returns the same record for a workload the project doesn't have", () => {
     expect(removeWorkload(record, { workloadId: "gone" })).toBe(record);
+  });
+});
+
+describe("setWorkloadDuration", () => {
+  // Fails if the duration isn't set, or the command changes the profile
+  // (a point now past the end must stay), the mix, another workload,
+  // anything else in the record, or the input.
+  it("sets the duration, and nothing else", () => {
+    const before = copyOf(sampleRecord);
+
+    const next = setWorkloadDuration(sampleRecord, {
+      workloadId: "steady",
+      durationMs: 45_000,
+    });
+
+    expect(next.project.workloads).toEqual([{ ...steady, durationMs: 45_000 }]);
+    expect(next.project.workloads[0]?.profile).toBe(steady.profile);
+    expect(next.project.workflows).toBe(sampleRecord.project.workflows);
+    expect(next.layout).toBe(sampleRecord.layout);
+    expect(sampleRecord).toEqual(before);
+  });
+
+  // Fails if the first workload is changed rather than the one named.
+  it("changes the workload it names, not its neighbors", () => {
+    const next = setWorkloadDuration(recordWith("A", "B"), {
+      workloadId: "w1",
+      durationMs: 500,
+    });
+
+    expect(next.project.workloads.map((w) => w.durationMs)).toEqual([
+      steady.durationMs,
+      500,
+    ]);
+  });
+
+  // Fails if the value it already has, or a workload the project doesn't
+  // have, returns a new record: it would save, and become an undo step, for
+  // nothing.
+  it("returns the same record for the same value, or no such workload", () => {
+    expect(
+      setWorkloadDuration(sampleRecord, {
+        workloadId: "steady",
+        durationMs: steady.durationMs,
+      }),
+    ).toBe(sampleRecord);
+    expect(
+      setWorkloadDuration(sampleRecord, { workloadId: "gone", durationMs: 1 }),
+    ).toBe(sampleRecord);
+  });
+});
+
+describe("setWorkloadSeed", () => {
+  // Fails if the seed isn't set, or the command changes the duration, the
+  // mix, the profile, another workload, anything else in the record, or
+  // the input.
+  it("sets the seed, and nothing else", () => {
+    const before = copyOf(sampleRecord);
+
+    const next = setWorkloadSeed(sampleRecord, {
+      workloadId: "steady",
+      seed: 7,
+    });
+
+    expect(next.project.workloads).toEqual([{ ...steady, seed: 7 }]);
+    expect(next.project.workflows).toBe(sampleRecord.project.workflows);
+    expect(next.layout).toBe(sampleRecord.layout);
+    expect(sampleRecord).toEqual(before);
+  });
+
+  // Fails if the value it already has, or a workload the project doesn't
+  // have, returns a new record.
+  it("returns the same record for the same value, or no such workload", () => {
+    expect(
+      setWorkloadSeed(sampleRecord, {
+        workloadId: "steady",
+        seed: steady.seed,
+      }),
+    ).toBe(sampleRecord);
+    expect(setWorkloadSeed(sampleRecord, { workloadId: "gone", seed: 1 })).toBe(
+      sampleRecord,
+    );
   });
 });

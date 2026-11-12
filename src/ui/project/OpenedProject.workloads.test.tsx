@@ -170,9 +170,15 @@ describe("OpenedProject's workloads", () => {
     selectFromList("Steady");
 
     const details = screen.getByRole("tabpanel", { name: "Details" });
-    const text = details.textContent;
-    expect(text).toContain("Duration5 seconds");
-    expect(text).toContain("Seed1");
+    expect(
+      within(details).getByRole<HTMLInputElement>("textbox", {
+        name: "Duration",
+      }).value,
+    ).toBe("5");
+    expect(
+      within(details).getByRole<HTMLInputElement>("textbox", { name: "Seed" })
+        .value,
+    ).toBe("1");
     const [mix, profile] = within(details).getAllByRole("table");
     expect(rowsOf(mix)).toEqual([
       ["Workflow", "Weight", "Share"],
@@ -183,7 +189,7 @@ describe("OpenedProject's workloads", () => {
       ["Time (s)", "Rate (requests/s)", "Notes"],
       ["0", "20", ""],
     ]);
-    expect(text).not.toContain("read");
+    expect(details.textContent).not.toContain("read");
   });
 
   // Fails if a stored empty mix isn't said once on the mix, and in the bar, or

@@ -109,3 +109,69 @@ describe("PoissonArrivalProcess", () => {
     expect(gets).toBeLessThan(8_200);
   });
 });
+
+// The design's "What the profile does past the duration" row.
+describe("a profile point past the run's end", () => {
+  const toward = [
+    { atMs: 40_000, requestsPerSec: 2_000 },
+    { atMs: 50_000, requestsPerSec: 200 },
+  ];
+  const cutAt45s = (profile: Workload["profile"]) =>
+    workload({ durationMs: 45_000, profile });
+
+  // Fails if the rate near the end is read from the point at 40 s (2,000)
+  // or the point past the end (200) rather than the line between them.
+  it("still sets the rate on the line toward it", () => {
+    expect(rateAt(toward, 45_000)).toBe(1_100);
+  });
+
+  // Fails if the run doesn't follow the line until it stops: from 40 s to
+  // 45 s the rate falls from 2,000 to 1,100, so about 7,750 arrive, not
+  // the 10,000 a flat 2,000 would give, and none arrive after 45 s.
+  it("makes arrivals follow the line until the run stops", () => {
+    const times = arrivals(process(cutAt45s(toward)));
+    const lastFiveSeconds = times.filter((t) => t >= 40_000);
+    // A Poisson count of 7,750 has a standard deviation of about 88.
+    expect(lastFiveSeconds.length).toBeGreaterThan(7_400);
+    expect(lastFiveSeconds.length).toBeLessThan(8_100);
+    expect(times.at(-1)).toBeLessThan(45_000);
+  });
+
+  // Fails if a point after the first one past the end changes an arrival
+  // although it doesn't raise the highest rate: the engine draws
+  // candidates at the profile's peak, so only a higher peak moves them.
+  it("changes no arrival through later points that stay under the peak", () => {
+    const more = [
+      ...toward,
+      { atMs: 60_000, requestsPerSec: 100 },
+      { atMs: 70_000, requestsPerSec: 2_000 },
+    ];
+
+    expect(arrivals(process(cutAt45s(more)))).toEqual(
+      arrivals(process(cutAt45s(toward))),
+    );
+  });
+
+  // Fails if a point exactly at the end, on the same line, changes an
+  // arrival.
+  it("changes no arrival through a point on the line at the end", () => {
+    const withEnd = [
+      { atMs: 40_000, requestsPerSec: 2_000 },
+      { atMs: 45_000, requestsPerSec: 1_100 },
+      { atMs: 50_000, requestsPerSec: 200 },
+    ];
+
+    expect(arrivals(process(cutAt45s(withEnd)))).toEqual(
+      arrivals(process(cutAt45s(toward))),
+    );
+  });
+
+  // Fails if the same workload and seed give different runs, which is all
+  // the seed's help claims, or if the seed makes no difference.
+  it("gives the same arrivals for the same workload and seed", () => {
+    const w = cutAt45s(toward);
+
+    expect(arrivals(process(w, 9))).toEqual(arrivals(process(w, 9)));
+    expect(arrivals(process(w, 9))).not.toEqual(arrivals(process(w, 10)));
+  });
+});

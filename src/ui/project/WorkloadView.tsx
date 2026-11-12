@@ -6,26 +6,31 @@ import type {
   ProfileRowDetails,
   WorkloadDetails,
 } from "../../application/details/details";
+import type { Edit } from "./useProjectEdits";
+import { WorkloadValueFields } from "./fields/WorkloadValueFields";
 import styles from "./WorkloadView.module.css";
 
 export interface WorkloadViewProps {
   readonly details: WorkloadDetails;
+  /** Saves a change to the duration or the seed. */
+  readonly onEdit: (edit: Edit) => void;
+  readonly announce: (message: string) => void;
 }
 
 /**
- * A workload, read-only: its duration and seed, its mix with shares, and
- * its profile as a table of times and rates (UX design §2.7). Each issue is
- * said on the row it belongs to, or on its section's own.
+ * A workload: its duration and seed as fields, then its mix with shares and
+ * its profile as tables of times and rates, which are read-only until their
+ * own pieces (UX design §2.7). Each issue is said on the row it belongs to,
+ * or on its section's own.
  */
-export function WorkloadView({ details }: WorkloadViewProps) {
+export function WorkloadView({ details, onEdit, announce }: WorkloadViewProps) {
   return (
     <div>
-      <dl className={styles.values}>
-        <dt>Duration</dt>
-        <dd>{details.durationText}</dd>
-        <dt>Seed</dt>
-        <dd>{details.seed}</dd>
-      </dl>
+      <WorkloadValueFields
+        details={details}
+        onEdit={onEdit}
+        announce={announce}
+      />
       <MixSection mix={details.mix} />
       <ProfileSection profile={details.profile} />
     </div>

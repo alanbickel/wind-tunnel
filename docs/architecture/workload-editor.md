@@ -1,6 +1,6 @@
 # The Workload Editor
 
-How a workload gets from the project document to what the screen shows, for maintainers new to the code. A workload is the traffic: which workflows run, in what mix, at what rate over time, for how long, from which seed ([UX design §8](../design/user-experience.md#8-workloads)). Today the screen lists a project's workloads, adds, renames, and removes them, and shows a selected one's duration, seed, mix, and profile read-only in Details; the pieces that edit those ([#182](https://github.com/alanbickel/wind-tunnel/issues/182) to [#184](https://github.com/alanbickel/wind-tunnel/issues/184)) extend this guide. A workload isn't a workflow: [the workflow editor](workflow-editor.md) says how workflows work, and the two meet at "Used by" (a workflow's Details names the workloads whose mix has it) and at the mix entries a removed workflow takes with it. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workload gets from the project document to what the screen shows, for maintainers new to the code. A workload is the traffic: which workflows run, in what mix, at what rate over time, for how long, from which seed ([UX design §8](../design/user-experience.md#8-workloads)). Today the screen lists a project's workloads, adds, renames, and removes them, and shows a selected one's duration and seed as fields, and its mix and profile read-only, in Details; the pieces that edit those ([#183](https://github.com/alanbickel/wind-tunnel/issues/183) and [#184](https://github.com/alanbickel/wind-tunnel/issues/184)) extend this guide. A workload isn't a workflow: [the workflow editor](workflow-editor.md) says how workflows work, and the two meet at "Used by" (a workflow's Details names the workloads whose mix has it) and at the mix entries a removed workflow takes with it. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workload, three ways
 
@@ -52,7 +52,31 @@ Three commands in [`workload-edits.ts`](../../src/application/edits/workload-edi
 | `renameWorkload` | The name, and nothing else. | "Rename workload-1 to Lunch rush" | Nothing: the field shows it. A name that fails its check is announced from Details' region. |
 | `removeWorkload` | Takes the workload. The workflows its mix named stay as they are. | "Remove workload Lunch rush" | "Removed Lunch rush." |
 
-#182 to #184 add their commands to this table.
+| `setWorkloadDuration` | `durationMs`, and nothing else: the profile keeps every point, past the new end or not. | "Change Lunch rush's duration to 45 s" | Nothing: the field shows it. |
+| `setWorkloadSeed` | `seed`, and nothing else. | "Change Lunch rush's seed to 7" | Nothing: the field shows it. |
+
+#183 and #184 add their commands to this table. Both new commands share a private `changeWorkload`, which finds the workload, applies the change, and returns the record itself when the workload is missing or the change changes nothing.
+
+## Duration and seed
+
+Details starts with two draft number fields, `WorkloadValueFields`, built from the parts a component's settings use: `useDraft`, `TextField`, `fieldKeys`, `describedBy`. Each commits on Enter or on leaving the field, puts the saved value back on Escape, checks on every render, and keeps a refused value in the field with its message tied to it by `aria-describedby`. A refused value never reaches a command.
+
+| Field | Range | Where the range comes from | Message |
+|---|---|---|---|
+| Duration, in s | more than 0, no upper limit | The stored schema's `durationSec: z.number().positive()` | "Duration must be more than 0 s." |
+| Seed | a whole number, 0 to 4,294,967,295 | The stored schema's seed: an integer in the engine's 32 bits | "Seed must be a whole number from 0 to 4,294,967,295." |
+
+- **Descriptors without evidence.** [`workload-fields.ts`](../../src/application/details/workload-fields.ts) holds the two descriptors, a `RangedFieldDescriptor`: a label, unit, range, and help, and no `evidence`. A component setting's descriptor says how sure its default is, with a fidelity entry; these are the model's and the editor's choices, not claims about AWS, so there's nothing to cite and **fidelity.md has no entry for them**. The schema stays the authority: [`workload-field-ranges.test.ts`](../../src/adapters/persistence/workload-field-ranges.test.ts) feeds each end of each range, and a value just past it, to the stored schema.
+- **Seconds typed, milliseconds held.** The user enters seconds, as the stored document holds them, and the domain holds milliseconds. `durationMsOf` converts, rounded to 12 significant digits so 1.005 s is 1,005 ms and not 1,004.9999999999999. The check returns the seconds typed, so the field compares it with the saved seconds and "45.0" is no change.
+- **One message for the seed.** Whatever is wrong with a seed draft, the field says the range once, since "must be a whole number" and "at most 4,294,967,295" would both be true of 1.5e10 and say less than the range does.
+- **The run.** Editing the workload that ran makes the run on screen out of date; editing another doesn't ([ADR-0018](../adr/0018-tie-a-run-to-the-model-it-ran.md), which compares the workload the run used).
+
+## A point past the run's end
+
+A profile point after the duration is allowed: not a run issue, and not a floor the duration field enforces, so shortening a duration never refuses a value the user can see is valid, and never edits the profile. Its row gets the [note](#a-workload-three-ways). What the engine does with it ([UX design §8](../design/user-experience.md#8-workloads), "A point after it is allowed"), pinned by tests in [`arrivals.test.ts`](../../src/domain/engine/arrivals.test.ts):
+
+- **The slope.** The rate is read from the line between points, so a point past the end still sets the rate before it. With 2,000 requests/s at 40 s and 200 at 50 s, a 45 s duration has a rate near 45 s of 1,100, not 2,000 and not 200, and the last five seconds send about 7,750 requests, not the 10,000 a flat 2,000 would.
+- **The draws.** `PoissonArrivalProcess` draws candidates at the *highest rate of any point*, then keeps each with probability rate over peak. A later point that doesn't raise the peak changes no arrival; one that does changes the draws (not the rate) of the whole run. The same workload and seed still give the same run, which is all the seed's help claims.
 
 **The defaults** are 60 s, seed 42, an empty mix, and one profile point: 0 s at 100 requests/s. `addWorkload` is the only place that writes them, as named constants (`NEW_WORKLOAD_DURATION_MS`, …). They're the editor's choices, an assumption, not a claim about any system.
 

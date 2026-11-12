@@ -307,7 +307,11 @@ const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
   workload: (details: WorkloadDetails) => (context) => (
     <div key={details.workloadId}>
       <WorkloadNameField details={details} {...context} />
-      <WorkloadView details={details} />
+      <WorkloadView
+        details={details}
+        onEdit={context.onEdit}
+        announce={context.announce}
+      />
     </div>
   ),
 };

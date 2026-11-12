@@ -1,4 +1,8 @@
-import type { Verdict } from "../../application/run-analysis/findings/verdict";
+import type {
+  Verdict,
+  VerdictLevel,
+} from "../../application/run-analysis/findings/verdict";
+import { shareDown } from "../../application/run-analysis/number-format";
 import type { MetricsSnapshot } from "../../domain/metrics/metrics-snapshot";
 import type { Workload } from "../../domain/model/project";
 import { handleStatus, type StatusHandlers } from "../shared/status-handlers";
@@ -38,6 +42,55 @@ function statusTexts({
       `Stopped ${workload.name} after ${String(seconds)} of ${String(durationSec(workload))} simulated seconds.${title}`,
     failed: ({ workload, problem }) => `${workload.name} failed: ${problem}`,
   };
+}
+
+/** What colours the verdict chip: the verdict's level, or the run's state. */
+export type ChipLevel = VerdictLevel | "running" | "error";
+
+/** The verdict chip's words, and the level that colours them. */
+export interface VerdictChipText {
+  readonly level: ChipLevel;
+  /** E.g. "Failing · 43.7%", "Healthy", or "Running · 5 of 20 s". */
+  readonly text: string;
+}
+
+/**
+ * The chip beside Run: the verdict, with the share of answered requests
+ * that failed when it's failing (the share the Run tab's summary gives);
+ * the run's progress while it goes; nothing before the first run, or until
+ * a finished run's verdict has caught up.
+ */
+export function verdictChipOf(
+  input: StatusTextInput,
+): VerdictChipText | undefined {
+  return handleStatus(chipTexts(input), input.phase);
+}
+
+function chipTexts({
+  seconds,
+  verdict,
+}: StatusTextInput): StatusHandlers<RunPhase, VerdictChipText | undefined> {
+  return {
+    idle: () => undefined,
+    running: ({ workload }) => ({
+      level: "running",
+      text: `Running · ${String(seconds)} of ${String(durationSec(workload))} s`,
+    }),
+    finished: () => chipOfVerdict(verdict),
+    stopped: () => chipOfVerdict(verdict),
+    failed: () => ({ level: "error", text: "Run failed" }),
+  };
+}
+
+function chipOfVerdict(
+  verdict: Verdict | undefined,
+): VerdictChipText | undefined {
+  if (verdict === undefined) return undefined;
+  const { level, title, requests } = verdict;
+  const answered = requests.succeeded + requests.failed;
+  if (level !== "failing" || answered === 0) return { level, text: title };
+  const share = shareDown(requests.failed / answered);
+  return { level, text: `${title} · ${share}` };
 }
 
 /**

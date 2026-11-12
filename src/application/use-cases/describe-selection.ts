@@ -33,7 +33,7 @@ export interface DescribeSelectionInput {
  * its caller type's. For a workflow, or a step in one, the workflow's
  * outline, each step with its run issues, and the workloads that use it.
  * Undefined if the project has no such item, or for a new workflow, which
- * isn't an item yet.
+ * isn't an item yet, or for a finding, which has no Details.
  */
 export class DescribeSelection {
   private readonly deps: DescribeSelectionDependencies;
@@ -65,6 +65,8 @@ export class DescribeSelection {
         describeWorkflow({ project, registry, id: workflowId, stepId }),
       // A draft has no details to describe: the UI shows it.
       "new-workflow": () => undefined,
+      // A finding has no Details: it marks its component on the diagram.
+      finding: () => undefined,
     };
   }
 

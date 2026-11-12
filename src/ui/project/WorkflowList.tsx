@@ -111,6 +111,7 @@ const SHOWN_WORKFLOW: KindHandlers<Selection, string | undefined> = {
   workflow: ({ workflowId }) => workflowId,
   step: ({ workflowId }) => workflowId,
   "new-workflow": () => undefined,
+  finding: () => undefined,
 };
 
 /** What "Add workflow" says while the project has no component to call. */

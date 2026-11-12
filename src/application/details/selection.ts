@@ -1,14 +1,17 @@
+import type { FindingKey } from "../run-analysis/findings/finding";
+
 /**
  * What the user has selected on a project screen (UX design §4.1). The
  * screen holds one selection or none; it isn't saved with the project.
- * Workloads and findings join the union as they become selectable.
+ * Workloads join the union as they become selectable.
  */
 export type Selection =
   | ComponentSelection
   | EdgeSelection
   | WorkflowSelection
   | StepSelection
-  | NewWorkflowSelection;
+  | NewWorkflowSelection
+  | FindingSelection;
 
 /** A component, by its id. */
 export interface ComponentSelection {
@@ -45,4 +48,15 @@ export interface StepSelection {
  */
 export interface NewWorkflowSelection {
   readonly kind: "new-workflow";
+}
+
+/**
+ * A finding of the run on screen, by its key. Unlike the others it has no
+ * Details: it marks its component on the diagram, and the inspector stays
+ * on the Run tab. The finding is worded from the run's copy of the
+ * project (ADR-0018), so its component may be gone from the project.
+ */
+export interface FindingSelection {
+  readonly kind: "finding";
+  readonly key: FindingKey;
 }

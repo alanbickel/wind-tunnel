@@ -3,6 +3,7 @@ import { renameComponent, removeComponent } from "../edits/component-edits";
 import { removeEdge } from "../edits/edge-edits";
 import { addWorkflow } from "../edits/workflow-edits";
 import { sampleRecord } from "../testing/sample-record";
+import type { Selection } from "./selection";
 import { selectionAfterUndo } from "./selection-after-undo";
 
 const sample = sampleRecord.project;
@@ -12,6 +13,36 @@ const withoutTable = removeComponent(sampleRecord, {
 const withoutEdge = removeEdge(sampleRecord, { edgeId: "api-fn" }).project;
 
 describe("selectionAfterUndo", () => {
+  // Fails if an undo that brings a component back, or takes the finding's
+  // component away, moves or clears a selected finding: it's of the run,
+  // not the project.
+  it("keeps a selected finding through any undo", () => {
+    const finding: Selection = {
+      kind: "finding",
+      key: {
+        kind: "k",
+        componentId: "table",
+        reason: undefined,
+        limitName: undefined,
+      },
+    };
+
+    const changes = [
+      selectionAfterUndo({
+        from: withoutTable,
+        to: sample,
+        selection: finding,
+      }),
+      selectionAfterUndo({
+        from: sample,
+        to: withoutTable,
+        selection: finding,
+      }),
+    ];
+
+    expect(changes).toEqual([{ kind: "keep" }, { kind: "keep" }]);
+  });
+
   // Fails if bringing back a component and its edges selects an edge, or
   // nothing, so the undone remove isn't selected again (UX §4.1).
   it("selects a component brought back with its edges", () => {

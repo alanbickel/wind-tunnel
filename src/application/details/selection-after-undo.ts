@@ -71,6 +71,8 @@ const OUTLASTS_BRINGING_BACK: Record<Selection["kind"], boolean> = {
   workflow: true,
   step: true,
   "new-workflow": false,
+  // The run's finding stays, whatever the undo does to the project.
+  finding: true,
 };
 
 /** The projects either side of an undo or a redo. */
@@ -132,4 +134,6 @@ const PRESENCE: KindHandlers<Selection, (project: Project) => boolean> = {
     },
   // A draft isn't in the project, and an undo doesn't touch it.
   "new-workflow": () => () => true,
+  // A finding is of the run, not the project.
+  finding: () => () => true,
 };

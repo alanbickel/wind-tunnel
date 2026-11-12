@@ -73,6 +73,17 @@ const ON_ARCHITECTURE: KindHandlers<
   step: (selection) => (project) => stepOn(project, selection),
   // A draft isn't on the diagram until it's saved.
   "new-workflow": () => () => NOTHING_SHOWN,
+  // A finding rings its component, if the project still has it: the
+  // finding is worded from the run's copy, which may have had more.
+  finding:
+    ({ key }) =>
+    (project) => ({
+      ringed: {
+        ...NO_PARTS,
+        componentIds: componentsIn(project, [key.componentId]),
+      },
+      path: NO_PARTS,
+    }),
 };
 
 /** A step rings its component and the edge its call arrives on, on its workflow's path. */

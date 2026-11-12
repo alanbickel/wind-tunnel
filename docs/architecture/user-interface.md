@@ -208,7 +208,7 @@ When the run is out of date, the status line's second status region says "Out of
 - **Undo and Redo** are icon buttons (`Button`'s `icon` look, `HistoryButton` in `ProjectBar`). Each holds its icon and the same visually hidden text as before ("Undo change orders-db's query workers"), so the text is the accessible name, and it's the tooltip (`title`) too.
 - **Rename** is the project's name itself: a button inside the heading (`NameButton`, accessibly "Rename Orders API"; the heading keeps the name alone). A click or Enter on it opens the field with the draft, Enter, leaving, and Escape rules unchanged, and focus returns to the name.
 - **The workload picker** stays a styled native `<select>`: it gives the keyboard and screen-reader behaviour a menu would have to rebuild. It sizes to the picked name (`field-sizing: content`, capped), and the picked workload's run, from `workloadSummary` ("20 s · 2k req/s": duration and peak rate), shows beside it in full.
-- **Not yet moved:** the theme control and the storage hint, pending the maintainer's answer on issue #216.
+- **Not yet moved:** the theme control and the storage hint stay where they were. [Issue #222](https://github.com/alanbickel/wind-tunnel/issues/222) moves them: the theme into a `⋯` settings menu, and the hint into a strip shown only when storage has a problem.
 
 ### A workload that can't run
 

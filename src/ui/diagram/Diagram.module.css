@@ -12,7 +12,7 @@
   /* Full bleed: no border, and nothing drawn past its edges. */
   overflow: hidden;
   --xy-background-color: var(--color-bg);
-  --xy-background-pattern-color: var(--color-divider);
+  --xy-background-pattern-color: var(--color-diagram-grid);
   --xy-node-background-color: var(--color-surface);
   --xy-node-color: var(--color-text);
   --xy-node-border: var(--line-width) solid var(--color-border);
@@ -24,7 +24,8 @@
   --xy-controls-button-background-color-hover: var(--color-surface-raised);
   --xy-controls-button-color: var(--color-text);
   --xy-controls-button-color-hover: var(--color-text);
-  --xy-controls-button-border-color: var(--color-divider);
+  --xy-controls-button-border-color: var(--color-floating-edge);
+  --xy-controls-box-shadow: var(--floating-shadow);
   /* The "React Flow" link, which its maintainers ask free users to keep. */
   --xy-attribution-background-color: var(--color-surface);
 }
@@ -42,6 +43,16 @@
   margin: 0;
   padding: var(--space-4);
   color: var(--color-text-muted);
+}
+
+/* A box: React Flow's default node is 150 px wide with 12 px text. Ours is
+   as wide as --node-card-width, with room around the card and the body text
+   size, so the name reads at the fitted zoom. */
+.diagram :global(.react-flow__node-default) {
+  width: var(--node-card-width);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
 }
 
 /* React Flow colors the attribution link itself, with no custom property. */

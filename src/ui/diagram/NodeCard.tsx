@@ -13,10 +13,12 @@ import styles from "./NodeCard.module.css";
 export function NodeCard({ node }: { readonly node: DiagramNode }) {
   return (
     <div className={styles.card}>
-      <ComponentIcon type={node.icon} />
-      <div className={styles.text}>
-        <strong className={styles.name}>{node.label}</strong>
-        <small className={styles.type}>{node.caption}</small>
+      <div className={styles.heading}>
+        <ComponentIcon type={node.icon} />
+        <div className={styles.text}>
+          <strong className={styles.name}>{node.label}</strong>
+          <small className={styles.type}>{node.caption}</small>
+        </div>
       </div>
       {node.status && <StatusBadge status={node.status} />}
     </div>

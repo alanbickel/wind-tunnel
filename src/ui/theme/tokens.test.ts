@@ -68,6 +68,10 @@ const CONTRAST_RULES: readonly ContrastRule[] = [
 const DECORATIVE: Readonly<Record<string, string>> = {
   "--color-divider":
     "separates regions that already differ in content or background; chart gridlines are recessive, and each chart has a table",
+  "--color-diagram-grid":
+    "the canvas's dots mark nothing: boxes and arrows carry the information, and the text version lists them",
+  "--color-floating-edge":
+    "a floating surface's edge; its shadow and the surface's own fill also set it apart, and its content is text",
 };
 
 const THEMES: readonly ThemeName[] = ["light", "dark"];

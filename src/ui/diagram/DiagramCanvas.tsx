@@ -42,6 +42,9 @@ const MOVE_SENTENCE = "Press the arrow keys, or drag it, to move it.";
 const CONNECT_SENTENCE =
   "Drag from its right edge to another box to connect them.";
 
+/** The canvas's dots, larger than React Flow's default of 1, so they show. */
+const GRID_DOT_SIZE = 2;
+
 interface FitViewOnResizeProps {
   readonly coveredRightPx: number;
 }
@@ -103,7 +106,7 @@ export function DiagramCanvas({
       fitView
       fitViewOptions={OPENING_FIT}
     >
-      <Background />
+      <Background size={GRID_DOT_SIZE} />
       {/* At the left edge's middle: the screen puts its own controls at the
           canvas's top and bottom left. */}
       <Controls showInteractive={false} position="center-left" />

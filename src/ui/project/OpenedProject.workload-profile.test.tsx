@@ -9,6 +9,10 @@ import type {
   Workload,
 } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
+import {
+  describedByIds,
+  explanationOf,
+} from "../shared/testing/explanation-of";
 import { revealButton } from "./testing/canvas-panels";
 import {
   clickRun,
@@ -110,6 +114,29 @@ describe("OpenedProject's editing a workload's profile", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+
+  // Fails if the table's Time help shows before its info control is opened,
+  // the control doesn't open and close it, or the hidden help stops
+  // describing the Time fields.
+  it("keeps the Time help behind its info control, still describing the fields", () => {
+    renderProject({ project: projectWith(lunch) });
+    select("Lunch rush");
+    const info = within(details()).getByRole("button", { name: "About Time" });
+    const { explanation, paragraphId } = explanationOf(info);
+
+    expect(explanation.textContent).not.toBe("");
+    for (const time of times()) {
+      expect(describedByIds(time)).toContain(paragraphId);
+    }
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+    expect(explanation.hidden).toBe(true);
+
+    fireEvent.click(info);
+    expect(explanation.hidden).toBe(false);
+
+    fireEvent.click(info);
+    expect(explanation.hidden).toBe(true);
   });
 
   // Fails if "Add point" doesn't append 10 s after the last point at its

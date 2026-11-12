@@ -5,6 +5,10 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import type { Project, Workload } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
+import {
+  describedByIds,
+  explanationOf,
+} from "../shared/testing/explanation-of";
 import { revealButton } from "./testing/canvas-panels";
 import {
   cantRunRegion,
@@ -100,6 +104,29 @@ describe("OpenedProject's workload duration and seed", () => {
     expect(document.getElementById(described)?.textContent).toMatch(
       /^The same seed gives the same run/,
     );
+  });
+
+  // Fails if a workload field's help shows before its info control is
+  // opened, the control doesn't open and close it, or the hidden help stops
+  // describing the field.
+  it("keeps the duration's help behind its info control, still describing the field", () => {
+    renderProject({ project: twoWorkloads });
+    select("Steady");
+    const info = within(details()).getByRole("button", {
+      name: "About Duration",
+    });
+    const { explanation, paragraphId } = explanationOf(info);
+
+    expect(explanation.textContent).not.toBe("");
+    expect(describedByIds(field("Duration"))).toContain(paragraphId);
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+    expect(explanation.hidden).toBe(true);
+
+    fireEvent.click(info);
+    expect(explanation.hidden).toBe(false);
+
+    fireEvent.click(info);
+    expect(explanation.hidden).toBe(true);
   });
 
   // Fails if Enter doesn't save the duration once, in milliseconds, as an

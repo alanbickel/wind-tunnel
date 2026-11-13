@@ -46,7 +46,7 @@ Every part of the screen follows these. When a new feature seems to need an exce
 
 **Boxes.** Each component is a card: an icon for its type, its name, and its type in words. After a run, the card gets a badge from the run's totals, telling three cases apart: it **refused** work (it turned requests away), its limits made work **wait**, or **ok** (neither). Each badge has its own shape as well as its color, so color is never the only signal, and the text version lists the same status. Once the run is out of date, the badges are drawn hollow: they're from an earlier version of the project.
 
-**Arrows.** Edges belong to the architecture, so they're drawn, edited, and removed on their own, whether or not a workflow uses them. Drag from a box's handle to another box to connect them; from the keyboard, the inspector's "Connect to…" does the same.
+**Arrows.** Edges belong to the architecture, so they're drawn, edited, and removed on their own, whether or not a workflow uses them. Drag from a box's handle to another box to connect them; from the keyboard, the inspector's "Connect to…" does the same. Drawing always makes an edge, whatever is selected. A workflow's calls go only along the edges that are there, in their direction (§7), so connecting is how the architecture says what can call what.
 
 **Moving.** Boxes move by dragging, or with the arrow keys once one has the focus. Where a box sits is saved with the project, and a move is one undo step when it ends.
 
@@ -95,7 +95,7 @@ On the canvas (the sketch in §4, interactive in [`mocks/workflow-editor.html`](
 
 - **Pick a workflow** from the picker at the bottom left, or its row on the tool rail's list. Its boxes and arrows are highlighted and the rest of the diagram fades. Each call is numbered on its arrow, in the order the requests take them.
 - **The player** steps through the path one call at a time, marking each step's box and arrow in turn, so you can watch a request travel.
-- **Add a call by drawing it.** Drag from a box in the path to the box it calls. If the target accepts more than one action (RDS takes `read` and `write`), a small popover asks which. If there's no edge between them yet, the call adds one, and says so.
+- **Add a call by picking its edge.** A call goes only along an edge that's already there, from the caller to the component it calls ([ADR-0019](../adr/0019-edit-projects-with-commands-and-save-each-change.md#addendum-2026-11-12)). With a workflow selected, the edges leaving the boxes in its path offer to carry a new call; pick one to add it. If the target accepts more than one action (RDS takes `read` and `write`), a small popover asks which. If no edge leads where the call should go, connect the boxes first (§4): adding a call never adds an edge.
 - **The outline** in the inspector is the same tree as text, and the keyboard's way to do everything: each row selects its step, a grip drags it among its siblings (Move up and Move down do the same from the keyboard), and each step that can take a call has "Add a call from …". A row's component and action can be changed in place; the step keeps its place and its id.
 - **Async work.** A step that enqueues a message has a second tree under it, the work done when a consumer takes the message off the queue. It's drawn dashed on the canvas and set off in the outline, and it's edited the same way ([ADR-0021](../adr/0021-edit-async-work-through-the-same-commands.md)).
 - **Removing a step** takes the calls under it, and asks first if there are any.
@@ -155,7 +155,7 @@ The [Roadmap](https://github.com/alanbickel/wind-tunnel/issues/32)'s M7 items, i
 3. **Node cards:** icon, name, type, and the run's badges, hollow when out of date. §4, §9.
 4. **Select a finding:** marks its boxes on the canvas. §5, §9.
 5. **The workload editor** in the dock ([#178](https://github.com/alanbickel/wind-tunnel/issues/178)), its sub-issues rewritten against §8 before they start. §8.
-6. **Workflows on the canvas** ([#197](https://github.com/alanbickel/wind-tunnel/issues/197)): the highlighted path with the rest faded, numbered calls, and drawing a call. §7.
+6. **Workflows on the canvas** ([#197](https://github.com/alanbickel/wind-tunnel/issues/197)): the highlighted path with the rest faded, numbered calls, and adding a call by picking its edge. §7.
 7. **The timeline dock:** the run over time, read-only, with the full charts behind it. §9.
 8. **The player:** steps through a workflow's path one call at a time, after the timeline dock so the two can share a playback model. §7.
 
@@ -175,5 +175,5 @@ The [Roadmap](https://github.com/alanbickel/wind-tunnel/issues/32)'s M7 items, i
 | Sketch | Shows |
 |---|---|
 | [`project-screen.html`](mocks/project-screen.html) | The screen editing, after a run, and tracing a workflow (§2, §4, §9) |
-| [`workflow-editor.html`](mocks/workflow-editor.html) | A workflow on the canvas, a call being drawn, and the outline (§7) |
+| [`workflow-editor.html`](mocks/workflow-editor.html) | A workflow on the canvas, a call being drawn, and the outline (§7). Dated: a call is now added by picking an existing edge, not drawn |
 | [`workload-editor.html`](mocks/workload-editor.html) | The workload editor in the dock, with a draggable profile and a live mix (§8) |

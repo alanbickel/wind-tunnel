@@ -57,12 +57,15 @@ describe("OpenedProject's workload dock", () => {
     ).toHaveLength(1);
   });
 
-  // Fails if Fold doesn't hide the editor and keep the Unfold button, or
-  // folding drops the editor so a draft would be lost.
-  it("folds to one line and unfolds with the editor still mounted", () => {
+  // Fails if Fold doesn't hide the editor and keep the Unfold button, or if
+  // folding unmounts the editor (`{!folded && ...}` for `hidden`), which
+  // loses the draft typed into Duration.
+  it("folds to one line and unfolds with the draft still there", () => {
     renderProject();
     openSteady();
     const open = dock() as HTMLElement;
+    const duration = within(open).getByRole("textbox", { name: "Duration" });
+    fireEvent.change(duration, { target: { value: "abc" } });
 
     fireEvent.click(
       within(open).getByRole("button", { name: "Fold the dock" }),
@@ -76,9 +79,48 @@ describe("OpenedProject's workload dock", () => {
       within(open).queryByRole("textbox", { name: "Duration" }),
     ).toBeNull();
     fireEvent.click(unfold);
+    const again = within(open).getByRole("textbox", { name: "Duration" });
+    expect(again).toBe(duration);
+    expect((again as HTMLInputElement).value).toBe("abc");
+  });
+
+  // Fails if selecting the already-selected workload leaves a folded dock
+  // folded, so the focus request has no heading to reach.
+  it("unfolds when the same workload is selected again", () => {
+    renderProject();
+    openSteady();
+    const open = dock() as HTMLElement;
+    fireEvent.click(
+      within(open).getByRole("button", { name: "Fold the dock" }),
+    );
+    const edit = screen.getByRole("button", { name: "Edit" });
+    edit.focus();
+
+    fireEvent.click(edit);
+
     expect(
       within(open).getByRole("textbox", { name: "Duration" }),
     ).toBeTruthy();
+    expect(document.activeElement).toBe(
+      within(open).getByRole("heading", { level: 4 }),
+    );
+  });
+
+  // Fails if closing the dock leaves the inspector collapsed.
+  it("brings the inspector back when the dock closes", () => {
+    renderProject();
+    openSteady();
+
+    fireEvent.keyDown(
+      within(dock() as HTMLElement).getByRole("heading", { level: 4 }),
+      { key: "Escape" },
+    );
+
+    expect(
+      screen
+        .getByRole("button", { name: "Close the inspector" })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
   });
 
   // Fails if Escape leaves the dock open.

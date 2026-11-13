@@ -21,20 +21,38 @@ export interface WorkloadDockProps {
  * the selected workload's editor, and nothing when no workload is
  * selected; the run's timeline will share it (UX design §2, "The dock").
  * Fold shrinks it to one line and keeps the editor mounted, hidden, so a
- * draft survives. Selecting another workload opens it unfolded.
+ * draft survives. Any selection of a workload, the same one again too,
+ * opens it unfolded, so the focus request has a heading to reach.
  */
 export function WorkloadDock(props: WorkloadDockProps) {
   const { selection } = props.selecting;
+  const [folded, setFolded] = useState(false);
+  const [seen, setSeen] = useState(selection);
+  if (seen !== selection) {
+    setSeen(selection);
+    setFolded(false);
+  }
   if (selection?.kind !== "workload") return null;
-  return <Dock key={selection.workloadId} {...props} selection={selection} />;
+  return (
+    <Dock
+      key={selection.workloadId}
+      {...props}
+      selection={selection}
+      folded={folded}
+      onFold={setFolded}
+    />
+  );
 }
 
 interface DockProps extends WorkloadDockProps {
   readonly selection: Selection;
+  readonly folded: boolean;
+  readonly onFold: (folded: boolean) => void;
 }
 
-function Dock({ project, selection, selecting, onEdit, onRemove }: DockProps) {
-  const [folded, setFolded] = useState(false);
+function Dock(props: DockProps) {
+  const { project, selection, selecting, onEdit, onRemove } = props;
+  const { folded, onFold } = props;
   const bodyId = useId();
   const { selectWithin, close, takeFocus } = selecting;
   return (
@@ -43,7 +61,7 @@ function Dock({ project, selection, selecting, onEdit, onRemove }: DockProps) {
         folded={folded}
         controls={bodyId}
         onToggle={() => {
-          setFolded(!folded);
+          onFold(!folded);
         }}
       />
       <div id={bodyId} hidden={folded} className={styles.body}>

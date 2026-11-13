@@ -7,53 +7,63 @@ import { sampleRecord } from "../testing/sample-record";
 const base = { workflowId: "read", project: sampleRecord.project };
 
 describe("NewCall", () => {
-  // Fails if the start has no ids, or the same id for the call and its
-  // edge, or the edge defaults aren't the caller type's (API Gateway's
-  // timeout is 29,000 ms, Lambda's 5,000).
-  it("gives two ids, the caller's name, and the caller type's edge defaults", () => {
+  // Fails if the start has no id, or doesn't name the caller.
+  it("gives the call's id and the caller's name", () => {
     const start = awsNewCall().execute({ ...base, stepId: "api-invoke" });
 
     expect(start?.callId).toBe("call-1");
-    expect(start?.edgeId).toBe("call-2");
     expect(start?.callerName).toBe("API");
-    expect(start?.edgeSettings.timeoutMs).toBe(29_000);
-    expect(
-      awsNewCall().execute({ ...base, stepId: "fn-invoke" })?.edgeSettings
-        .timeoutMs,
-    ).toBe(5_000);
   });
 
-  // Fails if the caller's own component is offered (the architecture has no
-  // edge to itself), a neighbour comes after a component with no edge, or
-  // either group loses the project's order.
-  it("lists the caller's neighbours first, then the rest, never its own component", () => {
-    const start = awsNewCall().execute({ ...base, stepId: "api-invoke" });
-
-    expect(start?.choices.map((c) => [c.componentId, c.addsEdge])).toEqual([
-      ["fn", false],
-      ["table", true],
-    ]);
+  // Fails if a component with no edge from the caller is offered (a call
+  // never adds an edge), or a neighbour is missing.
+  it("offers only the components the caller has an edge to", () => {
+    const fromApi = awsNewCall().execute({ ...base, stepId: "api-invoke" });
     const fromFn = awsNewCall().execute({ ...base, stepId: "fn-invoke" });
-    expect(fromFn?.choices.map((c) => c.componentId)).toEqual(["table", "api"]);
+
+    expect(fromApi?.choices.map((c) => c.componentId)).toEqual(["fn"]);
+    expect(fromFn?.choices.map((c) => c.componentId)).toEqual(["table"]);
   });
 
-  // Fails if a neighbour is marked as adding an edge, a component with none
-  // isn't, or the note doesn't name the caller.
-  it("marks the components with no edge from the caller", () => {
-    const start = awsNewCall().execute({ ...base, stepId: "api-invoke" });
+  // Fails if a caller with no edge out is offered anything, or gets no
+  // start (the draft needs it to say so).
+  it("offers nothing to a caller with no edge out", () => {
+    const start = awsNewCall().execute({ ...base, stepId: "table-read" });
 
-    expect(start?.choices[0]?.note).toBeUndefined();
-    expect(start?.choices[1]?.note).toBe(
-      "No edge from API yet; choosing it adds one.",
-    );
+    expect(start?.choices).toEqual([]);
+  });
+
+  // Fails if the choices follow the project's component order instead of
+  // the edges' order.
+  it("lists the neighbours in edge order", () => {
+    const { architecture } = sampleRecord.project;
+    const [first, second] = architecture.edges;
+    if (first === undefined || second === undefined) throw new Error("Edges");
+    const project: Project = {
+      ...sampleRecord.project,
+      architecture: {
+        ...architecture,
+        edges: [
+          { ...first, id: "e1", from: "fn", to: "table" },
+          { ...second, id: "e2", from: "fn", to: "api" },
+        ],
+      },
+    };
+
+    const start = awsNewCall().execute({
+      project,
+      workflowId: "read",
+      stepId: "fn-invoke",
+    });
+
+    expect(start?.choices.map((c) => c.componentId)).toEqual(["table", "api"]);
   });
 
   // Fails if a type's actions, or its display name in the label, are lost.
   it("lists each component with its type's actions", () => {
-    const start = awsNewCall().execute({ ...base, stepId: "api-invoke" });
+    const start = awsNewCall().execute({ ...base, stepId: "fn-invoke" });
 
     expect(start?.choices.map((c) => [c.label, c.actions])).toEqual([
-      ["Function (Lambda)", ["invoke"]],
       ["Table (DynamoDB)", ["read", "write"]],
     ]);
   });

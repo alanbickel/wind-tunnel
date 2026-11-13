@@ -10,6 +10,7 @@ import type { OutlineStep } from "../../application/details/details";
 import type { Project, StepAction } from "../../domain/model/project";
 import type { CallChoice } from "../../application/use-cases/call-choices";
 import type { NewCallStart } from "../../application/use-cases/new-call";
+import { noEdgesNote } from "../../application/details/add-call-text";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
 import { useFocusOnMount } from "../shared/useFocusOnMount";
@@ -157,15 +158,17 @@ interface CallPickersProps {
 }
 
 /**
- * The component picker, listing the caller's neighbours first, then the
- * rest, each of those marked as adding an edge; and once a component is
- * chosen, the action picker, listing what its type accepts.
+ * The component picker, listing the components the caller has an edge to
+ * (or, with none, what to do about it); and once a component is chosen, the
+ * action picker, listing what its type accepts.
  */
 function CallPickers(props: CallPickersProps) {
   const { start, chosen, componentRef, onChange } = props;
   const choice = start.choices.find(
     (c) => c.componentId === chosen.componentId,
   );
+  if (start.choices.length === 0)
+    return <NoEdges callerName={start.callerName} />;
   return (
     <>
       <Picker
@@ -211,10 +214,9 @@ function ActionPicker({ choice, action, onChange }: ActionPickerProps) {
   );
 }
 
-/** A component's option: its label, and the mark if choosing it adds an edge. */
-function componentOption(choice: CallChoice): PickerOption {
-  const { componentId, label, note } = choice;
-  return { value: componentId, text: note ? `${label} · ${note}` : label };
+/** A component's option: its label. */
+function componentOption({ componentId, label }: CallChoice): PickerOption {
+  return { value: componentId, text: label };
 }
 
 /** What choosing a component sets: its action too, if its type accepts only one. */
@@ -227,4 +229,16 @@ function chosenComponent(
     componentId,
     action: actions?.length === 1 ? actions[0] : undefined,
   };
+}
+
+/**
+ * What the draft shows when the caller has no edge to call along: a call
+ * never adds one, so the words say how to make one.
+ */
+interface NoEdgesProps {
+  readonly callerName: string;
+}
+
+function NoEdges({ callerName }: NoEdgesProps) {
+  return <p className={styles.empty}>{noEdgesNote(callerName)}</p>;
 }

@@ -15,7 +15,8 @@ import {
 
 // The sample (API → Function → Table) with a queue, "Queue" (SQS), and a
 // second function, "Writer", and an edge Function → Queue. The queue has no
-// edge to the writer. "Orders" is 1 API > 1.1 Function > 1.1.1 Queue
+// edge to the writer, nor the writer to the table, unless a test draws them
+// (`withEdges`), since async work and calls go only along edges. "Orders" is 1 API > 1.1 Function > 1.1.1 Queue
 // (enqueue), with the async work the test gives it.
 
 import { revealButton } from "./testing/canvas-panels";
@@ -63,6 +64,21 @@ function ordersWith(queueStep: Partial<Step>): Project {
       edges: [...architecture.edges, QUEUE_EDGE],
     },
     workflows: [{ id: "orders", name: "Orders", root }],
+  };
+}
+
+/** The project with edges between its components, as "Connect to…" would draw them. */
+function withEdges(project: Project, ...ends: [string, string][]): Project {
+  const edges = ends.map(([from, to]) => ({
+    ...QUEUE_EDGE,
+    id: `${from}-${to}`,
+    from,
+    to,
+  }));
+  const { architecture } = project;
+  return {
+    ...project,
+    architecture: { ...architecture, edges: [...architecture.edges, ...edges] },
   };
 }
 
@@ -176,11 +192,17 @@ describe("OpenedProject's async work under an enqueue", () => {
     expect(slotButton("1.1.1.1.1")).toBeTruthy();
   });
 
-  // Fails if the draft doesn't take the focus, offers the queue's own
-  // component, doesn't mark a component with no edge from the queue, or
-  // saves before both are chosen.
-  it("opens a draft with a component picker, and saves nothing until both are chosen", () => {
-    renderProject({ project: ordersWith({}) });
+  // Fails if the draft doesn't take the focus, offers a component the queue
+  // has no edge to (the table, the function), or doesn't offer the one it
+  // has, or saves before both are chosen.
+  it("opens a draft offering only the queue's neighbours, and saves nothing until both are chosen", () => {
+    renderProject({
+      project: withEdges(
+        ordersWith({}),
+        ["queue", "writer"],
+        ["queue", "table"],
+      ),
+    });
     openOutline();
     fireEvent.click(slotButton("1.1.1"));
 
@@ -190,14 +212,7 @@ describe("OpenedProject's async work under an enqueue", () => {
       within(picker)
         .getAllByRole("option")
         .map((o) => o.textContent),
-    ).toContain(
-      "Writer (Lambda) · No edge from Queue yet; choosing it adds one.",
-    );
-    expect(
-      within(picker)
-        .getAllByRole("option")
-        .some((o) => /^Queue/.test(o.textContent)),
-    ).toBe(false);
+    ).toEqual(["Choose a component", "Writer (Lambda)", "Table (DynamoDB)"]);
 
     pick("Component", "table");
 
@@ -206,12 +221,28 @@ describe("OpenedProject's async work under an enqueue", () => {
     expect(undoButton().getAttribute("aria-disabled")).toBe("true");
   });
 
+  // Fails if a queue with no edge to any consumer gets pickers with
+  // nothing to pick, or the draft doesn't say how to connect it.
+  it("says how to connect a queue that has no edge to a consumer", () => {
+    renderProject({ project: ordersWith({}) });
+    openOutline();
+
+    fireEvent.click(slotButton("1.1.1"));
+
+    expect(screen.queryByRole("combobox", { name: "Component" })).toBeNull();
+    const group = screen.getByRole("group", { name: ADD_ASYNC });
+    expect(group.textContent).toContain("Queue has no edges to call along.");
+    expect(group.textContent).toContain("Connect to…");
+  });
+
   // Fails if choosing a component with one action doesn't save the async
-  // root, add the queue's edge, select and focus the new step, announce it
-  // with the edge, name Undo for both, or save the record; or Undo leaves
-  // the slot filled, or the edge behind.
-  it("saves the async root and its edge, announces it, and undoes both together", async () => {
-    const { projects } = renderProject({ project: ordersWith({}) });
+  // root, select and focus the new step, announce it, name Undo for it,
+  // or save the record; or the command adds an edge; or Undo leaves the
+  // slot filled.
+  it("saves the async root along the queue's edge, announces it, and undoes it", async () => {
+    const { projects } = renderProject({
+      project: withEdges(ordersWith({}), ["queue", "writer"]),
+    });
     openOutline();
     fireEvent.click(slotButton("1.1.1"));
 
@@ -227,21 +258,20 @@ describe("OpenedProject's async work under an enqueue", () => {
     expect(added.getAttribute("aria-current")).toBe("true");
     expect(document.activeElement).toBe(added);
     expect(detailsStatus().textContent).toBe(
-      "Added async work from Queue to Writer. Added the edge from Queue to Writer.",
+      "Added async work from Queue to Writer.",
     );
     const saved = await savedRecord(
       projects,
-      (r) => r.project.architecture.edges.length === 4,
+      (r) =>
+        r.project.workflows[0]?.root.calls?.[0]?.calls?.[0]?.async !==
+        undefined,
     );
-    expect(saved.project.architecture.edges.at(-1)).toMatchObject({
-      from: "queue",
-      to: "writer",
-    });
+    expect(saved.project.architecture.edges).toHaveLength(4);
     expect(screen.queryByText(/^No async work yet/)).toBeNull();
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Undo add async work from Queue to Writer, and its edge",
+        name: "Undo add async work from Queue to Writer",
       }),
     );
 
@@ -254,7 +284,9 @@ describe("OpenedProject's async work under an enqueue", () => {
   // Fails if Escape saves the draft, leaves it open, or doesn't return the
   // focus to the button; or Escape also closes Details.
   it("drops the draft on Escape, saving nothing", () => {
-    renderProject({ project: ordersWith({}) });
+    renderProject({
+      project: withEdges(ordersWith({}), ["queue", "writer"]),
+    });
     openOutline();
     fireEvent.click(slotButton("1.1.1"));
 
@@ -354,7 +386,12 @@ describe("OpenedProject's editing the async tree", () => {
   // Fails if a call can't be added under the async root, or a step below it
   // can't be removed on its own.
   it("adds under the async root", () => {
-    renderProject({ project: ordersWith({ async: WRITER_STEP }) });
+    renderProject({
+      project: withEdges(ordersWith({ async: WRITER_STEP }), [
+        "writer",
+        "table",
+      ]),
+    });
     openOutline();
 
     fireEvent.click(

@@ -6,18 +6,16 @@ import {
 
 describe("addAsyncWorkText", () => {
   // Fails if the words name an id, drop the queue or the consumer, or say
-  // an edge was added when none was.
-  it("names the queue and the consumer, and the edge only when one is added", () => {
-    const input = { queueName: "orders-queue", consumerName: "fn-writer" };
-
-    expect(addAsyncWorkText({ ...input, addsEdge: false })).toEqual({
+  // anything of an edge (async work never adds one).
+  it("names the queue and the consumer, and nothing of an edge", () => {
+    expect(
+      addAsyncWorkText({
+        queueName: "orders-queue",
+        consumerName: "fn-writer",
+      }),
+    ).toEqual({
       undoName: "Add async work from orders-queue to fn-writer",
       announcement: "Added async work from orders-queue to fn-writer.",
-    });
-    expect(addAsyncWorkText({ ...input, addsEdge: true })).toEqual({
-      undoName: "Add async work from orders-queue to fn-writer, and its edge",
-      announcement:
-        "Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer.",
     });
   });
 });

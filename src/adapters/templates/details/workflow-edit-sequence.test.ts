@@ -18,6 +18,7 @@ import {
   apply,
   asking,
   beginning,
+  connect,
   edgeCount,
   undo,
   type Place,
@@ -64,10 +65,7 @@ const START: ProjectRecord = {
 
 const BEGINNING = beginning(START, WORKFLOW_ID);
 
-/**
- * A call from the root, API Gateway, to orders-db: the architecture has no
- * edge between them, so the same command adds one.
- */
+/** A call from the root, API Gateway, to orders-db, along the edge just drawn. */
 function addedCall(from: Place): Place {
   const start = awsNewCall().execute({
     project: from.record.project,
@@ -75,12 +73,8 @@ function addedCall(from: Place): Place {
     stepId: "create-order-api",
   });
   if (start === undefined) throw new Error("The root takes a call");
-  const { callId, edgeId, edgeSettings, callerName } = start;
-  const { undoName } = addCallText({
-    callerName,
-    calleeName: "orders-db",
-    addsEdge: true,
-  });
+  const { callId, callerName } = start;
+  const { undoName } = addCallText({ callerName, calleeName: "orders-db" });
   return apply({
     from,
     workflowId: WORKFLOW_ID,
@@ -91,17 +85,15 @@ function addedCall(from: Place): Place {
         callId,
         componentId: "orders-db",
         action: "read",
-        edgeId,
-        edgeSettings,
       }),
     description: undoName,
-    note: `Edges: ${String(edgeCount(from.record) + 1)} (API Gateway → orders-db is new)`,
+    note: `Edges: ${String(edgeCount(from.record))} (the same: a call adds none)`,
   });
 }
 
 /**
  * The call just added, changed from "orders-db · read" to "orders-db ·
- * write": the architecture has its edge now, so the command adds none.
+ * write": a change adds no edge either.
  */
 function changedCall(from: Place): Place {
   const callId = "call-1";
@@ -114,7 +106,6 @@ function changedCall(from: Place): Place {
   const { undoName } = changeStepText({
     fromLabel: start.label,
     toLabel: "orders-db · write",
-    edge: undefined,
     stepsBelow: 0,
     toEnqueue: false,
   });
@@ -127,20 +118,18 @@ function changedCall(from: Place): Place {
         stepId: callId,
         componentId: "orders-db",
         action: "write",
-        edgeId: start.edgeId,
-        edgeSettings: start.edgeSettings,
       }),
     description: undoName,
-    note: `Edges: ${String(edgeCount(from.record))} (the same: API Gateway → orders-db is there already)`,
+    note: `Edges: ${String(edgeCount(from.record))} (the same: a change adds none)`,
   });
 }
 
 describe("the workflow editor's edit sequence", () => {
   // Fails if a move, a remove, an add, a change, or an undo of any changes what the
   // outline and the text version show, so the guide's example no longer
-  // matches what the commands do; if a move or a remove takes an edge; if a
-  // call along a missing edge adds none, or its undo leaves the edge or the
-  // call behind (it must give back the very record from before).
+  // matches what the commands do; if a move, a remove, a call, or a change
+  // takes or adds an edge; if connecting adds none, or an undo leaves the edge
+  // or the call behind (it must give back the very record from before).
   it("moves, removes, adds, and changes steps and undoes each, on Template A's Create order", async () => {
     const write = "create-order-orders-db";
     const moved = apply({
@@ -171,10 +160,17 @@ describe("the workflow editor's edit sequence", () => {
       asks: asking(undone.record, { workflowId: WORKFLOW_ID, stepId: fn }),
     });
     const undoneAgain = undo(removedWithCalls, WORKFLOW_ID);
-    const calls = addedCall(undoneAgain);
+    const edge = connect({
+      from: undoneAgain,
+      workflowId: WORKFLOW_ID,
+      fromId: "api",
+      toId: "orders-db",
+    });
+    const calls = addedCall(edge);
     const changed = changedCall(calls);
     const undoneChange = undo(changed, WORKFLOW_ID);
     const undoneCall = undo(undoneChange, WORKFLOW_ID);
+    const undoneEdge = undo(undoneCall, WORKFLOW_ID);
     const places = [
       BEGINNING,
       moved,
@@ -182,10 +178,12 @@ describe("the workflow editor's edit sequence", () => {
       undone,
       removedWithCalls,
       undoneAgain,
+      edge,
       calls,
       changed,
       undoneChange,
       undoneCall,
+      undoneEdge,
     ];
 
     const text = `${places.flatMap((place) => place.lines).join("\n")}\n`;
@@ -196,12 +194,16 @@ describe("the workflow editor's edit sequence", () => {
         START.project.architecture,
       );
     }
-    expect(edgeCount(calls.record)).toBe(edgeCount(START) + 1);
+    expect(edgeCount(edge.record)).toBe(edgeCount(START) + 1);
+    expect(calls.record.project.architecture).toBe(
+      edge.record.project.architecture,
+    );
     expect(changed.record.project.architecture).toBe(
       calls.record.project.architecture,
     );
     expect(undoneChange.record).toBe(calls.record);
-    expect(undoneCall.record).toBe(undoneAgain.record);
+    expect(undoneCall.record).toBe(edge.record);
+    expect(undoneEdge.record).toBe(undoneAgain.record);
     expect(undoneAgain.record).toBe(undone.record);
     expect(undone.record).toBe(moved.record);
   });

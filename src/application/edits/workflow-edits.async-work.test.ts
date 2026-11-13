@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { lambdaDefinition, sqsDefinition } from "../../domain/components/aws";
 import type { Edge, Step, Workflow } from "../../domain/model/project";
 import type { ProjectRecord } from "../ports/project-record";
-import { awsChangeStep, awsNewCall } from "../testing/aws-component-types";
 import { sampleRecord } from "../testing/sample-record";
 import { findStep, holderOf } from "./step-search";
 import {
@@ -32,8 +31,8 @@ const retry: Edge["retry"] = {
 };
 
 // The sample (api → fn → table) with an SQS queue and a second function,
-// "writer", with edges fn → queue and writer → table but none from the queue
-// to the writer. "Orders" is api > fn > queue (enqueue), with the writer's
+// "writer", with edges fn → queue, queue → writer, and writer → table, and
+// none from the queue to the table or to fn. "Orders" is api > fn > queue (enqueue), with the writer's
 // async work under the queue, and a call under the writer.
 const queueEdge: Edge = {
   id: "fn-queue",
@@ -42,6 +41,18 @@ const queueEdge: Edge = {
   latencyMs: 1,
   timeoutMs: 1_000,
   retry,
+};
+const queueWriterEdge: Edge = {
+  ...queueEdge,
+  id: "queue-writer",
+  from: "queue",
+  to: "writer",
+};
+const writerTableEdge: Edge = {
+  ...queueEdge,
+  id: "writer-table",
+  from: "writer",
+  to: "table",
 };
 const withQueue: ProjectRecord = {
   ...sampleRecord,
@@ -63,7 +74,12 @@ const withQueue: ProjectRecord = {
           config: lambdaDefinition.defaultConfig,
         },
       ],
-      edges: [...sampleRecord.project.architecture.edges, queueEdge],
+      edges: [
+        ...sampleRecord.project.architecture.edges,
+        queueEdge,
+        queueWriterEdge,
+        writerTableEdge,
+      ],
     },
   },
 };
@@ -103,6 +119,20 @@ const writerStep = step("writer-step", {
   calls: [step("write-db", { action: "write" })],
 });
 const withAsyncWork = ordersWith({ async: writerStep });
+/** The same, with an edge from the queue to the table. */
+const withQueueTable: ProjectRecord = {
+  ...withAsyncWork,
+  project: {
+    ...withAsyncWork.project,
+    architecture: {
+      ...withAsyncWork.project.architecture,
+      edges: [
+        ...withAsyncWork.project.architecture.edges,
+        { ...queueEdge, id: "queue-table", from: "queue", to: "table" },
+      ],
+    },
+  },
+};
 const empty = ordersWith({});
 
 function orders(record: ProjectRecord): Workflow {
@@ -123,26 +153,36 @@ const WRITER: { componentId: string; action: Step["action"] } = {
   action: "invoke",
 };
 
-/** `addAsyncWork` on `stepId`, with `NewCall`'s ids and the queue type's defaults. */
+/** `addAsyncWork` on `stepId`, with the id `call-1`. */
 function addAsync(
   from: ProjectRecord,
   stepId: string,
   workflowId = "orders",
 ): ProjectRecord {
-  const start = awsNewCall().execute({
-    project: from.project,
-    workflowId,
-    stepId,
-  });
-  if (start === undefined) throw new Error(`no draft for "${stepId}"`);
   return addAsyncWork(from, {
     workflowId,
     stepId,
-    asyncId: start.callId,
+    asyncId: "call-1",
     ...WRITER,
-    edgeId: start.edgeId,
-    edgeSettings: start.edgeSettings,
   });
+}
+
+/** The record without the edges that end at a component. */
+function withoutEdgesTo(
+  from: ProjectRecord,
+  componentId: string,
+): ProjectRecord {
+  const { architecture } = from.project;
+  return {
+    ...from,
+    project: {
+      ...from.project,
+      architecture: {
+        ...architecture,
+        edges: architecture.edges.filter((e) => e.to !== componentId),
+      },
+    },
+  };
 }
 
 describe("the step search", () => {
@@ -169,10 +209,9 @@ describe("the step search", () => {
 
 describe("addAsyncWork", () => {
   // Fails if the slot isn't set on the queue step, the step gets another
-  // id, component or action, its calls are lost, the edge from the queue to
-  // the consumer isn't added with the queue type's defaults in the same
-  // record, or the input record changes.
-  it("sets the slot and adds the queue's edge when it's missing", () => {
+  // id, component or action, its calls are lost, an edge is added or the
+  // architecture rebuilt, or the input record changes.
+  it("sets the slot along the queue's edge and adds no edge", () => {
     const before = copyOf(empty);
 
     const next = addAsync(empty, "enq");
@@ -182,41 +221,17 @@ describe("addAsyncWork", () => {
       componentId: "writer",
       action: "invoke",
     });
-    const { edges } = next.project.architecture;
-    expect(edges).toHaveLength(empty.project.architecture.edges.length + 1);
-    expect(edges.at(-1)).toMatchObject({
-      id: "call-2",
-      from: "queue",
-      to: "writer",
-      ...sqsDefinition.edgeDefaults,
-    });
+    expect(next.project.architecture).toBe(empty.project.architecture);
     expect(empty).toEqual(before);
   });
 
-  // Fails if an edge that's there is added again, or the architecture is
-  // rebuilt for nothing.
-  it("adds no edge when the queue already has one to the consumer", () => {
-    const edge: Edge = {
-      ...queueEdge,
-      id: "queue-writer",
-      from: "queue",
-      to: "writer",
-    };
-    const there: ProjectRecord = {
-      ...empty,
-      project: {
-        ...empty.project,
-        architecture: {
-          ...empty.project.architecture,
-          edges: [...empty.project.architecture.edges, edge],
-        },
-      },
-    };
+  // Fails if async work goes to a consumer the queue has no edge to, or the
+  // command adds the edge instead (it returns the record as it was, so the
+  // edit saves nothing).
+  it("returns the same record when the queue has no edge to the consumer", () => {
+    const noEdge = withoutEdgesTo(empty, "writer");
 
-    const next = addAsync(there, "enq");
-
-    expect(next.project.architecture).toBe(there.project.architecture);
-    expect(queueOf(next).async?.componentId).toBe("writer");
+    expect(addAsync(noEdge, "enq")).toBe(noEdge);
   });
 
   // Fails if a step with calls loses them, or the slot goes anywhere but
@@ -239,8 +254,6 @@ describe("addAsyncWork", () => {
         stepId,
         asyncId: "new",
         ...WRITER,
-        edgeId: "new-edge",
-        edgeSettings: sqsDefinition.edgeDefaults,
       });
 
     expect(call(empty, "fn")).toBe(empty);
@@ -276,56 +289,38 @@ describe("the other commands, on the async tree", () => {
   // Fails if addCall can't reach a step in async work (the record comes back
   // unchanged), or puts the call elsewhere.
   it("addCall adds under the async root", () => {
-    const start = awsNewCall().execute({
-      project: withAsyncWork.project,
-      workflowId: "orders",
-      stepId: "writer-step",
-    });
-    if (start === undefined) throw new Error("no draft");
-
     const next = addCall(withAsyncWork, {
       workflowId: "orders",
       stepId: "writer-step",
       callId: "added",
       ...SAMPLE_WRITE,
-      edgeId: start.edgeId,
-      edgeSettings: start.edgeSettings,
     });
 
     const root = queueOf(next).async;
     expect(root?.calls?.map((c) => c.id)).toEqual(["write-db", "added"]);
   });
 
-  // Fails if changing the async root doesn't add the missing edge from the
-  // queue (its caller), or drops what's under it, or leaves the queue's
-  // slot holding the old component. The writer's edge to the table is
-  // there; the queue's to "fn" is not.
-  it("changeStep on the async root adds the edge from the queue", () => {
-    const start = awsChangeStep().execute({
-      project: withAsyncWork.project,
-      workflowId: "orders",
-      stepId: "writer-step",
-    });
-    expect(start?.callerName).toBe("Queue");
+  // Fails if changing the async root checks the edge from anything but the
+  // queue (its caller): to "fn" the queue has none, so the record comes back
+  // as it was, and to "table", which it has, the root changes, drops what's
+  // under it, and leaves the queue's slot holding the new component.
+  it("changeStep on the async root goes along an edge from the queue, and adds none", () => {
+    const change = (componentId: string, action: Step["action"]) =>
+      changeStep(withQueueTable, {
+        workflowId: "orders",
+        stepId: "writer-step",
+        componentId,
+        action,
+      });
 
-    const next = changeStep(withAsyncWork, {
-      workflowId: "orders",
-      stepId: "writer-step",
-      componentId: "fn",
-      action: "invoke",
-      edgeId: start?.edgeId ?? "none",
-      edgeSettings: start?.edgeSettings,
-    });
-
+    expect(change("fn", "invoke")).toBe(withQueueTable);
+    const next = change("table", "read");
     expect(queueOf(next).async).toEqual({
       id: "writer-step",
-      componentId: "fn",
-      action: "invoke",
+      componentId: "table",
+      action: "read",
     });
-    expect(next.project.architecture.edges.at(-1)).toMatchObject({
-      from: "queue",
-      to: "fn",
-    });
+    expect(next.project.architecture).toBe(withQueueTable.project.architecture);
   });
 
   // Fails if a step below the async root can't move among its siblings, or

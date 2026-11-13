@@ -6,7 +6,6 @@ import {
 } from "./change-step-text";
 
 const labels: ChangeStepTextInput = {
-  edge: undefined,
   fromLabel: "fn-orders · invoke",
   toLabel: "orders-db · read",
   stepsBelow: 0,
@@ -18,31 +17,14 @@ describe("changeStepText", () => {
   // wording changes (the issue settles it: "Change fn-orders · invoke to
   // orders-db · read").
   it("names the step before and after", () => {
-    expect(changeStepText({ ...labels, edge: undefined })).toEqual({
+    expect(changeStepText(labels)).toEqual({
       undoName: "Change fn-orders · invoke to orders-db · read",
       announcement: "Changed fn-orders · invoke to orders-db · read.",
     });
   });
 
-  // Fails if a change along a missing edge doesn't say it added one in both
-  // Undo's name and the announcement: the edge appears on the diagram away
-  // from the focus.
-  it("says the edge it adds", () => {
-    const text = changeStepText({
-      ...labels,
-      edge: { callerName: "api", calleeName: "orders-db" },
-    });
-
-    expect(text.undoName).toBe(
-      "Change fn-orders · invoke to orders-db · read, and its edge",
-    );
-    expect(text.announcement).toBe(
-      "Changed fn-orders · invoke to orders-db · read. Added the edge from api to orders-db.",
-    );
-  });
-
   // Fails if Undo's name or the announcement doesn't count the steps that
-  // go (or says "steps" for one), or leaves out the edge when both happen.
+  // go (or says "steps" for one).
   it("says how many steps under it go", () => {
     const three = changeStepText({ ...labels, stepsBelow: 3 });
     expect(three.undoName).toBe(
@@ -51,16 +33,12 @@ describe("changeStepText", () => {
     expect(three.announcement).toBe(
       "Changed fn-orders · invoke to orders-db · read. The 3 steps under it are gone.",
     );
-    const one = changeStepText({
-      ...labels,
-      stepsBelow: 1,
-      edge: { callerName: "api", calleeName: "orders-db" },
-    });
+    const one = changeStepText({ ...labels, stepsBelow: 1 });
     expect(one.undoName).toBe(
-      "Change fn-orders · invoke to orders-db · read, and its edge, and remove the 1 step under it",
+      "Change fn-orders · invoke to orders-db · read, and remove the 1 step under it",
     );
     expect(one.announcement).toBe(
-      "Changed fn-orders · invoke to orders-db · read. Added the edge from api to orders-db. The 1 step under it is gone.",
+      "Changed fn-orders · invoke to orders-db · read. The 1 step under it is gone.",
     );
   });
 

@@ -5,9 +5,8 @@ import type {
   Workload,
 } from "../../domain/model/project";
 import { mapSteps } from "../../domain/model/step-tree";
-import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { ProjectRecord } from "../ports/project-record";
-import { connectIfMissing } from "./edge-edits";
+import { hasEdgeBetween } from "./edge-edits";
 import { findStep, holderOf } from "./step-search";
 
 // Edit commands (ADR-0019): each takes the project record and returns the
@@ -103,26 +102,22 @@ export function addWorkflow(
   };
 }
 
-/** A new call: whose it is, its ids and its step, and the edge it adds if one is missing. */
+/** A new call: whose it is, its id and its step. */
 export interface AddCallInput extends StepInput {
   /** A new id for the call, from the `IdGenerator` port. */
   readonly callId: string;
   /** The component the call goes to. */
   readonly componentId: string;
   readonly action: StepAction;
-  /** A new id for the edge, used only if the caller has none to the callee. */
-  readonly edgeId: string;
-  /** The caller type's `edgeDefaults`, which become that edge's settings. */
-  readonly edgeSettings: EdgeSettings;
 }
 
 /**
- * Adds a call as the last of a step's calls (`stepId` is the caller). If the
- * caller's component has no edge to the call's, the same command adds one,
- * through `connectIfMissing`, so the call and its edge are one undo step
- * (UX design §2.5 step 5, ADR-0019 decision 4). The caller can be any step,
- * in the main tree or in async work. A step that isn't in the workflow
- * returns the record as it was.
+ * Adds a call as the last of a step's calls (`stepId` is the caller). A call
+ * goes only along an edge that already exists, in its direction, and never
+ * adds one (ADR-0019's addendum of 2026-11-12): if the caller's component
+ * has no edge to the call's, the record is returned as it was. The caller
+ * can be any step, in the main tree or in async work. A step that isn't in
+ * the workflow returns the record as it was too.
  */
 export function addCall(
   record: ProjectRecord,
@@ -137,31 +132,52 @@ export function addCall(
     step.id === stepId
       ? { ...step, calls: [...(step.calls ?? []), call] }
       : step;
-  const withCall = withWorkflow(record, {
+  if (!hasEdgeFrom(record, { caller, componentId })) return record;
+  return withWorkflow(record, {
     ...workflow,
     root: mapSteps(workflow.root, append),
   });
-  return connectIfMissing(withCall, {
-    edgeId: input.edgeId,
-    from: caller.componentId,
-    to: componentId,
-    settings: input.edgeSettings,
-  });
 }
 
-/** A step's new component and action, and the edge a call along a missing one adds. */
+/** A caller step, and a component it would call. */
+interface EdgeFromInput {
+  readonly caller: Step;
+  readonly componentId: string;
+}
+
+/** Whether the caller's component has an edge to the component. */
+function hasEdgeFrom(
+  record: ProjectRecord,
+  { caller, componentId }: EdgeFromInput,
+): boolean {
+  return hasEdgeBetween(record, { from: caller.componentId, to: componentId });
+}
+
+/** A step, its caller if it has one, and the component the step would call. */
+interface LacksEdgeInput {
+  readonly step: Step;
+  readonly caller: Step | undefined;
+  readonly componentId: string;
+}
+
+/**
+ * Whether a change would make the step call along an edge that isn't there:
+ * its component changes, it has a caller, and the caller has no edge to the
+ * new one. The root, and a change that keeps the component, never lack one.
+ */
+function lacksEdge(
+  record: ProjectRecord,
+  { step, caller, componentId }: LacksEdgeInput,
+): boolean {
+  if (caller === undefined || step.componentId === componentId) return false;
+  return !hasEdgeFrom(record, { caller, componentId });
+}
+
+/** A step's new component and action. */
 export interface ChangeStepInput extends StepInput {
   /** The component the step now calls. */
   readonly componentId: string;
   readonly action: StepAction;
-  /** A new id for the edge, used only if the caller has none to the new component. */
-  readonly edgeId: string;
-  /**
-   * The caller type's `edgeDefaults`, which become that edge's settings;
-   * undefined adds no edge (the root has no caller, and a caller whose
-   * component is gone has no type to take them from).
-   */
-  readonly edgeSettings: EdgeSettings | undefined;
 }
 
 /**
@@ -169,13 +185,13 @@ export interface ChangeStepInput extends StepInput {
  * without either. The step keeps its id and loses everything under it,
  * `calls` and `async` alike (ADR-0021 decision 3): what's under a step
  * belongs to what the step was. A step changed to `enqueue` has an empty
- * async slot, which is stored as no `async`. If the step's caller has no
- * edge to the new component, the same command adds one, through
- * `connectIfMissing`, as `addCall` does, so it's one undo step; the root has
- * no caller, so it adds none. Nothing is added for what was under the step.
- * A step that isn't in the workflow returns the record as it was; so does a
- * change to what the step already is, unless its caller has no edge to its
- * component, which is still added. The caller of an async root is its queue.
+ * async slot, which is stored as no `async`. Like `addCall`, it never adds
+ * an edge: a change to a component the step's caller has no edge to
+ * returns the record as it was. The root has no caller, so it can change to
+ * any component. A step that isn't in the workflow returns the record as it
+ * was; so does a change to what the step already is. A step may change its
+ * action alone when its edge has gone: it adds no dependence. The caller of
+ * an async root is its queue.
  */
 export function changeStep(
   record: ProjectRecord,
@@ -185,47 +201,37 @@ export function changeStep(
   const workflow = record.project.workflows.find((w) => w.id === workflowId);
   const step = workflow && findStep(workflow, stepId);
   if (workflow === undefined || step === undefined) return record;
-  const unchanged = step.componentId === componentId && step.action === action;
+  if (step.componentId === componentId && step.action === action) {
+    return record;
+  }
   const caller = holderOf(workflow, stepId);
+  if (lacksEdge(record, { step, caller, componentId })) return record;
   // Names id, componentId and action only, so calls and async go.
   const change = (s: Step): Step =>
     s.id === stepId ? { id: s.id, componentId, action } : s;
-  const withStep = withWorkflow(record, {
+  return withWorkflow(record, {
     ...workflow,
     root: mapSteps(workflow.root, change),
   });
-  const next = unchanged ? record : withStep;
-  const { edgeId, edgeSettings: settings } = input;
-  if (caller === undefined || settings === undefined) return next;
-  return connectIfMissing(next, {
-    edgeId,
-    from: caller.componentId,
-    to: componentId,
-    settings,
-  });
 }
 
-/** An `enqueue` step's new async work: its ids and step, and the edge it adds if one is missing. */
+/** An `enqueue` step's new async work: its id and step. */
 export interface AddAsyncWorkInput extends StepInput {
   /** A new id for the async root, from the `IdGenerator` port. */
   readonly asyncId: string;
   /** The component that takes the message: the async root's. */
   readonly componentId: string;
   readonly action: StepAction;
-  /** A new id for the edge, used only if the queue has none to the consumer. */
-  readonly edgeId: string;
-  /** The queue type's `edgeDefaults`, which become that edge's settings. */
-  readonly edgeSettings: EdgeSettings;
 }
 
 /**
  * Sets the async work of an `enqueue` step that has none (`stepId` is the
  * step, the queue). The async root is a call from the queue along its edge
- * to the consumer, so if the queue's component has no edge to the
- * consumer's, the same command adds one, through `connectIfMissing`: the
- * slot and its edge are one undo step (ADR-0021 decision 2). A step that
- * isn't an `enqueue`, already has async work, or isn't in the workflow
- * returns the record as it was.
+ * to the consumer, so, as with `addCall`, a consumer the queue's component
+ * has no edge to returns the record as it was; no edge is added (ADR-0021
+ * decision 2, as ADR-0019's addendum of 2026-11-12 changes it). So does a
+ * step that isn't an `enqueue`, already has async work, or isn't in the
+ * workflow.
  */
 export function addAsyncWork(
   record: ProjectRecord,
@@ -236,17 +242,9 @@ export function addAsyncWork(
   const queue = workflow && findStep(workflow, stepId);
   if (workflow === undefined || queue === undefined) return record;
   if (queue.action !== "enqueue" || queue.async !== undefined) return record;
+  if (!hasEdgeFrom(record, { caller: queue, componentId })) return record;
   const async: Step = { id: asyncId, componentId, action };
-  const withAsync = replaceStep(record, {
-    workflow,
-    step: { ...queue, async },
-  });
-  return connectIfMissing(withAsync, {
-    edgeId: input.edgeId,
-    from: queue.componentId,
-    to: componentId,
-    settings: input.edgeSettings,
-  });
+  return replaceStep(record, { workflow, step: { ...queue, async } });
 }
 
 /** Which way a step moves among its siblings. */

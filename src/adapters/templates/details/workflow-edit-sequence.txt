@@ -40,8 +40,16 @@ Edges: 2
         1.1.2  orders-db · read
 Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
 
-Add a call from API Gateway to orders-db, and its edge
+Connect API Gateway to orders-db
 Edges: 3 (API Gateway → orders-db is new)
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+
+Add a call from API Gateway to orders-db
+Edges: 3 (the same: a call adds none)
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
@@ -50,7 +58,7 @@ Edges: 3 (API Gateway → orders-db is new)
 Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read); API Gateway → orders-db (read).
 
 Change orders-db · read to orders-db · write
-Edges: 3 (the same: API Gateway → orders-db is there already)
+Edges: 3 (the same: a change adds none)
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
@@ -67,7 +75,15 @@ Edges: 3
    1.2  orders-db · read
 Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read); API Gateway → orders-db (read).
 
-Undo: Add a call from API Gateway to orders-db, and its edge
+Undo: Add a call from API Gateway to orders-db
+Edges: 3
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+
+Undo: Connect API Gateway to orders-db
 Edges: 2
 1  API Gateway · invoke
    1.1  fn-orders · invoke

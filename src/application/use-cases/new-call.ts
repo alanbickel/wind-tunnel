@@ -1,14 +1,13 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
-import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { Project } from "../../domain/model/project";
 import { callChoices, type CallChoice } from "./call-choices";
 import { findStep } from "../edits/step-search";
 import type { IdGenerator } from "../ports/id-generator";
 
 export interface NewCallDependencies {
-  /** What actions each type accepts, its display name, and its edge defaults. */
+  /** What actions each type accepts, and its display name. */
   readonly registry: ComponentRegistry;
-  /** The new call's id, and its edge's. */
+  /** The new call's id. */
   readonly ids: IdGenerator;
 }
 
@@ -23,22 +22,18 @@ export interface NewCallInput {
 /** What the UI needs to draft a call, and to add it once it's complete. */
 export interface NewCallStart {
   readonly callId: string;
-  /** The id of the edge a call along a missing one adds. */
-  readonly edgeId: string;
-  /** The caller type's edge defaults, for that edge. */
-  readonly edgeSettings: EdgeSettings;
   /** The caller's component name. */
   readonly callerName: string;
-  /** The caller's neighbours first, then the rest; never the caller's own component. */
+  /** The components the caller has an edge to, in edge order; empty if it has none. */
   readonly choices: readonly CallChoice[];
 }
 
 /**
- * What a new call starts with (UX design §2.5 steps 3 and 5): its ids, the
- * caller type's edge defaults, and the components it can go to, the ones
- * the caller has an edge to first. It changes nothing: the call is added,
- * with `addCall`, once the component and the action are chosen. Undefined
- * if the step can't take a call, or its component or type isn't known.
+ * What a new call starts with (UX design §2.5 steps 3 and 5): its id and
+ * the components it can go to, which are the ones the caller has an edge to
+ * (a call never adds one). It changes nothing: the call is added, with
+ * `addCall`, once the component and the action are chosen. Undefined if the
+ * step can't take a call, or its component or type isn't known.
  */
 export class NewCall {
   private readonly deps: NewCallDependencies;
@@ -59,8 +54,6 @@ export class NewCall {
     if (caller === undefined || callerType === undefined) return undefined;
     return {
       callId: ids.newId(),
-      edgeId: ids.newId(),
-      edgeSettings: callerType.edgeDefaults,
       callerName: caller.name,
       choices: callChoices({ registry, project, caller }),
     };

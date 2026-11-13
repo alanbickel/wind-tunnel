@@ -31,19 +31,14 @@ export function awsNewComponent(
   return new NewComponent({ registry: createAwsComponentRegistry(), ids });
 }
 
-/**
- * `ChangeStep` over the AWS registry, with ids `change-1`, `change-2`, … (a
- * change's edge) unless given others.
- */
-export function awsChangeStep(
-  ids: IdGenerator = new SequentialIds("change"),
-): ChangeStep {
-  return new ChangeStep({ registry: createAwsComponentRegistry(), ids });
+/** `ChangeStep` over the AWS registry. */
+export function awsChangeStep(): ChangeStep {
+  return new ChangeStep({ registry: createAwsComponentRegistry() });
 }
 
 /**
- * `NewCall` over the AWS registry, with ids `call-1`, `call-2`, … (a
- * call's, then its edge's) unless given others.
+ * `NewCall` over the AWS registry, with ids `call-1`, `call-2`, …
+ * unless given others.
  */
 export function awsNewCall(
   ids: IdGenerator = new SequentialIds("call"),

@@ -124,7 +124,7 @@ function createStarters({
   return {
     newComponent: new NewComponent({ registry, ids }),
     newCall: new NewCall({ registry, ids }),
-    changeStep: new ChangeStep({ registry, ids }),
+    changeStep: new ChangeStep({ registry }),
     newEdge: new NewEdge({ registry, ids }),
     newWorkflow: new NewWorkflow({ registry, ids }),
     newWorkload: new NewWorkload({ ids }),

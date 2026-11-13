@@ -44,8 +44,8 @@ const PANEL_IDS: ReadonlySet<string> = new Set<CanvasPanelId>([
  * The canvas panels' state, held by the screen rather than the panels, so
  * a change elsewhere can open one: a workflow's remove opens "Workflows"
  * (a workload's, "Workloads"), where the focus goes next, and closing
- * Details opens the panel that
- * holds the button that made the selection. Both start closed.
+ * Details opens the panel that holds the button that made the selection.
+ * Both start closed.
  */
 export function useCanvasPanels(): CanvasPanels {
   const [open, setOpen] = useState<CanvasPanelId>();

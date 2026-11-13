@@ -69,8 +69,9 @@ export interface ArchitectureViewProps {
  * The canvas: the project's components and connections as a diagram that
  * fills the room it's given, with a tool rail down its left edge (Add
  * component, Connect, Workflows, Workloads), and at its bottom left "As
- * text", each opening a panel over it. The text version has the same facts as lists, for anyone
- * who can't see the canvas, and a line for each workflow's path. Either
+ * text", each opening a panel over it. The text version has the same facts
+ * as lists, for anyone who can't see the canvas, and a line for each
+ * workflow's path. Either
  * selects a component or a connection: a click on the diagram, or a button
  * in the list, which is the way every user can rely on. The diagram marks
  * the selection, and a selected workflow's path, or a selected step's and

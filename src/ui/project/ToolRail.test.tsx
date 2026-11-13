@@ -179,4 +179,21 @@ describe("ToolRail", () => {
     expect(screen.queryByRole("button", { name: "Add workflow" })).toBeNull();
     expect(document.activeElement).toBe(railButton("Workflows"));
   });
+
+  // Fails if the toolbar stops handling the arrow keys, flips their
+  // directions, or stops wrapping at either end.
+  it("moves the focus between the buttons with Down and Up, wrapping at the ends", () => {
+    renderRail();
+    railButton("Add component").focus();
+
+    fireEvent.keyDown(railButton("Add component"), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(railButton("Connect"));
+
+    fireEvent.keyDown(railButton("Connect"), { key: "ArrowUp" });
+    fireEvent.keyDown(railButton("Add component"), { key: "ArrowUp" });
+    expect(document.activeElement).toBe(railButton("Workloads"));
+
+    fireEvent.keyDown(railButton("Workloads"), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(railButton("Add component"));
+  });
 });

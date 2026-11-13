@@ -37,7 +37,7 @@ The issues the project bar says (`WorkloadRunCheck.issues`) are these plus the s
 
 ## Selecting a workload
 
-- **The list.** Under the workflows list, in the canvas's "Workflows" panel, "Workloads" lists them in project order, a button each, marked `aria-current` while selected, with "· 1 problem" after the name when it has issues. With none, it says what a workload is.
+- **The list.** The rail's "Workloads" list, opened from its own button and separate from the workflows list, lists them in project order, a button each, marked `aria-current` while selected, with "· 1 problem" after the name when it has issues. With none, it says what a workload is.
 - **Details.** Selecting a workload is a `WorkloadSelection` held by the project screen like any other: the focus goes to Details' heading, and Escape clears the selection and returns the focus to whatever made it, the row or the top bar's Edit. Details' header has Remove, and its body starts with the name field ([below](#the-commands)).
 - **The picker follows one way.** Selecting a workload picks it in the top bar, so Run runs what the user is looking at; picking in the bar changes only the bar. The picker remembers the workload's id and reads the workload from the project each time (`usePickedWorkload`), so a rename shows in it at once; if the project no longer has the picked workload, as after an Undo of its add, the picker shows the project's first. Edit, beside the picker, selects the picked workload. `usePickSelectedWorkload` does the picking, and only when the selection changes: a change to the project doesn't pick the selected workload again, or it would undo a pick made in the bar since.
 - **Undo and redo.** `selectionAfterUndo` keeps a selected workload while the project has it, and clears it once it doesn't; an undo or redo that brings a workload back, such as an Undo of its remove, selects it, unless a workflow or a step is selected and still there.
@@ -150,19 +150,19 @@ sequenceDiagram
     D->>User: "Remove Lunch rush?" with the focus on Cancel
     User->>D: Remove (confirms)
     D->>R: remove({ kind: "workload", workloadId })
-    R->>R: opens the Workflows panel, so Add workload is there to take the focus
+    R->>R: opens the rail's Workloads list, so Add workload is there to take the focus
     R->>P: pick(workloadAfterRemoval): the next in the list, else the one before, else none
     R->>A: remove(target)
     A->>E: edit(removeWorkload), named "Remove workload Lunch rush"
     E->>E: history keeps the record before; the screen shows the next; the run on screen is compared with it
     A->>A: clear the selection, focus Add workload
-    A-->>User: "Removed Lunch rush." from the region beside the panel buttons
+    A-->>User: "Removed Lunch rush." from the rail's region
 ```
 
 - **Why undo brings it back whole.** The history step holds the whole record from before the remove, so Undo puts back the workload with its mix and profile at its place in the list; `removeWorkload` has no inverse to get wrong. `selectionAfterUndo` then selects it, which picks it in the bar.
 - **The next pick.** `workloadAfterRemoval` reads the list as it was, before the edit: the workload after the removed one, or the one before if it was last, or none. With none left, the bar says "This project has no workloads to run."
 - **The run.** A run of the removed workload stays on screen, out of date: `runIsCurrent` compares the workload the run used, and the project no longer has it. Renaming or removing the workload that ran makes the run out of date; changing any other workload doesn't, and neither does adding one, since no workload a run used has changed.
-- **Where the announcement is said.** "Add workload" is in the "Workflows" panel, which may be closed, and a live region in a hidden panel says nothing. So a workload's remove, like a workflow's, is announced from the one region beside the panel buttons, which always show, not from beside "Add workload".
+- **Where the announcement is said.** "Add workload" is in the rail's "Workloads" list, which may be closed, and a live region in a hidden list says nothing. So a workload's remove, like a workflow's, is announced from the rail's region, which always shows, not from beside "Add workload".
 
 ## Worked example
 

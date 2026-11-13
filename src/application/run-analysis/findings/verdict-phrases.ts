@@ -2,6 +2,7 @@ import type { LimitUse } from "../../../domain/metrics/metrics-snapshot";
 import { lookup } from "../../../domain/shared/kind-handlers";
 import type { LimitPeak } from "../limit-peaks";
 import type { WorkflowTotals } from "../run-totals";
+import { STATUS_WORDS } from "../status-words";
 import type { Headroom, WarmUp } from "./headroom";
 import { amountOf } from "./limit-ref";
 import {
@@ -150,7 +151,7 @@ function limitNamesOf(limits: RefusingLimits, v: Vocabulary): Message {
 
 /** "refused 90 attempts" */
 function refused({ rejected }: RefusingLimits): Message {
-  return say`refused ${count(rejected)} ${plural(rejected, ["attempt", "attempts"])}`;
+  return say`${STATUS_WORDS.refused} ${count(rejected)} ${plural(rejected, ["attempt", "attempts"])}`;
 }
 
 /**

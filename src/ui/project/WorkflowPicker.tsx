@@ -92,7 +92,10 @@ function PickerButton({
       onClick={menu.toggle}
       onKeyDown={menu.openOnArrow}
     >
-      {children}
+      <span className={styles.name}>{children}</span>
+      <span aria-hidden="true" className={styles.arrow}>
+        ▴
+      </span>
     </button>
   );
 }
@@ -252,8 +255,16 @@ function focusFirstItem(menu: HTMLElement | null): void {
   (checked ?? first)?.focus();
 }
 
-/** Escape closes the menu, and the other keys move the focus among the items. */
+/**
+ * Escape closes the menu, and the other keys move the focus among the items.
+ * Tab closes it too: the focus goes to the button and the key's default is
+ * left alone, so the browser moves on from the button, not onto it.
+ */
 function moveOrClose(event: KeyboardEvent<HTMLElement>, close: () => void) {
+  if (event.key === "Tab") {
+    close();
+    return;
+  }
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();

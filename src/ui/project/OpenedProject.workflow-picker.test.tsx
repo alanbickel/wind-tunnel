@@ -103,7 +103,7 @@ describe("OpenedProject's workflow picker", () => {
   });
 
   // Fails if Escape leaves the menu open, or the focus in the closed menu
-  // instead of on its button, or Escape reaches a panel behind it.
+  // instead of on its button.
   it("closes on Escape and returns the focus to its button", () => {
     renderProject();
     const menu = openMenu();
@@ -112,6 +112,22 @@ describe("OpenedProject's workflow picker", () => {
     expect(document.activeElement).toBe(first);
     fireEvent.keyDown(first as HTMLElement, { key: "Escape" });
 
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(pickerButton());
+  });
+
+  // Fails if Tab from an item leaves the menu open (the button is inside the
+  // picker, so a blur to it doesn't close), or the Tab is cancelled so the
+  // browser can't move on from the button.
+  it("closes on Tab, leaving the key's default to move on from the button", () => {
+    renderProject();
+    const [first] = within(openMenu()).getAllByRole("menuitemradio");
+
+    const notCancelled = fireEvent.keyDown(first as HTMLElement, {
+      key: "Tab",
+    });
+
+    expect(notCancelled).toBe(true);
     expect(screen.queryByRole("menu")).toBeNull();
     expect(document.activeElement).toBe(pickerButton());
   });

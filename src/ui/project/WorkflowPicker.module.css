@@ -6,14 +6,22 @@
 
 .button {
   composes: secondary from "../shared/Button.module.css";
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
   max-width: var(--picker-max-width);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.button::after {
-  content: " ▴";
+/* A long name is cut with an ellipsis; the arrow beside it stays. */
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arrow {
+  flex: none;
 }
 
 /* Opens upward: the picker is at the canvas's bottom. It scrolls if the

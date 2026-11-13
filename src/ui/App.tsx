@@ -8,7 +8,7 @@ import { useOpenProject } from "./useOpenProject";
 
 /**
  * The app shell: the screen that shows. The project list sits in a column
- * under the top bar. A project fills the window, and draws its own top
+ * under the top bar and the storage strip. A project fills the window, and draws its own top
  * bar, since its controls sit in it. `main.tsx` puts the providers above it.
  */
 export function App() {
@@ -17,7 +17,7 @@ export function App() {
   const storage = useStoragePersistence();
 
   if (opened !== undefined) {
-    const hint = <StorageHint status={storage.status} slim />;
+    const hint = <StorageHint storage={storage} />;
     return (
       <ProjectScreen
         key={opened.id}
@@ -31,8 +31,8 @@ export function App() {
   return (
     <div className={styles.list}>
       <TopBar current={undefined} onProjects={close} />
+      <StorageHint storage={storage} />
       <main className={styles.content}>
-        <StorageHint status={storage.status} />
         <ProjectsScreen
           onOpen={open}
           onCreated={storage.requestOnce}

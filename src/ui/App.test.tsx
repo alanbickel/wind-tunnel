@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -363,6 +364,36 @@ describe("App storage persistence", () => {
       expect(await screen.findByText(HINT)).toBeTruthy();
     },
   );
+
+  // Fails if the strip has no Dismiss, or dismissing leaves the text up.
+  it("hides the warning when it is dismissed, leaving the live region", async () => {
+    renderAppWith(answering("best-effort"));
+    await createSample();
+    await screen.findByText(HINT);
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(screen.queryByText(HINT)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+    expect(screen.getAllByRole("status").length).toBeGreaterThan(0);
+  });
+
+  // Fails if the app shows a hint or Dismiss for a "persisted" answer after
+  // the answer has landed. (StorageHint's own test checks the bare strip.)
+  it("draws no strip when the browser keeps the projects", async () => {
+    const storage = answering("persisted");
+    renderAppWith(storage);
+    await createSample();
+    await waitFor(() => {
+      expect(storage.request).toHaveBeenCalledOnce();
+    });
+    await act(async () => {
+      await storage.request.mock.results[0]?.value;
+    });
+
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+    expect(screen.queryByText(HINT)).toBeNull();
+  });
 
   it("warns that storage may be cleared when the request fails", async () => {
     renderAppWith({

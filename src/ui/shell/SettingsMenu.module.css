@@ -1,0 +1,58 @@
+/* The button at the bar's end, with its menu below it, aligned to the
+   window's right edge. */
+.settings {
+  position: relative;
+}
+
+/* Heard, not seen: the dots are the icon, and this is the button's name. */
+.name {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 3;
+  min-inline-size: max-content;
+  margin: 0;
+  padding: var(--space-1) 0;
+  list-style: none;
+  background: var(--color-surface);
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--color-surface-raised);
+}
+
+.item[aria-checked="true"] {
+  font-weight: var(--font-weight-bold);
+}
+
+/* Every item holds the check's room, so checking moves nothing. */
+.check {
+  display: inline-block;
+  inline-size: var(--icon-size);
+}

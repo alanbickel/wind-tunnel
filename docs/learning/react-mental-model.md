@@ -12,7 +12,7 @@ Passing a function to `useState` makes it an _initializer_: React calls it on th
 
 **Why it bites:** coming from signals (Solid, Vue), a function looks like something React will watch. State changes only through its setter.
 **Fix:** pass the function, not its result, when the initial value is costly or reads the outside world (storage, parsing).
-**In Wind Tunnel:** the theme control reads the saved theme from `localStorage` this way ([#37](https://github.com/alanbickel/wind-tunnel/pull/37)).
+**In Wind Tunnel:** the theme menu reads the saved theme from `localStorage` this way ([#37](https://github.com/alanbickel/wind-tunnel/pull/37)).
 **Source:** [Avoiding recreating the initial state](https://react.dev/reference/react/useState#avoiding-recreating-the-initial-state). In Strict Mode, React calls initializers twice in development to catch impure ones.
 
 ### A state change re-renders the component and everything under it

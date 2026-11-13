@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { ThemeControl } from "../theme/ThemeControl";
 import { Breadcrumb } from "./Breadcrumb";
+import { SettingsMenu } from "./SettingsMenu";
 import styles from "./TopBar.module.css";
 
 export interface TopBarProps {
@@ -11,7 +11,7 @@ export interface TopBarProps {
   readonly current: ReactNode;
   /** Goes back to the project list. */
   readonly onProjects: () => void;
-  /** An open project's controls, between the breadcrumb and the theme. */
+  /** An open project's controls, between the breadcrumb and the settings menu. */
   readonly children?: ReactNode;
   /** An open project's status line, across the bar under its row. */
   readonly status?: ReactNode;
@@ -39,7 +39,7 @@ function AppMark() {
 
 /**
  * Across the top of every screen: the app's mark and name, where you are, an open
- * project's controls, and the theme, then the project's status line.
+ * project's controls, and the settings menu, then the project's status line.
  */
 export function TopBar(props: TopBarProps) {
   const { current, onProjects, children, status } = props;
@@ -50,7 +50,7 @@ export function TopBar(props: TopBarProps) {
       <Breadcrumb current={current} onProjects={onProjects} />
       {children}
       <div className={styles.end}>
-        <ThemeControl />
+        <SettingsMenu />
       </div>
       {status}
     </header>

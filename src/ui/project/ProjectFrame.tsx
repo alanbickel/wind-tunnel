@@ -6,7 +6,7 @@ import styles from "./ProjectFrame.module.css";
 export interface ShellParts {
   /** Goes back to the project list. */
   readonly onProjects: () => void;
-  /** The storage hint, a slim line under the top bar. */
+  /** The storage hint, a dismissible strip under the top bar. */
   readonly hint: ReactNode;
 }
 
@@ -26,7 +26,7 @@ export interface ProjectFrameProps {
 
 /**
  * A project screen's frame: one top bar, with the project's controls in
- * it, the storage hint under it, and the screen's content filling the rest
+ * it, the dismissible storage hint under it, and the screen's content filling the rest
  * of the window from `--breakpoint-wide` up.
  */
 export function ProjectFrame(props: ProjectFrameProps) {

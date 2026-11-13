@@ -28,7 +28,7 @@
   margin-inline-end: calc(var(--space-2) - var(--space-5));
 }
 
-/* Pushes the theme control to the far end. */
+/* Pushes the settings menu to the far end. */
 .end {
   margin-left: auto;
 }

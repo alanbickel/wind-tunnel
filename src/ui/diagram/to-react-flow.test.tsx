@@ -100,8 +100,8 @@ describe("toFlowEdge", () => {
   });
 
   // Fails if an edge on the path loses the path class, or a node of the
-  // same id puts it on the path (it is faded instead). jsdom draws no arrows, so this is where
-  // an arrow's path mark is tested.
+  // same id puts it on the path (it is faded instead). jsdom draws no
+  // arrows, so this is where an arrow's path mark is tested.
   it("gives the edge the path class only when it's on the path", () => {
     const onPath = {
       selected: [],

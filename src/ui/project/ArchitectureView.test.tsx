@@ -250,8 +250,48 @@ describe("ArchitectureView", () => {
     ]);
   });
 
-  // Fails if a selected step rings its caller's box, or another, or drops
-  // its workflow's path.
+  // Fails if the text version says "call" for an arrow that several calls
+  // follow, or lists only one of its numbers.
+  it("lists every number of a connection several calls follow, as calls", () => {
+    const twice: ProjectRecord = {
+      ...sampleRecord,
+      project: {
+        ...sampleRecord.project,
+        workflows: sampleRecord.project.workflows.map((workflow) => ({
+          ...workflow,
+          root: {
+            ...workflow.root,
+            calls: [
+              {
+                id: "fn-invoke",
+                componentId: "fn",
+                action: "invoke",
+                calls: [
+                  { id: "table-read", componentId: "table", action: "read" },
+                  { id: "table-again", componentId: "table", action: "read" },
+                ],
+              },
+            ],
+          },
+        })),
+      },
+    };
+
+    renderView({
+      record: twice,
+      selection: { kind: "workflow", workflowId: "read" },
+    });
+    openPanel("As text");
+
+    expect(itemsOf("Connections")).toEqual([
+      "API → Function (call 1)",
+      "Function → Table (calls 2, 3)",
+    ]);
+  });
+
+  // Fails if a selected step rings its caller's box, or another, drops
+  // its workflow's path, or fades a box on that path (or leaves the spare
+  // one unfaded).
   it.each([
     ["fn-invoke", "fn"],
     ["api-invoke", "api"],
@@ -264,6 +304,7 @@ describe("ArchitectureView", () => {
 
     expect(boxesWith(nodes, "selected")).toEqual([id]);
     expect(boxesWith(nodes, ON_PATH_CLASS)).toEqual(["api", "fn", "table"]);
+    expect(boxesWith(nodes, FADED_CLASS)).toEqual(["spare"]);
   });
 
   it("lists the components and connections as text", () => {

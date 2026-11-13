@@ -146,8 +146,9 @@ describe("OpenedProject's Add workflow", () => {
 
     expect(await savedNames(projects, 1)).toEqual(["Get order"]);
     expect(detailsHeading().textContent).toBe("Get order · Workflow");
+    // Both the list's row and the picker's button name it.
     expect(
-      screen
+      within(screen.getByRole("list", { name: "Workflows" }))
         .getByRole("button", { name: "Get order" })
         .getAttribute("aria-current"),
     ).toBe("true");

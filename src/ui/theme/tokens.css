@@ -139,6 +139,9 @@
   --window-height: 100dvh;
   /* A round icon button, such as an info control, sized to its text. */
   --icon-button-size: 1.5em;
+  /* The workflow picker's button, before it cuts a long name short, and the menu above it. */
+  --picker-max-width: 16rem;
+  --menu-max-height: 50vh;
 
   /* Breakpoints. @media can't read a custom property, so a media query
      writes the value out; tests/architecture/stylesheets.test.ts fails

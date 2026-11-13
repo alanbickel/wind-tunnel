@@ -1,11 +1,10 @@
 import { useId, useMemo, type RefObject } from "react";
 import type { Selection } from "../../application/details/selection";
 import type { Project } from "../../domain/model/project";
-import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
-import { dispatchKind } from "../shared/kind-dispatch";
 import styles from "./ArchitectureView.module.css";
+import { shownWorkflowId } from "./shown-workflow-id";
 
 export interface WorkflowListProps {
   readonly project: Project;
@@ -54,7 +53,7 @@ function WorkflowRows({ project, selection, onSelect }: WorkflowListProps) {
     () => checkWorkflows.execute({ project }),
     [checkWorkflows, project],
   );
-  const shown = selection && dispatchKind(SHOWN_WORKFLOW, selection);
+  const shown = shownWorkflowId(selection);
   return (
     <ul aria-label="Workflows" className={styles.items}>
       {project.workflows.map(({ id, name }) => (
@@ -103,17 +102,6 @@ function WorkflowRow({ name, problems, current, onSelect }: WorkflowRowProps) {
     </button>
   );
 }
-
-/** The workflow whose outline Details shows for each kind of selection. */
-const SHOWN_WORKFLOW: KindHandlers<Selection, string | undefined> = {
-  component: () => undefined,
-  edge: () => undefined,
-  workflow: ({ workflowId }) => workflowId,
-  step: ({ workflowId }) => workflowId,
-  workload: () => undefined,
-  "new-workflow": () => undefined,
-  finding: () => undefined,
-};
 
 /** What "Add workflow" says while the project has no component to call. */
 const ADD_A_COMPONENT_FIRST = "Add a component first.";

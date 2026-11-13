@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, type ReactNode } from "react";
+import { useCallback, useId, useMemo, useState, type ReactNode } from "react";
 import type {
   Point,
   ProjectRecord,
@@ -24,8 +24,9 @@ import {
   type DiagramMarks,
   type DiagramNode,
 } from "../diagram/diagram-model";
+import type { ZoomActions } from "../diagram/zoom-actions";
 import { dispatchKind } from "../shared/kind-dispatch";
-import { CanvasPanels } from "./CanvasPanels";
+import { CanvasPanels, type CanvasPanelsProps } from "./CanvasPanels";
 import { ToolRail, type AddComponentProps } from "./ToolRail";
 import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
@@ -69,7 +70,8 @@ export interface ArchitectureViewProps {
  * The canvas: the project's components and connections as a diagram that
  * fills the room it's given, with a tool rail down its left edge (Add
  * component, Connect, Workflows, Workloads), and at its bottom left "As
- * text", each opening a panel over it. The text version has the same facts
+ * text", the workflow picker, and zoom, in one row; "As text" opens a panel
+ * over the canvas. The text version has the same facts
  * as lists, for anyone who can't see the canvas, and a line for each
  * workflow's path. Either
  * selects a component or a connection: a click on the diagram, or a button
@@ -95,7 +97,8 @@ export function ArchitectureView(props: ArchitectureViewProps) {
   const headingId = useId();
   const selecting = useDiagramSelection(props);
   const empty = content.nodes.length === 0;
-  const drawn = { ...props, content, selecting };
+  const [zoom, setZoom] = useState<ZoomActions>();
+  const drawn = { ...props, content, selecting, onZoom: setZoom };
   return (
     <section aria-labelledby={headingId} className={styles.canvas}>
       <h3 id={headingId} className={styles.heading}>
@@ -106,9 +109,17 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       <CanvasPanels
         panels={props.panels}
         text={empty ? undefined : <TextVersion {...drawn} />}
+        picker={pickerOf(props)}
+        zoom={empty ? undefined : zoom}
       />
     </section>
   );
+}
+
+/** What the workflow picker shows and reports. */
+function pickerOf(props: ArchitectureViewProps): CanvasPanelsProps["picker"] {
+  const { record, selection, onSelect, onClear } = props;
+  return { project: record.project, selection, onSelect, onClear };
 }
 
 /** A component type's name in words, from the types "Add component" offers. */
@@ -174,6 +185,8 @@ function Workloads(props: ArchitectureViewProps) {
 interface DrawingProps extends ArchitectureViewProps {
   readonly content: DiagramContent;
   readonly selecting: DiagramSelection;
+  /** Called with the diagram's zoom actions once it has loaded. */
+  readonly onZoom: (zoom: ZoomActions | undefined) => void;
 }
 
 /** The diagram of a project with components. */
@@ -192,6 +205,7 @@ function Drawing(props: DrawingProps) {
         onMove(id, position);
       }}
       coveredRightPx={props.coveredRightPx}
+      onZoom={props.onZoom}
     />
   );
 }

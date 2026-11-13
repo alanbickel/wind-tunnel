@@ -1,0 +1,77 @@
+/* The picker's button, with its menu above it. */
+.picker {
+  position: relative;
+  min-width: 0;
+}
+
+.button {
+  composes: secondary from "../shared/Button.module.css";
+  max-width: var(--picker-max-width);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.button::after {
+  content: " ▴";
+}
+
+/* Opens upward: the picker is at the canvas's bottom. It scrolls if the
+   window is short, and never grows wider than the canvas. */
+.menu {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+  max-width: var(--prose-max-width);
+  max-height: var(--menu-max-height);
+  margin: 0;
+  padding: var(--space-1) 0;
+  overflow: auto;
+  list-style: none;
+  background: var(--color-surface);
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--color-surface-raised);
+}
+
+.item[aria-checked="true"] {
+  font-weight: var(--font-weight-bold);
+}
+
+/* Every item holds the check's room, so checking moves nothing. */
+.check {
+  display: inline-block;
+  inline-size: var(--icon-size);
+}
+
+.problems {
+  color: var(--color-status-warn);
+}
+
+.clear {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: var(--line-width) solid var(--color-border);
+}

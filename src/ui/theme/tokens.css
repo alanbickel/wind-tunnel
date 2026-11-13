@@ -105,6 +105,9 @@
   /* Line widths: borders and rules; thick for the focus ring and accents. */
   --line-width: 1px;
   --line-width-thick: 2px;
+  /* How much of a box or an arrow off a workflow's path shows: dimmed, still
+     readable (UX design §7). The path's own shape and width say which is which. */
+  --faded-opacity: 0.55;
   /* The bar down the left edge of what's selected (UX design §4.1). */
   --selection-bar-width: 6px;
 

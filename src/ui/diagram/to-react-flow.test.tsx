@@ -9,11 +9,16 @@ import {
   type DiagramMarks,
   type DiagramNode,
 } from "./diagram-model";
-import { ON_PATH_CLASS, toFlowEdge, toFlowNode } from "./to-react-flow";
+import {
+  FADED_CLASS,
+  ON_PATH_CLASS,
+  toFlowEdge,
+  toFlowNode,
+} from "./to-react-flow";
 
 /** Marks that select only `item`. */
 function selecting(item: DiagramItem): DiagramMarks {
-  return { selected: [item], path: [] };
+  return { selected: [item], path: [], numbers: [] };
 }
 
 const fn: DiagramNode = {
@@ -59,7 +64,11 @@ describe("toFlowNode", () => {
   // Fails if a node on the path loses the path class, or one off it, or a
   // selected node, gets it.
   it("gives the node the path class only when it's on the path", () => {
-    const marks = { selected: [], path: [{ kind: "node", id: "fn" }] } as const;
+    const marks = {
+      selected: [],
+      path: [{ kind: "node", id: "fn" }],
+      numbers: [],
+    } as const;
 
     expect(toFlowNode(fn, marks).className).toBe(ON_PATH_CLASS);
     expect(toFlowNode(fn, { ...marks, path: [] }).className).toBeUndefined();
@@ -91,19 +100,70 @@ describe("toFlowEdge", () => {
   });
 
   // Fails if an edge on the path loses the path class, or a node of the
-  // same id puts it on the path. jsdom draws no arrows, so this is where
-  // an arrow's path mark is tested.
+  // same id puts it on the path (it is faded instead). jsdom draws no
+  // arrows, so this is where an arrow's path mark is tested.
   it("gives the edge the path class only when it's on the path", () => {
     const onPath = {
       selected: [],
       path: [{ kind: "edge", id: "a-b" }],
+      numbers: [],
     } as const;
     const nodeOnPath = {
       selected: [],
       path: [{ kind: "node", id: "a-b" }],
+      numbers: [],
     } as const;
 
     expect(toFlowEdge(aToB, onPath).className).toBe(ON_PATH_CLASS);
-    expect(toFlowEdge(aToB, nodeOnPath).className).toBeUndefined();
+    expect(toFlowEdge(aToB, nodeOnPath).className).toBe(FADED_CLASS);
+  });
+});
+
+const noteOn = (id: string): DiagramMarks => ({
+  selected: [],
+  path: [{ kind: "node", id }],
+  numbers: [],
+});
+
+describe("fading what's off the path", () => {
+  // Fails if a part off the path isn't faded, a part on it is, or any part
+  // is faded while no path is marked (nothing selected, or a component).
+  it("fades exactly the boxes and arrows off a marked path", () => {
+    const marks: DiagramMarks = {
+      selected: [],
+      path: [
+        { kind: "node", id: "fn" },
+        { kind: "edge", id: "a-b" },
+      ],
+      numbers: [],
+    };
+    const other: DiagramEdge = { id: "b-c", source: "b", target: "c" };
+    const spare: DiagramNode = { ...fn, id: "spare" };
+
+    expect(toFlowNode(fn, marks).className).toBe(ON_PATH_CLASS);
+    expect(toFlowNode(spare, marks).className).toBe(FADED_CLASS);
+    expect(toFlowEdge(aToB, marks).className).toBe(ON_PATH_CLASS);
+    expect(toFlowEdge(other, marks).className).toBe(FADED_CLASS);
+    expect(toFlowNode(spare, NO_MARKS).className).toBeUndefined();
+    expect(toFlowEdge(other, NO_MARKS).className).toBeUndefined();
+    expect(toFlowNode(spare, noteOn("fn")).className).toBe(FADED_CLASS);
+  });
+});
+
+describe("numbering the calls on an arrow", () => {
+  const numbered = (numbers: readonly number[]): DiagramMarks => ({
+    selected: [],
+    path: [{ kind: "edge", id: "a-b" }],
+    numbers: [{ edgeId: "a-b", numbers }],
+  });
+
+  // Fails if an arrow's label isn't its calls' numbers in order, one shared
+  // by several calls doesn't list each, or an arrow no call follows is labeled.
+  it("labels an arrow with each call's number, and an unnumbered one with none", () => {
+    expect(toFlowEdge(aToB, numbered([2])).label).toBe("2");
+    expect(toFlowEdge(aToB, numbered([1, 4])).label).toBe("1, 4");
+    const other: DiagramEdge = { id: "b-c", source: "b", target: "c" };
+    expect(toFlowEdge(other, numbered([1])).label).toBeUndefined();
+    expect(toFlowEdge(aToB, NO_MARKS).label).toBeUndefined();
   });
 });

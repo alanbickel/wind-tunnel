@@ -112,6 +112,34 @@ describe("SettingsMenu", () => {
     expect(document.activeElement).toBe(themeItem("System"));
   });
 
+  // Fails if Tab leaves the menu open, or leaves the focus on an item that
+  // went, so the browser's Tab starts from the top of the page.
+  it("closes on Tab with the focus back on the button", () => {
+    loadPage();
+    openMenu();
+
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Tab" });
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(settingsButton());
+  });
+
+  // Fails if Enter or Space on a moved-to item doesn't pick it (jsdom doesn't
+  // turn the key into the click a browser sends, so the test sends both).
+  it("picks the focused item, as Enter or Space does, and closes", () => {
+    loadPage();
+    openMenu();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowDown" });
+    const focused = document.activeElement;
+    expect(focused).toBe(themeItem("Dark"));
+
+    fireEvent.keyDown(focused as HTMLElement, { key: "Enter" });
+    fireEvent.click(focused as HTMLElement);
+
+    expect(root.getAttribute("data-theme")).toBe("dark");
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   // Fails if the focus leaving the menu leaves it open over the page.
   it("closes when the focus leaves it", () => {
     loadPage();

@@ -20,7 +20,7 @@ flowchart TB
         project["<b>ProjectScreen, ProjectBar</b><br/>[Component: project/]<br/>One project: its parts of the top bar, the canvas, the selection, and the inspector"]:::component
         run["<b>useProjectRun, RunResults</b><br/>[Component: run/]<br/>The run's state, controls, verdict and findings, totals, chart content"]:::component
         storage["<b>useStoragePersistence</b><br/>[Component: storage/]<br/>Asks to keep the projects"]:::component
-        theme["<b>ThemeControl, tokens.css</b><br/>[Component: theme/]<br/>System, dark, or light; every color"]:::component
+        theme["<b>useThemeChoice, tokens.css</b><br/>[Component: theme/]<br/>System, dark, or light; every color"]:::component
         diagram["<b>Diagram</b><br/>[Component: diagram/]<br/>Boxes and arrows, over React Flow, loaded lazily"]:::component
         charts["<b>TimeSeriesChart</b><br/>[Component: charts/]<br/>Lines over time, over Recharts, loaded lazily"]:::component
     end

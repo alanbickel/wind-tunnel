@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { PersistenceStatus } from "../../application/ports/storage-persistence";
 import { Button } from "../shared/Button";
 import styles from "./StorageHint.module.css";
@@ -26,12 +27,20 @@ const HINTS: Record<PersistenceStatus, string> = {
 export function StorageHint(props: StorageHintProps) {
   const { status, dismissed, dismiss } = props.storage;
   const text = status === undefined || dismissed ? "" : HINTS[status];
+  const region = useRef<HTMLDivElement>(null);
   return (
-    <div role="status">
+    <div role="status" ref={region} tabIndex={-1}>
       {text !== "" && (
         <div className={styles.strip}>
           <p className={styles.text}>{text}</p>
-          <Button variant="link" onClick={dismiss}>
+          <Button
+            variant="link"
+            onClick={() => {
+              // The button goes with the strip: keep the focus on the page.
+              region.current?.focus();
+              dismiss();
+            }}
+          >
             Dismiss
           </Button>
         </div>

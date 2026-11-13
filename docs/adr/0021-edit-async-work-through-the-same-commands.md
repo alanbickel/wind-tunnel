@@ -1,6 +1,6 @@
 # ADR-0021: Edit async work through the same commands, tied to its `enqueue`
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-11-12
 - **Date:** 2026-11-10
 
 ## Context
@@ -41,7 +41,12 @@ Edits to the async tree are the same edits as to the main one, on steps the comm
 | `moveStep` | A step under the async root moves among its siblings. The async root has none: it's the slot's only step, so move is unavailable, as for a workflow's first step. |
 | `removeStep` | Removes the async root, leaving the slot empty: the holder's `async` goes, its `calls` stay. A step below it goes as any step does, with everything under it. No edge goes. |
 
+> **Changed by the [addendum of 2026-11-12](#addendum-2026-11-12).**
+
 3. **One new command: `addAsyncWork`.** It sets `async` on an `enqueue` step that has none, to a new step with the given id, component and action, and adds the queue's edge to the consumer through `connectIfMissing`, so the slot and its edge are one undo step. It returns the record unchanged if the step isn't an `enqueue`, already has async work, or isn't in the workflow. It's the counterpart of `addCall`, not a variant of it, because a slot holds one step and a list holds many, and because a call is appended where this one is set.
+
+   > **Changed by the [addendum of 2026-11-12](#addendum-2026-11-12).**
+
 4. **Dropping `async` rebuilds a step.** `withCalls` rebuilds a step field by field and must name `async` ([Gotchas](../../CONTRIBUTING.md#gotchas)); the new code that drops `async` must name `calls` the same way. `mapSteps` says its callback "shouldn't add or remove" `calls` or `async`; `changeStep` will, when it drops async work, so the new code either changes that note or does the drop outside `mapSteps`. Either is the implementer's call.
 5. **No command removes an edge**, async work included ([ADR-0019](0019-edit-projects-with-commands-and-save-each-change.md) decision 3). Removing async work leaves `orders-queue → fn-writer` in the architecture, and its Details says no step calls along it.
 
@@ -78,10 +83,16 @@ flowchart TB
 
 - **The question.** A change that drops steps asks before saving, with the focus on Cancel, as a remove does. It counts every step under the step, async work and nested steps included: "Change fn-orders · invoke to fn-writer · invoke? The 3 steps under it go." A step with nothing under it changes at once, as today.
 - **The step's own edge** is unchanged: if its caller has no edge to the new component, the same command adds one (`connectIfMissing`), as `addCall` does. Only what's *under* the step is dropped.
+
+  > **Changed by the [addendum of 2026-11-12](#addendum-2026-11-12).**
+
 - **No calls under an `enqueue`.** The editor stops offering "Add a call from orders-queue", since a queue's follow-up work is its async work. The validator doesn't change, so a stored project with such calls still opens.
 - **The pickers.** The action picker is no longer locked, and the component picker no longer filters by the step's action: both offer every component. A component whose type accepts one action (SQS only accepts `enqueue`) still takes it at once.
 - **One undo step.** The command does the whole change, so Undo restores the component, the action and everything under it together, because the history keeps the record from before.
 - **Names and words.** The undo name says what went, as the add's says its edge: "Change fn-orders · invoke to fn-writer · invoke, and remove the 3 steps under it". The announcement: "Changed fn-orders · invoke to fn-writer · invoke. The 3 steps under it are gone." Changing to `enqueue` says there's a slot to fill: "Changed orders-db · write to orders-queue · enqueue. Added the edge from fn-orders to orders-queue. It has no async work yet."
+
+  > **Changed by the [addendum of 2026-11-12](#addendum-2026-11-12).**
+
 - **This changes what #161 shipped.** `changeStep` keeps a step's calls today, and the docs say so in several places: the workflow-editor guide (the `changeStep` row, "Async work stays read-only", and the paragraph on keeping every field), the user-interface guide ("Changing a step"), the application-layer guide (the `ChangeStep` row), and CONTRIBUTING's Gotchas. #164 changes the command, its words, its tests, and every passage that says `changeStep` keeps what's under a step; a search of `docs` and `CONTRIBUTING.md` for `changeStep` finds them.
 
 ### 4. What the screen shows
@@ -99,6 +110,9 @@ Two trees, one outline. The outline keeps its form, which already shows them:
 
 - **Numbering** continues down the async tree as it does down calls, so a step's number says where it is, and the outline reads top to bottom as the request does, then as the delivery does.
 - **The empty slot** shows the same heading, with "No async work yet. A message is taken off the queue and nothing runs." and a button **New** "Add async work, done when a consumer takes the message". It opens a draft with a component picker, then an action picker, as a new call does: the same pickers, and the same `NewCall` use case, which already puts the caller's neighbours first and marks a component with no edge from the caller "No edge from orders-queue yet; choosing it adds one." Nothing saves until both are chosen, and Escape drops it.
+
+  > **Changed by the [addendum of 2026-11-12](#addendum-2026-11-12).**
+
 - **The async root's line** has Remove, and Change (the pickers, as any step's). It has no Move up or Move down. Its accessible description says what it is: "Runs when a consumer takes the message from orders-queue." Remove asks first only if something is under it, as for a call: "Remove fn-writer · invoke and the 1 call under it?".
 - **The diagram** shows nothing new. Edges belong to the architecture, so the queue's edge to the consumer is drawn like any edge. A workflow's path already includes it, and selecting the async root rings the consumer and that edge. Nothing marks an edge as asynchronous, because an edge isn't: only a call along it is.
 - **The text version** already says it: "… → orders-queue (enqueue), then fn-writer → orders-db (write)." An `enqueue` with no async work ends the line as any last step does: "… → orders-queue (enqueue)."
@@ -143,3 +157,15 @@ The maintainer settled the four questions this design raised (2026-11-10):
 ## Addendum, 2026-11-11
 
 The UX design was rewritten for M7 ([#188](https://github.com/alanbickel/wind-tunnel/issues/188)), and its journeys were taken out. The link above to its §2.6 was written for the M6 version, [kept at its last commit](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md#26-sketch-put-a-queue-in-front-of-a-slow-component). Async work on the new screen is in its [§7](../design/user-experience.md#7-workflows). This decision is unchanged.
+
+## Addendum, 2026-11-12
+
+**Context.** Several points above add a missing edge as part of a call, because [ADR-0019](0019-edit-projects-with-commands-and-save-each-change.md) decision 4 allowed it as a shortcut. [ADR-0019's addendum of 2026-11-12](0019-edit-projects-with-commands-and-save-each-change.md#addendum-2026-11-12) ends the shortcut: a call goes only along an edge that already exists, and adding or changing one never adds an edge.
+
+**Decision.** The marked points change as follows. The rest of this ADR is unchanged, including the model's rule that async work goes along the queue's edge to the consumer (decision 1.1), and that no command removes an edge (decision 2.5).
+
+- **`addCall`, `changeStep`, and `addAsyncWork`** no longer end in `connectIfMissing`. Asked for a call along a missing edge, each returns the record as it was. Async work's caller is its queue, so it goes only to a consumer the queue has an edge to.
+- **The pickers**, for a new call, a changed step, and new async work alike, offer only the components the caller has an edge to, and don't mark any as adding one.
+- **The words** lose the edge: no ", and its edge" in undo names, and no "Added the edge from … to …" in announcements. Changing a step to `enqueue` says only "Changed orders-db · write to orders-queue · enqueue. It has no async work yet."
+
+**Consequences.** Async work and its edge are no longer one undo step, because the edge is drawn first, as its own. A queue with no edge to a consumer offers nothing for its slot, and says to connect it. [#224](https://github.com/alanbickel/wind-tunnel/issues/224) builds this.

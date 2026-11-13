@@ -15,6 +15,7 @@ import {
   type DiagramConnection,
   type DiagramContent,
   type DiagramItem,
+  type EdgeOffer,
   type DiagramMarks,
   type DiagramMove,
   type DiagramNode,
@@ -22,7 +23,8 @@ import {
 import { fitOptions, OPENING_FIT } from "./fit-options";
 import { nodeIdOf } from "./node-id-of";
 import type { ZoomActions } from "./zoom-actions";
-import { toFlowEdge, toFlowNode } from "./to-react-flow";
+import { toFlowEdge, toFlowNode, withOffer } from "./to-react-flow";
+import { OFFER_EDGE_TYPE, OfferEdge } from "./OfferEdge";
 import { useMeasuredSizes, type MeasuredSizes } from "./useMeasuredSizes";
 import {
   useNodeMoves,
@@ -98,9 +100,13 @@ function ReportZoom({ coveredRightPx, onZoom }: ReportZoomProps) {
   return null;
 }
 
+/** The arrows with an offer are drawn by the offer edge; the rest are React Flow's own. */
+const EDGE_TYPES = { [OFFER_EDGE_TYPE]: OfferEdge };
+
 export interface DiagramCanvasProps {
   readonly content: DiagramContent;
   readonly marks?: DiagramMarks | undefined;
+  readonly offers?: readonly EdgeOffer[] | undefined;
   readonly onSelect?: ((item: DiagramItem | undefined) => void) | undefined;
   readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
   readonly onMove?: ((move: DiagramMove) => void) | undefined;
@@ -113,20 +119,15 @@ export interface DiagramCanvasProps {
  * The boxes and arrows, drawn by React Flow. Only `Diagram` renders it, and
  * loads it lazily, so React Flow stays out of the app's first chunk.
  */
-export function DiagramCanvas({
-  content,
-  marks = NO_MARKS,
-  onSelect,
-  onConnect,
-  onMove,
-  onZoom,
-  coveredRightPx = 0,
-}: DiagramCanvasProps) {
-  const items = useFlowItems({ content, marks, onMove });
+export function DiagramCanvas(props: DiagramCanvasProps) {
+  const { content, onSelect, onConnect, onMove, onZoom } = props;
+  const { marks = NO_MARKS, coveredRightPx = 0 } = props;
+  const items = useFlowItems({ content, marks, offers: props.offers, onMove });
   return (
     <ReactFlow
       nodes={items.nodes}
       edges={items.edges}
+      edgeTypes={EDGE_TYPES}
       // React Flow's own selection stays off: the diagram shows the
       // selection it's given, and reports clicks through onSelect.
       elementsSelectable={false}
@@ -151,6 +152,7 @@ export function DiagramCanvas({
 interface FlowItemsInput {
   readonly content: DiagramContent;
   readonly marks: DiagramMarks;
+  readonly offers: DiagramCanvasProps["offers"];
   readonly onMove: DiagramCanvasProps["onMove"];
 }
 
@@ -169,7 +171,12 @@ interface FlowItems {
  * the path, drawing each box being moved where it was put, and giving each
  * box the size React Flow measured, so it stays shown when its node is new.
  */
-function useFlowItems({ content, marks, onMove }: FlowItemsInput): FlowItems {
+function useFlowItems({
+  content,
+  marks,
+  offers,
+  onMove,
+}: FlowItemsInput): FlowItems {
   const { positions, props } = useNodeMoves({ nodes: content.nodes, onMove });
   const { sizes, remember } = useMeasuredSizes();
   const nodes = useMemo(
@@ -180,14 +187,24 @@ function useFlowItems({ content, marks, onMove }: FlowItemsInput): FlowItems {
     [content.nodes, marks, positions, sizes],
   );
   const edges = useMemo(
-    () => content.edges.map((edge) => toFlowEdge(edge, marks)),
-    [content.edges, marks],
+    () => edgesOf({ content, marks, offers }),
+    [content, marks, offers],
   );
   const onNodesChange: NodeMoves["props"]["onNodesChange"] = (changes) => {
     remember(changes);
     props.onNodesChange?.(changes);
   };
   return { nodes, edges, nodeProps: { ...props, onNodesChange } };
+}
+
+/** The arrows as React Flow takes them: marked, numbered, and with their offers. */
+function edgesOf({ content, marks, offers }: Omit<FlowItemsInput, "onMove">) {
+  return content.edges.map((edge) =>
+    withOffer(
+      toFlowEdge(edge, marks),
+      offers?.find((offer) => offer.edgeId === edge.id),
+    ),
+  );
 }
 
 /** The React Flow node, with the size React Flow measured it at, if it has. */

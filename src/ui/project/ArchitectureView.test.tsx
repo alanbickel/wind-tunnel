@@ -91,6 +91,7 @@ function renderView({
         addingWorkflow={{ onAdd: vi.fn(), buttonRef: { current: null } }}
         addingWorkload={{ onAdd: vi.fn(), buttonRef: { current: null } }}
         workflowAnnouncement=""
+        offering={{ onEdit: vi.fn(), onSelect: vi.fn(), announce: vi.fn() }}
         onMove={onMove}
         adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
       />

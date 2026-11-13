@@ -68,7 +68,7 @@ export function WorkflowOutline(props: WorkflowOutlineProps) {
 function useOutlineItem(props: WorkflowOutlineProps): OutlineItemContext {
   const { project, details, onSelect } = props;
   const { workflowId, currentStepId } = details;
-  const edits = useStepEdits(props);
+  const edits = useStepEdits({ workflowId, ...props });
   const focus = useFocusAfterRedraw();
   return {
     currentStepId,

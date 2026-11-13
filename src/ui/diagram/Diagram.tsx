@@ -7,6 +7,7 @@ import type {
   DiagramItem,
   DiagramMarks,
   DiagramMove,
+  EdgeOffer,
 } from "./diagram-model";
 import type { ZoomActions } from "./zoom-actions";
 
@@ -27,6 +28,13 @@ export interface DiagramProps {
    * a workflow's; none if not given.
    */
   readonly marks?: DiagramMarks | undefined;
+  /**
+   * Arrows that offer to do something, such as add a call to a workflow:
+   * each gets a "+" button at its middle, named for what it does, and a
+   * tab stop. An offer that has a question opens a popover with it. None
+   * if not given.
+   */
+  readonly offers?: readonly EdgeOffer[] | undefined;
   /**
    * Called with the node or edge the user clicks, or a node they press
    * Enter on, and with undefined when they click the empty canvas. Without
@@ -72,7 +80,7 @@ export interface DiagramProps {
  * select them; the diagram rings the selected boxes and thickens the
  * selected arrows. A path's boxes get a thick border inside their edge, and
  * its arrows a thick line, so a path reads apart from the selection; what's
- * off the path fades, and its arrows carry the call numbers given. It
+ * off the path fades, and its arrows carry the call numbers given, and an arrow with an offer has its button. It
  * isn't readable by screen readers, so pair it with a text version that
  * can select the same things. It has no border, so it can fill a screen
  * edge to edge, with its zoom actions reported through `onZoom`. Place it
@@ -82,7 +90,7 @@ export interface DiagramProps {
  * boxes in, at most at their own size, clear of a covered right edge.
  */
 export function Diagram(props: DiagramProps) {
-  const { content, label, marks, onSelect, onConnect, onMove, ...rest } = props;
+  const { label, ...canvasProps } = props;
   return (
     <div role="group" aria-label={label} className={styles.diagram}>
       <div className={styles.canvas}>
@@ -96,15 +104,7 @@ export function Diagram(props: DiagramProps) {
           <Suspense
             fallback={<p className={styles.standIn}>Loading the diagram…</p>}
           >
-            <DiagramCanvas
-              content={content}
-              marks={marks}
-              onSelect={onSelect}
-              onConnect={onConnect}
-              onMove={onMove}
-              coveredRightPx={rest.coveredRightPx}
-              onZoom={rest.onZoom}
-            />
+            <DiagramCanvas {...canvasProps} />
           </Suspense>
         </LoadFailureBoundary>
       </div>

@@ -2,7 +2,6 @@ import { useCallback, useMemo } from "react";
 import type {
   OutlineStep,
   StepEditing,
-  WorkflowDetails,
 } from "../../application/details/details";
 import {
   addCallText,
@@ -78,7 +77,8 @@ export interface StepEdits {
 
 /** What a workflow's step edits save through and say. */
 export interface StepEditsInput {
-  readonly details: WorkflowDetails;
+  /** The workflow whose steps are edited. */
+  readonly workflowId: string;
   readonly onEdit: (edit: Edit) => void;
   readonly onSelect: ProjectSelection["selectWithin"];
   /** Says a message in Details' polite region: the focus stays in the outline. */
@@ -106,12 +106,11 @@ export function useStepEdits(input: StepEditsInput): StepEdits {
 
 /** Add, as `StepEdits` describes it. */
 function useAdd({
-  details,
+  workflowId,
   onEdit,
   onSelect,
   announce,
 }: StepEditsInput): StepEdits["add"] {
-  const { workflowId } = details;
   return useCallback(
     (added: AddedCall) => {
       const text = textOf(added);
@@ -131,12 +130,11 @@ function useAdd({
 
 /** Add async work, as `StepEdits` describes it. */
 function useAddAsync({
-  details,
+  workflowId,
   onEdit,
   onSelect,
   announce,
 }: StepEditsInput): StepEdits["addAsync"] {
-  const { workflowId } = details;
   return useCallback(
     (added: AddedCall) => {
       const text = addAsyncWorkText({
@@ -174,11 +172,10 @@ function addAsyncWorkInput(
 
 /** Change, as `StepEdits` describes it. */
 function useChange({
-  details,
+  workflowId,
   onEdit,
   announce,
 }: StepEditsInput): StepEdits["change"] {
-  const { workflowId } = details;
   return useCallback(
     (changed: ChangedStep) => {
       const { stepId, choice, action } = changed;
@@ -236,11 +233,10 @@ function addCallInput(workflowId: string, added: AddedCall): AddCallInput {
 
 /** Move, as `StepEdits` describes it. */
 function useMove({
-  details,
+  workflowId,
   onEdit,
   announce,
 }: StepEditsInput): StepEdits["move"] {
-  const { workflowId } = details;
   return useCallback(
     ({ stepId, label }: OutlineStep, direction: StepDirection) => {
       onEdit({
@@ -265,12 +261,11 @@ function removedText(label: string, { emptiesSlotOf }: StepEditing): string {
 
 /** Remove, as `StepEdits` describes it. */
 function useRemove({
-  details,
+  workflowId,
   onEdit,
   onSelect,
   announce,
 }: StepEditsInput): StepEdits["remove"] {
-  const { workflowId } = details;
   return useCallback(
     ({ stepId, label, editing }: OutlineStep) => {
       if (editing === undefined) return;

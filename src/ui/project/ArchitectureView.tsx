@@ -32,6 +32,7 @@ import { ToolRail, type AddComponentProps } from "./ToolRail";
 import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
 import { WorkloadList, type AddWorkloadProps } from "./WorkloadList";
+import { useEdgeOffers, type OfferingProps } from "./useEdgeOffers";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
 
@@ -63,6 +64,11 @@ export interface ArchitectureViewProps {
    * the text version; none before the first run.
    */
   readonly badges?: RunBadges | undefined;
+  /**
+   * What a "+" on an arrow saves through, selects with, and says: it adds a
+   * call to the selected workflow along that arrow.
+   */
+  readonly offering: OfferingProps;
   /** How much of the canvas's right edge the inspector covers, in pixels. */
   readonly coveredRightPx?: number;
 }
@@ -79,7 +85,9 @@ export interface ArchitectureViewProps {
  * in the list, which is the way every user can rely on. The diagram marks
  * the selection, and a selected workflow's path, or a selected step's and
  * its workflow's. A drag from one box to another on the diagram connects
- * them; "Connect to…" in a component's Details is the keyboard's way. A
+ * them; "Connect to…" in a component's Details is the keyboard's way. With a
+ * workflow selected, each arrow leaving a box in its path has a "+" that adds
+ * a call along it; the outline's "Add a call from …" is the keyboard's way. A
  * box moves by dragging it, or with the arrow keys once it has the focus;
  * its place is only visual, so the text version doesn't change. With no
  * components, a line on the canvas says what to do instead (UX design
@@ -193,11 +201,17 @@ interface DrawingProps extends ArchitectureViewProps {
 /** The diagram of a project with components. */
 function Drawing(props: DrawingProps) {
   const { record, content, onConnect, onMove, selecting } = props;
+  const offers = useEdgeOffers({
+    project: record.project,
+    selection: props.selection,
+    ...props.offering,
+  });
   return (
     <Diagram
       content={content}
       label={`Architecture diagram of ${record.project.name}`}
       marks={selecting.marks}
+      offers={offers}
       onSelect={selecting.onItem}
       onConnect={({ source, target }) => {
         onConnect(source, target);

@@ -110,3 +110,33 @@
   stroke: var(--color-accent);
   stroke-width: calc(2 * var(--line-width-thick));
 }
+
+/* An arrow's offer, such as adding a call: a small "+" button at the
+   arrow's middle, in React Flow's label layer, which takes no pointer
+   events unless a child asks. OfferEdge sets its place. */
+.offer {
+  position: absolute;
+  pointer-events: all;
+}
+
+.offer button {
+  padding: 0 var(--space-2);
+  line-height: var(--line-height-tight);
+}
+
+/* The question the offer asks, in a popover under its button. */
+.offerQuestion {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: var(--space-1);
+  min-width: var(--picker-max-width);
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
+  font-size: var(--font-size-sm);
+  text-align: start;
+}

@@ -1,6 +1,6 @@
 # The Workflow Editor
 
-How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §7](../design/user-experience.md#7-workflows)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Details has a name field that renames the workflow, and Remove takes it away; each step that's one of another's calls has Move up, Move down, and Remove, and each step that can take a call has "Add a call from …", and the selected step has pickers for its component and action; an `enqueue` step with no async work has "Add async work …", and async work takes the same edits as the main tree ([the commands](#the-commands), [async work](#async-work)). [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §7](../design/user-experience.md#7-workflows)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Details has a name field that renames the workflow, and Remove takes it away; each step that's one of another's calls has Move up, Move down, and Remove, and each step that can take a call has "Add a call from …", and the selected step has pickers for its component and action; an `enqueue` step with no async work has "Add async work …", and async work takes the same edits as the main tree ([the commands](#the-commands), [async work](#async-work)). On the canvas, with a workflow selected, each arrow leaving a box in its path has a "+" that adds a call along it ([from the canvas](#adding-a-call-from-the-canvas)). [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workflow, four ways
 
@@ -70,6 +70,7 @@ flowchart TB
         pathText["<b>workflowPathText</b><br/>[Component: details/]<br/>A workflow's path line, for the text version"]:::component
         afterUndo["<b>selectionAfterUndo</b><br/>[Component: details/]<br/>Keeps a step while it's there"]:::component
         onDiagram["<b>selectionOnArchitecture</b><br/>[Component: details/]<br/>The path, and what a step marks"]:::component
+        offers["<b>callOffersOf</b><br/>[Component: details/]<br/>The arrows that offer a call, and the steps each could go under"]:::component
         edits["<b>workflow-edits</b><br/>[Component: edits/]<br/>addCall, addAsyncWork, changeStep (drops what's under the step), moveStep, removeStep (an async root empties its slot)"]:::component
     end
     diagram["<b>Diagram</b><br/>[ui/diagram/]"]:::external
@@ -88,6 +89,9 @@ flowchart TB
     details -->|"edit(command)"| edits
     edits --> stepTree
     list --> onDiagram
+    list -->|"useEdgeOffers"| offers
+    offers --> stepTree
+    list -->|"edit(command)"| edits
     list --> pathText
     list -->|"marks"| diagram
     style ui fill:none,stroke:#666,stroke-dasharray:5 5
@@ -261,6 +265,36 @@ sequenceDiagram
 - **The announcement** names the call alone: "Added a call from fn-orders to orders-db."
 - **The focus and the selection.** The new step is selected and its line takes the focus (`useFocusAfterRedraw`), since the draft, which had it, has gone. The selection follows the step by id: an Undo takes it away, and `selectionAfterUndo` clears the selection, as for a removed step.
 - **Undo** removes the call; the edge stays, because it was drawn by a step of its own.
+
+## Adding a call from the canvas
+
+With a workflow, or one of its steps, selected, each arrow leaving a box in the workflow's path has a small "+" button at its middle. It's the canvas's way to do what "Add a call from …" does in the outline, and it calls the same `addCall`, so it's one undo step named "Add a call from API to orders-db", announced the same way, and it never adds an edge. The outline stays the keyboard's full way to do it; the "+" is a real button in the tab order too.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant X as "+" on an arrow (Diagram)
+    participant O as useEdgeOffers (ui)
+    participant S as useStepEdits (ui)
+    participant E as useProjectEdits (ui)
+    User->>X: presses "Add a call from fn-orders to orders-db"
+    X->>O: onUse()
+    O->>O: needs a question? the step (several in the path, none selected), the action (several accepted)
+    alt nothing to ask
+        O->>S: add(call), or addAsync(call) for a queue's empty slot
+    else a question
+        O-->>X: the popover's form; Escape closes it and adds nothing
+        User->>X: answers
+        X->>S: add(call)
+    end
+    S->>E: edit(addCall), then select the new step and announce it
+```
+
+- **Which arrows offer.** [`callOffersOf`](../../src/application/details/call-offers.ts) lists each arrow whose source is a box some step of the selected workflow can take a call under, as the outline's "Add a call from …" says: not an `enqueue`, not a step whose component is gone. Arrows the path already uses offer too, since a step can call the same component twice. An arrow from a box not in the path offers nothing, and so does one from an `enqueue` whose async slot is filled; an `enqueue` with an empty slot offers the async work, "Add async work from orders-queue to fn-writer", which runs `addAsyncWork`.
+- **How it looks.** A "+" button in React Flow's label layer ([`OfferEdge`](../../src/ui/diagram/OfferEdge.tsx)), named and given a tooltip for what it does, and always drawn, so it's never shown by color alone and never needs hover to be found. A click on it doesn't reach the canvas, which would clear the selection; a click on the arrow itself still selects the arrow. The arrow's call numbers sit above the button.
+- **Which step gets the call.** The selected step, if it's on the arrow's source box; otherwise the only step there. If the box is in the path more than once and none of its steps is selected, the popover asks "Under step", naming each by its outline number and label.
+- **Which action.** Asked, as "Action", only when the target accepts several (RDS takes `read` and `write`); with one, the call is added at once with no popover. The popover is [`OfferQuestionForm`](../../src/ui/project/OfferQuestionForm.tsx), which takes the focus; Escape closes it, adds nothing, and returns the focus to the "+".
+- **The focus and the selection** are the outline's: the new step is selected, and the announcement comes from the polite region beside "Add component" (a move on the canvas says its words there too), since Details may be closed.
 
 ## Changing a step
 

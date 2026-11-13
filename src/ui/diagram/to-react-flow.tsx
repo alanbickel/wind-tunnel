@@ -5,8 +5,10 @@ import {
   type DiagramItem,
   type DiagramMarks,
   type DiagramNode,
+  type EdgeOffer,
 } from "./diagram-model";
 import { NodeCard } from "./NodeCard";
+import { OFFER_EDGE_TYPE } from "./OfferEdge";
 
 /**
  * The class on a box or an arrow on the marked path, which
@@ -80,4 +82,13 @@ export function toFlowEdge(edge: DiagramEdge, marks: DiagramMarks): Edge {
     ...pathClassOf(marks, item),
     ...numbersLabelOf(marks, edge),
   };
+}
+
+/**
+ * The edge as React Flow draws it with its offer: the offer edge, which
+ * puts the offer's button at its middle. An edge with no offer is as it was.
+ */
+export function withOffer(edge: Edge, offer: EdgeOffer | undefined): Edge {
+  if (offer === undefined) return edge;
+  return { ...edge, type: OFFER_EDGE_TYPE, data: { offer } };
 }

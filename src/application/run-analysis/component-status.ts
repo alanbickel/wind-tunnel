@@ -1,27 +1,9 @@
 import { componentTotals } from "./run-totals";
 import { limitPeaks } from "./limit-peaks";
 import type { RunSoFar } from "./run-so-far";
+import type { ComponentStatus } from "./status-words";
 
-/**
- * How one component did in the run so far, in the words the findings use:
- * - `refused`: it turned work away (its `rejected` is above 0).
- * - `waited`: it refused nothing, but a limit that makes work wait when full
- *   ran out at its peak.
- * - `ok`: neither.
- */
-export type ComponentStatus = "refused" | "waited" | "ok";
-
-/**
- * Each status's word, as a badge says it. The findings' phrasebook words
- * "refused" in its own sentences and has no entry to share, so these are
- * written to match it, not built from it; nothing in code keeps the two
- * together.
- */
-export const STATUS_WORDS: Readonly<Record<ComponentStatus, string>> = {
-  refused: "refused",
-  waited: "waited",
-  ok: "ok",
-};
+export { STATUS_WORDS, type ComponentStatus } from "./status-words";
 
 /**
  * Each component's status in the run so far, by component ID. Refused wins

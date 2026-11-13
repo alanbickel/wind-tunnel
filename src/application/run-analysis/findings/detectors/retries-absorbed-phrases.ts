@@ -12,6 +12,7 @@ import {
   type PluralForms,
 } from "../message";
 import type { Phrases, Statement } from "../phrase";
+import { STATUS_WORDS } from "../../status-words";
 import type { Vocabulary } from "../vocabulary";
 
 /** A component refused more attempts than failed work with its rejections. */
@@ -70,7 +71,7 @@ export type RetriesAbsorbedStatement =
 
 /** "orders-db refused 17 attempts" */
 function refused(s: RetriedRefusalsStatement): Message {
-  return say`${component(s.componentId)} refused ${count(s.rejected)} ${plural(s.rejected, ["attempt", "attempts"])}`;
+  return say`${component(s.componentId)} ${STATUS_WORDS.refused} ${count(s.rejected)} ${plural(s.rejected, ["attempt", "attempts"])}`;
 }
 
 /** "4,377 requests", "90 deliveries", or both; none if neither failed. */

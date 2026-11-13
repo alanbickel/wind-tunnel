@@ -16,6 +16,7 @@ import { useDraft } from "./fields/useDraft";
 import { markOf } from "./mark-of";
 import type { MixEditing } from "./mix-editing";
 import type { MixFocusTarget } from "./useMixFocus";
+import { Swatch } from "./Swatch";
 import { Issues } from "./WorkloadParts";
 import styles from "./WorkloadView.module.css";
 
@@ -37,6 +38,7 @@ export function MixRow(props: MixRowProps) {
   return (
     <tr className={markOf(row.issues)}>
       <th scope="row" id={nameId}>
+        <Swatch colorIndex={row.colorIndex} />
         {row.workflowName}
         <Issues messages={row.issues} />
       </th>

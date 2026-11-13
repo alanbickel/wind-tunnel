@@ -247,6 +247,30 @@ export interface MixDetails {
    * mix." or "Add a workflow first."; undefined when `addable` has some.
    */
   readonly addUnusableText: string | undefined;
+  /** "What this sends"; undefined when the profile has no points. */
+  readonly sends: SendsDetails | undefined;
+}
+
+/**
+ * What the workload sends before its duration ends, as sentences. The
+ * workflows' figures add up to the total's exactly.
+ */
+export interface SendsDetails {
+  /** "About 66,000 requests before the run ends". */
+  readonly totalText: string;
+  /** "Peak rate 2,000 requests/s". */
+  readonly peakText: string;
+  /** One for each mix entry, in mix order; none for an empty mix. */
+  readonly rows: readonly SendsRowDetails[];
+}
+
+/** What one workflow gets. */
+export interface SendsRowDetails {
+  readonly workflowName: string;
+  /** "About 52,800 requests". */
+  readonly text: string;
+  /** Which series colour the workflow wears, as on its mix row. */
+  readonly colorIndex: number | undefined;
 }
 
 /** A workflow the mix can take. */
@@ -266,6 +290,17 @@ export interface MixRowDetails {
   readonly weight: number;
   /** "80.0%"; undefined when the mix has no positive weights to divide. */
   readonly shareText: string | undefined;
+  /**
+   * The share in tenths of a percent (800 is 80.0%), the number `shareText`
+   * words; undefined when `shareText` is. The mix bar sizes its segment by it.
+   */
+  readonly shareTenths: number | undefined;
+  /**
+   * The workflow's place in the project's workflows, which picks its series
+   * colour so it keeps its colour when the mix changes; undefined for one the
+   * project no longer has.
+   */
+  readonly colorIndex: number | undefined;
   /** The entry's issues, as sentences. */
   readonly issues: readonly string[];
 }

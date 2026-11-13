@@ -53,9 +53,23 @@ describe("a workload's details", () => {
         workflowGone: false,
         weight: 4,
         shareText: "100.0%",
+        shareTenths: 1000,
+        colorIndex: 0,
         issues: [],
       },
     ]);
+    // 45 s of 10 to 25 req/s: 45 × 17.5 = 787.5, which rounds to 788.
+    expect(details.mix.sends).toEqual({
+      totalText: "About 788 requests before the run ends",
+      peakText: "Peak rate 25 requests/s",
+      rows: [
+        {
+          workflowName: "Read item",
+          text: "About 788 requests",
+          colorIndex: 0,
+        },
+      ],
+    });
     expect(details.mix.totalText).toBe("Shares total 100%");
     expect(details.mix.emptyText).toBeUndefined();
     expect(

@@ -80,8 +80,10 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
     (next: Selection, focus: FocusTarget = "heading") => {
       request(focus);
       setSelection(next);
-      showTab("details");
-      showInspector(true);
+      // A workload opens in the dock, so the inspector closes (UX §5).
+      const opensInDock = next.kind === "workload";
+      if (!opensInDock) showTab("details");
+      showInspector(!opensInDock);
     },
     [request],
   );

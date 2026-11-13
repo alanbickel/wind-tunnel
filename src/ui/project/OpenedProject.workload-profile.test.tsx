@@ -59,7 +59,7 @@ function select(name: string): void {
 }
 
 function details(): HTMLElement {
-  return screen.getByRole("tabpanel", { name: "Details" });
+  return screen.getByRole("region", { name: "Workload dock" });
 }
 
 function times(): HTMLInputElement[] {

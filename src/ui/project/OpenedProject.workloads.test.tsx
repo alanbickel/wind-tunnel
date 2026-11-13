@@ -169,7 +169,7 @@ describe("OpenedProject's workloads", () => {
 
     selectFromList("Steady");
 
-    const details = screen.getByRole("tabpanel", { name: "Details" });
+    const details = screen.getByRole("region", { name: "Workload dock" });
     expect(
       within(details).getByRole<HTMLInputElement>("textbox", {
         name: "Duration",
@@ -211,7 +211,7 @@ describe("OpenedProject's workloads", () => {
     renderProject({ project: twoWorkloads });
     selectFromList("Broken · 1 problem");
 
-    const details = screen.getByRole("tabpanel", { name: "Details" });
+    const details = screen.getByRole("region", { name: "Workload dock" });
 
     expect(within(details).queryByText("The mix has no workflows.")).toBeNull();
     expect(

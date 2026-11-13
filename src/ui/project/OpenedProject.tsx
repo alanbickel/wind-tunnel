@@ -22,6 +22,7 @@ import { useWideWindow } from "../shared/useWideWindow";
 import type { AddComponentProps } from "./ToolRail";
 import { ArchitectureView } from "./ArchitectureView";
 import { Inspector, StackedInspector } from "./Inspector";
+import { WorkloadDock } from "./WorkloadDock";
 import type { AddWorkflowProps } from "./WorkflowList";
 import type { AddWorkloadProps } from "./WorkloadList";
 import styles from "./OpenedProject.module.css";
@@ -130,13 +131,21 @@ function ProjectCanvas({ screen }: ProjectCanvasProps) {
     onRemove: remove,
   };
   return (
-    <div ref={screenRef} className={styles.screen}>
-      {screen.architecture}
-      {useWideWindow() ? (
-        <Inspector ref={inspectorRef} {...inspector} />
-      ) : (
-        <StackedInspector {...inspector} />
-      )}
+    <div className={styles.screen}>
+      <div ref={screenRef} className={styles.canvas}>
+        {screen.architecture}
+        {useWideWindow() ? (
+          <Inspector ref={inspectorRef} {...inspector} />
+        ) : (
+          <StackedInspector {...inspector} />
+        )}
+      </div>
+      <WorkloadDock
+        project={inspector.project}
+        selecting={selecting}
+        onEdit={edits.edit}
+        onRemove={remove}
+      />
     </div>
   );
 }

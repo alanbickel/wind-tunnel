@@ -135,7 +135,8 @@ function buildUseCases({
 export function queryDetailsHeading(): HTMLElement | null {
   const details =
     screen.queryByRole("tabpanel", { name: "Details" }) ??
-    screen.queryByRole("region", { name: "Details" });
+    screen.queryByRole("region", { name: "Details" }) ??
+    screen.queryByRole("region", { name: "Workload dock" });
   return details && within(details).queryByRole("heading", { level: 4 });
 }
 

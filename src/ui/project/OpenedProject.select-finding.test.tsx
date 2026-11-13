@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import type { Project } from "../../domain/model/project";
+import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { revealButton } from "./testing/canvas-panels";
 import {
@@ -81,6 +82,8 @@ async function renderRun(): Promise<RenderedProject> {
 }
 
 describe("OpenedProject's selected finding", () => {
+  preloadBeforeAll(() => import("../diagram/DiagramCanvas"));
+  preloadBeforeAll(() => import("../charts/ChartPlot"));
   beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
     cleanup();

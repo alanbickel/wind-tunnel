@@ -161,9 +161,12 @@ function ProjectDescription({ project }: ProjectDescriptionProps) {
 }
 
 /**
- * What Details describes: the selection, unless it's a finding, which
- * has no Details and leaves them as if nothing were selected.
+ * What Details describes: the selection, unless it's a finding, which has
+ * no Details, or a workload, which the dock shows; either leaves Details
+ * as if nothing were selected.
  */
 function detailsSelection({ selection }: ProjectSelection) {
-  return selection?.kind === "finding" ? undefined : selection;
+  const elsewhere =
+    selection?.kind === "finding" || selection?.kind === "workload";
+  return elsewhere ? undefined : selection;
 }

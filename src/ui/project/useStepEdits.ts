@@ -53,21 +53,18 @@ export interface ChangedStep {
 /** What the outline does to a step. */
 export interface StepEdits {
   /**
-   * Adds the call as the last of its caller's calls, and its edge too if
-   * the caller has none to the callee; saves it as one step, selects the
-   * new step, and announces it.
+   * Adds the call as the last of its caller's calls, along an edge the
+   * caller already has; saves it, selects the new step, and announces it.
    */
   readonly add: (call: AddedCall) => void;
   /**
-   * Sets the `enqueue` step's async work, and the edge from its queue to
-   * the consumer if there's none; saves it as one step, selects the new
-   * step, and announces it.
+   * Sets the `enqueue` step's async work, along an edge from its queue to
+   * the consumer; saves it, selects the new step, and announces it.
    */
   readonly addAsync: (call: AddedCall) => void;
   /**
-   * Changes the step's component and action, and adds the edge from its
-   * caller if there's none; saves it as one step and announces it. The
-   * step keeps its id, so the selection stays on it.
+   * Changes the step's component and action; saves it and announces it.
+   * The step keeps its id, so the selection stays on it.
    */
   readonly change: (changed: ChangedStep) => void;
   /** Moves the step one place among its siblings, saves, and announces it. */
@@ -145,7 +142,6 @@ function useAddAsync({
       const text = addAsyncWorkText({
         queueName: added.start.callerName,
         consumerName: added.choice.name,
-        addsEdge: added.choice.addsEdge,
       });
       onEdit({
         command: (record) =>
@@ -173,8 +169,6 @@ function addAsyncWorkInput(
     asyncId: start.callId,
     componentId: choice.componentId,
     action,
-    edgeId: start.edgeId,
-    edgeSettings: start.edgeSettings,
   };
 }
 
@@ -187,7 +181,7 @@ function useChange({
   const { workflowId } = details;
   return useCallback(
     (changed: ChangedStep) => {
-      const { stepId, start, choice, action } = changed;
+      const { stepId, choice, action } = changed;
       const text = changeText(changed);
       onEdit({
         command: (record) =>
@@ -196,8 +190,6 @@ function useChange({
             stepId,
             componentId: choice.componentId,
             action,
-            edgeId: start.edgeId,
-            edgeSettings: start.edgeSettings,
           }),
         describe: () => text.undoName,
       });
@@ -212,27 +204,21 @@ export function toLabelOf(choice: CallChoice, action: StepAction): string {
   return `${choice.name} · ${action}`;
 }
 
-/** The words for a changed step: its two labels, and the edge if one is added. */
+/** The words for a changed step: its two labels, and what goes with it. */
 function changeText({ start, choice, action }: ChangedStep): ChangeStepText {
-  const { callerName } = start;
   return changeStepText({
     fromLabel: start.label,
     toLabel: toLabelOf(choice, action),
     stepsBelow: start.stepsBelow,
     toEnqueue: action === "enqueue",
-    edge:
-      choice.addsEdge && callerName !== undefined
-        ? { callerName, calleeName: choice.name }
-        : undefined,
   });
 }
 
-/** The words for a drafted call: its two components, and whether it adds an edge. */
+/** The words for a drafted call: its two components. */
 function textOf({ start, choice }: AddedCall): AddCallText {
   return addCallText({
     callerName: start.callerName,
     calleeName: choice.name,
-    addsEdge: choice.addsEdge,
   });
 }
 
@@ -245,8 +231,6 @@ function addCallInput(workflowId: string, added: AddedCall): AddCallInput {
     callId: start.callId,
     componentId: choice.componentId,
     action,
-    edgeId: start.edgeId,
-    edgeSettings: start.edgeSettings,
   };
 }
 

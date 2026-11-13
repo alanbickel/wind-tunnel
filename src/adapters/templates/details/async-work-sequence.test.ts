@@ -31,6 +31,7 @@ import {
   apply,
   asking,
   beginning,
+  connect,
   edgeCount,
   undo,
   type Place,
@@ -80,7 +81,7 @@ const BEGINNING = beginning(START, WORKFLOW_ID);
 // differ.
 const newCall = awsNewCall();
 
-/** Step 1: fn-orders' `orders-db · write` changed to `orders-queue · enqueue`, adding fn-orders → orders-queue. */
+/** Step 1: fn-orders' `orders-db · write` changed to `orders-queue · enqueue`, along the edge just drawn. */
 function changedToEnqueue(from: Place): Place {
   const start = awsChangeStep().execute({
     project: from.record.project,
@@ -93,7 +94,6 @@ function changedToEnqueue(from: Place): Place {
     toLabel: "orders-queue · enqueue",
     stepsBelow: start.stepsBelow,
     toEnqueue: true,
-    edge: { callerName: "fn-orders", calleeName: "orders-queue" },
   });
   return apply({
     from,
@@ -104,12 +104,10 @@ function changedToEnqueue(from: Place): Place {
         stepId: WRITE_STEP,
         componentId: "orders-queue",
         action: "enqueue",
-        edgeId: start.edgeId,
-        edgeSettings: start.edgeSettings,
       }),
     description: text.undoName,
     announcement: text.announcement,
-    note: `Edges: ${String(edgeCount(from.record) + 1)} (fn-orders → orders-queue is new)`,
+    note: `Edges: ${String(edgeCount(from.record))} (the same: a change adds none)`,
   });
 }
 
@@ -119,7 +117,7 @@ interface AsyncRoot {
   readonly rootId: string;
 }
 
-/** Step 2: fn-writer's `invoke` as the queue's async work, adding orders-queue → fn-writer. */
+/** Step 2: fn-writer's `invoke` as the queue's async work, along the edge just drawn. */
 function addedAsyncWork(from: Place): AsyncRoot {
   const start = newCall.execute({
     project: from.record.project,
@@ -130,7 +128,6 @@ function addedAsyncWork(from: Place): AsyncRoot {
   const text = addAsyncWorkText({
     queueName: start.callerName,
     consumerName: "fn-writer",
-    addsEdge: true,
   });
   const place = apply({
     from,
@@ -142,17 +139,15 @@ function addedAsyncWork(from: Place): AsyncRoot {
         asyncId: start.callId,
         componentId: "fn-writer",
         action: "invoke",
-        edgeId: start.edgeId,
-        edgeSettings: start.edgeSettings,
       }),
     description: text.undoName,
     announcement: text.announcement,
-    note: `Edges: ${String(edgeCount(from.record) + 1)} (orders-queue → fn-writer is new)`,
+    note: `Edges: ${String(edgeCount(from.record))} (the same: async work adds none)`,
   });
   return { place, rootId: start.callId };
 }
 
-/** Step 3: orders-db's `write` under fn-writer, adding fn-writer → orders-db. */
+/** Step 3: orders-db's `write` under fn-writer, along the edge just drawn. */
 function addedWrite(from: AsyncRoot): Place {
   const start = newCall.execute({
     project: from.place.record.project,
@@ -163,7 +158,6 @@ function addedWrite(from: AsyncRoot): Place {
   const text = addCallText({
     callerName: start.callerName,
     calleeName: "orders-db",
-    addsEdge: true,
   });
   return apply({
     from: from.place,
@@ -175,13 +169,26 @@ function addedWrite(from: AsyncRoot): Place {
         callId: start.callId,
         componentId: "orders-db",
         action: "write",
-        edgeId: start.edgeId,
-        edgeSettings: start.edgeSettings,
       }),
     description: text.undoName,
     announcement: text.announcement,
-    note: `Edges: ${String(edgeCount(from.place.record) + 1)} (fn-writer → orders-db is new)`,
+    note: `Edges: ${String(edgeCount(from.place.record))} (the same: a call adds none)`,
   });
+}
+
+/** The three edges and the three steps of the sketch, built from the start. */
+function builtSketch(): Place {
+  const queue = connectOrders(BEGINNING, "fn-orders", "orders-queue");
+  const changed = changedToEnqueue(queue);
+  const writer = connectOrders(changed, "orders-queue", "fn-writer");
+  const added = addedAsyncWork(writer);
+  const db = connectOrders(added.place, "fn-writer", "orders-db");
+  return addedWrite({ ...added, place: db });
+}
+
+/** An edge drawn between two components of the sketch. */
+function connectOrders(from: Place, fromId: string, toId: string): Place {
+  return connect({ from, workflowId: WORKFLOW_ID, fromId, toId });
 }
 
 /** The architecture's edges as "from → to". */
@@ -233,12 +240,22 @@ describe("the async-work sketch (UX design §2.6)", () => {
   // or the queue's other calls; if the result has a run issue; or if a run
   // of it delivers no message to its consumer.
   it("builds the sketch in three calls and their edges, and undoes each", async () => {
-    const changed = changedToEnqueue(BEGINNING);
-    const added = addedAsyncWork(changed);
-    const written = addedWrite(added);
+    const connectedQueue = connectOrders(
+      BEGINNING,
+      "fn-orders",
+      "orders-queue",
+    );
+    const changed = changedToEnqueue(connectedQueue);
+    const connectedWriter = connectOrders(changed, "orders-queue", "fn-writer");
+    const added = addedAsyncWork(connectedWriter);
+    const connectedDb = connectOrders(added.place, "fn-writer", "orders-db");
+    const written = addedWrite({ ...added, place: connectedDb });
     const undoneWrite = undo(written, WORKFLOW_ID);
-    const undoneAsync = undo(undoneWrite, WORKFLOW_ID);
-    const undoneChange = undo(undoneAsync, WORKFLOW_ID);
+    const undoneConnectDb = undo(undoneWrite, WORKFLOW_ID);
+    const undoneAsync = undo(undoneConnectDb, WORKFLOW_ID);
+    const undoneConnectWriter = undo(undoneAsync, WORKFLOW_ID);
+    const undoneChange = undo(undoneConnectWriter, WORKFLOW_ID);
+    const undoneConnectQueue = undo(undoneChange, WORKFLOW_ID);
     const removed = apply({
       from: written,
       workflowId: WORKFLOW_ID,
@@ -254,12 +271,13 @@ describe("the async-work sketch (UX design §2.6)", () => {
     });
     const places = [
       BEGINNING,
+      connectedQueue,
       changed,
+      connectedWriter,
       added.place,
+      connectedDb,
       written,
       undoneWrite,
-      undoneAsync,
-      undoneChange,
       removed,
     ];
 
@@ -273,9 +291,12 @@ describe("the async-work sketch (UX design §2.6)", () => {
       "fn-writer → orders-db",
     ]);
     expect(edgeNames(written.record)).toContain("fn-orders → orders-db");
-    expect(undoneWrite.record).toBe(added.place.record);
-    expect(undoneAsync.record).toBe(changed.record);
-    expect(undoneChange.record).toBe(START);
+    expect(undoneWrite.record).toBe(connectedDb.record);
+    expect(undoneConnectDb.record).toBe(added.place.record);
+    expect(undoneAsync.record).toBe(connectedWriter.record);
+    expect(undoneConnectWriter.record).toBe(changed.record);
+    expect(undoneChange.record).toBe(connectedQueue.record);
+    expect(undoneConnectQueue.record).toBe(START);
     expect(removed.record.project.architecture).toBe(
       written.record.project.architecture,
     );
@@ -290,7 +311,7 @@ describe("the async-work sketch (UX design §2.6)", () => {
   // no message from the queue to fn-writer (the async root isn't wired to
   // the queue's consumer edge), or loses any it takes.
   it("has no run issues, and a run of it delivers messages", () => {
-    const { record } = addedWrite(addedAsyncWork(changedToEnqueue(BEGINNING)));
+    const { record } = builtSketch();
 
     const issues = findRunIssues(record.project, registry);
     const { totals } = createOrderRun(record.project);

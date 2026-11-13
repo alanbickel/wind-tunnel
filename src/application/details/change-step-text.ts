@@ -1,23 +1,15 @@
 import type { RemovalText } from "./details";
 
-/** A step's old and new label, what the change adds, and what it drops. */
+/** A step's old and new label, and what the change drops. */
 export interface ChangeStepTextInput {
   /** The step's label before: "fn-orders · invoke". */
   readonly fromLabel: string;
   /** Its label after: "orders-db · read". */
   readonly toLabel: string;
-  /** The caller's name and the new component's, when the change adds an edge; undefined when it doesn't. */
-  readonly edge: EdgeEnds | undefined;
   /** How many steps under the step the change drops. */
   readonly stepsBelow: number;
   /** True when the step is now an `enqueue`, which has an empty async slot. */
   readonly toEnqueue: boolean;
-}
-
-/** The two components an edge joins, by name. */
-export interface EdgeEnds {
-  readonly callerName: string;
-  readonly calleeName: string;
 }
 
 /** What the question before a change needs: the labels, and how many steps go. */
@@ -41,16 +33,14 @@ function stepCount(count: number): string {
 
 /**
  * The sentences a change adds to the announcement, after the first: the
- * edge it adds, the steps it drops, and the empty slot an `enqueue` has.
+ * steps it drops, and the empty slot an `enqueue` has.
  */
 function addedSentences({
-  edge,
   stepsBelow,
   toEnqueue,
 }: ChangeStepTextInput): string[] {
   const gone = stepsBelow === 1 ? "is" : "are";
   return [
-    edge && `Added the edge from ${edge.callerName} to ${edge.calleeName}.`,
     stepsBelow > 0 && `The ${stepCount(stepsBelow)} under it ${gone} gone.`,
     toEnqueue && "It has no async work yet.",
   ].filter((sentence) => typeof sentence === "string");
@@ -58,19 +48,17 @@ function addedSentences({
 
 /**
  * The words for changing a step (UX design §2.5 step 6, §4.4). A change
- * along a missing edge adds the edge too, which appears on the diagram away
- * from the focus, and a change drops everything under the step, so the
- * announcement says both, and Undo's name names them.
+ * drops everything under the step, so the announcement says so, and Undo's
+ * name names them.
  */
 export function changeStepText(input: ChangeStepTextInput): ChangeStepText {
-  const { fromLabel, toLabel, edge, stepsBelow } = input;
-  const edgePart = edge === undefined ? "" : ", and its edge";
+  const { fromLabel, toLabel, stepsBelow } = input;
   const dropPart =
     stepsBelow === 0
       ? ""
       : `, and remove the ${stepCount(stepsBelow)} under it`;
   return {
-    undoName: `Change ${fromLabel} to ${toLabel}${edgePart}${dropPart}`,
+    undoName: `Change ${fromLabel} to ${toLabel}${dropPart}`,
     announcement: [
       `Changed ${fromLabel} to ${toLabel}.`,
       ...addedSentences(input),

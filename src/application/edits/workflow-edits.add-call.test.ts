@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Step, Workflow } from "../../domain/model/project";
 import type { ProjectRecord } from "../ports/project-record";
-import { awsNewCall } from "../testing/aws-component-types";
 import { sampleRecord } from "../testing/sample-record";
 import { addCall } from "./workflow-edits";
 
@@ -30,13 +29,25 @@ const withAsync: Workflow = {
     calls: [step("enq", { action: "enqueue", async: step("consumer") })],
   }),
 };
+// The sample's edges are api → fn and fn → table; the record adds table → fn,
+// so a leaf can take a call.
+const { architecture } = sampleRecord.project;
+const edgeTemplate = architecture.edges[0];
+if (edgeTemplate === undefined) throw new Error("The sample has an edge");
 const record: ProjectRecord = {
   ...sampleRecord,
-  project: { ...sampleRecord.project, workflows: [read, withAsync] },
+  project: {
+    ...sampleRecord.project,
+    architecture: {
+      ...architecture,
+      edges: [
+        ...architecture.edges,
+        { ...edgeTemplate, id: "table-fn", from: "table", to: "fn" },
+      ],
+    },
+    workflows: [read, withAsync],
+  },
 };
-
-const API_EDGE = sampleRecord.project.architecture.edges[0];
-if (API_EDGE === undefined) throw new Error("The sample has an edge");
 
 /** A component and an action: what a call is to. */
 interface CallTo {
@@ -44,27 +55,18 @@ interface CallTo {
   readonly action: Step["action"];
 }
 
-/** `addCall` from `stepId`, with `NewCall`'s ids and the caller type's defaults. */
+/** `addCall` from `stepId`, with the id `call-1`. */
 function add(
   stepId: string,
   { componentId, action }: CallTo,
   workflowId = "read",
 ): ProjectRecord {
-  const start = awsNewCall().execute({
-    project: record.project,
-    workflowId,
-    stepId,
-  });
-  if (start === undefined) throw new Error(`no draft for "${stepId}"`);
-  const { callId, edgeId, edgeSettings } = start;
   return addCall(record, {
     workflowId,
     stepId,
-    callId,
+    callId: "call-1",
     componentId,
     action,
-    edgeId,
-    edgeSettings,
   });
 }
 
@@ -80,8 +82,8 @@ const TABLE_WRITE: CallTo = { componentId: "table", action: "write" };
 describe("addCall", () => {
   // Fails if addCall puts the call anywhere but last among the step's
   // calls, gives it another id, component, or action, changes another
-  // workflow, the layout, or the input record, or adds an edge where the
-  // caller already has one (fn has an edge to table).
+  // workflow, the layout, or the input record, or touches the architecture
+  // (fn has an edge to table, so the call goes along it).
   it("appends the call under the given step, and leaves the rest as it was", () => {
     const before = copyOf(record);
 
@@ -105,43 +107,34 @@ describe("addCall", () => {
       componentId: "fn",
       action: "invoke",
     });
-    const underLeaf = add("table-read", TABLE_WRITE);
+    const underLeaf = add("table-read", {
+      componentId: "fn",
+      action: "invoke",
+    });
 
     expect(callIds(underRoot, [])).toEqual(["fn-invoke", "call-1"]);
     expect(callIds(underLeaf, [0, 0])).toEqual(["call-1"]);
   });
 
-  // Fails if a call along a missing edge adds no edge, adds one with other
-  // settings than the caller type's edgeDefaults (API Gateway's: 29,000 ms),
-  // adds it between the wrong components, or leaves the call out of the
-  // same record.
-  it("adds the edge, with the caller type's defaults, when the caller has none to the callee", () => {
+  // Fails if a call along a missing edge adds the edge, or adds the call
+  // anyway, or returns a new record (the edit would save, and become an undo
+  // step, for nothing). The API has an edge to fn, none to table.
+  it("returns the same record when the caller has no edge to the callee", () => {
     const before = copyOf(record);
 
     const next = add("api-invoke", TABLE_WRITE);
 
-    const { edges } = next.project.architecture;
-    expect(edges).toHaveLength(record.project.architecture.edges.length + 1);
-    expect(edges.at(-1)).toEqual({
-      id: "call-2",
-      from: "api",
-      to: "table",
-      latencyMs: 1,
-      timeoutMs: 29_000,
-      retry: { maxAttempts: 1, backoff: "none", baseDelayMs: 0 },
-    });
-    expect(next.project.workflows[0]?.root.calls?.at(-1)?.componentId).toBe(
-      "table",
-    );
+    expect(next).toBe(record);
     expect(record).toEqual(before);
   });
 
-  // Fails if a call along an edge that's there adds a second one, or
-  // builds a new architecture for nothing.
-  it("adds no edge when the caller already has one to the callee", () => {
-    const next = add("fn-invoke", TABLE_WRITE);
+  // Fails if the edge counts in the wrong direction: the API has an edge
+  // to fn, but fn has none to the API, so a call from fn to the API has no
+  // edge to go along.
+  it("takes the edge's direction into account", () => {
+    const next = add("fn-invoke", { componentId: "api", action: "invoke" });
 
-    expect(next.project.architecture).toBe(record.project.architecture);
+    expect(next).toBe(record);
   });
 
   // Fails if a call goes in for a step or workflow that isn't there, or
@@ -153,10 +146,8 @@ describe("addCall", () => {
         workflowId,
         stepId,
         callId: "new",
-        componentId: "table",
-        action: "write",
-        edgeId: "new-edge",
-        edgeSettings: API_EDGE,
+        componentId: "fn",
+        action: "invoke",
       });
 
     expect(call("gone")).toBe(record);

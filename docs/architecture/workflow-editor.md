@@ -151,9 +151,9 @@ Each edit to a workflow is a command in [`workflow-edits.ts`](../../src/applicat
 | `renameWorkflow` | The workflow's `name`; its id, steps, and the workloads' mixes stay. The same name, or a workflow that isn't there, returns the record as it was. The field checks the name first (`checkWorkflowName`): not empty, and not another workflow's, ignoring case and surrounding spaces | "Rename Get order to Fetch order" |
 | `addWorkflow` | A workflow after the others, with the given ids and name and a root step that has the given component and action, and no calls. The workloads' mixes and the architecture stay. It's added only once the first step is complete ([When a new workflow exists](#when-a-new-workflow-exists)) | "Add workflow Get order" |
 | `removeWorkflow` | The workflow, and its entry in every workload's mix, so no mix names a workflow the project doesn't have. The architecture, the layout, and other workflows stay. A workflow that isn't there returns the record as it was | "Remove workflow Get order" |
-| `addCall` | A new step, with the given id, component and action, as the last of the given step's `calls`; if the step's component has no edge to the call's, one edge too, with the caller type's `edgeDefaults` (`connectIfMissing`, the function "Connect to…" also ends in). The step can be any step, in the main tree or in async work; a step the workflow doesn't have returns the record as it was. The pickers offer only components that exist | "Add a call from api to fn-orders", or "…, and its edge" |
-| `addAsyncWork` | The `async` of an `enqueue` step that has none: a new step with the given id, component and action, called along the queue's edge to the consumer; if the queue's component has no edge to it, one edge too, through `connectIfMissing`, so the slot and its edge are one undo step. A step that isn't an `enqueue`, already has async work, or isn't in the workflow returns the record as it was | "Add async work from orders-queue to fn-writer", or "…, and its edge" |
-| `changeStep` | A step's `componentId` and `action`, together, so a step is never left without either. The step keeps its id and loses everything under it, `calls` and `async` alike, whatever changed (a different component of the same type too): what's under a step belongs to what it was. A step changed to `enqueue` has an empty async slot, which is stored as no `async`. If the step's caller, the step that has it among its `calls`, has no edge to the new component, one edge too, with the caller type's `edgeDefaults`, through `connectIfMissing`, as `addCall` does; the root has no caller and adds none. The step can be any step, in the main tree or in async work (the caller of an async root is its queue); a step the workflow doesn't have returns the record as it was, and so does a change to what the step already is (unless the caller has no edge to it, which is still added) | "Change fn-orders · invoke to orders-db · read", with ", and its edge" and ", and remove the 3 steps under it" when they apply |
+| `addCall` | A new step, with the given id, component and action, as the last of the given step's `calls`, along an edge that's there: if the step's component has no edge to the call's, in that direction, the record is returned as it was, and no edge is added ([ADR-0019's addendum](../adr/0019-edit-projects-with-commands-and-save-each-change.md)). The step can be any step, in the main tree or in async work; a step the workflow doesn't have returns the record as it was. The pickers offer only components the caller has an edge to | "Add a call from api to fn-orders" |
+| `addAsyncWork` | The `async` of an `enqueue` step that has none: a new step with the given id, component and action, called along the queue's edge to the consumer; if the queue's component has no edge to it, the record is returned as it was. So is a step that isn't an `enqueue`, already has async work, or isn't in the workflow | "Add async work from orders-queue to fn-writer" |
+| `changeStep` | A step's `componentId` and `action`, together, so a step is never left without either. The step keeps its id and loses everything under it, `calls` and `async` alike, whatever changed (a different component of the same type too): what's under a step belongs to what it was. A step changed to `enqueue` has an empty async slot, which is stored as no `async`. If the step's caller, the step that has it among its `calls`, has no edge to the new component, the record is returned as it was, as for `addCall`; the root has no caller, so it may change to any component. A step whose edge has since gone may still change its action: it keeps its component and relies on no new edge. The step can be any step, in the main tree or in async work (the caller of an async root is its queue); a step the workflow doesn't have returns the record as it was, and so does a change to what the step already is | "Change fn-orders · invoke to orders-db · read", with ", and remove the 3 steps under it" when it applies |
 | `moveStep` | One step's place among its siblings, up or down, its calls and async work with it: its caller's `calls` swap two entries, and nothing else changes. A step at that end, with no siblings, that's a workflow's first step or an async root (its slot's only step), or that the workflow doesn't have returns the record as it was; a step below an async root moves among its siblings | "Move orders-db · read up" |
 | `removeStep` | The step, and every step under it, async work included. A caller left with no calls loses its `calls` field. Removing an async root leaves its queue's slot empty: the queue's `async` goes and its `calls` stay. No edge goes: edges belong to the architecture. A workflow's first step, or a step the workflow doesn't have, returns the record as it was | "Remove fn-orders · invoke" |
 
@@ -234,9 +234,9 @@ sequenceDiagram
 
 Under each step's calls, a button "Add a call from api" opens a draft call and moves the focus to its component picker (the button is gone, and the focus would otherwise fall to the page's body): a component picker, and once a component is chosen, an action picker. Like a new workflow's first step, the draft lives only in the UI (`AddCall`, local state), so nothing is stored until both are chosen, and Escape drops it, returns the focus to the button, and saves nothing. Escape stops there: Details' own Escape, which would close the outline, doesn't see it. A component whose type accepts one action has it chosen already, so choosing the component saves the call.
 
-`NewCall` (a use case, since the ids come from the `IdGenerator` port) says what the draft needs: ids for the call and for an edge it may add, the caller type's `edgeDefaults`, and the components to offer. The caller's neighbours come first, then the rest, each of those marked "No edge from api yet; choosing it adds one." The caller's own component isn't offered, since the architecture has no edge to itself. The draft reads it again whenever the project changes, so an Undo that takes a component away takes it from the picker.
+`NewCall` (a use case, since the id comes from the `IdGenerator` port) says what the draft needs: an id for the call, and the components to offer: only those the caller has an edge to, in edge order (`callChoices`), since a call never adds an edge. A caller with none to offer shows no pickers, and says to connect it first: "api has no edges to call along. Connect it first: drag from its handle on the diagram, or choose "Connect to…" in its Details." (`noEdgesNote`). The draft reads it again whenever the project changes, so an Undo that takes a component or an edge away takes it from the picker.
 
-The compound case, a call along a missing edge, is one command and so one undo step:
+A call is one command and so one undo step, and the edge it goes along is drawn before it, as its own step:
 
 ```mermaid
 sequenceDiagram
@@ -246,29 +246,29 @@ sequenceDiagram
     participant C as addCall (application)
     participant E as useProjectEdits (ui)
     participant D as Diagram, Details
-    User->>P: picks orders-db, marked "No edge from API Gateway yet#59; choosing it adds one."
+    User->>P: picks orders-db, which API Gateway has an edge to
     User->>P: picks read
     P->>S: add({ callerStepId, start, choice, action })
-    S->>E: edit(addCall), described "Add a call from API Gateway to orders-db, and its edge"
-    E->>C: addCall(record, { stepId, callId, componentId, action, edgeId, edgeSettings })
-    C->>C: appends the call, then connectIfMissing adds the edge with newEdge's defaults
+    S->>E: edit(addCall), described "Add a call from API Gateway to orders-db"
+    E->>C: addCall(record, { stepId, callId, componentId, action })
+    C->>C: checks the caller has an edge to the callee, then appends the call
     E->>E: one history step, the run goes out of date, the save queue saves the record
-    E-->>D: the diagram draws the edge, the outline shows the new step, selected
-    S->>D: announce "Added a call from API Gateway to orders-db. Added the edge from API Gateway to orders-db."
+    E-->>D: the outline shows the new step, selected, and the diagram numbers it
+    S->>D: announce "Added a call from API Gateway to orders-db."
 ```
 
-- **The edge is the same function.** `addCall` ends in `connectIfMissing` (in [`edge-edits.ts`](../../src/application/edits/edge-edits.ts)), which calls `connectComponents`, as "Connect to…" does, so a call's edge and a drawn one are the same, with the same defaults from the caller's type. `connectIfMissing` adds none when the caller already has an edge to the callee, so a call along an edge that's there leaves the architecture as it was.
-- **The announcement** says the edge appeared, since it appears on the diagram, away from the focus. A call along an edge that's there says only "Added a call from fn-orders to orders-db."
+- **A call never adds an edge.** `addCall` checks `hasEdgeBetween` (in [`edge-edits.ts`](../../src/application/edits/edge-edits.ts)) and returns the record as it was if the caller has no edge to the callee, in that direction, so a call leaves the architecture alone. An edge is drawn on the diagram, or with "Connect to…" (`connectComponents`), and is its own undo step.
+- **The announcement** names the call alone: "Added a call from fn-orders to orders-db."
 - **The focus and the selection.** The new step is selected and its line takes the focus (`useFocusAfterRedraw`), since the draft, which had it, has gone. The selection follows the step by id: an Undo takes it away, and `selectionAfterUndo` clears the selection, as for a removed step.
-- **Undo** removes the call and the edge together, because the history keeps the record from before.
+- **Undo** removes the call; the edge stays, because it was drawn by a step of its own.
 
 ## Changing a step
 
 Selecting a step puts two pickers under its line, Component and Action, showing what it is now (`ChangeStep`). Choosing an action saves at once. Choosing a component saves at once if its type accepts the step's action, or accepts only one action, which the step takes; otherwise the action picker empties and the component waits as a draft, in the UI only (`ChangeStep`'s local state), until an action is chosen: a step is never saved without both. A step whose action its component doesn't accept (the run issue `action-not-accepted`) shows an empty action picker, since the picker never shows an action it can't offer; choosing an accepted one fixes the issue, which leaves the outline and the workflow's row, since both are read from the project.
 
-`ChangeStep` (a use case, since the edge's id comes from the `IdGenerator` port) says what the pickers need: the step's component, action, and label, the caller's name, the caller type's `edgeDefaults`, and the components to offer, by the same `callChoices` that `NewCall` uses (the caller's neighbours first, the others marked as adding an edge; for the root, every component and none adding one), and how many steps are under the step. A change along a missing edge is one command and so one undo step, announced as an add is: "Changed fn-orders · invoke to orders-db · read. Added the edge from API Gateway to orders-db." The words are `changeStepText`.
+`ChangeStep` (a use case) says what the pickers need: the step's component, action, and label, the caller's name, and the components to offer, by the same `callChoices` that `NewCall` uses (the caller's neighbours, plus the step's own component if its edge has gone, so the picker shows what the step is; for the root, every component), and how many steps are under the step. A change adds no edge, so the words name the step and what goes: "Changed fn-orders · invoke to orders-db · read." The words are `changeStepText`.
 
-- **A change drops what's under the step, after asking.** Any change to a step's component or action drops every step under it, calls and async work, so when `stepsBelow` isn't 0 the pickers hold the change and ask first, as a remove does, with `RemoveConfirmation` (its button says "Change"): "Change fn-orders · invoke to fn-writer · invoke? The 3 steps under it go." (`changeStepQuestion`), the count taking in everything nested, with the focus on Cancel. Cancel changes nothing and puts the pickers back to what the step is; either answer returns the focus to the Component picker. A step with nothing under it changes at once. Undo's name and the announcement say how many went ("Change … , and remove the 3 steps under it"; "Changed …. The 3 steps under it are gone."), and a change to `enqueue` adds "It has no async work yet." Both pickers offer every component and action, async work or not. An `enqueue` offers no "Add a call": its follow-up work is its async work (a stored project with such calls still opens).
+- **A change drops what's under the step, after asking.** Any change to a step's component or action drops every step under it, calls and async work, so when `stepsBelow` isn't 0 the pickers hold the change and ask first, as a remove does, with `RemoveConfirmation` (its button says "Change"): "Change fn-orders · invoke to fn-writer · invoke? The 3 steps under it go." (`changeStepQuestion`), the count taking in everything nested, with the focus on Cancel. Cancel changes nothing and puts the pickers back to what the step is; either answer returns the focus to the Component picker. A step with nothing under it changes at once. Undo's name and the announcement say how many went ("Change … , and remove the 3 steps under it"; "Changed …. The 3 steps under it are gone."), and a change to `enqueue` adds "It has no async work yet." The component picker offers the caller's neighbours and the action picker every action of the component, async work or not. An `enqueue` offers no "Add a call": its follow-up work is its async work (a stored project with such calls still opens).
 - **Changing an `enqueue` back to a `write`** shows what goes. The question is "Change orders-queue · enqueue to orders-db · write? The 2 steps under it go." Before, from [the async sketch](#async-work):
 
 ```mermaid
@@ -304,18 +304,18 @@ flowchart TB
 ```
 
 - **The selection** stays on the step, whose id doesn't change; so does the focus, which stays on the picker.
-- **Undo** puts back the step and any edge the change added, because the history keeps the record from before.
+- **Undo** puts back the step, because the history keeps the record from before.
 
 ## Async work
 
-An `enqueue` step with no async work shows its slot: the heading "Async work, done when a consumer takes the message", "No async work yet. A message is taken off the queue and nothing runs.", and a button "Add async work, done when a consumer takes the message" (`OutlineStep.asyncSlot`, which is derived from the step: an empty slot is stored as no `async`). The button opens the same draft as "Add a call" (`AddCall`, over the same `NewCall` use case, with the queue as the caller), and once a component and an action are chosen `useStepEdits` hands `addAsyncWork` to `edit`, selects the new step, and announces "Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer." Escape drops the draft and saves nothing.
+An `enqueue` step with no async work shows its slot: the heading "Async work, done when a consumer takes the message", "No async work yet. A message is taken off the queue and nothing runs.", and a button "Add async work, done when a consumer takes the message" (`OutlineStep.asyncSlot`, which is derived from the step: an empty slot is stored as no `async`). The button opens the same draft as "Add a call" (`AddCall`, over the same `NewCall` use case, with the queue as the caller), and once a component and an action are chosen `useStepEdits` hands `addAsyncWork` to `edit`, selects the new step, and announces "Added async work from orders-queue to fn-writer." The draft offers only the consumers the queue has an edge to; a queue with none says to connect it first, as a call's draft does. Escape drops the draft and saves nothing.
 
 - **The async root's line** has Remove and the pickers that change it, no Move, and a description for a screen reader, "Runs when a consumer takes the message from orders-queue.", which describes its button along with any issues.
 - **Remove** on the async root leaves the slot empty and takes no edge; it asks first only if something is under it. The selection and the focus go to the queue step, whose slot's button is now there, and the announcement says so: "Removed fn-writer · invoke. orders-queue · enqueue has no async work now."
 - **A chain of queues** works: an `enqueue` under async work gets a slot like any other.
 - **A stored project's issues** (`async-not-on-enqueue`, `async-not-delivered`) show on the step that has the async work. Remove on the root, or changing the step's action, fixes them.
 
-The sketch's first two steps, as one flow. Each is one command, so each is one undo step, and each says what appeared away from the focus:
+The sketch's first two steps, as one flow. Each edge is drawn first, with "Connect to…" or a drag, as its own undo step, and each command then goes along it:
 
 ```mermaid
 sequenceDiagram
@@ -325,21 +325,23 @@ sequenceDiagram
     participant C as changeStep, addAsyncWork (application)
     participant E as useProjectEdits (ui)
     participant D as Diagram, Details
+    User->>E: draws fn-orders → orders-queue
     User->>O: picks orders-queue for orders-db · write
     O->>S: change(step, orders-queue · enqueue)
-    S->>E: edit(changeStep), described "Change orders-db · write to orders-queue · enqueue, and its edge"
-    E->>C: changeStep adds the edge fn-orders → orders-queue, and the step's async slot is empty
-    S->>D: announce "Changed … Added the edge from fn-orders to orders-queue. It has no async work yet."
+    S->>E: edit(changeStep), described "Change orders-db · write to orders-queue · enqueue"
+    E->>C: changeStep along the edge fn-orders → orders-queue, and the step's async slot is empty
+    S->>D: announce "Changed … It has no async work yet."
+    User->>E: draws orders-queue → fn-writer
     User->>O: "Add async work…", picks fn-writer, picks invoke
     O->>S: addAsync({ callerStepId, start, choice, action })
-    S->>E: edit(addAsyncWork), described "Add async work from orders-queue to fn-writer, and its edge"
-    E->>C: addAsyncWork sets the queue's async step, and connectIfMissing adds orders-queue → fn-writer
-    E-->>D: the diagram draws the edge, the outline shows fn-writer, selected
-    S->>D: announce "Added async work from orders-queue to fn-writer. Added the edge from orders-queue to fn-writer."
-    User->>E: Undo: one step takes back the async work and its edge
+    S->>E: edit(addAsyncWork), described "Add async work from orders-queue to fn-writer"
+    E->>C: addAsyncWork sets the queue's async step, along orders-queue → fn-writer
+    E-->>D: the outline shows fn-writer, selected
+    S->>D: announce "Added async work from orders-queue to fn-writer."
+    User->>E: Undo: one step takes back the async work, and the edge stays
 ```
 
-[`async-work-sequence.test.ts`](../../src/adapters/templates/details/async-work-sequence.test.ts) builds [M6 UX design §2.6's sketch](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md#26-sketch-put-a-queue-in-front-of-a-slow-component) in a copy of Template A, through the same edit history the screen keeps, and writes each stage to [`async-work-sequence.txt`](../../src/adapters/templates/details/async-work-sequence.txt): three calls and their three edges (`fn-orders → orders-queue`, `orders-queue → fn-writer`, `fn-writer → orders-db`), each undone in turn, and the announcement of each. It also checks that the result has no run issues and that a run of it delivers messages. If a stage changes, run `npx vitest run src/adapters/templates/details --update` and read the diff.
+[`async-work-sequence.test.ts`](../../src/adapters/templates/details/async-work-sequence.test.ts) builds [M6 UX design §2.6's sketch](https://github.com/alanbickel/wind-tunnel/blob/6ef2e1e9ace6a3cb9a419bc9187fa3c2b8869d38/docs/design/user-experience.md#26-sketch-put-a-queue-in-front-of-a-slow-component) in a copy of Template A, through the same edit history the screen keeps, and writes each stage to [`async-work-sequence.txt`](../../src/adapters/templates/details/async-work-sequence.txt): three edges (`fn-orders → orders-queue`, `orders-queue → fn-writer`, `fn-writer → orders-db`), each drawn before the step that goes along it, then each undone in turn, and the announcement of each. It also checks that the result has no run issues and that a run of it delivers messages. If a stage changes, run `npx vitest run src/adapters/templates/details --update` and read the diff.
 
 ## Removing a workflow
 
@@ -464,8 +466,16 @@ Edges: 2
         1.1.2  orders-db · read
 Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
 
-Add a call from API Gateway to orders-db, and its edge
+Connect API Gateway to orders-db
 Edges: 3 (API Gateway → orders-db is new)
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+
+Add a call from API Gateway to orders-db
+Edges: 3 (the same: a call adds none)
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
@@ -474,7 +484,7 @@ Edges: 3 (API Gateway → orders-db is new)
 Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read); API Gateway → orders-db (read).
 
 Change orders-db · read to orders-db · write
-Edges: 3 (the same: API Gateway → orders-db is there already)
+Edges: 3 (the same: a change adds none)
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
@@ -491,7 +501,15 @@ Edges: 3
    1.2  orders-db · read
 Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read); API Gateway → orders-db (read).
 
-Undo: Add a call from API Gateway to orders-db, and its edge
+Undo: Add a call from API Gateway to orders-db
+Edges: 3
+1  API Gateway · invoke
+   1.1  fn-orders · invoke
+        1.1.1  orders-db · write
+        1.1.2  orders-db · read
+Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
+
+Undo: Connect API Gateway to orders-db
 Edges: 2
 1  API Gateway · invoke
    1.1  fn-orders · invoke
@@ -500,13 +518,13 @@ Edges: 2
 Text version: Create order: API Gateway → fn-orders → orders-db (write); API Gateway → fn-orders → orders-db (read).
 ```
 
-The test also checks that the architecture is the same object at every stage before the added call, so no move or remove touches an edge; that the added call makes it three edges, and the change, along an edge that's there, adds none; and that each undo gives back the very record from before. If a stage changes, run the `--update` command above and update this excerpt.
+The test also checks that the architecture is the same object at every stage before the edge is drawn, so no move or remove touches an edge; that drawing it makes three edges, and the call and the change, along it, add none; and that each undo gives back the very record from before. If a stage changes, run the `--update` command above and update this excerpt.
 
 ## Changing it
 
 To add a step command (say, `duplicateStep`), in the order a reviewer will read it:
 
-1. **The command**, in [`workflow-edits.ts`](../../src/application/edits/workflow-edits.ts): a plain function from record to record that takes its step by id, like `moveStep`. It does the whole change, so it's one undo step; it returns the very record it was given when there's nothing to do, so `edit` saves nothing; and it touches the architecture only to add an edge a call needs, which it does through `connectIfMissing` (the one place a step command adds an edge), never by building the edge itself. `moveStep` and `removeStep` share `changeCallsHolding`, which finds the step that holds an id among its calls and swaps in the calls `change` returns; a command that changes one step's calls should use it, and one that changes a step in place can use `mapSteps` ([`step-tree.ts`](../../src/domain/model/step-tree.ts)).
+1. **The command**, in [`workflow-edits.ts`](../../src/application/edits/workflow-edits.ts): a plain function from record to record that takes its step by id, like `moveStep`. It does the whole change, so it's one undo step; it returns the very record it was given when there's nothing to do, so `edit` saves nothing; and it never touches the architecture: a step command goes only along an edge that's there (`hasEdgeBetween`), and returns the record as it was when there's none. `moveStep` and `removeStep` share `changeCallsHolding`, which finds the step that holds an id among its calls and swaps in the calls `change` returns; a command that changes one step's calls should use it, and one that changes a step in place can use `mapSteps` ([`step-tree.ts`](../../src/domain/model/step-tree.ts)).
 2. **Its words**, in `application/details/`, not the UI: what the outline needs to offer it (`StepEditing`, built by `stepEditing` in `workflow-details.ts`), and a confirmation's question if it takes something with it (`removal-text.ts`, beside `stepRemovalText`). The undo name is the command's `describe`, in `useStepEdits`: the verb, then the step as the outline labels it, "Move orders-db · read up".
 3. **The button**, in `WorkflowOutline`, calling the command through `useStepEdits`, which saves it, selects what should be selected, and announces it. Name the button for its step, make one that can be unusable `aria-disabled` (the `Button`'s `usable`), and say where the focus goes.
 4. **Tests**, each with a `// Fails if` comment you've watched go red: the command in `workflow-edits.test.ts` (or its own file, as `addCall`'s is; the change, the unchanged record, the input left alone, the architecture left alone); its words in `workflow-details.test.ts` or `removal-text.test.ts`; the screen in `OpenedProject.step-edits.test.tsx` (the announcement, the focus, the undo name, undoing it); and a stage in the edit sequence above. Update the commands table and the excerpt.

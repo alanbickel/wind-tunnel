@@ -33,9 +33,8 @@ const withAsync: Project = {
 describe("ChangeStep", () => {
   // Fails if the start doesn't say what the step is now, or its label isn't
   // "component · action" (Undo's and the announcement's words), or the
-  // caller type's edge defaults aren't taken from the caller (Lambda's
-  // timeout is 5,000 ms).
-  it("gives the step's component, action, label, and its caller's edge defaults", () => {
+  // caller's name isn't given.
+  it("gives the step's component, action, label, and its caller's name", () => {
     const start = awsChangeStep().execute({ ...base, stepId: "table-read" });
 
     expect(start).toMatchObject({
@@ -44,39 +43,55 @@ describe("ChangeStep", () => {
       label: "Table · read",
       callerName: "Function",
     });
-    expect(start?.edgeSettings?.timeoutMs).toBe(5_000);
   });
 
-  // Fails if the root is offered a caller or an edge, or any component is
-  // marked as adding one.
-  it("gives the root no caller, no edge settings, and no choice that adds an edge", () => {
+  // Fails if the root is offered a caller, or isn't offered every component
+  // (it has no caller, so no edge to go along).
+  it("gives the root no caller and every component", () => {
     const start = awsChangeStep().execute({ ...base, stepId: "api-invoke" });
 
     expect(start?.callerName).toBeUndefined();
-    expect(start?.edgeSettings).toBeUndefined();
-    expect(start?.choices.map((c) => [c.componentId, c.addsEdge])).toEqual([
-      ["api", false],
-      ["fn", false],
-      ["table", false],
+    expect(start?.choices.map((c) => c.componentId)).toEqual([
+      "api",
+      "fn",
+      "table",
     ]);
   });
 
-  // Fails if the caller's neighbours aren't first, or the others aren't
-  // marked as adding an edge.
-  it("lists the caller's neighbours first, and marks the others as adding an edge", () => {
+  // Fails if a component the caller has no edge to is offered, or the
+  // caller's neighbour isn't.
+  it("offers only the caller's neighbours", () => {
     const start = awsChangeStep().execute({ ...base, stepId: "fn-invoke" });
 
-    expect(start?.choices.map((c) => [c.componentId, c.addsEdge])).toEqual([
-      ["fn", false],
-      ["table", true],
-    ]);
+    expect(start?.choices.map((c) => c.componentId)).toEqual(["fn"]);
+  });
+
+  // Fails if a step whose edge has since gone doesn't show its own
+  // component (the picker must show what it is now).
+  it("adds the step's own component when its edge has gone", () => {
+    const { architecture } = sampleRecord.project;
+    const project: Project = {
+      ...sampleRecord.project,
+      architecture: {
+        ...architecture,
+        edges: architecture.edges.filter((e) => e.to !== "table"),
+      },
+    };
+
+    const start = awsChangeStep().execute({
+      project,
+      workflowId: "read",
+      stepId: "table-read",
+    });
+
+    expect(start?.choices.map((c) => c.componentId)).toEqual(["table"]);
   });
 
   // Fails if a step with async work still locks its action, or filters the
-  // components by its action (the picker offers every component, and a
+  // components by its action (the picker offers every neighbour, and a
   // change drops what's under the step), or the count leaves out a nested
   // step, async work, or calls.
-  it("offers every component for a step with async work, and counts the steps under a step", () => {
+  it("offers the neighbours of a step with async work, and counts the steps under a step", () => {
     const start = awsChangeStep().execute({
       project: withAsync,
       workflowId: "async",
@@ -84,7 +99,7 @@ describe("ChangeStep", () => {
     });
 
     expect(start).not.toHaveProperty("actionLocked");
-    expect(start?.choices.map((c) => c.componentId)).toEqual(["fn", "table"]);
+    expect(start?.choices.map((c) => c.componentId)).toEqual(["fn"]);
     expect(start?.stepsBelow).toBe(1);
     const root = awsChangeStep().execute({
       project: withAsync,

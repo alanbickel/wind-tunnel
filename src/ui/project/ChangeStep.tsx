@@ -239,13 +239,9 @@ function ActionPicker({ start, choice, pending, onPick }: ActionPickerProps) {
   );
 }
 
-/** A component's option: its label, and the mark if choosing it adds an edge. */
-function componentOption({
-  componentId,
-  label,
-  note,
-}: CallChoice): PickerOption {
-  return { value: componentId, text: note ? `${label} · ${note}` : label };
+/** A component's option: its label. */
+function componentOption({ componentId, label }: CallChoice): PickerOption {
+  return { value: componentId, text: label };
 }
 
 /**

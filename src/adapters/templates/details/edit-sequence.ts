@@ -11,6 +11,10 @@ import {
 } from "../../../application/edits/edit-history";
 import type { ProjectRecord } from "../../../application/ports/project-record";
 import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
+import { connectComponents } from "../../../application/edits/edge-edits";
+import { SequentialIds } from "../../../application/testing/sequential-ids";
+import { NewEdge } from "../../../application/use-cases/new-edge";
+import { createAwsComponentRegistry } from "../../../domain/components/aws";
 import { outlineLines } from "./outline-lines";
 
 // What the edit sequences in docs/architecture/workflow-editor.md share:
@@ -143,4 +147,43 @@ export function asking(record: ProjectRecord, ref: StepRef): string {
   const { outline } = detailsOf(record, ref.workflowId);
   const { editing } = stepIn(outline, ref.stepId);
   return `Remove asks: ${editing?.removal?.question ?? "nothing; the step goes at once"}`;
+}
+
+/** Two components to connect, by id, in a place's workflow. */
+export interface ConnectInput {
+  readonly from: Place;
+  readonly workflowId: string;
+  /** The caller's component id. */
+  readonly fromId: string;
+  /** The callee's component id. */
+  readonly toId: string;
+}
+
+/**
+ * Draws an edge between two components on its own, as "Connect to…" does:
+ * a call goes only along an edge that's there, so it comes first, and the
+ * edge's id and settings come from `NewEdge`, as on the screen.
+ */
+export function connect({
+  from,
+  workflowId,
+  fromId,
+  toId,
+}: ConnectInput): Place {
+  const { project } = from.record;
+  const connection = new NewEdge({
+    registry: createAwsComponentRegistry(),
+    ids: new SequentialIds(`edge-${fromId}`),
+  }).execute({ project, from: fromId, to: toId });
+  if (connection === undefined) throw new Error(`No type for ${fromId}`);
+  const nameOf = (id: string) =>
+    project.architecture.components.find((c) => c.id === id)?.name ?? id;
+  const between = `${nameOf(fromId)} to ${nameOf(toId)}`;
+  return apply({
+    from,
+    workflowId,
+    command: (r) => connectComponents(r, connection),
+    description: `Connect ${between}`,
+    note: `Edges: ${String(edgeCount(from.record) + 1)} (${nameOf(fromId)} → ${nameOf(toId)} is new)`,
+  });
 }

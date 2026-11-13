@@ -58,13 +58,12 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the component picker lists the caller's own component, puts a
-  // component with no edge from the caller before its neighbours, or
-  // doesn't mark each of those as adding an edge; or the action picker is
-  // there before a component is chosen; or opening the draft doesn't move
-  // the focus to the component picker (it would fall to the page's body,
-  // out of reach of Escape).
-  it("lists the caller's neighbours first, and marks the others as adding an edge", () => {
+  // Fails if the component picker lists a component the caller has no edge
+  // to (the API has none to the Table), or leaves out one it has; or the
+  // action picker is there before a component is chosen; or opening the
+  // draft doesn't move the focus to the component picker (it would fall to
+  // the page's body, out of reach of Escape).
+  it("lists only the components the caller has an edge to", () => {
     renderProject();
     openOutline();
     addCallFrom("Add a call from API, step 1");
@@ -75,12 +74,38 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
       within(picker)
         .getAllByRole("option")
         .map((o) => o.textContent),
-    ).toEqual([
-      "Choose a component",
-      "Function (Lambda)",
-      "Table (DynamoDB) · No edge from API yet; choosing it adds one.",
-    ]);
+    ).toEqual(["Choose a component", "Function (Lambda)"]);
     expect(screen.queryByRole("combobox", { name: "Action" })).toBeNull();
+  });
+
+  // Fails if a caller with no edge out gets pickers with nothing to pick,
+  // or the draft doesn't say why and how to connect it (a call never adds
+  // an edge, so the words are the way out); or the draft doesn't take the
+  // focus (it would fall to the body, and Escape couldn't reach the group);
+  // or the group isn't described by the note (a screen reader would say
+  // nothing of why there is no picker); or Escape from the group doesn't
+  // drop the draft and return the focus to its button.
+  it("says how to connect a caller that has no edge to call along", () => {
+    renderProject();
+    openOutline();
+
+    addCallFrom("Add a call from Table, step 1.1.1");
+
+    expect(screen.queryByRole("combobox", { name: "Component" })).toBeNull();
+    const group = screen.getByRole("group", { name: /^Add a call/ });
+    expect(group.textContent).toContain("Table has no edges to call along.");
+    expect(group.textContent).toContain("Connect to…");
+    expect(document.activeElement).toBe(group);
+    expect(group.getAttribute("aria-describedby")).toBe(
+      screen.getByText(/has no edges to call along/).id,
+    );
+
+    fireEvent.keyDown(group, { key: "Escape" });
+
+    expect(screen.queryByRole("group", { name: /^Add a call/ })).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Add a call from Table, step 1.1.1" }),
+    );
   });
 
   // Fails if a component whose type accepts one action doesn't have it
@@ -144,59 +169,39 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
     expect(saved.project.architecture.edges).toHaveLength(2);
   });
 
-  // Fails if a call along a missing edge doesn't add the edge in the same
-  // save, the edge isn't on the diagram's text version, or isn't announced,
-  // or Undo's name leaves out the edge, or one Undo leaves either behind.
-  it("adds the edge with a call along a missing one, announces it, and undoes both in one step", async () => {
+  // Fails if a call adds an edge (the architecture keeps its two), or
+  // Undo's name or the announcement says anything of one, or one Undo
+  // leaves the call behind.
+  it("adds a call along an existing edge, names it, and undoes it, with no edge added", async () => {
     const { projects } = renderProject();
     openOutline();
-    addCallFrom("Add a call from API, step 1");
+    addCallFrom("Add a call from Function, step 1.1");
 
     pick("Component", "table");
     pick("Action", "write");
 
     expect(detailsStatus().textContent).toBe(
-      "Added a call from API to Table. Added the edge from API to Table.",
+      "Added a call from Function to Table.",
     );
-    // The workflow is selected, so the connection carries its call number.
-    expect(revealButton(/^API → Table/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Undo add a call from Function to Table",
+      }),
+    ).toBeTruthy();
     const saved = await savedRecord(
       projects,
-      (r) => r.project.architecture.edges.length === 3,
+      (r) => r.project.workflows[0]?.root.calls?.[0]?.calls?.length === 2,
     );
-    expect(saved.project.architecture.edges.at(-1)).toMatchObject({
-      from: "api",
-      to: "table",
-      timeoutMs: 29_000,
-    });
+    expect(saved.project.architecture.edges).toHaveLength(2);
 
     undo();
 
-    expect(screen.queryByRole("button", { name: "API → Table" })).toBeNull();
     openOutline();
     expect(outlineText()).toHaveLength(3);
     await savedRecord(
       projects,
-      (r) =>
-        r.project.architecture.edges.length === 2 &&
-        r.project.workflows[0]?.root.calls?.length === 1,
+      (r) => r.project.workflows[0]?.root.calls?.[0]?.calls?.length === 1,
     );
-  });
-
-  // Fails if Undo's name leaves out the edge the call added.
-  it("names Undo for both the call and its edge", () => {
-    renderProject();
-    openOutline();
-    addCallFrom("Add a call from API, step 1");
-
-    pick("Component", "table");
-    pick("Action", "write");
-
-    expect(
-      screen.getByRole("button", {
-        name: "Undo add a call from API to Table, and its edge",
-      }),
-    ).toBeTruthy();
   });
 
   // Fails if Escape saves anything, leaves the draft open, closes Details
@@ -205,7 +210,7 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
   it("drops the draft on Escape, saves nothing, and returns the focus to the button", () => {
     renderProject();
     openOutline();
-    addCallFrom("Add a call from API, step 1");
+    addCallFrom("Add a call from Function, step 1.1");
     pick("Component", "table");
 
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Action" }), {
@@ -221,7 +226,9 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
     ).toBe("true");
     expect(detailsHeading().textContent).toBe("Read item · Workflow");
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Add a call from API, step 1" }),
+      screen.getByRole("button", {
+        name: "Add a call from Function, step 1.1",
+      }),
     );
   });
 

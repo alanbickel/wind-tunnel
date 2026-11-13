@@ -32,20 +32,24 @@ export function connectComponents(
 }
 
 /**
- * Adds the edge as `connectComponents` does, unless the caller already has
- * an edge to the callee (the architecture allows one per pair and direction),
- * in which case the record is returned as it was. A command that may add an
- * edge, such as `addCall`, adds it here, so a call's edge and a drawn one
- * are the same.
+ * Whether the caller has an edge to the callee, in that direction (the
+ * architecture allows one per pair and direction). A step's command checks
+ * it before a call goes along an edge: a call never adds one (ADR-0019's
+ * addendum of 2026-11-12).
  */
-export function connectIfMissing(
+export function hasEdgeBetween(
   record: ProjectRecord,
-  input: ConnectComponentsInput,
-): ProjectRecord {
-  const { from, to } = input;
-  const edges = record.project.architecture.edges;
-  if (edges.some((e) => e.from === from && e.to === to)) return record;
-  return connectComponents(record, input);
+  { from, to }: EdgeEnds,
+): boolean {
+  return record.project.architecture.edges.some(
+    (e) => e.from === from && e.to === to,
+  );
+}
+
+/** The component ids an edge joins: the caller's, then the callee's. */
+export interface EdgeEnds {
+  readonly from: string;
+  readonly to: string;
 }
 
 /** One of an edge's settings, by its key. */

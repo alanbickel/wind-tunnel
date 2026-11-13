@@ -10,7 +10,9 @@ import {
 } from "./testing/render-opened-project";
 
 // The sample's "Read item": 1 API > 1.1 Function > 1.1.1 Table (read). The
-// architecture has API → Function and Function → Table, and no API → Table.
+// architecture has API → Function and Function → Table, and no API → Table
+// unless a test draws it (`withApiTable`), since a change goes only along an
+// edge that's there.
 
 import { revealButton } from "./testing/canvas-panels";
 
@@ -44,8 +46,16 @@ function pick(label: string, value: string): void {
   fireEvent.change(picker(label), { target: { value } });
 }
 
-function undo(): void {
-  fireEvent.click(screen.getByRole("button", { name: /^Undo\b/ }));
+/** The project with an edge API → Table, as "Connect to…" would draw it. */
+function withApiTable(project: Project): Project {
+  const { architecture } = project;
+  const [edge] = architecture.edges;
+  if (edge === undefined) throw new Error("The sample has an edge");
+  const added = { ...edge, id: "api-table", from: "api", to: "table" };
+  return {
+    ...project,
+    architecture: { ...architecture, edges: [...architecture.edges, added] },
+  };
 }
 
 /** The sample's one workflow with its root replaced. */
@@ -106,43 +116,46 @@ describe("OpenedProject's changing a workflow's step", () => {
     );
   });
 
-  // Fails if a component along a missing edge adds no edge, doesn't say so,
-  // leaves its action unchosen when its type accepts only one, or one Undo
-  // doesn't put back both the step and the edge.
-  it("adds the edge for a component with none from the caller, and undoes both in one step", async () => {
-    const { projects } = renderProject();
+  // Fails if the component picker offers a component the caller has no edge
+  // to (the Function has none to the API), or leaves out the step's own, or
+  // a neighbour (the Function's edge to the Table).
+  it("offers only the caller's neighbours, never a component it has no edge to", () => {
+    renderProject();
     selectStep("1.1.1 Table · read");
 
-    pick("Component", "api");
+    expect(
+      within(picker("Component"))
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Choose a component", "Table (DynamoDB)"]);
+  });
 
-    expect(outlineText()[2]).toBe("1.1.1 API · invoke");
-    expect(detailsStatus().textContent).toBe(
-      "Changed Table · read to API · invoke. Added the edge from Function to API.",
-    );
-    // The workflow is selected, so the connection carries its call number.
-    expect(revealButton(/^Function → API/)).toBeTruthy();
-    await savedRecord(
-      projects,
-      (r) => r.project.architecture.edges.length === 3,
-    );
+  // Fails if a step whose edge has gone doesn't show its own component in
+  // the picker, or an action-only change adds an edge or can't be saved (the
+  // step keeps its component, so it relies on no new edge).
+  it("shows a step whose edge has gone, and still changes its action, with no edge added", async () => {
+    const { projects } = renderProject({ project: withoutFnTable() });
+    selectStep("1.1.1 Table · read");
 
-    undo();
+    expect(picker("Component").value).toBe("table");
+    pick("Action", "write");
 
-    expect(screen.queryByRole("button", { name: "Function → API" })).toBeNull();
-    expect(outlineText()[2]).toBe("1.1.1 Table · read");
-    await savedRecord(
+    expect(outlineText()[2]).toBe("1.1.1 Table · write");
+    const saved = await savedRecord(
       projects,
       (r) =>
-        r.project.architecture.edges.length === 2 &&
-        r.project.workflows[0]?.root.calls?.[0]?.calls?.[0]?.action === "read",
+        r.project.workflows[0]?.root.calls?.[0]?.calls?.[0]?.action === "write",
     );
+    expect(saved.project.architecture.edges).toHaveLength(1);
   });
 
   // Fails if a component that doesn't accept the step's action saves before
   // an action is chosen, leaves the action picker holding the old action, or
   // saves with another action than the one chosen.
   it("holds a draft until an action is chosen when the component doesn't accept the step's", async () => {
-    const { projects } = renderProject();
+    const { projects } = renderProject({
+      project: withApiTable(sampleRecord.project),
+    });
     selectStep("1.1 Function · invoke");
 
     pick("Component", "table");
@@ -171,7 +184,7 @@ describe("OpenedProject's changing a workflow's step", () => {
   // Fails if choosing the step's own component again, while a draft is
   // pending, announces a change that didn't happen, or leaves the draft.
   it("drops the draft without announcing when the step's own component is chosen again", () => {
-    renderProject();
+    renderProject({ project: withApiTable(sampleRecord.project) });
     selectStep("1.1 Function · invoke");
 
     pick("Component", "table");
@@ -276,7 +289,7 @@ describe("OpenedProject's changing a workflow's step", () => {
 
     expect(outlineText()).toEqual(["1 API · invoke", "1.1 Table · write"]);
     expect(detailsStatus().textContent).toBe(
-      "Changed Function · invoke to Table · write. Added the edge from API to Table. The 2 steps under it are gone.",
+      "Changed Function · invoke to Table · write. The 2 steps under it are gone.",
     );
     await savedRecord(
       projects,
@@ -285,7 +298,7 @@ describe("OpenedProject's changing a workflow's step", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Undo change Function · invoke to Table · write, and its edge, and remove the 2 steps under it",
+        name: "Undo change Function · invoke to Table · write, and remove the 2 steps under it",
       }),
     );
 
@@ -316,18 +329,32 @@ describe("OpenedProject's changing a workflow's step", () => {
 
 /** API > Function (invoke), which has a call to the Table and async work on it. */
 function withStepsUnderFunction(): Project {
-  return withRoot({
-    id: "api-invoke",
-    componentId: "api",
-    action: "invoke",
-    calls: [
-      {
-        id: "fn",
-        componentId: "fn",
-        action: "invoke",
-        calls: [{ id: "read", componentId: "table", action: "read" }],
-        async: { id: "consumer", componentId: "table", action: "read" },
-      },
-    ],
-  });
+  return withApiTable(
+    withRoot({
+      id: "api-invoke",
+      componentId: "api",
+      action: "invoke",
+      calls: [
+        {
+          id: "fn",
+          componentId: "fn",
+          action: "invoke",
+          calls: [{ id: "read", componentId: "table", action: "read" }],
+          async: { id: "consumer", componentId: "table", action: "read" },
+        },
+      ],
+    }),
+  );
+}
+
+/** The sample without its edge Function → Table, which its step still calls along. */
+function withoutFnTable(): Project {
+  const { architecture } = sampleRecord.project;
+  return {
+    ...sampleRecord.project,
+    architecture: {
+      ...architecture,
+      edges: architecture.edges.filter((e) => e.to !== "table"),
+    },
+  };
 }

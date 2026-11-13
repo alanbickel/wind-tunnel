@@ -1,14 +1,12 @@
-/** The queue and the consumer a new async root joins, and whether it adds an edge between them. */
+/** The queue and the consumer a new async root joins. */
 export interface AddAsyncWorkTextInput {
   readonly queueName: string;
   readonly consumerName: string;
-  /** True when the queue has no edge to the consumer yet. */
-  readonly addsEdge: boolean;
 }
 
 /** What new async work is named for Undo, and what is announced when it's saved. */
 export interface AddAsyncWorkText {
-  /** E.g. "Add async work from orders-queue to fn-writer, and its edge". */
+  /** E.g. "Add async work from orders-queue to fn-writer". */
   readonly undoName: string;
   /** E.g. "Added async work from orders-queue to fn-writer." */
   readonly announcement: string;
@@ -16,23 +14,17 @@ export interface AddAsyncWorkText {
 
 /**
  * The words for adding async work (UX design §2.5 step 8, §4.4, ADR-0021
- * decision 6). Like a call along a missing edge, it adds the edge too, which
- * appears on the diagram away from the focus, so the announcement says so,
- * and Undo's name names both.
+ * decision 6). Like a call, it goes along an existing edge, so the words
+ * name the async work alone.
  */
 export function addAsyncWorkText({
   queueName,
   consumerName,
-  addsEdge,
 }: AddAsyncWorkTextInput): AddAsyncWorkText {
   const between = `${queueName} to ${consumerName}`;
-  const undoName = `Add async work from ${between}`;
-  if (!addsEdge) {
-    return { undoName, announcement: `Added async work from ${between}.` };
-  }
   return {
-    undoName: `${undoName}, and its edge`,
-    announcement: `Added async work from ${between}. Added the edge from ${between}.`,
+    undoName: `Add async work from ${between}`,
+    announcement: `Added async work from ${between}.`,
   };
 }
 

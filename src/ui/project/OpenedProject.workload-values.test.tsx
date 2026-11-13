@@ -42,7 +42,7 @@ function select(name: string | RegExp): void {
 }
 
 function details(): HTMLElement {
-  return screen.getByRole("tabpanel", { name: "Details" });
+  return screen.getByRole("region", { name: "Workload dock" });
 }
 
 function field(label: "Duration" | "Seed"): HTMLInputElement {

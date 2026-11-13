@@ -80,8 +80,9 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
     (next: Selection, focus: FocusTarget = "heading") => {
       request(focus);
       setSelection(next);
-      showTab("details");
-      showInspector(true);
+      // A workload opens in the dock, so the inspector closes (UX §5).
+      if (next.kind !== "workload") showTab("details");
+      showInspector(next.kind !== "workload");
     },
     [request],
   );
@@ -89,6 +90,7 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
     request(undefined);
     setSelection(undefined);
     showTab("run");
+    showInspector(true);
   }, [request]);
   const { select, close } = useOpener({ selectWithin, clear, reveal });
   const selectFinding = useFindingSelect({

@@ -15,21 +15,32 @@ export interface EdgeOfferControlProps {
   readonly offer: EdgeOffer;
 }
 
-/** The question an open popover is asking, wrapped so a function can be state. */
+/**
+ * The question an open popover is asking, wrapped so a function can be
+ * state, with the offer's `onUse` it came from: once the offer is replaced
+ * (the selection or the project changed), the question is stale and closes.
+ */
 interface Asking {
   readonly render: (close: () => void) => ReactNode;
+  readonly source: EdgeOffer["onUse"];
 }
 
 /**
  * An arrow's offer: a "+" button named for what it does, which does it, or,
  * when the offer has a question first, opens a popover with it. Pressing
- * the button again, or Escape, closes the popover and returns the focus to
- * the button, doing nothing.
+ * the button again, or Escape from the button or the popover, closes the
+ * popover and returns the focus to the button, doing nothing. So does a
+ * change to the offer while it's open.
  */
 export function EdgeOfferControl({ offer }: EdgeOfferControlProps) {
   const { buttonRef, asking, close, use } = useQuestion(offer);
   return (
-    <>
+    // The key handler is on the wrapper, so Escape works from the button too.
+    <div
+      onKeyDown={(event) => {
+        if (asking) closeOnEscape(event, close);
+      }}
+    >
       <Button
         ref={buttonRef}
         label={offer.label}
@@ -40,11 +51,9 @@ export function EdgeOfferControl({ offer }: EdgeOfferControlProps) {
         +
       </Button>
       {asking && (
-        <Question label={offer.label} onClose={close}>
-          {asking.render(close)}
-        </Question>
+        <Question label={offer.label}>{asking.render(close)}</Question>
       )}
-    </>
+    </div>
   );
 }
 
@@ -59,7 +68,8 @@ interface QuestionState {
 /** The open question, closed by pressing the button again, or opened by using the offer. */
 function useQuestion(offer: EdgeOffer): QuestionState {
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [asking, setAsking] = useState<Asking>();
+  const [opened, setAsking] = useState<Asking>();
+  const asking = opened?.source === offer.onUse ? opened : undefined;
   const close = useClosing({ setAsking, buttonRef });
   const use = () => {
     if (asking !== undefined) {
@@ -67,7 +77,7 @@ function useQuestion(offer: EdgeOffer): QuestionState {
       return;
     }
     const render = offer.onUse();
-    setAsking(render && { render });
+    setAsking(render && { render, source: offer.onUse });
   };
   return { buttonRef, asking, close, use };
 }
@@ -96,21 +106,13 @@ function useClosing({ setAsking, buttonRef }: ClosingInput): () => void {
 
 interface QuestionProps {
   readonly label: string;
-  readonly onClose: () => void;
   readonly children: ReactNode;
 }
 
-/** The popover: a group named for the offer, which Escape closes. */
-function Question({ label, onClose, children }: QuestionProps) {
+/** The popover: a group named for the offer. */
+function Question({ label, children }: QuestionProps) {
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className={styles.offerQuestion}
-      onKeyDown={(event) => {
-        closeOnEscape(event, onClose);
-      }}
-    >
+    <div role="group" aria-label={label} className={styles.offerQuestion}>
       {children}
     </div>
   );

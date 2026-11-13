@@ -74,6 +74,47 @@ describe("EdgeOfferControl", () => {
     expect(onKeyDown).not.toHaveBeenCalled();
   });
 
+  // Fails if Escape only works while the focus is inside the popover: with
+  // the focus back on the "+", the popover would stay open.
+  it("closes on Escape pressed on the button, and stops the key there", () => {
+    const { button, onKeyDown } = renderOffer(() => asksSomething);
+    fireEvent.click(button);
+
+    fireEvent.keyDown(button, { key: "Escape" });
+
+    expect(screen.queryByRole("group", { name: LABEL })).toBeNull();
+    expect(onKeyDown).not.toHaveBeenCalled();
+  });
+
+  // Fails if Escape on the button with nothing open is swallowed: it is the
+  // canvas's then, and clears the selection.
+  it("lets Escape through when no question is open", () => {
+    const { button, onKeyDown } = renderOffer(() => asksSomething);
+
+    fireEvent.keyDown(button, { key: "Escape" });
+
+    expect(onKeyDown).toHaveBeenCalledTimes(1);
+  });
+
+  // Fails if a question stays open after the offer it came from is replaced
+  // (the selection changed): answering it would save under the old offer.
+  it("closes the question when the offer is replaced", () => {
+    const first: EdgeOffer = {
+      edgeId: "a-b",
+      label: LABEL,
+      onUse: () => asksSomething,
+    };
+    const { rerender } = render(<EdgeOfferControl offer={first} />);
+    fireEvent.click(screen.getByRole("button", { name: LABEL }));
+    expect(screen.getByRole("group", { name: LABEL })).toBeTruthy();
+
+    rerender(
+      <EdgeOfferControl offer={{ ...first, onUse: () => asksSomething }} />,
+    );
+
+    expect(screen.queryByRole("group", { name: LABEL })).toBeNull();
+  });
+
   // Fails if the question can't close itself once answered, or any other key
   // closes it.
   it("closes when the question closes it, and not on another key", () => {

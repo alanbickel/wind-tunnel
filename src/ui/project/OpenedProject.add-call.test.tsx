@@ -80,7 +80,11 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
 
   // Fails if a caller with no edge out gets pickers with nothing to pick,
   // or the draft doesn't say why and how to connect it (a call never adds
-  // an edge, so the words are the way out); or the focus is lost.
+  // an edge, so the words are the way out); or the draft doesn't take the
+  // focus (it would fall to the body, and Escape couldn't reach the group);
+  // or the group isn't described by the note (a screen reader would say
+  // nothing of why there is no picker); or Escape from the group doesn't
+  // drop the draft and return the focus to its button.
   it("says how to connect a caller that has no edge to call along", () => {
     renderProject();
     openOutline();
@@ -91,6 +95,17 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
     const group = screen.getByRole("group", { name: /^Add a call/ });
     expect(group.textContent).toContain("Table has no edges to call along.");
     expect(group.textContent).toContain("Connect to…");
+    expect(document.activeElement).toBe(group);
+    expect(group.getAttribute("aria-describedby")).toBe(
+      screen.getByText(/has no edges to call along/).id,
+    );
+
+    fireEvent.keyDown(group, { key: "Escape" });
+
+    expect(screen.queryByRole("group", { name: /^Add a call/ })).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Add a call from Table, step 1.1.1" }),
+    );
   });
 
   // Fails if a component whose type accepts one action doesn't have it

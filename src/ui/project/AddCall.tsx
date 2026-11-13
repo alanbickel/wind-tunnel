@@ -1,4 +1,5 @@
 import {
+  useId,
   useMemo,
   useRef,
   useState,
@@ -74,12 +75,9 @@ interface Chosen {
 
 const NOTHING_CHOSEN: Chosen = { componentId: undefined, action: undefined };
 
-/**
- * The draft's two pickers. The call saves once both are chosen: a
- * component whose type accepts one action has it chosen already.
- */
+/** The draft: its two pickers, or, with no edge to call along, what to do. */
 function CallDraft(props: CallDraftProps) {
-  const { project, workflowId, step, onAdd, onDrop, onSaved } = props;
+  const { project, workflowId, step, onDrop } = props;
   const { newCall } = useUseCases();
   // Read again with the project: an Undo can change the components while
   // the draft is open, and a call must go to one that is there.
@@ -87,11 +85,31 @@ function CallDraft(props: CallDraftProps) {
     () => newCall.execute({ project, workflowId, stepId: step.stepId }),
     [newCall, project, workflowId, step.stepId],
   );
+  if (start === undefined) return null;
+  if (start.choices.length > 0) return <PickerDraft {...props} start={start} />;
+  return (
+    <NoEdgesDraft
+      label={props.label}
+      callerName={start.callerName}
+      onDrop={onDrop}
+    />
+  );
+}
+
+interface PickerDraftProps extends CallDraftProps {
+  readonly start: NewCallStart;
+}
+
+/**
+ * The draft's two pickers. The call saves once both are chosen: a
+ * component whose type accepts one action has it chosen already.
+ */
+function PickerDraft(props: PickerDraftProps) {
+  const { start, step, onAdd, onDrop, onSaved } = props;
   const [chosen, setChosen] = useState(NOTHING_CHOSEN);
   // The button that opened the draft is gone, so the focus moves to the
   // component picker; Escape works from there.
   const componentRef = useFocusOnMount<HTMLSelectElement>();
-  if (start === undefined) return null;
   const change = (next: Chosen) => {
     setChosen(next);
     const choice = start.choices.find(
@@ -116,15 +134,23 @@ function CallDraft(props: CallDraftProps) {
 interface DraftGroupProps {
   readonly label: string | undefined;
   readonly onDrop: () => void;
+  /** Set when there is no picker to take the focus: the group takes it. */
+  readonly groupRef?: RefObject<HTMLDivElement | null>;
+  /** The id of a note that describes the group, which a screen reader reads on focus. */
+  readonly noteId?: string;
   readonly children: ReactNode;
 }
 
 /** The draft's pickers, as a group named for the button that opened it. */
-function DraftGroup({ label, onDrop, children }: DraftGroupProps) {
+function DraftGroup(props: DraftGroupProps) {
+  const { label, onDrop, groupRef, noteId, children } = props;
   return (
     <div
+      ref={groupRef}
+      tabIndex={groupRef === undefined ? undefined : -1}
       role="group"
       aria-label={label}
+      aria-describedby={noteId}
       className={styles.firstStep}
       onKeyDown={(event) => {
         dropOnEscape(event, onDrop);
@@ -158,17 +184,15 @@ interface CallPickersProps {
 }
 
 /**
- * The component picker, listing the components the caller has an edge to
- * (or, with none, what to do about it); and once a component is chosen, the
- * action picker, listing what its type accepts.
+ * The component picker, listing the components the caller has an edge to;
+ * and once a component is chosen, the action picker, listing what its type
+ * accepts.
  */
 function CallPickers(props: CallPickersProps) {
   const { start, chosen, componentRef, onChange } = props;
   const choice = start.choices.find(
     (c) => c.componentId === chosen.componentId,
   );
-  if (start.choices.length === 0)
-    return <NoEdges callerName={start.callerName} />;
   return (
     <>
       <Picker
@@ -231,14 +255,31 @@ function chosenComponent(
   };
 }
 
-/**
- * What the draft shows when the caller has no edge to call along: a call
- * never adds one, so the words say how to make one.
- */
-interface NoEdgesProps {
+interface NoEdgesDraftProps {
+  readonly label: string | undefined;
   readonly callerName: string;
+  readonly onDrop: () => void;
 }
 
-function NoEdges({ callerName }: NoEdgesProps) {
-  return <p className={styles.empty}>{noEdgesNote(callerName)}</p>;
+/**
+ * What the draft shows when the caller has no edge to call along: a call
+ * never adds one, so the words say how to make one. With no picker to take
+ * the focus, the group does (so Escape works), and the note describes it
+ * (so a screen reader reads it when the draft opens).
+ */
+function NoEdgesDraft({ label, callerName, onDrop }: NoEdgesDraftProps) {
+  const groupRef = useFocusOnMount<HTMLDivElement>();
+  const noteId = useId();
+  return (
+    <DraftGroup
+      label={label}
+      onDrop={onDrop}
+      groupRef={groupRef}
+      noteId={noteId}
+    >
+      <p id={noteId} className={styles.empty}>
+        {noEdgesNote(callerName)}
+      </p>
+    </DraftGroup>
+  );
 }

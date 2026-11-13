@@ -5,9 +5,12 @@ import type {
   MixRowDetails,
   ProfileDetails,
   ProfileRowDetails,
+  SendsDetails,
   WorkloadDetails,
 } from "./details";
+import { count } from "../run-analysis/number-format";
 import { mixShares, shareText } from "./mix-shares";
+import { workloadSends } from "./workload-sends";
 import { profileLine } from "./profile-line";
 import { profileNotes } from "./profile-notes";
 import { workloadRemovalText } from "./removal-text";
@@ -87,9 +90,34 @@ function sectionIssues(
 
 function mixDetails({ project, workload, issues }: WorkloadDetailsInput) {
   const { own, rows } = sectionIssues(issues, "mix");
+  const mixRows = mixRowDetails({ project, workload }, rows);
+  const inMix = new Set(workload.mix.map((entry) => entry.workflowId));
+  const addable = project.workflows
+    .filter((w) => !inMix.has(w.id))
+    .map((w) => ({ workflowId: w.id, name: w.name }));
+  const details: MixDetails = {
+    rows: mixRows,
+    emptyText: mixRows.length === 0 ? EMPTY_MIX_TEXT : undefined,
+    totalText: mixRows.some((row) => row.shareTenths !== undefined)
+      ? "Shares total 100%"
+      : undefined,
+    issues: own,
+    addable,
+    addUnusableText: addUnusableText(project, addable.length),
+    sends: sendsDetails({ workload, rows: mixRows }),
+  };
+  return details;
+}
+
+/** One row for each mix entry, with the issues on it by index. */
+function mixRowDetails(
+  { project, workload }: Pick<WorkloadDetailsInput, "project" | "workload">,
+  issuesByRow: ReadonlyMap<number, readonly string[]>,
+): MixRowDetails[] {
   const shares = mixShares(workload.mix.map((entry) => entry.weight));
   const workflowNames = new Map(project.workflows.map((w) => [w.id, w.name]));
-  const mixRows = workload.mix.map((entry, index): MixRowDetails => {
+  const colorIndexes = new Map(project.workflows.map((w, i) => [w.id, i]));
+  return workload.mix.map((entry, index): MixRowDetails => {
     const name = workflowNames.get(entry.workflowId);
     const share = shares?.[index];
     return {
@@ -98,22 +126,35 @@ function mixDetails({ project, workload, issues }: WorkloadDetailsInput) {
       workflowGone: name === undefined,
       weight: entry.weight,
       shareText: share === undefined ? undefined : shareText(share),
-      issues: rows.get(index) ?? [],
+      shareTenths: share,
+      colorIndex: colorIndexes.get(entry.workflowId),
+      issues: issuesByRow.get(index) ?? [],
     };
   });
-  const inMix = new Set(workload.mix.map((entry) => entry.workflowId));
-  const addable = project.workflows
-    .filter((w) => !inMix.has(w.id))
-    .map((w) => ({ workflowId: w.id, name: w.name }));
-  const details: MixDetails = {
-    rows: mixRows,
-    emptyText: mixRows.length === 0 ? EMPTY_MIX_TEXT : undefined,
-    totalText: shares && "Shares total 100%",
-    issues: own,
-    addable,
-    addUnusableText: addUnusableText(project, addable.length),
+}
+
+interface SendsDetailsInput {
+  readonly workload: Workload;
+  readonly rows: readonly MixRowDetails[];
+}
+
+/** "What this sends": the totals, and each workflow's part of them. */
+function sendsDetails({
+  workload,
+  rows,
+}: SendsDetailsInput): SendsDetails | undefined {
+  const sends = workloadSends(workload);
+  if (sends === undefined) return undefined;
+  const parts = sends.perEntryRequests ?? [];
+  return {
+    totalText: `About ${count(sends.totalRequests)} requests before the run ends`,
+    peakText: `Peak rate ${count(sends.peakRequestsPerSec)} requests/s`,
+    rows: parts.map((requests, index) => ({
+      workflowName: rows[index]?.workflowName ?? WORKFLOW_GONE_TEXT,
+      text: `About ${count(requests)} requests`,
+      colorIndex: rows[index]?.colorIndex,
+    })),
   };
-  return details;
 }
 
 /** Why nothing can be added to the mix, or undefined if something can. */

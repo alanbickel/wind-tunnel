@@ -1,6 +1,7 @@
 import { useId } from "react";
 import type {
   MixDetails,
+  SendsDetails,
   WorkloadDetails,
 } from "../../application/details/details";
 import { WEIGHT_FIELD } from "../../application/details/workload-fields";
@@ -9,6 +10,8 @@ import { Explained } from "../shared/Explained";
 import fieldStyles from "./fields/Fields.module.css";
 import { Picker } from "./fields/Picker";
 import { markOf } from "./mark-of";
+import { MixBar } from "./MixBar";
+import { SendsSummary } from "./SendsSummary";
 import { rowKeys, type MixEditing } from "./mix-editing";
 import { MixRow } from "./MixRow";
 import { ADD_TO_MIX, useMixFocus } from "./useMixFocus";
@@ -46,19 +49,35 @@ export function MixSection({ details, onEdit, announce }: MixSectionProps) {
       <h5 id={headingId} className={styles.sectionHeading}>
         Mix
       </h5>
-      {/* An empty mix's words already say its problem, so it isn't said twice. */}
-      {mix.emptyText === undefined ? (
-        <Issues messages={mix.issues} />
-      ) : (
-        <p className={styles.issue}>{mix.emptyText}</p>
-      )}
+      <MixProblem mix={mix} />
       {mix.totalText !== undefined && (
         <p className={styles.total}>{mix.totalText}</p>
       )}
+      <MixBar rows={mix.rows} />
       <MixTable mix={mix} editing={editing} labelledBy={headingId} />
       <AddToMix mix={mix} editing={editing} />
+      <Sends sends={mix.sends} />
     </section>
   );
+}
+
+interface MixProblemProps {
+  readonly mix: MixDetails;
+}
+
+/** An empty mix's words already say its problem, so it isn't said twice. */
+function MixProblem({ mix }: MixProblemProps) {
+  if (mix.emptyText === undefined) return <Issues messages={mix.issues} />;
+  return <p className={styles.issue}>{mix.emptyText}</p>;
+}
+
+interface SendsProps {
+  readonly sends: SendsDetails | undefined;
+}
+
+/** "What this sends", or nothing when the profile has no points. */
+function Sends({ sends }: SendsProps) {
+  return sends === undefined ? null : <SendsSummary sends={sends} />;
 }
 
 interface MixTableProps extends TableProps {

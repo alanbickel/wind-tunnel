@@ -1,6 +1,7 @@
 import { describe } from "vitest";
 import { describeTotalsReconcile } from "../../cli/report-reconciles.suite";
 import { describeRunAnalysisReconciles } from "../run-analysis-reconciles.suite";
+import { describeSendsMatchRun } from "../workload-sends.suite";
 import { describeFindings } from "../testing/describe-findings";
 import { describeRejectionReasons } from "../testing/describe-rejection-reasons";
 import {
@@ -26,4 +27,5 @@ describe.each(SEEDS)("Template A, lunch rush, seed %i", (seed) => {
   });
   describeTotalsReconcile(run);
   describeRunAnalysisReconciles(run);
+  describeSendsMatchRun(run);
 });

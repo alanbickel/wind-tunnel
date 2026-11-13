@@ -1,0 +1,40 @@
+.bar {
+  display: flex;
+  gap: var(--line-width-thick);
+  height: var(--space-3);
+  margin: var(--space-1) 0 var(--space-2);
+  max-width: var(--prose-max-width);
+}
+
+/* Sized by its share through flex-grow; a segment with no share has no width. */
+.segment {
+  flex-basis: 0;
+  min-width: 0;
+  border-radius: var(--radius-sm);
+}
+
+/* The colour square beside a workflow's name, matching its bar segment. */
+.swatch {
+  display: inline-block;
+  width: var(--space-3);
+  height: var(--space-3);
+  margin-inline-end: var(--space-2);
+  border-radius: var(--radius-sm);
+  vertical-align: middle;
+}
+
+.sends {
+  margin: var(--space-2) 0 0;
+}
+
+.sendsHeading {
+  margin: 0 0 var(--space-1);
+  font-weight: var(--font-weight-bold);
+}
+
+.sendsList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+}

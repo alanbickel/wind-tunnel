@@ -25,7 +25,7 @@ import {
 import { openPanel, type CanvasPanelButton } from "./testing/canvas-panels";
 import { useCanvasPanels } from "./useCanvasPanels";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { ON_PATH_CLASS } from "../diagram/to-react-flow";
+import { FADED_CLASS, ON_PATH_CLASS } from "../diagram/to-react-flow";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 
 /** The diagram's boxes, once React Flow has loaded and drawn them. */
@@ -212,6 +212,42 @@ describe("ArchitectureView", () => {
 
     expect(boxesWith(nodes, ON_PATH_CLASS)).toEqual(["api", "fn", "table"]);
     expect(boxesWith(nodes, "selected")).toEqual([]);
+  });
+
+  // Fails if a selected workflow fades a box on its path, leaves a box off
+  // it unfaded (the spare one), or anything is faded with no workflow
+  // selected. The arrows' fade is tested in to-react-flow.test.tsx.
+  it("fades the boxes off a selected workflow's path, and none with no workflow selected", async () => {
+    renderView({
+      record: withSpare,
+      selection: { kind: "workflow", workflowId: "read" },
+    });
+    const nodes = await drawnNodes(diagram());
+    expect(boxesWith(nodes, FADED_CLASS)).toEqual(["spare"]);
+    cleanup();
+
+    renderView({ record: withSpare });
+    expect(boxesWith(await drawnNodes(diagram()), FADED_CLASS)).toEqual([]);
+  });
+
+  // Fails if the text version doesn't number a selected workflow's
+  // connections as the canvas does (each call in order), or numbers any
+  // with no workflow selected.
+  it("numbers the connections in the text version while a workflow is selected", () => {
+    renderView({ selection: { kind: "workflow", workflowId: "read" } });
+    openPanel("As text");
+    expect(itemsOf("Connections")).toEqual([
+      "API → Function (call 1)",
+      "Function → Table (call 2)",
+    ]);
+    cleanup();
+
+    renderView();
+    openPanel("As text");
+    expect(itemsOf("Connections")).toEqual([
+      "API → Function",
+      "Function → Table",
+    ]);
   });
 
   // Fails if a selected step rings its caller's box, or another, or drops

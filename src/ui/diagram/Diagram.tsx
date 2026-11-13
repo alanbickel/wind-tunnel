@@ -71,7 +71,8 @@ export interface DiagramProps {
  * selects a box or an arrow, and the boxes take tab stops so Enter can
  * select them; the diagram rings the selected boxes and thickens the
  * selected arrows. A path's boxes get a thick border inside their edge, and
- * its arrows a thick line, so a path reads apart from the selection. It
+ * its arrows a thick line, so a path reads apart from the selection; what's
+ * off the path fades, and its arrows carry the call numbers given. It
  * isn't readable by screen readers, so pair it with a text version that
  * can select the same things. It has no border, so it can fill a screen
  * edge to edge, with its zoom actions reported through `onZoom`. Place it

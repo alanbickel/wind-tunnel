@@ -20,6 +20,9 @@
   --xy-handle-border-color: var(--color-surface);
   /* Edges and their arrowheads. */
   --xy-edge-stroke: var(--color-diagram-edge);
+  /* The call numbers on a workflow's arrows. */
+  --xy-edge-label-color: var(--color-text);
+  --xy-edge-label-background-color: var(--color-surface);
   --xy-controls-button-background-color: var(--color-surface);
   --xy-controls-button-background-color-hover: var(--color-surface-raised);
   --xy-controls-button-color: var(--color-text);
@@ -71,6 +74,21 @@
 .diagram :global(.react-flow__edge.on-path .react-flow__edge-path) {
   stroke: var(--color-accent);
   stroke-width: var(--line-width-thick);
+}
+
+/* What a workflow's path leaves out is dimmed, never hidden: it stays
+   readable and selectable. The path's own marks say it's the path, so the
+   fade is never the only cue. to-react-flow.tsx puts `faded` on each. */
+.diagram :global(.react-flow__node.faded),
+.diagram :global(.react-flow__edge.faded) {
+  opacity: var(--faded-opacity);
+}
+
+/* A call's number on its arrow: bold, on the surface, so it reads over the
+   line, and on the path's color. */
+.diagram :global(.react-flow__edge-text) {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
 }
 
 /* The selection, marked by shape and width as well as color: a bar down

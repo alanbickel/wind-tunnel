@@ -9,6 +9,7 @@ import {
   type ArchitectureParts,
   type SelectionOnArchitecture,
 } from "../../application/details/selection-on-architecture";
+import { callNumbersOf } from "../../application/details/call-numbers";
 import { workflowPathText } from "../../application/details/workflow-path-text";
 import type { Project } from "../../domain/model/project";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
@@ -243,7 +244,10 @@ function useDiagramSelection({
 }: ArchitectureViewProps): DiagramSelection {
   const { project } = record;
   const marks = useMemo(
-    () => marksOf(selectionOnArchitecture(project, selection)),
+    () => ({
+      ...marksOf(selectionOnArchitecture(project, selection)),
+      numbers: callNumbersOf(project, selection),
+    }),
     [project, selection],
   );
   const selected = selection && dispatchKind(TEXT_ITEMS, selection);
@@ -260,8 +264,11 @@ function useDiagramSelection({
   return { marks, selected, onItem };
 }
 
-/** A selection's ringed parts and path as the diagram's marks. */
-function marksOf({ ringed, path }: SelectionOnArchitecture): DiagramMarks {
+/** A selection's ringed parts and path as the diagram's marks, before its numbers. */
+function marksOf({
+  ringed,
+  path,
+}: SelectionOnArchitecture): Omit<DiagramMarks, "numbers"> {
   return { selected: itemsOf(ringed), path: itemsOf(path) };
 }
 
@@ -308,7 +315,7 @@ function TextVersion({ record, content, selecting }: DrawingProps) {
   }));
   const connections = content.edges.map(({ id, source, target }) => ({
     item: { kind: "edge", id } as const,
-    text: `${nameOf(source)} → ${nameOf(target)}`,
+    text: `${nameOf(source)} → ${nameOf(target)}${callsNote(selecting.marks, id)}`,
   }));
   const lists = { selected: selecting.selected, onSelect: selecting.onItem };
   const paths = pathsOf(record.project);
@@ -319,6 +326,17 @@ function TextVersion({ record, content, selecting }: DrawingProps) {
       {paths.length > 0 && <PathList paths={paths} />}
     </>
   );
+}
+
+/**
+ * What a connection's line adds while a workflow's calls are numbered on the
+ * canvas: " (call 2)", or " (calls 1, 4)" for an edge several calls follow,
+ * the same numbers the arrow shows.
+ */
+function callsNote({ numbers }: DiagramMarks, edgeId: string): string {
+  const calls = numbers.find((n) => n.edgeId === edgeId)?.numbers;
+  if (calls === undefined) return "";
+  return ` (${calls.length === 1 ? "call" : "calls"} ${calls.join(", ")})`;
 }
 
 /**

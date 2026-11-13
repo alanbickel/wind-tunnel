@@ -389,7 +389,7 @@ describe("DiagramCanvas's moves", () => {
     const { container } = render(
       <DiagramCanvas
         content={boxes}
-        marks={{ selected: [{ kind: "node", id: "b" }], path: [] }}
+        marks={{ selected: [{ kind: "node", id: "b" }], path: [], numbers: [] }}
         onMove={onMove}
         onSelect={vi.fn()}
       />,

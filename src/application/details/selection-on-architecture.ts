@@ -122,7 +122,7 @@ function pathOf(project: Project, workflow: Workflow): ArchitectureParts {
 }
 
 /** The edge a call follows, from its caller's component to its callee's. */
-function edgeAlong(project: Project, link: StepLink): Edge | undefined {
+export function edgeAlong(project: Project, link: StepLink): Edge | undefined {
   const { caller, callee } = link;
   return project.architecture.edges.find(
     (e) => e.from === caller.componentId && e.to === callee.componentId,

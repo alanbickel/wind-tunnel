@@ -72,16 +72,25 @@ export function isSelected(
 
 /**
  * What the diagram marks: the selection, ringed boxes and thickened
- * arrows, and a path, such as a workflow's, drawn so it reads apart from
- * the selection.
+ * arrows, a path, such as a workflow's, drawn so it reads apart from the
+ * selection, with everything off a path faded, and the numbers on the
+ * path's arrows.
  */
 export interface DiagramMarks {
   readonly selected: readonly DiagramItem[];
+  /** With a path, whatever isn't on it is faded; with none, nothing is. */
   readonly path: readonly DiagramItem[];
+  readonly numbers: readonly EdgeNumbers[];
 }
 
-/** No selection, and no path. */
-export const NO_MARKS: DiagramMarks = { selected: [], path: [] };
+/** The numbers shown on one arrow: each call along it, in the order made. */
+export interface EdgeNumbers {
+  readonly edgeId: string;
+  readonly numbers: readonly number[];
+}
+
+/** No selection, no path, and no numbers. */
+export const NO_MARKS: DiagramMarks = { selected: [], path: [], numbers: [] };
 
 /** Whether `item` is among `items`: the same kind, and the same id. */
 export function isAmong(

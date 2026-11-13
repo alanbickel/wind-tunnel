@@ -119,7 +119,8 @@ describe("OpenedProject's changing a workflow's step", () => {
     expect(detailsStatus().textContent).toBe(
       "Changed Table · read to API · invoke. Added the edge from Function to API.",
     );
-    expect(revealButton("Function → API")).toBeTruthy();
+    // The workflow is selected, so the connection carries its call number.
+    expect(revealButton(/^Function → API/)).toBeTruthy();
     await savedRecord(
       projects,
       (r) => r.project.architecture.edges.length === 3,

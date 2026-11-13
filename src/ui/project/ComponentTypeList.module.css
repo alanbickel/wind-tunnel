@@ -1,0 +1,32 @@
+/* The types, one to a line. */
+.types {
+  list-style: none;
+  margin: 0;
+  padding-inline-start: 0;
+}
+
+.types li + li {
+  margin-top: var(--space-1);
+}
+
+/* Each type reads as a line of the list, with its icon, and is a button to add one. */
+.type {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  color: var(--color-accent);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.type:hover {
+  color: var(--color-accent-hover);
+}
+
+.typeName {
+  font-weight: var(--font-weight-bold);
+}

@@ -286,11 +286,7 @@ describe("OpenedProject's undo and redo", () => {
     renderOpenedProject();
     fireEvent.click(screen.getByRole("button", { name: "Add component" }));
     const list = screen.getByRole("list", { name: "Component types" });
-    const sqs = within(list)
-      .getAllByRole("button")
-      .find((button) => button.textContent.startsWith("SQS:"));
-    if (sqs === undefined) throw new Error("No SQS type");
-    fireEvent.click(sqs);
+    fireEvent.click(within(list).getByRole("button", { name: /^SQS:/ }));
     expect(queryDetailsHeading()?.textContent).toBe("sqs-1 · SQS");
 
     // A click focuses the button in a browser, but not in jsdom.
@@ -340,9 +336,5 @@ describe("OpenedProject's undo and redo", () => {
 function addSqs(): void {
   fireEvent.click(screen.getByRole("button", { name: "Add component" }));
   const list = screen.getByRole("list", { name: "Component types" });
-  const sqs = within(list)
-    .getAllByRole("button")
-    .find((button) => button.textContent.startsWith("SQS:"));
-  if (sqs === undefined) throw new Error("No SQS type");
-  fireEvent.click(sqs);
+  fireEvent.click(within(list).getByRole("button", { name: /^SQS:/ }));
 }

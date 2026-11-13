@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { openPanel, revealButton } from "./testing/canvas-panels";
+import { openPanel, railRegion, revealButton } from "./testing/canvas-panels";
 import {
   bar,
   clickRun,
@@ -189,7 +189,7 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
   it("opens Workflows to put the focus on Add workflow", () => {
     renderProject();
     const workflows = openPanel("Workflows");
-    const region = workflows.parentElement?.querySelector('[role="status"]');
+    const region = railRegion("list");
     fireEvent.click(revealButton("Read item"));
     fireEvent.click(workflows);
     expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
@@ -202,8 +202,8 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Add workflow" }),
     );
-    expect(region?.closest("[hidden]")).toBeNull();
-    expect(region?.textContent).toBe("Removed Read item.");
+    expect(region.closest("[hidden]")).toBeNull();
+    expect(region.textContent).toBe("Removed Read item.");
   });
 
   // Fails if Escape in Details returns the focus to a button in a canvas

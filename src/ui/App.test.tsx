@@ -262,11 +262,7 @@ describe("App's blank project", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add component" }));
     const types = screen.getByRole("list", { name: "Component types" });
-    const lambda = within(types)
-      .getAllByRole("button")
-      .find((button) => button.textContent.startsWith("Lambda:"));
-    if (lambda === undefined) throw new Error("No Lambda type");
-    fireEvent.click(lambda);
+    fireEvent.click(within(types).getByRole("button", { name: /^Lambda:/ }));
 
     expect(screen.queryByText(PROMPT)).toBeNull();
     expect(

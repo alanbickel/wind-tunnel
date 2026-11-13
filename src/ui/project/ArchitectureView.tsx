@@ -25,8 +25,8 @@ import {
   type DiagramNode,
 } from "../diagram/diagram-model";
 import { dispatchKind } from "../shared/kind-dispatch";
-import { AddComponent, type AddComponentProps } from "./AddComponent";
 import { CanvasPanels } from "./CanvasPanels";
+import { ToolRail, type AddComponentProps } from "./ToolRail";
 import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
 import { WorkloadList, type AddWorkloadProps } from "./WorkloadList";
@@ -51,11 +51,10 @@ export interface ArchitectureViewProps {
   readonly addingWorkload: AddWorkloadProps;
   /**
    * What a workflow's or a workload's remove announces: "Removed Get
-   * order." Said beside
-   * the canvas's panel buttons, not in the list, whose panel may be hidden.
+   * order." Said on the tool rail, not in the list, whose panel may be hidden.
    */
   readonly workflowAnnouncement: string;
-  /** Which of the "Workflows" and "As text" panels is open. */
+  /** Which panel is open: one of the tool rail's, or "As text". */
   readonly panels: CanvasPanelState;
   /**
    * The run on screen's status badges, drawn on the boxes and listed in
@@ -68,9 +67,9 @@ export interface ArchitectureViewProps {
 
 /**
  * The canvas: the project's components and connections as a diagram that
- * fills the room it's given, with "Add component" on a tool rail at its top
- * left, and at its bottom left "Workflows" and "As text", each opening a
- * panel over it. The text version has the same facts as lists, for anyone
+ * fills the room it's given, with a tool rail down its left edge (Add
+ * component, Connect, Workflows, Workloads), and at its bottom left "As
+ * text", each opening a panel over it. The text version has the same facts as lists, for anyone
  * who can't see the canvas, and a line for each workflow's path. Either
  * selects a component or a connection: a click on the diagram, or a button
  * in the list, which is the way every user can rely on. The diagram marks
@@ -81,8 +80,9 @@ export interface ArchitectureViewProps {
  * its place is only visual, so the text version doesn't change. With no
  * components, a line on the canvas says what to do instead (UX design
  * §2.1 step 1), and there's no text version. "Workflows" lists them, each
- * a button that selects it, and "Add workflow". "Add component" comes
- * first in the tab order, as it did above the diagram.
+ * a button that selects it, and "Add workflow"; "Workloads" does the same
+ * for workloads. The rail comes first in the tab order, as "Add component"
+ * did above the diagram.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
   const displayNameOf = useDisplayNames();
@@ -100,14 +100,10 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       <h3 id={headingId} className={styles.heading}>
         Architecture
       </h3>
-      <div className={styles.rail}>
-        <AddComponent {...props.adding} />
-      </div>
+      <Rail {...props} />
       {empty ? <EmptyCanvas /> : <Drawing {...drawn} />}
       <CanvasPanels
         panels={props.panels}
-        announcement={props.workflowAnnouncement}
-        workflows={<Workflows {...props} />}
         text={empty ? undefined : <TextVersion {...drawn} />}
       />
     </section>
@@ -134,25 +130,42 @@ function EmptyCanvas() {
   );
 }
 
-/** The workflows list, then the workloads list, for the "Workflows" panel. */
+/** The tool rail, with the two lists it opens. */
+function Rail(props: ArchitectureViewProps) {
+  return (
+    <ToolRail
+      panels={props.panels}
+      adding={props.adding}
+      workflows={<Workflows {...props} />}
+      workloads={<Workloads {...props} />}
+      workflowAnnouncement={props.workflowAnnouncement}
+    />
+  );
+}
+
+/** The workflows list, for the "Workflows" panel. */
 function Workflows(props: ArchitectureViewProps) {
   const { selection, onSelect } = props;
-  const { project } = props.record;
   return (
-    <>
-      <WorkflowList
-        project={project}
-        selection={selection}
-        onSelect={onSelect}
-        adding={props.addingWorkflow}
-      />
-      <WorkloadList
-        project={project}
-        selection={selection}
-        onSelect={onSelect}
-        adding={props.addingWorkload}
-      />
-    </>
+    <WorkflowList
+      project={props.record.project}
+      selection={selection}
+      onSelect={onSelect}
+      adding={props.addingWorkflow}
+    />
+  );
+}
+
+/** The workloads list, for the "Workloads" panel. */
+function Workloads(props: ArchitectureViewProps) {
+  const { selection, onSelect } = props;
+  return (
+    <WorkloadList
+      project={props.record.project}
+      selection={selection}
+      onSelect={onSelect}
+      adding={props.addingWorkload}
+    />
   );
 }
 

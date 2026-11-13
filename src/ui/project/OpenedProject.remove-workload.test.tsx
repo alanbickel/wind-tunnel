@@ -5,7 +5,7 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import type { Project, Workload } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { revealButton } from "./testing/canvas-panels";
+import { railRegion, revealButton } from "./testing/canvas-panels";
 import {
   clickRun,
   detailsHeading,
@@ -74,11 +74,7 @@ function pickedName(): string | undefined {
  * canvas's panel buttons, which always show.
  */
 function removedRegion(): HTMLElement {
-  const region = screen
-    .getByRole("button", { name: "Workflows" })
-    .parentElement?.querySelector('[role="status"]');
-  if (!(region instanceof HTMLElement)) throw new Error("No removed region");
-  return region;
+  return railRegion("list");
 }
 
 function addWorkloadButton(): HTMLElement {

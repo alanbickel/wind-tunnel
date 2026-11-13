@@ -1,8 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 
-/** The panels at the canvas's bottom left: the workflows, and the text version. */
-export type CanvasPanelId = "workflows" | "text";
+/**
+ * The canvas's panels: the tool rail's four ("add" component's types,
+ * "connect"'s hint, the "workflows" and the "workloads"), and the text
+ * version at the bottom left.
+ */
+export type CanvasPanelId =
+  "add" | "connect" | "workflows" | "workloads" | "text";
 
 /**
  * The attribute each panel's section carries, holding its id, so `reveal`
@@ -12,7 +17,7 @@ export const CANVAS_PANEL_ATTRIBUTE = "data-canvas-panel";
 
 /** Which canvas panel is open, and what opens and closes them. */
 export interface CanvasPanels {
-  /** The open panel; undefined while both are closed. One opens at a time. */
+  /** The open panel; undefined while all are closed. One opens at a time. */
   readonly open: CanvasPanelId | undefined;
   /** Opens the panel, closing the other, or closes it if it's open. */
   readonly toggle: (id: CanvasPanelId) => void;
@@ -28,14 +33,18 @@ export interface CanvasPanels {
 
 /** The panel ids, so an attribute's value can be checked against them. */
 const PANEL_IDS: ReadonlySet<string> = new Set<CanvasPanelId>([
+  "add",
+  "connect",
   "workflows",
+  "workloads",
   "text",
 ]);
 
 /**
  * The canvas panels' state, held by the screen rather than the panels, so
- * a change elsewhere can open one: a workflow's remove opens "Workflows",
- * where the focus goes next, and closing Details opens the panel that
+ * a change elsewhere can open one: a workflow's remove opens "Workflows"
+ * (a workload's, "Workloads"), where the focus goes next, and closing
+ * Details opens the panel that
  * holds the button that made the selection. Both start closed.
  */
 export function useCanvasPanels(): CanvasPanels {

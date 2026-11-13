@@ -1,0 +1,76 @@
+/* No box of its own: the buttons and the panels are placed on the canvas,
+   which is the positioned ancestor. */
+.rail {
+  display: contents;
+  /* The buttons' width: an icon, its padding and border, and the toolbar's padding. */
+  --rail-width: calc(var(--icon-size) + 6 * var(--space-2));
+}
+
+/* The tool rail, down the canvas's left edge. */
+.buttons {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
+}
+
+/* The button's name, heard and shown as its tooltip, not drawn. */
+.name {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The open panel, beside the rail and over the canvas. No display here: one
+   would override a closed panel's display: none. */
+.panel {
+  position: absolute;
+  top: var(--space-4);
+  left: calc(var(--space-4) + var(--rail-width) + var(--space-2));
+  z-index: 2;
+  overflow: auto;
+  width: var(--prose-max-width);
+  max-width: calc(
+    100% - 2 * var(--space-4) - var(--rail-width) - var(--space-2)
+  );
+  max-height: calc(100% - 2 * var(--space-4));
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
+}
+
+.panel > :first-child {
+  margin-top: 0;
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}
+
+.heading {
+  margin: 0 0 var(--space-2);
+}
+
+/* Heard, not seen: the focus is on a button, and the canvas shows the change. */
+.announcement {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

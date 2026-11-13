@@ -7,6 +7,7 @@ import type { ProjectRecord } from "../../application/ports/project-record";
 import { dragNode, mouse } from "../diagram/testing/drag-node";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
+import { railRegion } from "./testing/canvas-panels";
 import {
   clickRun,
   renderOpenedProject,
@@ -40,10 +41,7 @@ function clickNode(box: HTMLElement): void {
 
 /** The polite region beside "Add component", which says what a move did. */
 function movedRegion(): HTMLElement {
-  const addButton = screen.getByRole("button", { name: "Add component" });
-  const region = addButton.parentElement?.querySelector('[role="status"]');
-  if (!(region instanceof HTMLElement)) throw new Error("No moved region");
-  return region;
+  return railRegion("component");
 }
 
 const fnAt = (x: number, y: number) => (record: ProjectRecord) =>

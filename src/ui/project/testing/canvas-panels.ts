@@ -8,7 +8,7 @@ export const TEST_SHELL: ShellParts = {
 };
 
 /** The canvas's buttons that open its panels. */
-export type CanvasPanelButton = "Workflows" | "As text";
+export type CanvasPanelButton = "Workflows" | "Workloads" | "As text";
 
 /** Opens a canvas panel, unless it's open already, and returns its button. */
 export function openPanel(button: CanvasPanelButton): HTMLElement {
@@ -17,8 +17,25 @@ export function openPanel(button: CanvasPanelButton): HTMLElement {
   return opener;
 }
 
+/**
+ * The tool rail's polite regions, which sit beside its toolbar: what a
+ * component's remove or a move says ("component"), and what a workflow's or
+ * a workload's remove says ("list").
+ */
+export function railRegion(which: "component" | "list"): HTMLElement {
+  const rail = screen.getByRole("toolbar", { name: "Tools" }).parentElement;
+  const regions = rail?.querySelectorAll<HTMLElement>('[role="status"]');
+  const region = regions?.[which === "component" ? 0 : 1];
+  if (region === undefined) throw new Error(`No ${which} region on the rail`);
+  return region;
+}
+
 /** The canvas's panel buttons, in the order `revealButton` tries them. */
-const PANEL_BUTTONS: readonly CanvasPanelButton[] = ["As text", "Workflows"];
+const PANEL_BUTTONS: readonly CanvasPanelButton[] = [
+  "As text",
+  "Workflows",
+  "Workloads",
+];
 
 /**
  * The button named `name`: where it's showing, or else in the canvas panel

@@ -70,7 +70,7 @@ const assumed: Fix = {
 const observed: Fix = {
   scope: "wind-tunnel",
   message: say`Add workers.`,
-  claim: { kind: "observed", file: "src/x.test.ts", test: "waits" },
+  claim: { kind: "observed", test: "waits" },
   fidelityIds: [],
 };
 
@@ -127,7 +127,7 @@ describe("formatFindings", () => {
         "   Learn more: docs/learning/aws-did-you-know.md#rds-connections",
         "   1.1. Note: Queries waited up to 450 ms at 14 s.",
         "        Fixes:",
-        '        - In Wind Tunnel: Add workers. (Observed: src/x.test.ts, "waits")',
+        '        - In Wind Tunnel: Add workers. (Observed: "waits")',
         "",
         "2. Warning: Work landed up to 32.8 s late, in 14.4% of seconds.",
       ].join("\n"),

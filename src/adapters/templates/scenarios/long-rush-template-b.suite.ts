@@ -41,7 +41,7 @@ export function describeLongRushB(getRun: RunGetter): void {
     // Fails if orders-read's readUnitsPerSec drops to 1,500: the peak's reads
     // empty the token bucket, and throttled reads fail once their retries run
     // out.
-    it("serves every request without a failure", () => {
+    it("serves every request of the long rush without a failure", () => {
       expectEveryRequestServed(getRun().totals);
     });
 

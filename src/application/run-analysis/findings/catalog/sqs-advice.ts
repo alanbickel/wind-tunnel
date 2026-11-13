@@ -18,10 +18,9 @@ export const sqsAdvice: TypeAdvice = {
       fixes: [
         {
           scope: "wind-tunnel",
-          message: say`Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: Template B's long rush keeps up at 20.`,
+          message: say`Raise consumerMaxConcurrency, so the consumers keep up with the messages arriving: once the concurrency covers the arrival rate, the backlog stops growing.`,
           claim: {
             kind: "observed",
-            file: "src/adapters/templates/scenarios/long-rush-template-b.suite.ts",
             test: "grows the backlog through the whole peak",
           },
           fidelityIds: ["SQS-3", "SQS-4"],
@@ -57,20 +56,18 @@ export const sqsAdvice: TypeAdvice = {
       fixes: [
         {
           scope: "wind-tunnel",
-          message: say`Let every consumer hold what its delivery needs downstream, such as a database connection: with Template B's orders-db cut to 10 connections for 15 consumers, the lunch rush fails no delivery at maxConnections 15.`,
+          message: say`Let every consumer hold what its delivery needs downstream, such as a database connection: when the database has a connection for every consumer, no delivery fails.`,
           claim: {
             kind: "observed",
-            file: "src/adapters/templates/scenarios/failed-deliveries.suite.ts",
             test: "fails no delivery when every consumer can hold a connection",
           },
           fidelityIds: ["LMB-8"],
         },
         {
           scope: "wind-tunnel",
-          message: say`Shrinking consumerMaxConcurrency to fit what's downstream is worse: in the same run at 10 consumers, no delivery fails, but messages arrive faster than they're delivered, and some are still waiting when the run ends.`,
+          message: say`Shrinking consumerMaxConcurrency to fit what's downstream is worse: no delivery fails, but messages arrive faster than they're delivered, and some are still waiting when the run ends.`,
           claim: {
             kind: "observed",
-            file: "src/adapters/templates/scenarios/failed-deliveries.suite.ts",
             test: "leaves messages waiting when the consumers shrink to fit",
           },
           fidelityIds: ["SQS-3", "SQS-4"],

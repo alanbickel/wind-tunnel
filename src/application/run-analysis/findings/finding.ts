@@ -145,11 +145,14 @@ export interface DocumentedClaim {
   readonly url: string;
 }
 
-/** Shown by a run: a test that turns red without it. */
+/**
+ * Shown by a run: a test that turns red without it. The claim names the
+ * test, not its file: `application/` can't name a file under `adapters/`,
+ * and a test in `src/adapters/templates/findings/` finds the one `it` with
+ * that name.
+ */
 export interface ObservedClaim {
   readonly kind: "observed";
-  /** The test file, from the repository's root. */
-  readonly file: string;
   /** The `it` that shows it, by its name. */
   readonly test: string;
 }

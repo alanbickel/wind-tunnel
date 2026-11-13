@@ -73,14 +73,20 @@ describe("the findings catalog", () => {
     }
   });
 
-  // Fails if an Observed fix names a test file that doesn't exist, or a
-  // test that isn't in it (say, after the test is renamed).
+  // Fails if an Observed fix names a test that isn't in exactly one of the
+  // template scenarios (say, after the test is renamed, or when two share
+  // a name and the claim no longer says which).
   it("names a test that exists for every Observed fix", () => {
     for (const { label, fix } of fixes) {
       if (fix.claim.kind !== "observed") continue;
-      const source = TEST_SOURCES[`/${fix.claim.file}`];
-      expect(source, label).toBeDefined();
-      expect(source, label).toContain(`"${fix.claim.test}"`);
+      const { test } = fix.claim;
+      const files = Object.entries(TEST_SOURCES).filter(([, source]) =>
+        source.includes(`"${test}"`),
+      );
+      expect(
+        files.map(([path]) => path),
+        label,
+      ).toHaveLength(1);
     }
   });
 

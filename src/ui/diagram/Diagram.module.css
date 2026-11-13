@@ -140,3 +140,21 @@
   font-size: var(--font-size-sm);
   text-align: start;
 }
+
+/* A box's connection handle: a dot big enough to see, with a transparent
+   pointer target around it at the WCAG 2.5.5 size, so a drag can start from
+   near it. The target is the handle's own pseudo-element, so it takes the drag. */
+.diagram :global(.react-flow__handle) {
+  width: var(--handle-dot-size);
+  height: var(--handle-dot-size);
+}
+
+.diagram :global(.react-flow__handle)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--handle-target-size);
+  height: var(--handle-target-size);
+  transform: translate(-50%, -50%);
+}

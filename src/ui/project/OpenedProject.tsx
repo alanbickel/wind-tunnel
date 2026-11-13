@@ -23,6 +23,7 @@ import type { AddComponentProps } from "./ToolRail";
 import { ArchitectureView } from "./ArchitectureView";
 import { Inspector, StackedInspector } from "./Inspector";
 import { WorkloadDock } from "./WorkloadDock";
+import type { OfferingProps } from "./useEdgeOffers";
 import type { AddWorkflowProps } from "./WorkflowList";
 import type { AddWorkloadProps } from "./WorkloadList";
 import styles from "./OpenedProject.module.css";
@@ -247,6 +248,7 @@ function useArchitecture(input: ArchitectureInput) {
   const { coveredRightPx } = input;
   const { selection, select, clear } = selecting;
   const adding = useAdding(changes);
+  const offering = useOffering({ edits, selecting, changes });
   const addingWorkflow = useAddingWorkflow(changes);
   const addingWorkload = useAddingWorkload(changes);
   return (
@@ -263,8 +265,24 @@ function useArchitecture(input: ArchitectureInput) {
       workflowAnnouncement={changes.workflowAnnouncement}
       panels={panels}
       badges={badges}
+      offering={offering}
       coveredRightPx={coveredRightPx}
     />
+  );
+}
+
+/** What a "+" on an arrow saves through, selects with, and says, the same object while its parts are. */
+function useOffering({
+  edits,
+  selecting,
+  changes,
+}: Pick<ArchitectureInput, "edits" | "selecting" | "changes">): OfferingProps {
+  const { edit } = edits;
+  const { selectWithin } = selecting;
+  const { announce } = changes;
+  return useMemo(
+    () => ({ onEdit: edit, onSelect: selectWithin, announce }),
+    [edit, selectWithin, announce],
   );
 }
 

@@ -8,13 +8,16 @@ import {
   type DiagramItem,
   type DiagramMarks,
   type DiagramNode,
+  type EdgeOffer,
 } from "./diagram-model";
 import {
   FADED_CLASS,
   ON_PATH_CLASS,
   toFlowEdge,
   toFlowNode,
+  withOffer,
 } from "./to-react-flow";
+import { OFFER_EDGE_TYPE } from "./OfferEdge";
 
 /** Marks that select only `item`. */
 function selecting(item: DiagramItem): DiagramMarks {
@@ -165,5 +168,43 @@ describe("numbering the calls on an arrow", () => {
     const other: DiagramEdge = { id: "b-c", source: "b", target: "c" };
     expect(toFlowEdge(other, numbered([1])).label).toBeUndefined();
     expect(toFlowEdge(aToB, NO_MARKS).label).toBeUndefined();
+  });
+});
+
+describe("withOffer", () => {
+  const offer: EdgeOffer = {
+    edgeId: "a-b",
+    label: "Add a call from A to B",
+    onUse: () => undefined,
+  };
+
+  // Fails if an arrow with an offer isn't drawn by the offer edge, which
+  // carries the offer (no button would be drawn), or keeps nothing of the
+  // arrow it was: its marks and numbers, which the offer edge draws too.
+  it("draws an arrow with an offer as the offer edge, keeping the rest of it", () => {
+    const marks: DiagramMarks = {
+      selected: [],
+      path: [{ kind: "edge", id: "a-b" }],
+      numbers: [{ edgeId: "a-b", numbers: [3] }],
+    };
+    const plain = toFlowEdge(aToB, marks);
+
+    const offered = withOffer(plain, offer);
+
+    expect(offered).toEqual({
+      ...plain,
+      type: OFFER_EDGE_TYPE,
+      data: { offer },
+    });
+    expect(offered.className).toBe(ON_PATH_CLASS);
+    expect(offered.label).toBe("3");
+  });
+
+  // Fails if an arrow with no offer is changed: it would be drawn by the
+  // offer edge with nothing to offer.
+  it("leaves an arrow with no offer as it was", () => {
+    const plain = toFlowEdge(aToB, NO_MARKS);
+
+    expect(withOffer(plain, undefined)).toBe(plain);
   });
 });

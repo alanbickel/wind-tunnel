@@ -138,6 +138,10 @@
   --node-card-width: 13rem;
   /* The shape on a status badge: a circle, triangle, or square, beside its word. */
   --badge-shape-size: 0.75em;
+  /* A box's connection handle: the dot drawn, and the pointer target around
+     it, which WCAG 2.5.5 sets at 44 px. */
+  --handle-dot-size: 0.75rem;
+  --handle-target-size: 2.75rem;
   /* The window's height, less any browser toolbars showing. */
   --window-height: 100dvh;
   /* A round icon button, such as an info control, sized to its text. */

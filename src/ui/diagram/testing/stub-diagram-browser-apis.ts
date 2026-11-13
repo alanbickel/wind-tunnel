@@ -53,3 +53,26 @@ export function stubMeasuringResizeObserver(): void {
     }),
   );
 }
+
+/** The size, in pixels, a stubbed diagram's boxes are measured at. */
+const DRAWN_BOX_SIZE_PX = { width: 800, height: 400 };
+
+/**
+ * Stubs what React Flow needs to draw arrows in jsdom, which lays nothing
+ * out: it measures each box a tick after it appears, and each arrow's label
+ * needs an SVG element to measure. Call it after `stubDiagramBrowserApis`;
+ * `vi.unstubAllGlobals()` and `vi.restoreAllMocks()` undo it.
+ */
+export function stubArrowDrawing(): void {
+  stubMeasuringResizeObserver();
+  Object.defineProperty(SVGElement.prototype, "getBBox", {
+    configurable: true,
+    value: () => ({ x: 0, y: 0, width: 10, height: 10 }),
+  });
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(
+    DRAWN_BOX_SIZE_PX.width,
+  );
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(
+    DRAWN_BOX_SIZE_PX.height,
+  );
+}

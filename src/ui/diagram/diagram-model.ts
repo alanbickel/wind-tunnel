@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 // The diagram's own types (ADR-0010). Consumers describe a diagram in these
 // terms; only this folder knows they become React Flow nodes and edges.
 
@@ -123,4 +125,27 @@ export interface DiagramMove {
   readonly id: string;
   /** The box's new top left. */
   readonly position: DiagramPoint;
+}
+
+/**
+ * What an arrow's offer asks the user, drawn in a popover at the arrow:
+ * given a way to close the popover, whatever it shows. Closing it returns
+ * the focus to the offer's button.
+ */
+export type OfferQuestion = (close: () => void) => ReactNode;
+
+/**
+ * An arrow's offer: a button at its middle that does something along that
+ * arrow, such as adding a call to a workflow (UX design §7).
+ */
+export interface EdgeOffer {
+  readonly edgeId: string;
+  /** The button's name and its tooltip, e.g. "Add a call from fn-orders to orders-db". */
+  readonly label: string;
+  /**
+   * Called when the user uses the button. Returns the question to ask in a
+   * popover, or undefined when the offer needed to ask nothing and has done
+   * its work.
+   */
+  readonly onUse: () => OfferQuestion | undefined;
 }

@@ -364,6 +364,29 @@ describe("App storage persistence", () => {
     },
   );
 
+  // Fails if the strip has no Dismiss, or dismissing leaves the text up.
+  it("hides the warning when it is dismissed, leaving the live region", async () => {
+    renderAppWith(answering("best-effort"));
+    await createSample();
+    await screen.findByText(HINT);
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(screen.queryByText(HINT)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+    expect(screen.getAllByRole("status").length).toBeGreaterThan(0);
+  });
+
+  // Fails if the strip draws anything, even a bare bar, when storage is fine.
+  it("draws no strip when the browser keeps the projects", async () => {
+    renderAppWith(answering("persisted"));
+    await createSample();
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+    });
+    expect(screen.queryByText(HINT)).toBeNull();
+  });
+
   it("warns that storage may be cleared when the request fails", async () => {
     renderAppWith({
       request: () => Promise.reject(new Error("SecurityError")),

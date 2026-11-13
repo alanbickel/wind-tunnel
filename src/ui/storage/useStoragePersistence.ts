@@ -7,6 +7,10 @@ export interface StoragePersistenceState {
   readonly status: PersistenceStatus | undefined;
   /** Asks the browser to keep the projects; only the first call asks. */
   readonly requestOnce: () => void;
+  /** Whether the user has dismissed the warning; it stays dismissed for the session. */
+  readonly dismissed: boolean;
+  /** Dismisses the warning. */
+  readonly dismiss: () => void;
 }
 
 /**
@@ -18,6 +22,7 @@ export interface StoragePersistenceState {
 export function useStoragePersistence(): StoragePersistenceState {
   const { storagePersistence } = useUseCases();
   const [status, setStatus] = useState<PersistenceStatus>();
+  const [dismissed, setDismissed] = useState(false);
   // A ref, not state: two creates in one render must still ask only once.
   const asked = useRef(false);
 
@@ -28,5 +33,8 @@ export function useStoragePersistence(): StoragePersistenceState {
       setStatus("unsupported");
     });
   }, [storagePersistence]);
-  return { status, requestOnce };
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+  }, []);
+  return { status, requestOnce, dismissed, dismiss };
 }

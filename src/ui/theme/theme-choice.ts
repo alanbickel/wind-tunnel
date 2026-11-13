@@ -1,7 +1,7 @@
 /** Follow the operating system's light or dark setting, or fix one. */
 export type ThemeChoice = "system" | "dark" | "light";
 
-/** Every choice, in the order the theme control offers them. */
+/** Every choice, in the order the theme menu offers them. */
 export const THEME_CHOICES: readonly ThemeChoice[] = [
   "system",
   "dark",

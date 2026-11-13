@@ -1,14 +1,11 @@
 import type { PersistenceStatus } from "../../application/ports/storage-persistence";
+import { Button } from "../shared/Button";
 import styles from "./StorageHint.module.css";
+import type { StoragePersistenceState } from "./useStoragePersistence";
 
 export interface StorageHintProps {
-  /** The browser's answer; undefined until it has been asked. */
-  readonly status: PersistenceStatus | undefined;
-  /**
-   * A slim line across the window, under a project's top bar, rather than
-   * a box in the project list's column.
-   */
-  readonly slim?: boolean;
+  /** The session's storage state: the browser's answer, and whether the strip is dismissed. */
+  readonly storage: StoragePersistenceState;
 }
 
 const MAY_BE_CLEARED =
@@ -21,14 +18,24 @@ const HINTS: Record<PersistenceStatus, string> = {
 };
 
 /**
- * Warns the user when the browser won't promise to keep their projects.
- * The live region stays mounted, so screen readers announce the warning
- * when it appears.
+ * A dismissible strip across the window, under the top bar, shown only when
+ * the browser won't promise to keep the user's projects. The live region
+ * stays mounted, so screen readers announce the warning when it appears;
+ * with nothing to say, or once dismissed, the strip draws nothing.
  */
-export function StorageHint({ status, slim = false }: StorageHintProps) {
+export function StorageHint(props: StorageHintProps) {
+  const { status, dismissed, dismiss } = props.storage;
+  const text = status === undefined || dismissed ? "" : HINTS[status];
   return (
-    <p role="status" className={slim ? styles.slim : styles.hint}>
-      {status === undefined ? "" : HINTS[status]}
-    </p>
+    <div role="status">
+      {text !== "" && (
+        <div className={styles.strip}>
+          <p className={styles.text}>{text}</p>
+          <Button variant="link" onClick={dismiss}>
+            Dismiss
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

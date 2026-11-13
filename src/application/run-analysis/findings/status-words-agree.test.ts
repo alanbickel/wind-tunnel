@@ -6,6 +6,10 @@ vi.mock("../status-words", () => ({
 
 import { sampleWording } from "../../testing/sample-findings";
 import type { RefusingLimits } from "./no-headroom";
+import {
+  RETRIES_ABSORBED_PHRASES,
+  type RetriedRefusalsStatement,
+} from "./detectors/retries-absorbed-phrases";
 import { VERDICT_PHRASES, type VerdictStatement } from "./verdict-phrases";
 
 const refusing: RefusingLimits = {
@@ -26,5 +30,19 @@ describe("the findings' wording and the badge's status words", () => {
       refusing: [refusing],
     };
     expect(word(statement, "short")).toContain("turned away 3 attempts");
+  });
+
+  // Fails if retries-absorbed-phrases words "refused" itself instead of
+  // building it from STATUS_WORDS.
+  it("builds retries-absorbed's 'refused' from the status vocabulary", () => {
+    const word = sampleWording(RETRIES_ABSORBED_PHRASES);
+    const statement: RetriedRefusalsStatement = {
+      kind: "retries-absorbed",
+      componentId: "fn",
+      rejected: 17,
+      failedRequests: 0,
+      failedDeliveries: 0,
+    };
+    expect(word(statement, "short")).toContain("turned away 17 attempts");
   });
 });

@@ -8,9 +8,10 @@
 export type ComponentStatus = "refused" | "waited" | "ok";
 
 /**
- * Each status's word. The node badge says it as it is, and the findings'
- * sentences build their "refused" and "waited" from it, so a change here
- * changes both.
+ * Each status's word. The node badge says it as it is, and the findings' two
+ * `refused()` helpers (the verdict's and retries-absorbed's) build their word
+ * from it. Other sentences use the verb freely, so a change here doesn't
+ * reach them.
  */
 export const STATUS_WORDS: Readonly<Record<ComponentStatus, string>> = {
   refused: "refused",

@@ -169,7 +169,7 @@ describe("OpenedProject's removing a workflow", () => {
     ).toBeNull();
     expect(detailsHeading().textContent).toBe("List items · Workflow");
     expect(removedRegion().textContent).toBe("");
-    expect(screen.getByRole("button", { name: "List items" })).toBeTruthy();
+    expect(revealButton("List items")).toBeTruthy();
   });
 
   // Fails if removing a workload's only workflow leaves it runnable, or

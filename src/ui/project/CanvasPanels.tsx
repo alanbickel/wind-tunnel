@@ -1,6 +1,9 @@
 import { useId, type KeyboardEvent, type ReactNode } from "react";
+import type { ZoomActions } from "../diagram/zoom-actions";
+import { ZoomButtons } from "../diagram/ZoomButtons";
 import { Button } from "../shared/Button";
 import styles from "./CanvasPanels.module.css";
+import { WorkflowPicker, type WorkflowPickerProps } from "./WorkflowPicker";
 import {
   CANVAS_PANEL_ATTRIBUTE,
   type CanvasPanelId,
@@ -11,6 +14,10 @@ export interface CanvasPanelsProps {
   readonly panels: PanelState;
   /** The diagram's text version, in the "As text" panel; none without components. */
   readonly text: ReactNode;
+  /** The workflow picker's project, selection, and what it selects and clears. */
+  readonly picker: Omit<WorkflowPickerProps, "onOpen">;
+  /** The diagram's zoom actions, once it has loaded. */
+  readonly zoom: ZoomActions | undefined;
 }
 
 /** One panel: its button's text, the name of its region, and what it holds. */
@@ -25,8 +32,9 @@ interface PanelEntry {
 type PanelIds = (id: CanvasPanelId) => string;
 
 /**
- * "As text" at the canvas's bottom left, opening its panel over the canvas,
- * above the button. The button shows whether its panel is open
+ * One row at the canvas's bottom left: the workflow picker, "As text", and
+ * zoom out, zoom in, and fit. "As text" opens its panel over the canvas,
+ * above the row. The button shows whether its panel is open
  * (`aria-expanded`); Escape anywhere in the corner closes it and puts the
  * focus back on its button. A closed panel stays mounted, hidden, so its
  * scroll is still there when it opens. (The workflows and workloads lists
@@ -60,18 +68,29 @@ export function CanvasPanels(props: CanvasPanelsProps) {
   );
 }
 
-interface PanelButtonsProps extends Pick<CanvasPanelsProps, "panels"> {
+interface PanelButtonsProps extends Pick<
+  CanvasPanelsProps,
+  "panels" | "picker" | "zoom"
+> {
   readonly entries: readonly PanelEntry[];
   readonly ids: PanelIds;
 }
 
-/** The panels' buttons, in a row. */
-function PanelButtons({ entries, ids, panels }: PanelButtonsProps) {
+/** The row: the workflow picker, the panels' buttons, then zoom. */
+function PanelButtons({
+  entries,
+  ids,
+  panels,
+  picker,
+  zoom,
+}: PanelButtonsProps) {
   return (
     <div className={styles.buttons}>
+      <WorkflowPicker {...picker} onOpen={panels.close} />
       {entries.map((entry) => (
         <PanelButton key={entry.id} entry={entry} ids={ids} panels={panels} />
       ))}
+      <ZoomButtons zoom={zoom} />
     </div>
   );
 }

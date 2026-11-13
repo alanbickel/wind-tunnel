@@ -8,6 +8,7 @@ import type {
   DiagramMarks,
   DiagramMove,
 } from "./diagram-model";
+import type { ZoomActions } from "./zoom-actions";
 
 // React Flow arrives in its own chunk the first time a diagram draws, so the
 // project list loads without it (#16).
@@ -53,6 +54,13 @@ export interface DiagramProps {
    * if not given.
    */
   readonly coveredRightPx?: number | undefined;
+  /**
+   * Called with the actions that zoom out, zoom in, and fit the diagram
+   * once it has loaded, and with undefined if it goes. The diagram draws no
+   * zoom controls of its own; `ZoomButtons` draws them wherever the screen
+   * puts them.
+   */
+  readonly onZoom?: ((zoom: ZoomActions | undefined) => void) | undefined;
 }
 
 /**
@@ -66,15 +74,14 @@ export interface DiagramProps {
  * its arrows a thick line, so a path reads apart from the selection. It
  * isn't readable by screen readers, so pair it with a text version that
  * can select the same things. It has no border, so it can fill a screen
- * edge to edge, with its zoom controls at the left edge's middle. Place it
+ * edge to edge, with its zoom actions reported through `onZoom`. Place it
  * in a flex column: it's `--diagram-height` tall, or it fills the room a
  * fixed-height column leaves it, and refits when that room changes. While
  * React Flow loads, or if it can't, the box holds its place. It fits the
  * boxes in, at most at their own size, clear of a covered right edge.
  */
 export function Diagram(props: DiagramProps) {
-  const { content, label, marks, onSelect, onConnect, onMove } = props;
-  const { coveredRightPx } = props;
+  const { content, label, marks, onSelect, onConnect, onMove, ...rest } = props;
   return (
     <div role="group" aria-label={label} className={styles.diagram}>
       <div className={styles.canvas}>
@@ -94,7 +101,8 @@ export function Diagram(props: DiagramProps) {
               onSelect={onSelect}
               onConnect={onConnect}
               onMove={onMove}
-              coveredRightPx={coveredRightPx}
+              coveredRightPx={rest.coveredRightPx}
+              onZoom={rest.onZoom}
             />
           </Suspense>
         </LoadFailureBoundary>

@@ -2,7 +2,12 @@
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { openPanel, railRegion, revealButton } from "./testing/canvas-panels";
+import {
+  openPanel,
+  panelButton,
+  railRegion,
+  revealButton,
+} from "./testing/canvas-panels";
 import {
   bar,
   clickRun,
@@ -224,11 +229,7 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
 
       fireEvent.keyDown(detailsHeading(), { key: "Escape" });
 
-      expect(
-        screen
-          .getByRole("button", { name: panel })
-          .getAttribute("aria-expanded"),
-      ).toBe("true");
+      expect(panelButton(panel)?.getAttribute("aria-expanded")).toBe("true");
       expect(button.closest("[hidden]")).toBeNull();
       expect(document.activeElement).toBe(button);
     },

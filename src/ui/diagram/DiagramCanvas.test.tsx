@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DiagramCanvas } from "./DiagramCanvas";
 import type { DiagramContent } from "./diagram-model";
+import { fitOptions } from "./fit-options";
+import type { ZoomActions } from "./zoom-actions";
 import { dragNode, mouse } from "./testing/drag-node";
 import {
   stubDiagramBrowserApis,
@@ -11,11 +13,13 @@ import {
 import { KEYBOARD_MOVE_PAUSE_MS } from "./useNodeMoves";
 
 const fitView = vi.fn(() => Promise.resolve(true));
+const zoomIn = vi.fn(() => Promise.resolve(true));
+const zoomOut = vi.fn(() => Promise.resolve(true));
 
 // React Flow calls its own fitView inside; only the canvas's goes to the spy.
 vi.mock("@xyflow/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@xyflow/react")>()),
-  useReactFlow: () => ({ fitView }),
+  useReactFlow: () => ({ fitView, zoomIn, zoomOut }),
 }));
 
 const content: DiagramContent = { nodes: [], edges: [] };
@@ -62,6 +66,53 @@ describe("DiagramCanvas", () => {
     resizeWindow();
 
     expect(fitView).not.toHaveBeenCalled();
+  });
+});
+
+describe("DiagramCanvas's zoom actions", () => {
+  beforeEach(() => {
+    stubDiagramBrowserApis();
+    measureBoxAt(800, 400);
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  // Fails if `fit` stops using the canvas's own fit options, so a Fit
+  // press would put boxes under the inspector, or zoom them past their
+  // size; or if it fits for another width or covered edge than the canvas's.
+  it("fits as the canvas does, clear of the covered edge", () => {
+    const onZoom = vi.fn<(zoom: ZoomActions | undefined) => void>();
+    render(
+      <DiagramCanvas content={content} coveredRightPx={300} onZoom={onZoom} />,
+    );
+    fitView.mockClear();
+
+    onZoom.mock.lastCall?.[0]?.fit();
+
+    expect(fitView).toHaveBeenCalledExactlyOnceWith(
+      fitOptions({ width: 800, coveredRightPx: 300 }),
+    );
+  });
+
+  // Fails if the zoom actions reach the wrong React Flow call, or the canvas
+  // keeps offering them after it unmounts (they'd act on nothing).
+  it("zooms by React Flow's steps, and withdraws its actions on unmount", () => {
+    const onZoom = vi.fn<(zoom: ZoomActions | undefined) => void>();
+    const { unmount } = render(
+      <DiagramCanvas content={content} onZoom={onZoom} />,
+    );
+
+    onZoom.mock.lastCall?.[0]?.zoomIn();
+    expect(zoomIn).toHaveBeenCalledTimes(1);
+    onZoom.mock.lastCall?.[0]?.zoomOut();
+    expect(zoomOut).toHaveBeenCalledTimes(1);
+    unmount();
+
+    expect(onZoom.mock.lastCall).toEqual([undefined]);
   });
 });
 

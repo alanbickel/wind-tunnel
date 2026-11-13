@@ -34,10 +34,18 @@
   margin-bottom: 0;
 }
 
+/* The row, in the floating surface's style. It wraps in a narrow window. */
 .buttons {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
+  border: var(--floating-border);
+  border-radius: var(--floating-radius);
+  box-shadow: var(--floating-shadow);
 }
 
 @media (min-width: 64rem) {

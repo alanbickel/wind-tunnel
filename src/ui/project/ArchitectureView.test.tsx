@@ -335,6 +335,12 @@ const PANEL_REGIONS: Record<CanvasPanelButton, string> = {
   "As text": "Components, connections, and paths as text",
 };
 
+/** A button on the tool rail: the picker at the bottom left shares "Workflows". */
+function railButton(name: string): HTMLElement {
+  const rail = screen.getByRole("toolbar", { name: "Tools" });
+  return within(rail).getByRole("button", { name });
+}
+
 describe("ArchitectureView's canvas panels", () => {
   preloadBeforeAll(() => import("../diagram/DiagramCanvas"));
   beforeEach(stubDiagramBrowserApis);
@@ -347,7 +353,7 @@ describe("ArchitectureView's canvas panels", () => {
   // open, or opening one leaves the other open over it.
   it("opens one panel at a time over the canvas, each from its button", () => {
     renderView();
-    const workflows = screen.getByRole("button", { name: "Workflows" });
+    const workflows = railButton("Workflows");
     const text = screen.getByRole("button", { name: "As text" });
     expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
 
@@ -400,6 +406,6 @@ describe("ArchitectureView's canvas panels", () => {
     });
 
     expect(screen.queryByRole("button", { name: "As text" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Workflows" })).toBeTruthy();
+    expect(railButton("Workflows")).toBeTruthy();
   });
 });

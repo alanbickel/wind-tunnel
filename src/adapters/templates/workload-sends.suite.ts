@@ -6,9 +6,16 @@ import type { RunGetter } from "./testing/use-run";
  * How far a run's started requests may be from what "What this sends" says,
  * as a fraction of it. Arrivals are Poisson, so a run's count has a standard
  * deviation of the square root of the expected count: about 257 of 66,000,
- * 0.4%. 2% is five of them, so no seed fails it by chance.
+ * 0.4%. 2% is five of them, so no seed fails the total by chance. A smaller
+ * part has a larger relative spread, so each workflow's figure gets five of
+ * its own standard deviations (see `withinFiveDeviations`).
  */
 export const SENDS_TOLERANCE = 0.02;
+
+/** Whether a count is within five Poisson standard deviations of its expected count. */
+function withinFiveDeviations(actual: number, expected: number): boolean {
+  return Math.abs(actual - expected) < 5 * Math.sqrt(expected);
+}
 
 /** What the doc quotes (UX design §8): Lunch rush on the reading seed. */
 const QUOTED_SUMMARY = 66_000;
@@ -38,7 +45,7 @@ export function describeSendsMatchRun(getRun: RunGetter): void {
     });
 
     // Fails if a workflow's figure isn't its mix share of the run's own
-    // started requests, within the tolerance.
+    // started requests, within five standard deviations of its own count.
     it("gives each workflow about what its run starts", () => {
       const { project, workloadId, totals } = getRun();
       const workload = project.workloads.find((w) => w.id === workloadId);
@@ -53,7 +60,7 @@ export function describeSendsMatchRun(getRun: RunGetter): void {
       expect(parts).toHaveLength(started?.length ?? -1);
       parts?.forEach((part, index) => {
         const actual = started?.[index] ?? 0;
-        expect(Math.abs(actual - part)).toBeLessThan(part * SENDS_TOLERANCE);
+        expect(withinFiveDeviations(actual, part)).toBe(true);
       });
     });
   });

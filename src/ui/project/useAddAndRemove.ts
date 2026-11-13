@@ -59,8 +59,8 @@ export interface AddAndRemove {
   readonly addWorkloadButtonRef: RefObject<HTMLButtonElement | null>;
   /**
    * "Removed Get order.", or "Removed Lunch rush." for a workload, for the
-   * polite region beside the canvas's panel buttons, which always show,
-   * unlike the "Workflows" panel that holds both Add buttons.
+   * polite region on the rail, which always shows, unlike the rail's
+   * Workflows and Workloads lists that hold the Add buttons.
    */
   readonly workflowAnnouncement: string;
 }
@@ -116,14 +116,14 @@ interface RemovalPlacesResult {
   readonly places: RemovalPlaces;
   readonly addWorkflowButtonRef: RefObject<HTMLButtonElement | null>;
   readonly addWorkloadButtonRef: RefObject<HTMLButtonElement | null>;
-  /** What the "Workflows" panel's removes announced. */
+  /** What the Workflows and Workloads lists' removes announced. */
   readonly announcement: string;
 }
 
 /**
  * The places for each kind of remove. A workflow's and a workload's
- * buttons are in the same panel, which may be closed, so both announce
- * from the one region beside the panel buttons.
+ * buttons are in lists that may be closed, so both announce from the one
+ * region on the rail.
  */
 function useRemovalPlaces(
   places: Pick<RemovalPlaces, "component">,

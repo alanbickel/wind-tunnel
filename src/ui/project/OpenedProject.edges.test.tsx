@@ -21,6 +21,15 @@ function select(name: string): void {
   fireEvent.click(button);
 }
 
+/** Details' "Connect" button, not the tool rail's, which has the name too. */
+function connectButton(): HTMLElement {
+  const button = screen
+    .getAllByRole("button", { name: "Connect" })
+    .find((candidate) => candidate.closest('[role="toolbar"]') === null);
+  if (button === undefined) throw new Error("No Connect button in Details");
+  return button;
+}
+
 function edgeOf(
   record: ProjectRecord,
   from: string,
@@ -70,7 +79,7 @@ describe("OpenedProject's edges", () => {
         .map((o) => o.textContent),
     ).toEqual(["API (API Gateway)"]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.click(connectButton());
 
     const saved = await savedRecord(projects, (r) =>
       Boolean(edgeOf(r, "fn", "api")),
@@ -93,7 +102,7 @@ describe("OpenedProject's edges", () => {
   it("leaves the focus on the heading when selecting a component that's connected to every other", () => {
     renderOpenedProject();
     select("Function (Lambda)");
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.click(connectButton());
     select("Table (DynamoDB)");
 
     select("Function (Lambda)");

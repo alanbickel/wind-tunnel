@@ -12,7 +12,7 @@ import {
   savedRecord,
 } from "./testing/render-opened-project";
 
-import { revealButton } from "./testing/canvas-panels";
+import { railRegion, revealButton } from "./testing/canvas-panels";
 
 function componentIds(record: ProjectRecord): string[] {
   return record.project.architecture.components.map((c) => c.id);
@@ -26,11 +26,10 @@ function addButton(): HTMLElement {
 function add(name: string): void {
   fireEvent.click(addButton());
   const list = screen.getByRole("list", { name: "Component types" });
-  const choice = within(list)
-    .getAllByRole("button")
-    .find((button) => button.textContent.startsWith(`${name}:`));
-  if (choice === undefined) throw new Error(`No type ${name}`);
-  fireEvent.click(choice);
+  const type = within(list).getByRole("button", {
+    name: new RegExp(`^${name}:`),
+  });
+  fireEvent.click(type);
 }
 
 /** Selects a component from the diagram's text version. */
@@ -42,9 +41,7 @@ function select(name: string): void {
 
 /** The polite region beside "Add component", which says what a remove took. */
 function removedRegion(): HTMLElement {
-  const region = addButton().parentElement?.querySelector('[role="status"]');
-  if (!(region instanceof HTMLElement)) throw new Error("No removed region");
-  return region;
+  return railRegion("component");
 }
 
 /** Remove's confirmation, by its question. */

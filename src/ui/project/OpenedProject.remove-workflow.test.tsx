@@ -15,7 +15,7 @@ import {
   statusRegions,
 } from "./testing/render-opened-project";
 
-import { revealButton } from "./testing/canvas-panels";
+import { railRegion, revealButton } from "./testing/canvas-panels";
 
 const [read] = sampleRecord.project.workflows;
 const [steady] = sampleRecord.project.workloads;
@@ -69,11 +69,7 @@ function addWorkflowButton(): HTMLElement {
  * canvas's panel buttons, which always show.
  */
 function removedRegion(): HTMLElement {
-  const region = screen
-    .getByRole("button", { name: "Workflows" })
-    .parentElement?.querySelector('[role="status"]');
-  if (!(region instanceof HTMLElement)) throw new Error("No removed region");
-  return region;
+  return railRegion("list");
 }
 
 function asking(question: string): HTMLElement {

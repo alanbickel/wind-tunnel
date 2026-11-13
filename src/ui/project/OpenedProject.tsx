@@ -19,7 +19,7 @@ import type {
 import type { Project } from "../../domain/model/project";
 import { useProjectRun, type ProjectRun } from "../run/useProjectRun";
 import { useWideWindow } from "../shared/useWideWindow";
-import type { AddComponentProps } from "./AddComponent";
+import type { AddComponentProps } from "./ToolRail";
 import { ArchitectureView } from "./ArchitectureView";
 import { Inspector, StackedInspector } from "./Inspector";
 import type { AddWorkflowProps } from "./WorkflowList";
@@ -33,7 +33,11 @@ import {
 } from "./ProjectFrame";
 import { ProjectName } from "./ProjectName";
 import { useAddAndRemove, type AddAndRemove } from "./useAddAndRemove";
-import { useCanvasPanels, type CanvasPanels } from "./useCanvasPanels";
+import {
+  useCanvasPanels,
+  type CanvasPanelId,
+  type CanvasPanels,
+} from "./useCanvasPanels";
 import { useCoveredWidth, type CoveredWidth } from "./useCoveredWidth";
 import { useProjectEdits, type ProjectEdits } from "./useProjectEdits";
 import { useSelection, type ProjectSelection } from "./useSelection";
@@ -331,6 +335,12 @@ function useMove({ edit, project, announce }: MoveInput): Move {
   );
 }
 
+/** The rail list a remove of each kind opens: where its Add button is. */
+const LIST_OF_REMOVED: Partial<Record<Selection["kind"], CanvasPanelId>> = {
+  workflow: "workflows",
+  workload: "workloads",
+};
+
 /** What a remove opens, and picks, around `AddAndRemove`'s. */
 interface RevealingRemoveInput {
   readonly changes: AddAndRemove;
@@ -341,8 +351,8 @@ interface RevealingRemoveInput {
 
 /**
  * A remove, as `AddAndRemove` has it, that first opens "Workflows" for a
- * workflow's or a workload's: the focus goes to "Add workflow" or "Add
- * workload", in that panel, which may be closed. Opened at once, so the
+ * workflow's, or "Workloads" for a workload's: the focus goes to "Add
+ * workflow" or "Add workload", in that list, which may be closed. Opened at once, so the
  * button is there to take the focus. A remove of the workload the project
  * bar has picked also picks the one after it, or the one before if it was
  * last, which only the project's list, as it was, can say (UX design §2.7
@@ -357,9 +367,10 @@ function useRevealingRemove(
   const { workloads } = input.edits.record.project;
   return useCallback(
     (target: Selection) => {
-      if (target.kind === "workflow" || target.kind === "workload") {
+      const list = LIST_OF_REMOVED[target.kind];
+      if (list !== undefined) {
         flushSync(() => {
-          show("workflows");
+          show(list);
         });
       }
       // Only the bar's own pick moves; another stays where it is.

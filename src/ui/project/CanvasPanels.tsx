@@ -9,12 +9,8 @@ import {
 
 export interface CanvasPanelsProps {
   readonly panels: PanelState;
-  /** The workflows list, in the "Workflows" panel. */
-  readonly workflows: ReactNode;
   /** The diagram's text version, in the "As text" panel; none without components. */
   readonly text: ReactNode;
-  /** What a workflow's remove announces: "Removed Get order." */
-  readonly announcement: string;
 }
 
 /** One panel: its button's text, the name of its region, and what it holds. */
@@ -29,20 +25,18 @@ interface PanelEntry {
 type PanelIds = (id: CanvasPanelId) => string;
 
 /**
- * "Workflows" and "As text" at the canvas's bottom left, each opening its
- * panel over the canvas, above the buttons. Each button shows whether its
- * panel is open (`aria-expanded`); Escape anywhere in the corner closes the
- * open one and puts the focus back on its button. A closed panel stays
- * mounted, hidden, so its scroll is still there when it opens. A live
- * region in a hidden panel says nothing, so a workflow's remove is said
- * from a polite region beside the buttons, which always show, on the page
- * from the start, empty.
+ * "As text" at the canvas's bottom left, opening its panel over the canvas,
+ * above the button. The button shows whether its panel is open
+ * (`aria-expanded`); Escape anywhere in the corner closes it and puts the
+ * focus back on its button. A closed panel stays mounted, hidden, so its
+ * scroll is still there when it opens. (The workflows and workloads lists
+ * are on the tool rail.)
  */
 export function CanvasPanels(props: CanvasPanelsProps) {
-  const { panels, workflows, text } = props;
+  const { panels, text } = props;
   const baseId = useId();
   const ids: PanelIds = (id) => `${baseId}-${id}`;
-  const entries = panelEntries({ workflows, text });
+  const entries = panelEntries({ text });
   return (
     <div
       className={styles.corner}
@@ -66,44 +60,27 @@ export function CanvasPanels(props: CanvasPanelsProps) {
   );
 }
 
-interface PanelButtonsProps extends Pick<
-  CanvasPanelsProps,
-  "panels" | "announcement"
-> {
+interface PanelButtonsProps extends Pick<CanvasPanelsProps, "panels"> {
   readonly entries: readonly PanelEntry[];
   readonly ids: PanelIds;
 }
 
-/** The panels' buttons, in a row, and the region a workflow's remove speaks from. */
-function PanelButtons({
-  entries,
-  ids,
-  panels,
-  announcement,
-}: PanelButtonsProps) {
+/** The panels' buttons, in a row. */
+function PanelButtons({ entries, ids, panels }: PanelButtonsProps) {
   return (
     <div className={styles.buttons}>
       {entries.map((entry) => (
         <PanelButton key={entry.id} entry={entry} ids={ids} panels={panels} />
       ))}
-      <p role="status" className={styles.announcement}>
-        {announcement}
-      </p>
     </div>
   );
 }
 
-type PanelContents = Pick<CanvasPanelsProps, "workflows" | "text">;
+type PanelContents = Pick<CanvasPanelsProps, "text">;
 
 /** The panels there are: "As text" only while it has a text version. */
-function panelEntries({ workflows, text }: PanelContents): PanelEntry[] {
+function panelEntries({ text }: PanelContents): PanelEntry[] {
   const all: PanelEntry[] = [
-    {
-      id: "workflows",
-      button: "Workflows",
-      label: "Workflows",
-      content: workflows,
-    },
     {
       id: "text",
       button: "As text",
@@ -171,12 +148,13 @@ interface CloseOnEscapeInput {
 }
 
 /**
- * Escape closes the open panel and focuses its button, the one that
- * controls it, and goes no further.
+ * Escape closes the text panel, if open, and focuses its button, the one
+ * that controls it, and goes no further.
  */
 function closeOnEscape({ event, panels, ids }: CloseOnEscapeInput): void {
   const { open } = panels;
-  if (event.key !== "Escape" || open === undefined) return;
+  // The tool rail closes its own panels.
+  if (event.key !== "Escape" || open !== "text") return;
   event.preventDefault();
   event.stopPropagation();
   const button = event.currentTarget.querySelector<HTMLElement>(

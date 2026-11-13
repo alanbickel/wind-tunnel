@@ -245,11 +245,7 @@ describe("OpenedProject's Add workflow", () => {
     renderProject({ project: noWorkflows });
     fireEvent.click(screen.getByRole("button", { name: "Add component" }));
     const types = screen.getByRole("list", { name: "Component types" });
-    const dynamo = within(types)
-      .getAllByRole("button")
-      .find((button) => button.textContent.startsWith("DynamoDB"));
-    if (dynamo === undefined) throw new Error("No DynamoDB type");
-    fireEvent.click(dynamo);
+    fireEvent.click(within(types).getByRole("button", { name: /^DynamoDB:/ }));
     fireEvent.click(addWorkflowButton());
     const added = within(picker("Component"))
       .getAllByRole("option")

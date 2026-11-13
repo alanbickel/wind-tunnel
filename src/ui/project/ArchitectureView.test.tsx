@@ -331,6 +331,7 @@ describe("ArchitectureView", () => {
 /** The region a canvas panel's button opens, by the name it gives it. */
 const PANEL_REGIONS: Record<CanvasPanelButton, string> = {
   Workflows: "Workflows",
+  Workloads: "Workloads",
   "As text": "Components, connections, and paths as text",
 };
 
@@ -366,7 +367,7 @@ describe("ArchitectureView's canvas panels", () => {
 
   // Fails if Escape in a panel doesn't close it, or leaves the focus in
   // the hidden panel rather than on the button that opened it.
-  it.each(["Workflows", "As text"] as const)(
+  it.each(["Workflows", "Workloads", "As text"] as const)(
     "closes %s on Escape from inside it, the focus back on its button",
     (name) => {
       renderView();

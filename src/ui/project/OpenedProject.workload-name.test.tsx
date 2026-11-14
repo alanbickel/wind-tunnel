@@ -31,7 +31,7 @@ function selectSteady(): void {
 }
 
 function nameField(): HTMLInputElement {
-  const details = screen.getByRole("region", { name: "Workload dock" });
+  const details = screen.getByRole("region", { name: "Dock" });
   return within(details).getByRole("textbox", { name: "Name" });
 }
 

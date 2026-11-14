@@ -22,7 +22,8 @@ import { useWideWindow } from "../shared/useWideWindow";
 import type { AddComponentProps } from "./ToolRail";
 import { ArchitectureView } from "./ArchitectureView";
 import { Inspector, StackedInspector } from "./Inspector";
-import { WorkloadDock } from "./WorkloadDock";
+import { Dock } from "./dock/Dock";
+import { useDockRequests, type DockRequests } from "./dock/useDockRequests";
 import type { OfferingProps } from "./useEdgeOffers";
 import type { AddWorkflowProps } from "./WorkflowList";
 import type { AddWorkloadProps } from "./WorkloadList";
@@ -84,10 +85,10 @@ type BarParts = Pick<ProjectFrameProps, "current" | "controls" | "status">;
 /**
  * The project's parts of the top bar: its name and Rename as the last
  * crumb, its controls, and its status line. Run opens the inspector, where
- * the run's results are.
+ * the run's verdict and findings are, and asks the dock for its evidence.
  */
 function barParts({ screen, cantRunReasonId }: BarPartsInput): BarParts {
-  const { edits, projectRun, undoRedo, selecting } = screen;
+  const { edits, projectRun, undoRedo, selecting, dock } = screen;
   const { project } = edits.record;
   return {
     current: <ProjectName project={project} onEdit={edits.edit} />,
@@ -99,6 +100,7 @@ function barParts({ screen, cantRunReasonId }: BarPartsInput): BarParts {
         cantRunReasonId={cantRunReasonId}
         onRunStart={() => {
           selecting.showInspector(true);
+          dock.ask({ key: "run" });
         }}
         onEditWorkload={({ id }) => {
           selecting.select({ kind: "workload", workloadId: id });
@@ -120,7 +122,10 @@ interface ProjectCanvasProps {
   readonly screen: ProjectScreen;
 }
 
-/** The canvas, and the inspector over it or under it, by the window's width. */
+/**
+ * The canvas, and the inspector over it or under it, by the window's
+ * width; then the dock.
+ */
 function ProjectCanvas({ screen }: ProjectCanvasProps) {
   const { edits, projectRun, selecting, remove } = screen;
   const { screenRef, inspectorRef } = screen.covered;
@@ -141,12 +146,7 @@ function ProjectCanvas({ screen }: ProjectCanvasProps) {
           <StackedInspector {...inspector} />
         )}
       </div>
-      <WorkloadDock
-        project={inspector.project}
-        selecting={selecting}
-        onEdit={edits.edit}
-        onRemove={remove}
-      />
+      <Dock {...inspector} request={screen.dock.request} />
     </div>
   );
 }
@@ -157,6 +157,7 @@ interface ProjectScreen {
   readonly projectRun: ProjectRun;
   readonly selecting: ProjectSelection;
   readonly undoRedo: UndoRedo;
+  readonly dock: DockRequests;
   /** Removes as `changes.remove` does, opening the panel the focus goes to. */
   readonly remove: AddAndRemove["remove"];
   /** How much of the canvas the inspector covers, which the diagram fits around. */
@@ -180,6 +181,7 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   const panels = useCanvasPanels();
   const selecting = useSelection(panels.reveal);
   usePickSelectedWorkload({ edits, projectRun, selecting });
+  const dock = useDockRequests(selecting.selection);
   const changes = useAddAndRemove(edits, selecting);
   const undoRedo = useUndoRedo(edits, selecting);
   useUndoShortcuts(undoRedo);
@@ -199,7 +201,7 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     badges: projectRun.badges,
     coveredRightPx: covered.coveredRightPx,
   });
-  const held = { edits, projectRun, selecting, undoRedo };
+  const held = { edits, projectRun, selecting, undoRedo, dock };
   return { ...held, remove, covered, architecture };
 }
 

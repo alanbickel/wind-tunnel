@@ -17,6 +17,9 @@ import {
   bar,
   clickRun,
   detailsHeading,
+  dock,
+  dockPanel,
+  inspector,
   queryDetailsHeading,
   renderOpenedProject as renderProject,
   status,
@@ -95,8 +98,8 @@ describe("OpenedProject's project bar", () => {
   });
 
   // Fails if the top bar loses the project's name, the picker, or Run, or
-  // a run started from the bar doesn't fill the Run tab.
-  it("shows the project and runs it, filling the Run tab", () => {
+  // a run started from the bar doesn't fill the dock's Run overlay.
+  it("shows the project and runs it, filling the dock's Run overlay", () => {
     const { runner } = renderProject();
     const inBar = within(bar());
     expect(
@@ -109,9 +112,10 @@ describe("OpenedProject's project bar", () => {
     clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
 
-    const runTab = screen.getByRole("tabpanel", { name: "Run" });
     expect(
-      within(runTab).getByRole("table", { name: "Requests (run totals)" }),
+      within(dockPanel("Run")).getByRole("table", {
+        name: "Requests (run totals)",
+      }),
     ).toBeTruthy();
     expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
   });
@@ -146,8 +150,7 @@ describe("OpenedProject's project bar", () => {
 
     expect(requestsSoFar()).toEqual(["All workflows", "8", "2", "1", "5"]);
     expect(screen.getByText("2 of 5 simulated seconds")).toBeTruthy();
-    const runTab = screen.getByRole("tabpanel", { name: "Run" });
-    expect(within(runTab).getAllByRole("figure")).toHaveLength(4);
+    expect(within(dockPanel("Run")).getAllByRole("figure")).toHaveLength(4);
     await runner.finish();
     expect(status()).toBe("Finished Steady. Failing so far.");
   });
@@ -354,7 +357,7 @@ describe("OpenedProject in a wide window", () => {
     clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
 
-    const runTab = screen.getByRole("tabpanel", { name: "Run" });
+    const runTab = within(inspector()).getByRole("tabpanel", { name: "Run" });
     const [first, ...rest] = within(runTab).getAllByRole("heading");
 
     expect(first?.tagName).toBe("H3");
@@ -370,11 +373,13 @@ describe("OpenedProject in a wide window", () => {
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
 
     fireEvent.click(screen.getByRole("tab", { name: "Details" }));
-    expect(screen.queryByRole("table")).toBeNull();
+    expect(
+      within(inspector()).queryByRole("tabpanel", { name: "Run" }),
+    ).toBeNull();
     runner.send(sampleSnapshot({ second: 2, read: { started: 3 } }));
     expect(runner.stopped).toBe(false);
     await runner.finish();
-    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+    fireEvent.click(within(inspector()).getByRole("tab", { name: "Run" }));
 
     expect(runner.runs).toBe(1);
     expect(status()).toBe("Finished Steady. Healthy so far.");
@@ -450,16 +455,17 @@ describe("OpenedProject in a narrow window", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the tab roles show in a narrow window, where there are no
-  // tabs for a screen reader to move between, or the run's results stop
-  // following the model in a Run panel the keyboard can scroll.
-  it("has no tabs, and shows the run in a panel of its own", () => {
+  // Fails if the inspector's tab roles show in a narrow window, where its
+  // content is stacked, or the run's results stop following the model in a
+  // Run panel the keyboard can scroll.
+  it("has no tabs but the dock's, and shows the run in a panel of its own", () => {
     const { runner } = renderProject({ width: "narrow" });
     clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
 
-    expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.getAllByRole("tablist")).toEqual([
+      within(dock()).getByRole("tablist"),
+    ]);
     expect(screen.queryByText(/^Nothing selected./)).toBeNull();
     const panel = screen.getByRole("region", { name: "Run" });
     expect(panel.tabIndex).toBe(0);

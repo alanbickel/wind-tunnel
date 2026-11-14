@@ -38,8 +38,8 @@ function projectWith(mix: MixEntry[]): Project {
 }
 
 function dock(): HTMLElement {
-  screen.getByRole("region", { name: "Workload dock" });
-  return screen.getByRole("region", { name: "Workload dock" });
+  screen.getByRole("region", { name: "Dock" });
+  return screen.getByRole("region", { name: "Dock" });
 }
 
 function selectSteady(): void {

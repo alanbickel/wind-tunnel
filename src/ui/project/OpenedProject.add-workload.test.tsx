@@ -29,7 +29,7 @@ function addWorkload(): HTMLElement {
 }
 
 function nameField(): HTMLInputElement {
-  const details = screen.getByRole("region", { name: "Workload dock" });
+  const details = screen.getByRole("region", { name: "Dock" });
   return within(details).getByRole("textbox", { name: "Name" });
 }
 
@@ -111,7 +111,7 @@ describe("OpenedProject's adding a workload", () => {
     expect(
       screen.getByRole("button", { name: "workload-1 · 1 problem" }),
     ).toBeTruthy();
-    const details = screen.getByRole("region", { name: "Workload dock" });
+    const details = screen.getByRole("region", { name: "Dock" });
     expect(
       within(details).getByText(
         "No workflows in the mix. A workload with an empty mix can't run.",

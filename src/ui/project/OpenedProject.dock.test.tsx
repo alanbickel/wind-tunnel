@@ -350,7 +350,7 @@ describe("OpenedProject's run evidence", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the inspector's Run tab still draws the totals or a chart, or
+  // Fails if the run's explanation still draws the totals or a chart, or
   // the dock draws a chart twice or leaves one out.
   it("draws each chart once, in the dock, and none in the inspector, wide", async () => {
     const shown = renderProject();

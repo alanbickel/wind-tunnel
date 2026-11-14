@@ -56,7 +56,7 @@ export interface VerdictChipText {
 
 /**
  * The chip beside Run: the verdict, with the share of answered requests
- * that failed when it's failing (the share the Run tab's summary gives);
+ * that failed when it's failing (the share the run's explanation gives);
  * the run's progress while it goes; nothing before the first run, or until
  * a finished run's verdict has caught up.
  */

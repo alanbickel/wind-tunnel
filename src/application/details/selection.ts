@@ -58,8 +58,8 @@ export interface NewWorkflowSelection {
 
 /**
  * A finding of the run on screen, by its key. Unlike the others it has no
- * Details: it marks its component on the diagram, and the inspector stays
- * on the Run tab. The finding is worded from the run's copy of the
+ * Details: it marks its component on the diagram, and the inspector keeps
+ * showing the run's explanation. The finding is worded from the run's copy of the
  * project (ADR-0018), so its component may be gone from the project.
  */
 export interface FindingSelection {

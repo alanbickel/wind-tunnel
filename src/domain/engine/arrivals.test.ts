@@ -152,6 +152,40 @@ describe("a profile point past the run's end", () => {
     );
   });
 
+  // Fails if a point past the end that is the new highest rate stops
+  // changing the candidate stream (the same seed would then give the same
+  // run), or if it changes the distribution: the last five seconds still
+  // hold about 7,750 arrivals.
+  it("changes the draws, not the distribution, through a new highest point", () => {
+    const higher = [...toward, { atMs: 60_000, requestsPerSec: 3_000 }];
+    const times = arrivals(process(cutAt45s(higher)));
+    const lastFiveSeconds = times.filter((t) => t >= 40_000);
+
+    expect(times).not.toEqual(arrivals(process(cutAt45s(toward))));
+    expect(lastFiveSeconds.length).toBeGreaterThan(7_400);
+    expect(lastFiveSeconds.length).toBeLessThan(8_100);
+  });
+
+  // Fails if a profile that ends before the run stops holding its last rate:
+  // from 10 s to 20 s, 500 requests/s gives about 5,000 arrivals, and none
+  // (or a falling count) would mean the rate dropped to zero.
+  it("holds the last rate to the end when the profile ends early", () => {
+    const early = workload({
+      durationMs: 20_000,
+      profile: [
+        { atMs: 0, requestsPerSec: 100 },
+        { atMs: 10_000, requestsPerSec: 500 },
+      ],
+    });
+    const times = arrivals(process(early));
+    const heldPart = times.filter((t) => t >= 10_000);
+
+    expect(rateAt(early.profile, 20_000)).toBe(500);
+    // A Poisson count of 5,000 has a standard deviation of about 71.
+    expect(heldPart.length).toBeGreaterThan(4_700);
+    expect(heldPart.length).toBeLessThan(5_300);
+  });
+
   // Fails if a point exactly at the end, on the same line, changes an
   // arrival.
   it("changes no arrival through a point on the line at the end", () => {

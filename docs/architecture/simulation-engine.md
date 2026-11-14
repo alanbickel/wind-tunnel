@@ -136,6 +136,19 @@ flowchart LR
 
 Under load, queries wait for one of the 16 workers while still holding a connection. Waiting longer means more connections are held at once, until the 90th is taken and new requests fail.
 
+## How a profile becomes arrivals
+
+A workload's profile is a list of points (time, requests per second). [`rateAt`](../../src/domain/engine/arrivals.ts) draws a straight line between neighboring points, and [`PoissonArrivalProcess`](../../src/domain/engine/poisson-arrival-process.ts) turns that line into arrival times by **thinning**: it draws candidate arrivals at the highest rate of any point, then keeps each candidate at time *t* with probability `rateAt(t) / highest rate`. Arrivals stop at the workload's `durationMs`.
+
+Two cases put a point at or past the duration:
+
+- **The slope.** The first point at or after the duration is the end of the line the run is on, so the rate before the duration follows the line toward it. With 2,000 requests/s at 40 s and 200 at 50 s, a 45 s run ends at 1,100 requests/s, not 2,000, and the 5 s from 40 s to 45 s see about 7,750 arrivals, not the 10,000 a flat 2,000 would give. Points after that one change nothing about the rate.
+- **The draws.** The highest rate counts every point, past the duration included. A point past the duration that is the new highest changes the candidate stream, so the same seed gives another run with the same distribution. A point that isn't the highest changes no draw.
+
+A profile that ends before the duration holds its last rate to the end: `rateAt` returns the last point's rate past it.
+
+The numbers above are checked in [`arrivals.test.ts`](../../src/domain/engine/arrivals.test.ts) ("a profile point past the run's end"), so they stay true.
+
 ## The engine loop: a request's journey
 
 [`simulate()`](../../src/domain/engine/create-simulation.ts) runs one workload against a project. `createSimulation` builds each component's behavior from the registry, along with the run's other collaborators, and passes them all to `Simulation`, which pops events until the workload's duration is over. What happens is reported to an **observer** callback as `SimulationEvent`s (`workflow-started`, `component-arrived`, `component-started`, `component-rejected`, `edge-attempt-failed`, …). The [metrics collector](metrics.md) is such an observer; with `tickMs` set, the engine also reports a `metrics-tick` with every component's state each simulated second.

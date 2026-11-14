@@ -152,9 +152,15 @@ export function dock(): HTMLElement {
   return found;
 }
 
-/** The dock's tabs' labels, in order. */
+/**
+ * The dock's tabs' labels, in order. The tab list is named apart from the
+ * dock's region, so a screen reader doesn't hear "Dock" twice.
+ */
 export function dockTabs(): (string | null)[] {
-  return within(dock())
+  const tabList = within(dock()).getByRole("tablist", {
+    name: "Dock overlays",
+  });
+  return within(tabList)
     .getAllByRole("tab")
     .map((tab) => tab.textContent);
 }

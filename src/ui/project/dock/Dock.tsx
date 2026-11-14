@@ -34,7 +34,7 @@ export function Dock(props: DockProps) {
   return (
     <DockBand folded={folded} onFold={fold}>
       <Tabs
-        label="Dock"
+        label="Dock overlays"
         selected={selected}
         onSelect={show}
         tabs={keys.map((key) => {

@@ -29,8 +29,9 @@ export interface InspectorProps {
  * the Details and Run tabs. Close collapses it to a narrow strip on the
  * canvas's right edge, whose button opens it again; it's one button, so
  * the focus stays on it either way. Selecting anything, or Run, opens it
- * too. Collapsed, the tabs stay mounted, hidden, so the run's charts are
- * still there when it opens.
+ * too. Collapsed, the tabs stay mounted, hidden, so a draft and the run's
+ * findings are still there when it opens. The run's totals and charts are
+ * the dock's.
  */
 export function Inspector({ ref, ...props }: InspectorProps) {
   const { inspectorOpen, showInspector } = props.selecting;

@@ -168,7 +168,7 @@ describe("OpenedProject's inspector", () => {
   });
 
   // Fails if the run's results are unmounted while the inspector is
-  // collapsed, which would drop its charts.
+  // collapsed, which would drop its findings.
   it("keeps the tabs mounted, hidden, while collapsed", () => {
     renderProject();
     const runTab = screen.getByRole("tabpanel", { name: "Run" });

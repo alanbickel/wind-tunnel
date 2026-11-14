@@ -9,6 +9,8 @@ import { revealButton } from "./testing/canvas-panels";
 import {
   bar,
   clickRun,
+  dockPanel,
+  inspector,
   renderOpenedProject as renderProject,
   status,
   statusRegions,
@@ -48,7 +50,7 @@ const EARLIER_VERSION =
   "This run is of an earlier version of the project. Run again to see your changes.";
 
 function runTab(): HTMLElement {
-  return screen.getByRole("tabpanel", { name: "Run" });
+  return within(inspector()).getByRole("tabpanel", { name: "Run" });
 }
 
 describe("OpenedProject's run when the project changes", () => {
@@ -74,18 +76,21 @@ describe("OpenedProject's run when the project changes", () => {
   });
 
   // Fails if a change to the project after a run doesn't mark it out of
-  // date in the bar and the Run tab, or the findings go with it.
+  // date in the bar, the Run tab, and the dock's Run overlay, whose tables
+  // are of that version too, or the findings go with it.
   it("says the run is out of date, and keeps its findings", async () => {
     const { runner, change } = renderProject();
     clickRun();
     runner.send(throttledSecond(1));
     await runner.finish();
     expect(within(runTab()).queryByText(EARLIER_VERSION)).toBeNull();
+    expect(within(dockPanel("Run")).queryByText(EARLIER_VERSION)).toBeNull();
 
     change(withTableNamed("Orders"));
 
     expect(statusRegions()[1].textContent).toBe("Out of date");
     expect(within(runTab()).getByText(EARLIER_VERSION)).toBeTruthy();
+    expect(within(dockPanel("Run")).getByText(EARLIER_VERSION)).toBeTruthy();
     expect(status()).toBe("Finished Steady. Failing so far.");
     expect(
       within(runTab()).getByRole("heading", { name: "Failing so far" }),

@@ -66,7 +66,7 @@ function select(name: string): void {
 }
 
 function details(): HTMLElement {
-  return screen.getByRole("region", { name: "Workload dock" });
+  return screen.getByRole("region", { name: "Dock" });
 }
 
 function weights(): HTMLInputElement[] {

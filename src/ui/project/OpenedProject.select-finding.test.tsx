@@ -15,6 +15,7 @@ import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-
 import { revealButton } from "./testing/canvas-panels";
 import {
   clickRun,
+  inspector,
   renderOpenedProject as renderProject,
   type RenderedProject,
 } from "./testing/render-opened-project";
@@ -43,7 +44,7 @@ function withoutTable(): Project {
 }
 
 function runTab(): HTMLElement {
-  return screen.getByRole("tabpanel", { name: "Run" });
+  return within(inspector()).getByRole("tabpanel", { name: "Run" });
 }
 
 /** The Run tab's finding buttons, which each start with their number. */
@@ -67,7 +68,7 @@ async function drawnNode(componentId: string): Promise<Element> {
 }
 
 function selectedTab(): string | null | undefined {
-  return screen
+  return within(inspector())
     .getAllByRole("tab")
     .find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
 }
@@ -150,7 +151,7 @@ describe("OpenedProject's selected finding", () => {
     fireEvent.click(await drawnNode("fn"));
 
     expect(selectedTab()).toBe("Details");
-    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+    fireEvent.click(within(inspector()).getByRole("tab", { name: "Run" }));
     expect(firstFinding().getAttribute("aria-current")).toBeNull();
   });
 

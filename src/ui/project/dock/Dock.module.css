@@ -1,0 +1,32 @@
+/* A narrow window: a full-width section after the inspector's content, in
+   page order. */
+.dock {
+  padding: var(--space-5);
+  border-top: var(--floating-border);
+  background: var(--color-surface);
+}
+
+.bar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Wide windows: a band under the canvas, which gives up the height. The
+   tabs stay in view, and the shown overlay scrolls inside its panel. */
+@media (min-width: 64rem) {
+  .dock {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    max-height: 50%;
+    overflow-y: auto;
+  }
+
+  /* Not while folded: a display here would override `hidden`'s. */
+  .body:not([hidden]) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+}

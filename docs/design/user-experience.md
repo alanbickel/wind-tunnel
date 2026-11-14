@@ -23,7 +23,7 @@ The canvas fills the window. Everything else sits over it or docks to it:
 - **The top bar** says where you are and whether the project holds up: the project's name (rename it there), Undo and Redo, the workload picker, Run and Stop, and the verdict ("Failing · 43.7%"), with "Out of date" once the project has changed since the run.
 - **The canvas** is your system: a box per component, an arrow per edge. A small tool rail on the left adds components, connects them, and opens the workflows and workloads. At the bottom left are the workflow picker, the diagram's text version, and zoom.
 - **The inspector** floats over the right of the canvas and shows whatever is selected: a component's settings, an edge's, a workflow's steps, or, after a run with nothing selected, the run's explanation. Escape closes it.
-- **The dock** runs along the bottom and holds the things that are about time: the run's timeline, and the workload editor when a workload is open. It folds down to one line.
+- **The dock** runs along the bottom and holds the things that are about time: the run's timeline, and the workload editor when a workload is open. Each sits in a tab of its own, the run's first, from the moment a run starts, and the open workload's after it ("Workload: Lunch rush"). Run shows the run's tab and selecting a workload shows its tab, and switching tabs changes no selection. With neither, there's no dock. It folds down to one line.
 
 **Why canvas-first.** The diagram is the user's system, the thing being built, and it's where an explanation lands best: "orders-db refused" means most on the orders-db box. On M6's screen the diagram has about a sixth of the window and says nothing after a run. [IcePanel](https://icepanel.io/) is the model for how this should feel: a full-bleed canvas, quiet floating chrome, and editing done on the picture rather than in forms.
 
@@ -66,7 +66,7 @@ The screen has one selection, or none: a component, an edge, a workflow, a step,
 | Edge | Thickens the arrow | Its latency, timeout, retry, and the steps that call along it | |
 | Workflow | Highlights the boxes and arrows it uses, fades the rest, numbers its steps | Its outline | Its row in the workflow picker is marked |
 | Step | Marks the step's box and the arrow its call arrives on | The workflow's outline, with the step marked | |
-| Workload | Nothing | Closes: the workload opens in the dock | The top bar's picker picks it |
+| Workload | Nothing | Closes: the workload opens in its own tab of the dock | The top bar's picker picks it. Switching the dock's tabs keeps it selected and picked |
 | Finding | Marks the boxes it names | Stays on the run's explanation | |
 
 - **Selecting** a component, edge, workflow, step, or workload moves the focus to the heading of what opened (the inspector, or the dock for a workload). Escape there clears the selection and returns the focus to whatever made it. Selecting a finding leaves the focus on the finding.

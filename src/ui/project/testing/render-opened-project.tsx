@@ -136,8 +136,37 @@ export function queryDetailsHeading(): HTMLElement | null {
   const details =
     screen.queryByRole("tabpanel", { name: "Details" }) ??
     screen.queryByRole("region", { name: "Details" }) ??
-    screen.queryByRole("region", { name: "Workload dock" });
+    queryDock();
   return details && within(details).queryByRole("heading", { level: 4 });
+}
+
+/** The dock under the canvas; null while it has nothing to show. */
+export function queryDock(): HTMLElement | null {
+  return screen.queryByRole("region", { name: "Dock" });
+}
+
+/** The dock, which must be there. */
+export function dock(): HTMLElement {
+  const found = queryDock();
+  if (found === null) throw new Error("the dock should be there");
+  return found;
+}
+
+/** The dock's tabs' labels, in order. */
+export function dockTabs(): (string | null)[] {
+  return within(dock())
+    .getAllByRole("tab")
+    .map((tab) => tab.textContent);
+}
+
+/** The dock's shown overlay: its panel, named by its tab's label. */
+export function dockPanel(label: string | RegExp): HTMLElement {
+  return within(dock()).getByRole("tabpanel", { name: label });
+}
+
+/** A wide window's inspector, which floats over the canvas. */
+export function inspector(): HTMLElement {
+  return screen.getByRole("region", { name: "Inspector" });
 }
 
 /** The Details heading, which must be there. */

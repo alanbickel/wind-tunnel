@@ -66,7 +66,7 @@ function CauseBegan({ finding: { causeWindow }, text }: CauseBeganProps) {
   return <p>{text.message(say`Cause began at ${at(causeWindow.fromMs)}.`)}</p>;
 }
 
-interface FixesProps {
+export interface FixesProps {
   readonly fixes: readonly Fix[];
   readonly text: FindingText;
 }
@@ -76,17 +76,28 @@ function Fixes({ fixes, text }: FixesProps) {
   return (
     <>
       <p className={styles.listHeading}>Fixes:</p>
-      <ul className={styles.list}>
-        {fixes.map((fix, i) => (
-          <li key={i}>
-            <strong>{SCOPE_LABELS[fix.scope]}:</strong>{" "}
-            {text.message(fix.message)} (
-            <ClaimText claim={fix.claim} />
-            {fidelityText(fix)})
-          </li>
-        ))}
-      </ul>
+      <FixList fixes={fixes} text={text} />
     </>
+  );
+}
+
+/**
+ * Each fix: its scope label, its message, and its evidence, with the
+ * fidelity entries where a difference from AWS could matter. A finding's
+ * explanation lists its fixes so, and the run's explanation its Try.
+ */
+export function FixList({ fixes, text }: FixesProps) {
+  return (
+    <ul className={styles.list}>
+      {fixes.map((fix, i) => (
+        <li key={i}>
+          <strong>{SCOPE_LABELS[fix.scope]}:</strong>{" "}
+          {text.message(fix.message)} (
+          <ClaimText claim={fix.claim} />
+          {fidelityText(fix)})
+        </li>
+      ))}
+    </ul>
   );
 }
 

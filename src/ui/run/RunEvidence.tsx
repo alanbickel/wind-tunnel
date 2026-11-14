@@ -16,7 +16,7 @@ export type RunEvidenceProps = Pick<ProjectRun, "meaning" | "outOfDate">;
  * The latest run's evidence: its totals, then its charts, each with its
  * table; a line saying so before the first snapshot. A run of an earlier
  * version of the project opens with a line saying so, since the tables
- * are of that version too. What the run means is `RunResults`'.
+ * are of that version too. What the run means is `RunExplanation`'s.
  */
 export function RunEvidence({ meaning, outOfDate }: RunEvidenceProps) {
   if (meaning === undefined) return <NothingRunYet />;

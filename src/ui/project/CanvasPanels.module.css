@@ -50,6 +50,9 @@
 
 @media (min-width: 64rem) {
   .corner {
-    max-width: calc(100% - var(--run-panel-min-width) - 3 * var(--space-4));
+    max-width: calc(
+      100% - max(var(--inspector-min-width), var(--inspector-width)) - 3 *
+        var(--space-4)
+    );
   }
 }

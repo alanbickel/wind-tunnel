@@ -124,9 +124,13 @@
      least height on a short window. */
   --diagram-height: 25rem;
   --diagram-min-height: 12rem;
-  /* The least width of the column beside the canvas (the Details and Run
-     tabs), so the run's tables fit. */
-  --run-panel-min-width: 36rem;
+  /* The wide window's inspector, beside the canvas: about a quarter of the
+     window, as the after-run mock has it, but never so narrow that a
+     component's fields, a name field (--text-field-width) beside its label,
+     stop fitting a row. At the wide breakpoint, 20rem is under a third of
+     the window, which leaves the diagram room beside it. */
+  --inspector-width: 25vw;
+  --inspector-min-width: 20rem;
   /* Fields in Details: a number fits a value like "10,000.5"; a name
      takes a typical component name, and wraps its row on a narrow panel. */
   --number-field-width: 9ch;

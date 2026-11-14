@@ -28,6 +28,7 @@ import { createDetectors } from "../application/run-analysis/findings/create-det
 import { componentNames } from "../application/run-analysis/component-names";
 import { createPhrasebook } from "../application/run-analysis/findings/create-phrasebook";
 import { findRun } from "../application/run-analysis/findings/find-run";
+import { suggestedFixes } from "../application/run-analysis/findings/suggested-fixes";
 import { RunSimulation } from "../application/use-cases/run-simulation";
 import { createAwsComponentRegistry } from "../domain/components/aws";
 import type { MetricsSnapshot } from "../domain/metrics/metrics-snapshot";
@@ -85,6 +86,8 @@ interface PanelRunInput {
 interface PanelRun {
   readonly cliVerdict: string;
   readonly cliSummaries: string[];
+  /** How many fixes the findings suggest, each counted once. */
+  readonly cliFixCount: number;
 }
 
 /**
@@ -141,6 +144,7 @@ function cliReading(run: Parameters<typeof findRun>[0]): PanelRun {
   return {
     cliVerdict: formatVerdict(findings.verdict, wording),
     cliSummaries: summaries,
+    cliFixCount: suggestedFixes(findings).length,
   };
 }
 
@@ -199,6 +203,26 @@ describe("the run panel's findings, Template A, lunch rush", () => {
   it("says what the CLI says", () => {
     expect(panelVerdict()).toBe(cli.cliVerdict);
     expect(panelSummaries()).toEqual(cli.cliSummaries);
+  });
+
+  // Fails if the explanation isn't headed by the run's workload, its parts
+  // are out of order, or Try lists a fix twice or drops one, against the
+  // count `suggestedFixes` gives for the same snapshots.
+  it("explains the run under its workload: the verdict, Why, then Try, each fix once", () => {
+    const explanation = screen.getByRole("region", { name: /^Run: / });
+    const headings = within(explanation)
+      .getAllByRole("heading")
+      .map((heading) => heading.textContent);
+    expect(headings[0]).toMatch(/^Run: Lunch rush/);
+    expect(headings.slice(1)).toEqual(["Failing", "Why", "Try"]);
+    const tryList = within(explanation).getByRole("heading", { name: "Try" })
+      .nextElementSibling as HTMLElement;
+    const fixes = within(tryList)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent);
+    expect(fixes.length).toBeGreaterThan(0);
+    expect(fixes).toHaveLength(cli.cliFixCount);
+    expect(new Set(fixes).size).toBe(fixes.length);
   });
 
   // Fails if the run isn't read as failing, the connections failure isn't

@@ -81,7 +81,7 @@ Each use case is a class: ports go into the constructor as one object, and the w
 | `RunSimulation` | runner, registry | `finished` with the run, `stopped`, `workload-missing`, or `cant-run` with the workload's run check |
 | `CheckWorkloads` | registry | Each workload's run check: whether it can run, its issues worded by name, and a summary for the top bar. Synchronous: it reads no port |
 | `CheckWorkflows` | registry | Each workflow's run check: its problem count for the workflows list, and each step's issues worded for the outline. Synchronous |
-| `DescribeSelection` | registry, field descriptors | What the Details tab shows for a selected component, edge, workflow, or step, or undefined if the project has no such item. Synchronous: it reads no port |
+| `DescribeSelection` | registry, field descriptors | What the inspector's Details shows for a selected component, edge, workflow, or step, or undefined if the project has no such item. Synchronous: it reads no port |
 | `ListComponentTypes` | registry, field descriptors | The types "Add component" offers, in registration order, each with its line on what it's for. Synchronous |
 | `NewComponent` | registry, ids | The input for `addComponent`: a new id and the type's `defaultConfig`, or undefined for an unknown type. Synchronous |
 | `NewEdge` | registry, ids | The input for `connectComponents`: a new id and the caller type's `edgeDefaults`, or undefined if the caller isn't in the project or its type is unknown. Synchronous |

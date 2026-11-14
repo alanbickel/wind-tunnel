@@ -1,10 +1,12 @@
 import { useId, useMemo } from "react";
 import type { RunFindings } from "../../application/run-analysis/findings/find-run";
 import type { FindingsWording } from "../../application/run-analysis/findings/findings-wording";
+import { suggestedFixes } from "../../application/run-analysis/findings/suggested-fixes";
 import type { Verdict } from "../../application/run-analysis/findings/verdict";
 import type { KeyboardEvent } from "react";
 import type { FindingSelecting } from "./finding-selecting";
 import type { FindingText } from "./finding-text";
+import { FixList } from "./FindingDetails";
 import { FindingList } from "./FindingItem";
 import styles from "./Findings.module.css";
 import { MessageText } from "./MessageText";
@@ -18,8 +20,9 @@ export interface FindingsProps {
 }
 
 /**
- * What the run means so far: the verdict, then each finding with its causes
- * beneath it, worded in the long form as the CLI words them. Each is a
+ * What the run means so far: the verdict; Why, each finding with its causes
+ * beneath it, worded in the long form as the CLI words them; then Try, the
+ * fixes they suggest. Each finding is a
  * button that selects it; Escape in the section clears the selection, once
  * an open explanation has had its own Escape.
  */
@@ -39,7 +42,23 @@ export function Findings({ findings, wording, selecting }: FindingsProps) {
         headingId={headingId}
         text={text}
       />
-      <h4 className={styles.heading}>Findings</h4>
+      <Why findings={findings} text={text} selecting={selecting} />
+      <Try findings={findings} text={text} />
+    </section>
+  );
+}
+
+interface WhyProps {
+  readonly findings: RunFindings;
+  readonly text: FindingText;
+  readonly selecting: FindingSelecting;
+}
+
+/** Each finding, with its causes beneath it; "None." with none. */
+function Why({ findings, text, selecting }: WhyProps) {
+  return (
+    <>
+      <h4 className={styles.heading}>Why</h4>
       {findings.findings.length === 0 ? (
         <p className={styles.none}>None.</p>
       ) : (
@@ -50,7 +69,27 @@ export function Findings({ findings, wording, selecting }: FindingsProps) {
           selecting={selecting}
         />
       )}
-    </section>
+    </>
+  );
+}
+
+interface TryProps {
+  readonly findings: RunFindings;
+  readonly text: FindingText;
+}
+
+/**
+ * The fixes the findings suggest, each once, in the findings' order, with
+ * the evidence for each; nothing, not even the heading, when there are none.
+ */
+function Try({ findings, text }: TryProps) {
+  const fixes = useMemo(() => suggestedFixes(findings), [findings]);
+  if (fixes.length === 0) return null;
+  return (
+    <>
+      <h4 className={styles.heading}>Try</h4>
+      <FixList fixes={fixes} text={text} />
+    </>
   );
 }
 

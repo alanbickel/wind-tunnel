@@ -15,8 +15,11 @@ import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-
 import { revealButton } from "./testing/canvas-panels";
 import {
   clickRun,
+  detailsHeading,
   inspector,
+  queryRunExplanation,
   renderOpenedProject as renderProject,
+  runExplanation,
   type RenderedProject,
 } from "./testing/render-opened-project";
 
@@ -43,13 +46,11 @@ function withoutTable(): Project {
   };
 }
 
-function runTab(): HTMLElement {
-  return within(inspector()).getByRole("tabpanel", { name: "Run" });
-}
-
-/** The Run tab's finding buttons, which each start with their number. */
+/** The run's explanation's finding buttons, which each start with their number. */
 function findingButtons(): HTMLElement[] {
-  return within(runTab()).getAllByRole("button", { name: /^\d+(\.\d+)*\. / });
+  return within(runExplanation()).getAllByRole("button", {
+    name: /^\d+(\.\d+)*\. /,
+  });
 }
 
 /** The first finding's button; the run's one failure, at the table. */
@@ -65,12 +66,6 @@ async function drawnNode(componentId: string): Promise<Element> {
     expect(document.querySelector(selector)).not.toBeNull();
   });
   return document.querySelector(selector) as Element;
-}
-
-function selectedTab(): string | null | undefined {
-  return within(inspector())
-    .getAllByRole("tab")
-    .find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
 }
 
 /** A project that has run, with the table throttling a read. */
@@ -109,18 +104,19 @@ describe("OpenedProject's selected finding", () => {
     expect(row.getAttribute("aria-current")).toBe("true");
   });
 
-  // Fails if selecting a finding moves the focus to Details, leaves the
-  // Run tab, or opens Details for it: the one selection that doesn't.
-  it("keeps the focus on the finding and the inspector on the Run tab", async () => {
+  // Fails if selecting a finding moves the focus to Details, replaces the
+  // run's explanation, or opens Details for it: the one selection that
+  // doesn't.
+  it("keeps the focus on the finding and the inspector on the run's explanation", async () => {
     await renderRun();
     firstFinding().focus();
 
     fireEvent.click(firstFinding());
 
     expect(document.activeElement).toBe(firstFinding());
-    expect(selectedTab()).toBe("Run");
-    fireEvent.click(screen.getByRole("tab", { name: "Details" }));
-    expect(screen.getByText(/^Nothing selected./)).toBeTruthy();
+    expect(within(inspector()).queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Details" })).toBeNull();
+    expect(runExplanation()).toBeTruthy();
   });
 
   // Fails if Escape in the findings leaves the finding selected or moves
@@ -140,7 +136,7 @@ describe("OpenedProject's selected finding", () => {
   });
 
   // Fails if a click on the empty canvas leaves the finding selected, or
-  // selecting a component doesn't replace it.
+  // selecting a component doesn't replace it with the component's details.
   it("clears on a click on the empty canvas, and gives way to another selection", async () => {
     await renderRun();
     fireEvent.click(firstFinding());
@@ -150,8 +146,8 @@ describe("OpenedProject's selected finding", () => {
     fireEvent.click(firstFinding());
     fireEvent.click(await drawnNode("fn"));
 
-    expect(selectedTab()).toBe("Details");
-    fireEvent.click(within(inspector()).getByRole("tab", { name: "Run" }));
+    expect(queryRunExplanation()).toBeNull();
+    fireEvent.keyDown(detailsHeading(), { key: "Escape" });
     expect(firstFinding().getAttribute("aria-current")).toBeNull();
   });
 
@@ -161,7 +157,7 @@ describe("OpenedProject's selected finding", () => {
   it("says so when the finding's component has gone since the run", async () => {
     const { change } = await renderRun();
     change(withoutTable());
-    const regions = within(runTab()).getAllByRole("status");
+    const regions = within(runExplanation()).getAllByRole("status");
     expect(regions.every((region) => region.textContent === "")).toBe(true);
 
     fireEvent.click(firstFinding());

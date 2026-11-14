@@ -45,7 +45,7 @@ function historyButton(verb: "Undo" | "Redo"): HTMLElement {
 
 /** A text field in Details, by its label. */
 function field(name: string): HTMLInputElement {
-  const details = screen.getByRole("tabpanel", { name: "Details" });
+  const details = screen.getByRole("region", { name: "Details" });
   return within(details).getByRole("textbox", { name });
 }
 
@@ -294,10 +294,9 @@ describe("OpenedProject's undo and redo", () => {
     fireEvent.click(historyButton("Undo"));
 
     // Details says "Nothing selected" for a selection that's gone, so the
-    // Run tab, which clearing shows, is what says the selection cleared.
+    // Details region going, which clearing does, is what says it cleared.
     expect(queryDetailsHeading()).toBeNull();
-    const runTab = screen.getByRole("tab", { name: "Run" });
-    expect(runTab.getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByRole("region", { name: "Details" })).toBeNull();
     expect(undoneRegion().textContent).toBe("Undid: add sqs-1.");
     expect(document.activeElement).toBe(historyButton("Undo"));
   });

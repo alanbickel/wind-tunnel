@@ -350,7 +350,7 @@ describe("OpenedProject's run evidence", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the inspector's Run tab still draws the totals or a chart, or
+  // Fails if the run's explanation still draws the totals or a chart, or
   // the dock draws a chart twice or leaves one out.
   it("draws each chart once, in the dock, and none in the inspector, wide", async () => {
     const shown = renderProject();
@@ -367,14 +367,13 @@ describe("OpenedProject's run evidence", () => {
     ).toBeTruthy();
   });
 
-  // Fails if the narrow window's Run panel still draws the totals or a
-  // chart, or the dock doesn't follow the inspector's content, with its
-  // tabs, in page order.
-  it("draws each chart once, in the dock after the Run panel, narrow", async () => {
+  // Fails if the narrow window's inspector draws the totals or a chart, or
+  // the dock doesn't follow the inspector, with its tabs, in page order.
+  it("draws each chart once, in the dock after the inspector, narrow", async () => {
     const shown = renderProject({ width: "narrow" });
     await runASecond(shown);
 
-    const runPanel = screen.getByRole("region", { name: "Run" });
+    const runPanel = screen.getByRole("region", { name: "Inspector" });
     expect(runPanel.querySelectorAll("table, figure")).toHaveLength(0);
     expect(document.querySelectorAll("figure")).toHaveLength(4);
     expect(dock().querySelectorAll("figure")).toHaveLength(4);

@@ -38,7 +38,7 @@ function addWorkflowButton(): HTMLElement {
 }
 
 function detailsPanel(): HTMLElement {
-  return screen.getByRole("tabpanel", { name: "Details" });
+  return screen.getByRole("region", { name: "Details" });
 }
 
 function nameField(): HTMLInputElement {

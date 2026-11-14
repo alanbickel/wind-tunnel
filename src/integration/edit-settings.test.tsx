@@ -53,7 +53,7 @@ function openAndSelect(
 }
 
 function detailsTab(): HTMLElement {
-  return screen.getByRole("tabpanel", { name: "Details" });
+  return screen.getByRole("region", { name: "Details" });
 }
 
 /** A text field in Details, by its label, within `container` if given. */

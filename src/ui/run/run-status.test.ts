@@ -45,7 +45,7 @@ describe("verdictChipOf", () => {
   });
 
   // Fails if a failing run's chip leaves out the share of answered requests that failed.
-  it("gives a failing run's share, rounded down as the Run tab does", () => {
+  it("gives a failing run's share, rounded down as the run's explanation does", () => {
     expect(chip({ status: "finished", ...ran }, verdict("failing", 3))).toEqual(
       {
         level: "failing",

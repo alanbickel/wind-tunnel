@@ -45,6 +45,10 @@ function anchorOf(heading: string): string {
     .replaceAll(" ", "-");
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 describe("the findings catalog", () => {
   // Fails if an entry is added with no fixes, a type with no limits, or a
   // finding kind's entry is left out of these checks.
@@ -73,15 +77,19 @@ describe("the findings catalog", () => {
     }
   });
 
-  // Fails if an Observed fix names a test that isn't in exactly one of the
-  // template scenarios (say, after the test is renamed, or when two share
-  // a name and the claim no longer says which).
+  // Fails if an Observed fix names a test that isn't the title of an `it(`
+  // in exactly one of the template scenarios (say, after the test is
+  // renamed, even if the old name stays quoted in a comment, or when two
+  // share a name and the claim no longer says which).
   it("names a test that exists for every Observed fix", () => {
     for (const { label, fix } of fixes) {
       if (fix.claim.kind !== "observed") continue;
       const { test } = fix.claim;
+      // An `it(` title, not the name quoted in a comment. Prettier may put
+      // the name on the line after the `(`.
+      const title = new RegExp(`\\bit\\(\\s*"${escapeRegExp(test)}"`);
       const files = Object.entries(TEST_SOURCES).filter(([, source]) =>
-        source.includes(`"${test}"`),
+        title.test(source),
       );
       expect(
         files.map(([path]) => path),

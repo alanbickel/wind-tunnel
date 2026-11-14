@@ -105,10 +105,9 @@ const CLAIM_VIEWS: KindHandlers<Claim, ReactNode> = {
       {CLAIM_LABELS.documented}: <a href={url}>{title}</a>
     </>
   ),
-  observed: ({ file, test }) => (
+  observed: ({ test }) => (
     <>
-      {CLAIM_LABELS.observed}: <a href={repositoryFileUrl(file)}>{file}</a>,
-      &ldquo;{test}&rdquo;
+      {CLAIM_LABELS.observed}: &ldquo;{test}&rdquo;
     </>
   ),
   assumption: () => CLAIM_LABELS.assumption,

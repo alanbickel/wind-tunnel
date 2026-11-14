@@ -9,20 +9,19 @@ import type { TypeAdvice } from "./type-advice";
 
 const LUNCH_RUSH_TEST = {
   kind: "observed",
-  file: "src/adapters/templates/scenarios/lunch-rush.suite.ts",
   test: "fails requests in every second of the peak",
 } as const;
 
 const RAISE_QUERY_WORKERS: Fix = {
   scope: "wind-tunnel",
-  message: say`Raise queryWorkers, so queries stop waiting for a worker. A waiting query holds its connection, so the connections run out only while the workers are full: Template A's lunch rush fails nothing at 64.`,
+  message: say`Raise queryWorkers, so queries stop waiting for a worker. A waiting query holds its connection, so the connections run out only while the workers are full: with workers enough for the queries arriving, none is refused.`,
   claim: LUNCH_RUSH_TEST,
   fidelityIds: ["RDS-2", "RDS-3"],
 };
 
 const MORE_CONNECTIONS_ALONE: Fix = {
   scope: "wind-tunnel",
-  message: say`Raising maxConnections alone moves the failure upstream: in Template A's lunch rush at 5,000, waiting queries hold all of fn-orders' concurrency, and Lambda throttles instead.`,
+  message: say`Raising maxConnections alone moves the failure upstream: while the workers are full, waiting queries hold all of the calling function's concurrency, and Lambda throttles instead.`,
   claim: LUNCH_RUSH_TEST,
   fidelityIds: ["RDS-2"],
 };

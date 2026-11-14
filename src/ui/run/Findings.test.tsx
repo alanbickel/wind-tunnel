@@ -68,7 +68,7 @@ const failure = sampleFinding({
     }),
     fix({
       scope: "wind-tunnel",
-      claim: { kind: "observed", file: "src/x.test.ts", test: "shows it" },
+      claim: { kind: "observed", test: "shows it" },
     }),
     fix({ message: say`Raise ${component("fn")}'s limit.` }),
   ],
@@ -225,18 +225,14 @@ describe("Findings", () => {
     renderFindings([failure]);
     fireEvent.click(screen.getByRole("button", { name: "About finding 1" }));
     const docs = screen.getByRole("link", { name: "Lambda scaling" });
-    const test = screen.getByRole("link", { name: "src/x.test.ts" });
     const fixes = docs.closest("ul")?.querySelectorAll("li") ?? [];
 
     expect([...fixes].map((li) => li.textContent)).toEqual([
       "In AWS: Do it. (Documented: Lambda scaling; fidelity LAMBDA-1)",
-      "In Wind Tunnel: Do it. (Observed: src/x.test.ts, “shows it”)",
+      "In Wind Tunnel: Do it. (Observed: “shows it”)",
       "In AWS: Raise Function's limit. (Assumption)",
     ]);
     expect(docs.getAttribute("href")).toBe("https://example.com/scaling");
-    expect(test.getAttribute("href")).toMatch(
-      /\/blob\/main\/src\/x\.test\.ts$/,
-    );
     expect(
       screen.getByRole("link", { name: /^Learn more/ }).getAttribute("href"),
     ).toMatch(/\/docs\/learning\/aws-did-you-know\.md#lambda-scales$/);

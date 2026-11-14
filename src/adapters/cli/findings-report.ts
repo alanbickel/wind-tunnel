@@ -126,7 +126,7 @@ function fixLines(
 const CLAIMS: KindHandlers<Claim, string> = {
   documented: ({ title, url }) =>
     `${CLAIM_LABELS.documented}: ${title}, ${url}`,
-  observed: ({ file, test }) => `${CLAIM_LABELS.observed}: ${file}, "${test}"`,
+  observed: ({ test }) => `${CLAIM_LABELS.observed}: "${test}"`,
   assumption: () => CLAIM_LABELS.assumption,
 };
 

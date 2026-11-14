@@ -18,7 +18,7 @@ flowchart TB
         provider["<b>UseCasesProvider, useUseCases</b><br/>[Component: app/]<br/>Hands the use cases to any component"]:::component
         projects["<b>ProjectsScreen</b><br/>[Component: projects/]<br/>The project list, new blank or from a template"]:::component
         project["<b>ProjectScreen, ProjectBar</b><br/>[Component: project/]<br/>One project: its parts of the top bar, the canvas, the selection, and the inspector"]:::component
-        run["<b>useProjectRun, RunResults</b><br/>[Component: run/]<br/>The run's state, controls, verdict and findings, totals, chart content"]:::component
+        run["<b>useProjectRun, RunResults, RunEvidence</b><br/>[Component: run/]<br/>The run's state and controls, verdict and findings (RunResults), totals and chart content (RunEvidence)"]:::component
         storage["<b>useStoragePersistence</b><br/>[Component: storage/]<br/>Asks to keep the projects"]:::component
         theme["<b>useThemeChoice, tokens.css</b><br/>[Component: theme/]<br/>System, dark, or light; every color"]:::component
         diagram["<b>Diagram</b><br/>[Component: diagram/]<br/>Boxes and arrows, over React Flow, loaded lazily"]:::component
@@ -266,6 +266,33 @@ Worker posts finished
 ```
 
 If the flow changes, that test fails and the diff shows the new timeline. If the change is intended, run `npx vitest run src/ui/traces --update`, then update the excerpts on this page.
+
+## How a request reaches the dock
+
+The screen never tells the dock what to show; it asks (Layout, in [Patterns you'll see](#patterns-youll-see), describes what the dock holds). `useDockRequests` keeps the latest ask, a new `OverlayRequest` object each time, and `Dock` compares it with the one it last saw while drawing (`useDockState`'s `seen`, no effect). A new one shows its tab, unfolded. Because both steps happen while drawing, the tab is on screen in the same render as the ask, so a focus request that runs after it, such as the editor heading's, finds its target.
+
+Worked example: a run has finished, so the dock shows Run, and the user selects Steady in the Workloads list.
+
+```mermaid
+sequenceDiagram
+    participant list as Workloads list
+    participant screen as OpenedProject
+    participant requests as useDockRequests
+    participant dock as Dock
+    list->>screen: select { kind: "workload", workloadId: "steady" }
+    screen->>requests: the new selection
+    requests->>requests: seen ≠ selection → request = { key: "workload", workloadId: "steady" }
+    screen->>dock: request (a new object)
+    dock->>dock: seen ≠ request → shown = "workload", folded = false
+    dock-->>list: tabs "Run" and "Workload: Steady", the workload's shown
+    Note over dock: the editor's heading takes the focus
+```
+
+Then:
+
+- **Run again.** `onRunStart` calls `ask({ key: "run" })`, a new object, so the dock shows Run. The selection and the focus don't change.
+- **Steady selected again.** A new selection object, so a new request: its tab shows again, even if the user had switched to Run.
+- **Close.** The selection clears, so `OVERLAYS.workload.shows` is false and its tab goes. The dock keeps `shown` as `"workload"` but draws the first tab left, Run; no request is made.
 
 ## How it's tested
 

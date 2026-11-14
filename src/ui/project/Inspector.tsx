@@ -24,9 +24,11 @@ export interface InspectorProps {
 /**
  * A wide window's inspector, floating over the canvas's right: Close, then
  * one surface that shows the selection, or with nothing selected the run's
- * explanation (UX design §2). Close collapses it to a narrow strip on the
- * canvas's right edge, whose button opens it again; it's one button, so
- * the focus stays on it either way. Selecting anything, or Run, opens it
+ * explanation (UX design §2). With a selection shown, Close clears it, as
+ * Escape does, so the explanation comes back and the focus returns to what
+ * made the selection. With none, Close collapses the inspector to a narrow
+ * strip on the canvas's right edge, whose button, the same one, so the
+ * focus stays on it, opens it again. Selecting anything, or Run, opens it
  * too. Collapsed, its content stays mounted, hidden, so a draft is still
  * there when it opens. The run's totals and charts are the dock's.
  */
@@ -59,23 +61,36 @@ interface InspectorToggleProps {
   readonly bodyId: string;
 }
 
-/** Close, or on the collapsed strip, Inspector: one button, so the focus stays. */
+/**
+ * Close, or on the collapsed strip, Inspector: one button, so the focus
+ * stays. With a selection shown, Close clears it, as Escape does, so the
+ * run's explanation comes back; with none, it collapses the inspector.
+ */
 function InspectorToggle({ selecting, bodyId }: InspectorToggleProps) {
-  const { inspectorOpen, showInspector } = selecting;
+  const { inspectorOpen, showInspector, close } = selecting;
+  const closesDetails =
+    inspectorOpen && detailsSelection(selecting) !== undefined;
   return (
     <div className={styles.toggle}>
       <Button
-        label={inspectorOpen ? "Close the inspector" : "Open the inspector"}
+        label={toggleLabel(inspectorOpen, closesDetails)}
         expanded={inspectorOpen}
         controls={bodyId}
         onClick={() => {
-          showInspector(!inspectorOpen);
+          if (closesDetails) close();
+          else showInspector(!inspectorOpen);
         }}
       >
         {inspectorOpen ? "Close" : "Inspector"}
       </Button>
     </div>
   );
+}
+
+/** What the toggle does, for a screen reader. */
+function toggleLabel(inspectorOpen: boolean, closesDetails: boolean): string {
+  if (closesDetails) return "Close the details";
+  return inspectorOpen ? "Close the inspector" : "Open the inspector";
 }
 
 /**

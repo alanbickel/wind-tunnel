@@ -13,6 +13,7 @@ import {
   clickRun,
   detailsHeading,
   inspector,
+  queryDetailsHeading,
   renderOpenedProject as renderProject,
   runExplanation,
 } from "./testing/render-opened-project";
@@ -20,7 +21,7 @@ import {
 /** The inspector's one button that closes and opens it. */
 function inspectorToggle(): HTMLElement {
   return within(inspector()).getByRole("button", {
-    name: /^(Close|Open) the inspector$/,
+    name: /^(Close|Open) the (inspector|details)$/,
   });
 }
 
@@ -149,6 +150,29 @@ describe("OpenedProject's inspector", () => {
     expect(inspectorShown()).toBe(true);
     expect(toggle.getAttribute("aria-label")).toBe("Close the inspector");
     expect(document.activeElement).toBe(toggle);
+  });
+
+  // Fails if Close, with a selection shown, collapses the inspector or
+  // keeps the selection, so the run's explanation doesn't come back, or
+  // doesn't return the focus to what made the selection.
+  it("clears a selection on Close, keeping the inspector open", async () => {
+    const { runner } = renderProject();
+    clickRun();
+    await runner.finish();
+    const button = revealButton(/^Function \(Lambda\)/);
+    button.focus();
+    fireEvent.click(button);
+    const toggle = within(inspector()).getByRole("button", {
+      name: "Close the details",
+    });
+
+    fireEvent.click(toggle);
+
+    expect(inspectorShown()).toBe(true);
+    expect(queryDetailsHeading()).toBeNull();
+    expect(runExplanation().isConnected).toBe(true);
+    expect(toggle.getAttribute("aria-label")).toBe("Close the inspector");
+    expect(document.activeElement).toBe(button);
   });
 
   // Fails if selecting leaves a collapsed inspector closed, or opens it

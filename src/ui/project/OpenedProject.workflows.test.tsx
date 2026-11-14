@@ -19,12 +19,6 @@ function selectFromText(name: string): HTMLElement {
   return button;
 }
 
-function selectedTab(): string | null | undefined {
-  return screen
-    .getAllByRole("tab")
-    .find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
-}
-
 /** The outline's steps, as their buttons: the ones that start with a step's number. */
 function outlineSteps(): HTMLElement[] {
   const outline = screen.getByRole("list", { name: "Steps" });
@@ -69,7 +63,7 @@ describe("OpenedProject's workflows", () => {
 
     const row = selectFromText("Read item");
 
-    expect(selectedTab()).toBe("Details");
+    expect(screen.getByRole("region", { name: "Details" })).toBeTruthy();
     expect(document.activeElement).toBe(detailsHeading());
     expect(detailsHeading().textContent).toBe("Read item · Workflow");
     expect(row.getAttribute("aria-current")).toBe("true");
@@ -80,7 +74,7 @@ describe("OpenedProject's workflows", () => {
     ]);
     expect(screen.getByText("Used by: Steady")).toBeTruthy();
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
-    expect(selectedTab()).toBe("Run");
+    expect(screen.getByText(/^Nothing selected\./)).toBeTruthy();
     expect(document.activeElement).toBe(row);
     expect(queryDetailsHeading()).toBeNull();
     expect(row.getAttribute("aria-current")).toBeNull();

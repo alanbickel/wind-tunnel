@@ -21,7 +21,9 @@ import {
   dockPanel,
   inspector,
   queryDetailsHeading,
+  queryRunExplanation,
   renderOpenedProject as renderProject,
+  runExplanation,
   status,
   statusRegions,
 } from "./testing/render-opened-project";
@@ -65,7 +67,7 @@ function requestsSoFar(): (string | null)[] {
 }
 
 /** Clicks a component's or connection's button in the diagram's text version. */
-function selectFromText(name: string): HTMLElement {
+function selectFromText(name: string | RegExp): HTMLElement {
   const button = revealButton(name);
   button.focus();
   fireEvent.click(button);
@@ -82,12 +84,6 @@ async function drawnNode(componentId: string): Promise<Element> {
   return document.querySelector(
     `.react-flow__node[data-id="${componentId}"]`,
   ) as Element;
-}
-
-function selectedTab(): string | null | undefined {
-  return screen
-    .getAllByRole("tab")
-    .find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
 }
 
 describe("OpenedProject's project bar", () => {
@@ -107,7 +103,7 @@ describe("OpenedProject's project bar", () => {
     ).toBeTruthy();
     expect(inBar.getByRole("combobox", { name: "Workload" })).toBeTruthy();
     expect(inBar.getByRole("button", { name: "Run" })).toBeTruthy();
-    expect(screen.getByText("Nothing has run yet.")).toBeTruthy();
+    expect(queryRunExplanation()).toBeNull();
 
     clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
@@ -330,59 +326,55 @@ describe("OpenedProject in a wide window", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the right column isn't Details and Run tabs with Run first,
-  // or Details stops saying nothing is selected.
-  it("puts Details and Run in tabs, with Run selected", () => {
+  // Fails if the inspector has tabs, stops saying nothing is selected
+  // before any run, or its content stops being a stop the keyboard can
+  // scroll.
+  it("shows one surface, without tabs, that says nothing is selected", () => {
     renderProject();
 
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Details", "Run"]);
-    expect(
-      screen.getByRole("tab", { name: "Run" }).getAttribute("aria-selected"),
-    ).toBe("true");
-    fireEvent.keyDown(screen.getByRole("tab", { name: "Run" }), {
-      key: "ArrowLeft",
+    expect(screen.queryAllByRole("tab")).toEqual([]);
+    expect(within(inspector()).getByText(/^Nothing selected./)).toBeTruthy();
+    const toggle = within(inspector()).getByRole("button", {
+      name: "Close the inspector",
     });
-    expect(
-      within(screen.getByRole("tabpanel", { name: "Details" })).getByText(
-        /^Nothing selected./,
-      ),
-    ).toBeTruthy();
+    const body = document.getElementById(
+      toggle.getAttribute("aria-controls") ?? "",
+    );
+    expect(body?.tabIndex).toBe(0);
   });
 
-  // Fails if the Run tab has no h3 of its own: a screen reader's outline
-  // would put the run's findings and totals under Architecture.
-  it("heads the Run tab, so the run's headings sit under it", () => {
+  // Fails if the run's explanation has no h3 of its own: a screen reader's
+  // outline would put the run's findings under Architecture.
+  it("heads the run's explanation, so the run's headings sit under it", () => {
     const { runner } = renderProject();
     clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
 
-    const runTab = within(inspector()).getByRole("tabpanel", { name: "Run" });
-    const [first, ...rest] = within(runTab).getAllByRole("heading");
+    const [first, ...rest] = within(runExplanation()).getAllByRole("heading");
 
     expect(first?.tagName).toBe("H3");
-    expect(first?.textContent).toBe("Run");
+    expect(first?.textContent).toBe("Run: Steady");
     expect(rest.map((heading) => heading.tagName)).toContain("H4");
   });
 
-  // Fails if showing Details stops the run, or selecting Run again starts
-  // it afresh and loses the results it had.
-  it("keeps a run going while Details shows, with its results there on return", async () => {
+  // Fails if showing a selection's details stops the run, or going back
+  // to the explanation starts it afresh and loses the results it had.
+  it("keeps a run going while a selection shows, with its results there on return", async () => {
     const { runner } = renderProject();
     clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
 
-    fireEvent.click(screen.getByRole("tab", { name: "Details" }));
-    expect(
-      within(inspector()).queryByRole("tabpanel", { name: "Run" }),
-    ).toBeNull();
+    // After a run, a component's row carries its status too.
+    selectFromText(/^Function \(Lambda\)/);
+    expect(queryRunExplanation()).toBeNull();
     runner.send(sampleSnapshot({ second: 2, read: { started: 3 } }));
     expect(runner.stopped).toBe(false);
     await runner.finish();
-    fireEvent.click(within(inspector()).getByRole("tab", { name: "Run" }));
+    fireEvent.keyDown(detailsHeading(), { key: "Escape" });
 
     expect(runner.runs).toBe(1);
     expect(status()).toBe("Finished Steady. Healthy so far.");
+    expect(runExplanation()).toBeTruthy();
     expect(requestsSoFar()).toEqual(["All workflows", "8", "0", "0", "8"]);
   });
 });
@@ -395,18 +387,23 @@ describe("OpenedProject's selection in a wide window", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if selecting leaves the Run tab showing, or the focus where it
-  // was, or Escape leaves Details showing or drops the focus on the page.
-  it("opens Details on a selection, and Escape goes back to Run and the button", () => {
-    renderProject();
+  // Fails if selecting leaves the run's explanation showing, or the focus
+  // where it was, or Escape leaves Details showing, doesn't bring the
+  // explanation back, or drops the focus on the page.
+  it("shows a selection's details, and Escape goes back to the explanation and the button", async () => {
+    const { runner } = renderProject();
+    clickRun();
+    runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
+    await runner.finish();
 
-    const button = selectFromText("Function (Lambda)");
+    // After a run, a component's row carries its status too.
+    const button = selectFromText(/^Function \(Lambda\)/);
 
-    expect(selectedTab()).toBe("Details");
+    expect(queryRunExplanation()).toBeNull();
     expect(document.activeElement).toBe(detailsHeading());
     expect(detailsHeading().textContent).toBe("Function · Lambda");
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
-    expect(selectedTab()).toBe("Run");
+    expect(runExplanation()).toBeTruthy();
     expect(document.activeElement).toBe(button);
     expect(queryDetailsHeading()).toBeNull();
   });
@@ -441,7 +438,7 @@ describe("OpenedProject's selection in a wide window", () => {
     fireEvent.click(pane as Element);
 
     expect(queryDetailsHeading()).toBeNull();
-    expect(selectedTab()).toBe("Run");
+    expect(within(inspector()).getByText(/^Nothing selected./)).toBeTruthy();
     expect((await drawnNode("table")).classList.contains("selected")).toBe(
       false,
     );
@@ -456,9 +453,9 @@ describe("OpenedProject in a narrow window", () => {
   });
 
   // Fails if the inspector's tab roles show in a narrow window, where its
-  // content is stacked, or the run's results stop following the model in a
-  // Run panel the keyboard can scroll.
-  it("has no tabs but the dock's, and shows the run in a panel of its own", () => {
+  // content is stacked, or the run's explanation stops following the model
+  // in the inspector, while nothing is selected.
+  it("has no tabs but the dock's, and shows the run's explanation in the inspector", () => {
     const { runner } = renderProject({ width: "narrow" });
     clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
@@ -467,8 +464,8 @@ describe("OpenedProject in a narrow window", () => {
       within(dock()).getByRole("tablist"),
     ]);
     expect(screen.queryByText(/^Nothing selected./)).toBeNull();
-    const panel = screen.getByRole("region", { name: "Run" });
-    expect(panel.tabIndex).toBe(0);
+    const panel = inspector();
+    expect(panel.contains(runExplanation())).toBe(true);
     const architecture = screen.getByRole("region", { name: "Architecture" });
     expect(
       architecture.compareDocumentPosition(panel) &

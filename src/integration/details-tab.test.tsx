@@ -70,7 +70,7 @@ function selectFromText(name: string): HTMLElement {
 }
 
 function detailsTab(): HTMLElement {
-  return screen.getByRole("tabpanel", { name: "Details" });
+  return screen.getByRole("region", { name: "Details" });
 }
 
 function detailsHeading(): HTMLElement {
@@ -108,12 +108,6 @@ function settingLabels(): (string | null | undefined)[] {
         : el.querySelector("legend")?.textContent,
     )
     .filter((label) => label !== "Name");
-}
-
-function selectedTab(): string | null | undefined {
-  return screen
-    .getAllByRole("tab")
-    .find((tab) => tab.getAttribute("aria-selected") === "true")?.textContent;
 }
 
 describe("the Details tab, for the templates", () => {
@@ -210,20 +204,20 @@ describe("the Details tab, for the templates", () => {
 
     expect(info.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(info);
-    expect(screen.getByRole("tabpanel", { name: "Details" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Details" })).toBeTruthy();
   });
 
   // Fails if Escape leaves the selection, keeps Details showing, or drops
   // the focus instead of returning it to the button that selected.
-  it("clears on Escape, shows Run, and returns the focus to the button", () => {
+  it("clears on Escape, says nothing is selected, and returns the focus to the button", () => {
     renderProject(projectA);
     const button = selectFromText("orders-db (RDS)");
 
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
 
-    expect(selectedTab()).toBe("Run");
+    expect(screen.getByText(/^Nothing selected\./)).toBeTruthy();
     expect(document.activeElement).toBe(button);
-    expect(screen.queryByRole("tabpanel", { name: "Details" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Details" })).toBeNull();
     expect(
       revealButton("orders-db (RDS)").getAttribute("aria-current"),
     ).toBeNull();

@@ -129,15 +129,25 @@ function buildUseCases({
 
 /**
  * The Details heading, the selected item's name and what kind it is: in
- * the Details tab of a wide window, or the Details panel of a narrow one.
- * Null while Details shows nothing.
+ * the inspector's Details, wide or narrow, or the dock's workload. Null
+ * while nothing is selected.
  */
 export function queryDetailsHeading(): HTMLElement | null {
   const details =
-    screen.queryByRole("tabpanel", { name: "Details" }) ??
-    screen.queryByRole("region", { name: "Details" }) ??
-    queryDock();
+    screen.queryByRole("region", { name: "Details" }) ?? queryWorkloadPanel();
   return details && within(details).queryByRole("heading", { level: 4 });
+}
+
+/**
+ * The dock's shown overlay, unless it's the run's, whose headings are the
+ * evidence's, not a selection's.
+ */
+function queryWorkloadPanel(): HTMLElement | null {
+  const shown = queryDock() && within(dock()).queryAllByRole("tabpanel");
+  const isRun = (panel: HTMLElement) =>
+    document.getElementById(panel.getAttribute("aria-labelledby") ?? "")
+      ?.textContent === "Run";
+  return shown?.find((panel) => !isRun(panel)) ?? null;
 }
 
 /** The dock under the canvas; null while it has nothing to show. */
@@ -173,6 +183,22 @@ export function dockPanel(label: string | RegExp): HTMLElement {
 /** A wide window's inspector, which floats over the canvas. */
 export function inspector(): HTMLElement {
   return screen.getByRole("region", { name: "Inspector" });
+}
+
+/**
+ * The run's explanation, which the inspector shows, wide or narrow, while
+ * nothing is selected: a region named by its heading, "Run: <workload>".
+ * Null while it isn't shown.
+ */
+export function queryRunExplanation(): HTMLElement | null {
+  return screen.queryByRole("region", { name: /^Run: / });
+}
+
+/** The run's explanation, which must be there. */
+export function runExplanation(): HTMLElement {
+  const found = queryRunExplanation();
+  if (found === null) throw new Error("the run's explanation should show");
+  return found;
 }
 
 /** The Details heading, which must be there. */

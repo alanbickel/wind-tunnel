@@ -37,7 +37,7 @@ function selectRead(): void {
 }
 
 function nameField(): HTMLInputElement {
-  const details = screen.getByRole("tabpanel", { name: "Details" });
+  const details = screen.getByRole("region", { name: "Details" });
   return within(details).getByRole("textbox", { name: "Name" });
 }
 

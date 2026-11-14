@@ -104,7 +104,7 @@ function outlineText(): string[] {
 }
 
 function detailsStatus(): HTMLElement {
-  const details = screen.getByRole("tabpanel", { name: "Details" });
+  const details = screen.getByRole("region", { name: "Details" });
   return within(details).getByRole("status");
 }
 

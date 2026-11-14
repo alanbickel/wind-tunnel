@@ -12,12 +12,10 @@ import {
   bar,
   clickRun,
   detailsHeading,
+  inspector,
   renderOpenedProject as renderProject,
+  runExplanation,
 } from "./testing/render-opened-project";
-
-function inspector(): HTMLElement {
-  return screen.getByRole("region", { name: "Inspector" });
-}
 
 /** The inspector's one button that closes and opens it. */
 function inspectorToggle(): HTMLElement {
@@ -26,8 +24,17 @@ function inspectorToggle(): HTMLElement {
   });
 }
 
-function tabList(): HTMLElement | null {
-  return screen.queryByRole("tablist", { name: "Project" });
+/** The inspector's content, which its toggle shows and hides. */
+function inspectorBody(): HTMLElement {
+  const id = inspectorToggle().getAttribute("aria-controls") ?? "";
+  const body = document.getElementById(id);
+  if (body === null) throw new Error("the toggle should control the body");
+  return body;
+}
+
+/** Whether the inspector is open, its content shown. */
+function inspectorShown(): boolean {
+  return !inspectorBody().hidden;
 }
 
 describe("OpenedProject's canvas-first layout", () => {
@@ -86,31 +93,31 @@ describe("OpenedProject's canvas-first layout", () => {
     expect(mark?.getAttribute("aria-hidden")).toBe("true");
   });
 
-  // Fails if the description stays in the bar, or leaves the Details tab,
-  // or shows over a selection's details.
-  it("shows the description at the top of Details while nothing is selected", () => {
+  // Fails if the description stays in the bar, leaves the top of the
+  // inspector before any run, the inspector has tabs, or the description
+  // shows over a selection's details.
+  it("shows the description at the top of the inspector before any run, without tabs", () => {
     renderProject();
     expect(within(bar()).queryByText("A small project for tests.")).toBeNull();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Details" }));
-    const details = screen.getByRole("tabpanel", { name: "Details" });
-    const [first] = within(details).getAllByText(/./, { selector: "p" });
+    const [first] = within(inspector()).getAllByText(/./, { selector: "p" });
     expect(first?.textContent).toBe("A small project for tests.");
+    expect(within(inspector()).getByText(/^Nothing selected\./)).toBeTruthy();
+    expect(within(inspector()).queryByRole("tablist")).toBeNull();
 
     fireEvent.click(revealButton("Function (Lambda)"));
     expect(
-      within(details).queryByText("A small project for tests."),
+      within(inspector()).queryByText("A small project for tests."),
     ).toBeNull();
   });
 
-  // Fails if a narrow window loses the description while nothing is
-  // selected, or shows it in tabs.
-  it("shows the description in a narrow window's Details, without tabs", () => {
+  // Fails if a narrow window loses the description before any run, or
+  // shows the inspector in tabs.
+  it("shows the description in a narrow window's inspector, without tabs", () => {
     renderProject({ width: "narrow" });
 
-    const details = screen.getByRole("region", { name: "Details" });
-    expect(details.textContent).toContain("A small project for tests.");
-    expect(tabList()).toBeNull();
+    expect(inspector().textContent).toContain("A small project for tests.");
+    expect(within(inspector()).queryByRole("tablist")).toBeNull();
   });
 });
 
@@ -131,7 +138,7 @@ describe("OpenedProject's inspector", () => {
 
     fireEvent.click(toggle);
 
-    expect(tabList()).toBeNull();
+    expect(inspectorShown()).toBe(false);
     expect(inspectorToggle()).toBe(toggle);
     expect(toggle.getAttribute("aria-label")).toBe("Open the inspector");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
@@ -139,7 +146,7 @@ describe("OpenedProject's inspector", () => {
 
     fireEvent.click(toggle);
 
-    expect(tabList()).toBeTruthy();
+    expect(inspectorShown()).toBe(true);
     expect(toggle.getAttribute("aria-label")).toBe("Close the inspector");
     expect(document.activeElement).toBe(toggle);
   });
@@ -153,7 +160,7 @@ describe("OpenedProject's inspector", () => {
     revealButton("Function (Lambda)").focus();
     fireEvent.click(revealButton("Function (Lambda)"));
 
-    expect(tabList()).toBeTruthy();
+    expect(inspectorShown()).toBe(true);
     expect(document.activeElement).toBe(detailsHeading());
   });
 
@@ -164,19 +171,21 @@ describe("OpenedProject's inspector", () => {
 
     clickRun();
 
-    expect(tabList()).toBeTruthy();
+    expect(inspectorShown()).toBe(true);
   });
 
-  // Fails if the run's results are unmounted while the inspector is
-  // collapsed, which would drop its findings.
-  it("keeps the tabs mounted, hidden, while collapsed", () => {
-    renderProject();
-    const runTab = screen.getByRole("tabpanel", { name: "Run" });
+  // Fails if the run's explanation is unmounted while the inspector is
+  // collapsed, which would drop its open explanations.
+  it("keeps its content mounted, hidden, while collapsed", async () => {
+    const { runner } = renderProject();
+    clickRun();
+    await runner.finish();
+    const explanation = runExplanation();
 
     fireEvent.click(inspectorToggle());
 
-    expect(runTab.isConnected).toBe(true);
-    expect(runTab.closest("[hidden]")).not.toBeNull();
+    expect(explanation.isConnected).toBe(true);
+    expect(explanation.closest("[hidden]")).not.toBeNull();
   });
 });
 

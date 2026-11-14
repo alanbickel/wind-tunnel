@@ -1,5 +1,5 @@
 /* Floats over the canvas's right, below the top bar and above the
-   canvas's bottom edge. Close sits over the tab list's far end. */
+   canvas's bottom edge. */
 .inspector,
 .collapsed {
   position: absolute;
@@ -9,61 +9,66 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-}
-
-.inspector {
-  width: var(--run-panel-min-width);
-  max-width: calc(100% - 2 * var(--space-4));
-  border-radius: var(--floating-radius);
-  box-shadow: var(--floating-shadow);
-}
-
-/* The panel inside takes the floating edge, not the divider a panel has on
-   the page. */
-.inspector .body > * {
-  border: var(--floating-border);
-  border-radius: var(--floating-radius);
-}
-
-/* Collapsed: a narrow strip on the right edge, its button read top to
-   bottom. */
-.collapsed {
-  padding: var(--space-2) var(--space-1);
   background: var(--color-surface);
   border: var(--floating-border);
   border-radius: var(--floating-radius);
   box-shadow: var(--floating-shadow);
 }
 
+/* About a quarter of the window, never under its least width, and never
+   wider than the canvas. */
+.inspector {
+  width: max(var(--inspector-min-width), var(--inspector-width));
+  max-width: calc(100% - 2 * var(--space-4));
+}
+
+/* Collapsed: a narrow strip on the right edge, its button read top to
+   bottom. */
+.collapsed {
+  padding: var(--space-2) var(--space-1);
+}
+
 .collapsed button {
   writing-mode: vertical-rl;
 }
 
+/* Close, at the surface's top right, above the content. */
 .inspector .toggle {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-3);
-  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-3) 0;
 }
 
-/* No display while hidden: it would override display: none. */
+/* Takes the height Close leaves, and scrolls. No display while hidden: it
+   would override display: none. */
 .body:not([hidden]) {
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
+  overflow: auto;
+  padding: 0 var(--space-5) var(--space-4);
 }
 
-.body > * {
-  flex: 1;
+.body > :last-child {
+  margin-bottom: 0;
 }
 
-/* A narrow window: the inspector's content under the canvas, full-width. */
+/* A narrow window: the inspector under the canvas, full-width. */
 .stacked {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-5);
   padding: var(--space-5);
+}
+
+/* The narrow inspector's surface, as a panel's. */
+.surface {
+  background: var(--color-surface);
+  border: var(--line-width) solid var(--color-divider);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+}
+
+.surface > :last-child {
+  margin-bottom: 0;
 }
 
 .description {

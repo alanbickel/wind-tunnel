@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { createPhrasebook } from "../../application/run-analysis/findings/create-phrasebook";
 import type {
@@ -223,8 +229,10 @@ describe("Findings", () => {
   // ("fn") rather than its name ("Function").
   it("shows each fix with its claim, and links Learn more", () => {
     renderFindings([failure]);
-    fireEvent.click(screen.getByRole("button", { name: "About finding 1" }));
-    const docs = screen.getByRole("link", { name: "Lambda scaling" });
+    const control = screen.getByRole("button", { name: "About finding 1" });
+    fireEvent.click(control);
+    const item = control.closest("li") as HTMLElement;
+    const docs = within(item).getByRole("link", { name: "Lambda scaling" });
     const fixes = docs.closest("ul")?.querySelectorAll("li") ?? [];
 
     expect([...fixes].map((li) => li.textContent)).toEqual([
@@ -238,13 +246,38 @@ describe("Findings", () => {
     ).toMatch(/\/docs\/learning\/aws-did-you-know\.md#lambda-scales$/);
   });
 
+  // Fails if Try is missing, comes before Why, lists a fix its cause note
+  // shares with the failure twice, drops the note's own, or loses a fix's
+  // scope or evidence.
+  it("lists each fix the findings suggest once, with its evidence, under Try after Why", () => {
+    const shared = failure.fixes[2] as Fix;
+    const own = fix({ message: say`Add a queue.` });
+    renderFindings([failure, { ...cause, fixes: [shared, own] }]);
+
+    const headings = screen.getAllByRole("heading").map((h) => h.textContent);
+    expect(headings.slice(1)).toEqual(["Why", "Try"]);
+    const tryList = screen.getByRole("heading", { name: "Try" })
+      .nextElementSibling as HTMLElement;
+    expect(
+      within(tryList)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual([
+      "In AWS: Do it. (Documented: Lambda scaling; fidelity LAMBDA-1)",
+      "In Wind Tunnel: Do it. (Observed: “shows it”)",
+      "In AWS: Raise Function's limit. (Assumption)",
+      "In AWS: Add a queue. (Assumption)",
+    ]);
+  });
+
   // Fails if a run with nothing to report shows no verdict, or an empty
-  // list instead of saying there are none.
+  // list instead of saying there are none, or shows Try with nothing in it.
   it("gives a healthy run its verdict, and says there are no findings", () => {
     renderFindings([]);
 
     const region = screen.getByRole("region", { name: "Healthy so far" });
     expect(region.textContent).toContain("All 4 answered requests succeeded.");
     expect(screen.getByText("None.")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Try" })).toBeNull();
   });
 });

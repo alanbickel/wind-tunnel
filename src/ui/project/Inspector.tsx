@@ -1,11 +1,8 @@
 import { useId, type Ref } from "react";
 import type { Project } from "../../domain/model/project";
-import { RunPanel } from "../run/RunPanel";
-import { RunResults } from "../run/RunResults";
+import { RunExplanation } from "../run/RunExplanation";
 import type { ProjectRun } from "../run/useProjectRun";
 import { Button } from "../shared/Button";
-import { Panel } from "../shared/Panel";
-import { Tabs } from "../shared/Tabs";
 import { useFindingSelecting } from "./useFindingSelecting";
 import styles from "./Inspector.module.css";
 import { NothingSelected, SelectionDetails } from "./SelectionDetails";
@@ -26,15 +23,15 @@ export interface InspectorProps {
 
 /**
  * A wide window's inspector, floating over the canvas's right: Close, then
- * the Details and Run tabs. Close collapses it to a narrow strip on the
+ * one surface that shows the selection, or with nothing selected the run's
+ * explanation (UX design §2). Close collapses it to a narrow strip on the
  * canvas's right edge, whose button opens it again; it's one button, so
  * the focus stays on it either way. Selecting anything, or Run, opens it
- * too. Collapsed, the tabs stay mounted, hidden, so a draft and the run's
- * findings are still there when it opens. The run's totals and charts are
- * the dock's.
+ * too. Collapsed, its content stays mounted, hidden, so a draft is still
+ * there when it opens. The run's totals and charts are the dock's.
  */
 export function Inspector({ ref, ...props }: InspectorProps) {
-  const { inspectorOpen, showInspector } = props.selecting;
+  const { inspectorOpen } = props.selecting;
   const bodyId = useId();
   return (
     <section
@@ -42,59 +39,77 @@ export function Inspector({ ref, ...props }: InspectorProps) {
       aria-label="Inspector"
       className={inspectorOpen ? styles.inspector : styles.collapsed}
     >
-      <div className={styles.toggle}>
-        <Button
-          label={inspectorOpen ? "Close the inspector" : "Open the inspector"}
-          expanded={inspectorOpen}
-          controls={bodyId}
-          onClick={() => {
-            showInspector(!inspectorOpen);
-          }}
-        >
-          {inspectorOpen ? "Close" : "Inspector"}
-        </Button>
-      </div>
-      <div id={bodyId} hidden={!inspectorOpen} className={styles.body}>
-        <SideTabs {...props} />
+      <InspectorToggle selecting={props.selecting} bodyId={bodyId} />
+      {/* A tab stop, so the keyboard can scroll it. */}
+      <div
+        id={bodyId}
+        hidden={!inspectorOpen}
+        className={styles.body}
+        tabIndex={0}
+      >
+        <InspectorContent {...props} />
       </div>
     </section>
   );
 }
 
-/** What the inspector's content shows, without its box's ref. */
-type InspectorContentProps = Omit<InspectorProps, "ref">;
+interface InspectorToggleProps {
+  readonly selecting: ProjectSelection;
+  /** The content the toggle shows and hides. */
+  readonly bodyId: string;
+}
 
-/** Details and Run, in the inspector; Run first. */
-function SideTabs(props: InspectorContentProps) {
-  const { project, projectRun, selecting } = props;
-  const { tab, showTab } = selecting;
-  const finding = useFindingSelecting(project, selecting);
+/** Close, or on the collapsed strip, Inspector: one button, so the focus stays. */
+function InspectorToggle({ selecting, bodyId }: InspectorToggleProps) {
+  const { inspectorOpen, showInspector } = selecting;
   return (
-    <Tabs
-      label="Project"
-      selected={tab}
-      onSelect={showTab}
-      tabs={[
-        { id: "details", label: "Details", content: <DetailsTab {...props} /> },
-        {
-          id: "run",
-          label: "Run",
-          content: <RunResults {...projectRun} findingSelecting={finding} />,
-        },
-      ]}
-    />
+    <div className={styles.toggle}>
+      <Button
+        label={inspectorOpen ? "Close the inspector" : "Open the inspector"}
+        expanded={inspectorOpen}
+        controls={bodyId}
+        onClick={() => {
+          showInspector(!inspectorOpen);
+        }}
+      >
+        {inspectorOpen ? "Close" : "Inspector"}
+      </Button>
+    </div>
   );
 }
 
 /**
- * The Details tab's content: the selection's details, or, with nothing
- * selected, the project's description and that there's no selection.
+ * A narrow window's inspector, under the canvas, full-width: the same one
+ * surface as a wide window's, with a Close beside the selection's heading.
  */
-function DetailsTab(props: InspectorContentProps) {
-  const { project, selecting, onEdit, onRemove } = props;
-  const { selectWithin, close, takeFocus } = selecting;
+export function StackedInspector(props: InspectorContentProps) {
+  return (
+    <div className={styles.stacked}>
+      <section aria-label="Inspector" className={styles.surface}>
+        <InspectorContent {...props} closable />
+      </section>
+    </div>
+  );
+}
+
+/** What the inspector's content shows, without its box's ref. */
+interface InspectorContentProps extends Omit<InspectorProps, "ref"> {
+  /** Shows a Close beside the selection's heading, as the narrow layout does. */
+  readonly closable?: boolean;
+}
+
+/**
+ * The selection's details; or, with nothing selected, the run's
+ * explanation; or, before any run, the project's description and that
+ * nothing is selected.
+ */
+function InspectorContent(props: InspectorContentProps) {
+  const { project, projectRun, selecting } = props;
+  const finding = useFindingSelecting(project, selecting);
   const selection = detailsSelection(selecting);
-  if (selection === undefined) {
+  if (selection !== undefined) return <Details {...props} />;
+  const { meaning, ran, outOfDate } = projectRun;
+  if (meaning === undefined || ran === undefined) {
     return (
       <>
         <ProjectDescription project={project} />
@@ -103,51 +118,34 @@ function DetailsTab(props: InspectorContentProps) {
     );
   }
   return (
-    <SelectionDetails
-      project={project}
-      selection={selection}
-      onEdit={onEdit}
-      onRemove={onRemove}
-      onSelect={selectWithin}
-      onClose={close}
-      takeFocus={takeFocus}
+    <RunExplanation
+      meaning={meaning}
+      ran={ran}
+      outOfDate={outOfDate}
+      findingSelecting={finding}
     />
   );
 }
 
-/**
- * A narrow window's inspector content, under the canvas, full-width, with
- * no tabs: Details while something is selected, or the project's
- * description while nothing is and it has one, then Run.
- */
-export function StackedInspector(props: InspectorContentProps) {
-  const { project, projectRun, selecting, onEdit, onRemove } = props;
+/** The selection's details, in a region of their own named "Details". */
+function Details(props: InspectorContentProps) {
+  const { project, selecting, onEdit, onRemove, closable } = props;
   const { selectWithin, close, takeFocus } = selecting;
   const selection = detailsSelection(selecting);
-  const finding = useFindingSelecting(project, selecting);
+  if (selection === undefined) return null;
   return (
-    <div className={styles.stacked}>
-      {selection !== undefined && (
-        <Panel heading="Details">
-          <SelectionDetails
-            project={project}
-            selection={selection}
-            onEdit={onEdit}
-            onRemove={onRemove}
-            onSelect={selectWithin}
-            onClose={close}
-            takeFocus={takeFocus}
-            closable
-          />
-        </Panel>
-      )}
-      {selection === undefined && project.description && (
-        <Panel heading="Details">
-          <ProjectDescription project={project} />
-        </Panel>
-      )}
-      <RunPanel {...projectRun} findingSelecting={finding} />
-    </div>
+    <section aria-label="Details">
+      <SelectionDetails
+        project={project}
+        selection={selection}
+        onEdit={onEdit}
+        onRemove={onRemove}
+        onSelect={selectWithin}
+        onClose={close}
+        takeFocus={takeFocus}
+        closable={closable ?? false}
+      />
+    </section>
   );
 }
 
@@ -162,9 +160,10 @@ function ProjectDescription({ project }: ProjectDescriptionProps) {
 }
 
 /**
- * What Details describes: the selection, unless it's a finding, which has
- * no Details, or a workload, which the dock shows; either leaves Details
- * as if nothing were selected.
+ * What the inspector details: the selection, unless it's a finding, whose
+ * selection only marks the diagram, so the run's explanation stays (UX
+ * §5), or a workload, which the dock shows; either reads as nothing
+ * selected.
  */
 function detailsSelection({ selection }: ProjectSelection) {
   const elsewhere =

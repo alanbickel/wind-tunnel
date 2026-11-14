@@ -2,9 +2,6 @@ import { useCallback, useRef, useState } from "react";
 import type { Selection } from "../../application/details/selection";
 import type { FindingKey } from "../../application/run-analysis/findings/finding";
 
-/** The right column's tabs, in a wide window. */
-export type SideTab = "details" | "run";
-
 /**
  * What in Details takes the focus after a selection: its heading, or a new
  * component's name field, so the user can name it at once (UX §2.1 step 2).
@@ -17,19 +14,13 @@ export type FocusTarget = "heading" | "name" | "none";
 export interface ProjectSelection {
   readonly selection: Selection | undefined;
   /**
-   * The wide layout's tab: Details once something is selected, Run once
-   * it's cleared, and whichever the user picks in between.
-   */
-  readonly tab: SideTab;
-  readonly showTab: (tab: SideTab) => void;
-  /**
    * Whether the wide layout's inspector is open, or collapsed to a strip
    * on the canvas's right edge. Selecting opens it.
    */
   readonly inspectorOpen: boolean;
   readonly showInspector: (open: boolean) => void;
   /**
-   * Selects, and shows Details in an open inspector, whose `focus` takes the focus: its heading
+   * Selects, and shows its details in an open inspector, whose `focus` takes the focus: its heading
    * unless given. Remembers the element that had the focus, such as the
    * button that made the selection, so `close` can return it.
    */
@@ -42,11 +33,14 @@ export interface ProjectSelection {
   readonly selectWithin: (selection: Selection, focus?: FocusTarget) => void;
   /**
    * Selects a finding of the run, which marks its component on the
-   * diagram and nothing more: the tab stays, the focus stays on the
-   * finding, and the opener isn't changed (UX design §5).
+   * diagram and nothing more: the run's explanation stays, the focus stays
+   * on the finding, and the opener isn't changed (UX design §5).
    */
   readonly selectFinding: (key: FindingKey) => void;
-  /** Clears the selection and shows Run, leaving the focus where it is. */
+  /**
+   * Clears the selection, so the inspector shows the run's explanation,
+   * leaving the focus where it is.
+   */
   readonly clear: () => void;
   /**
    * Whether `target` should take the focus now: true once after a
@@ -56,7 +50,7 @@ export interface ProjectSelection {
    */
   readonly takeFocus: (target: FocusTarget) => boolean;
   /**
-   * Clears the selection, shows Run, and returns the focus to the element
+   * Clears the selection, as `clear` does, and returns the focus to the element
    * that had it when the selection was made, if it's still on the page.
    */
   readonly close: () => void;
@@ -72,7 +66,6 @@ export interface ProjectSelection {
  */
 export function useSelection(reveal: RevealElement): ProjectSelection {
   const [selection, setSelection] = useState<Selection>();
-  const [tab, showTab] = useState<SideTab>("run");
   const [inspectorOpen, showInspector] = useState(true);
   const { request, takeFocus } = useFocusRequest();
 
@@ -81,7 +74,6 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
       request(focus);
       setSelection(next);
       // A workload opens in the dock, so the inspector closes (UX §5).
-      if (next.kind !== "workload") showTab("details");
       showInspector(next.kind !== "workload");
     },
     [request],
@@ -89,7 +81,6 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
   const clear = useCallback(() => {
     request(undefined);
     setSelection(undefined);
-    showTab("run");
     showInspector(true);
   }, [request]);
   const { select, close } = useOpener({ selectWithin, clear, reveal });
@@ -101,7 +92,7 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
 
   const changes = { select, selectWithin, selectFinding, clear, close };
   const inspector = { inspectorOpen, showInspector };
-  return { selection, tab, showTab, ...inspector, ...changes, takeFocus };
+  return { selection, ...inspector, ...changes, takeFocus };
 }
 
 /** What selecting a finding changes. */
@@ -112,8 +103,8 @@ interface FindingSelectInput {
 }
 
 /**
- * Selects a finding: no focus is asked for and the tab stays, so only the
- * selection changes, and the inspector opens if it was closed.
+ * Selects a finding: no focus is asked for, so only the selection changes,
+ * and the inspector opens if it was closed.
  */
 function useFindingSelect(
   input: FindingSelectInput,

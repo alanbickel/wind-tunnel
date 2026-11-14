@@ -10,8 +10,8 @@ import {
   bar,
   clickRun,
   dockPanel,
-  inspector,
   renderOpenedProject as renderProject,
+  runExplanation,
   status,
   statusRegions,
 } from "./testing/render-opened-project";
@@ -49,8 +49,22 @@ function throttledSecond(second: number) {
 const EARLIER_VERSION =
   "This run is of an earlier version of the project. Run again to see your changes.";
 
-function runTab(): HTMLElement {
-  return within(inspector()).getByRole("tabpanel", { name: "Run" });
+/** The explanation's headings, in order. */
+function explanationHeadings(): (string | null)[] {
+  return within(runExplanation())
+    .getAllByRole("heading")
+    .map((heading) => heading.textContent);
+}
+
+/** Runs the sample, the table throttling a read, to the end. */
+async function renderThrottledRun(
+  input: Parameters<typeof renderProject>[0] = {},
+): Promise<ReturnType<typeof renderProject>> {
+  const rendered = renderProject(input);
+  clickRun();
+  rendered.runner.send(throttledSecond(1));
+  await rendered.runner.finish();
+  return rendered;
 }
 
 describe("OpenedProject's run when the project changes", () => {
@@ -67,12 +81,16 @@ describe("OpenedProject's run when the project changes", () => {
     clickRun();
     runner.send(throttledSecond(1));
     await runner.finish();
-    expect(within(runTab()).queryAllByText(/Table/).length).toBeGreaterThan(0);
+    expect(
+      within(runExplanation()).queryAllByText(/Table/).length,
+    ).toBeGreaterThan(0);
 
     change(withTableNamed("Orders"));
 
-    expect(within(runTab()).queryAllByText(/Table/).length).toBeGreaterThan(0);
-    expect(within(runTab()).queryByText(/Orders/)).toBeNull();
+    expect(
+      within(runExplanation()).queryAllByText(/Table/).length,
+    ).toBeGreaterThan(0);
+    expect(within(runExplanation()).queryByText(/Orders/)).toBeNull();
   });
 
   // Fails if a change to the project after a run doesn't mark it out of
@@ -83,17 +101,17 @@ describe("OpenedProject's run when the project changes", () => {
     clickRun();
     runner.send(throttledSecond(1));
     await runner.finish();
-    expect(within(runTab()).queryByText(EARLIER_VERSION)).toBeNull();
+    expect(within(runExplanation()).queryByText(EARLIER_VERSION)).toBeNull();
     expect(within(dockPanel("Run")).queryByText(EARLIER_VERSION)).toBeNull();
 
     change(withTableNamed("Orders"));
 
     expect(statusRegions()[1].textContent).toBe("Out of date");
-    expect(within(runTab()).getByText(EARLIER_VERSION)).toBeTruthy();
+    expect(within(runExplanation()).getByText(EARLIER_VERSION)).toBeTruthy();
     expect(within(dockPanel("Run")).getByText(EARLIER_VERSION)).toBeTruthy();
     expect(status()).toBe("Finished Steady. Failing so far.");
     expect(
-      within(runTab()).getByRole("heading", { name: "Failing so far" }),
+      within(runExplanation()).getByRole("heading", { name: "Failing so far" }),
     ).toBeTruthy();
   });
 
@@ -159,8 +177,10 @@ describe("OpenedProject's run when the project changes", () => {
     await runner.finish();
 
     expect(status()).toBe("Finished Steady. Failing so far.");
-    expect(within(runTab()).queryAllByText(/Table/).length).toBeGreaterThan(0);
-    expect(within(runTab()).queryByText(/Orders/)).toBeNull();
+    expect(
+      within(runExplanation()).queryAllByText(/Table/).length,
+    ).toBeGreaterThan(0);
+    expect(within(runExplanation()).queryByText(/Orders/)).toBeNull();
   });
 
   // Fails if the out-of-date region mounts with its text (screen readers
@@ -194,7 +214,7 @@ describe("OpenedProject's run when the project changes", () => {
     change(withTableNamed("Table"));
 
     expect(statusRegions()[1].textContent).toBe("");
-    expect(within(runTab()).queryByText(EARLIER_VERSION)).toBeNull();
+    expect(within(runExplanation()).queryByText(EARLIER_VERSION)).toBeNull();
   });
 
   // Fails if the run keeps the picker's workload, picked before the
@@ -263,8 +283,8 @@ describe("OpenedProject's run when the project changes", () => {
     });
   });
 
-  // Fails if the narrow window's RunPanel isn't handed outOfDate: the
-  // notice would show only in the wide window's Run tab.
+  // Fails if the narrow window's explanation isn't handed outOfDate: the
+  // notice would show only in the wide window's inspector.
   it("says the run is out of date in a narrow window", async () => {
     const { runner, change } = renderProject({ width: "narrow" });
     clickRun();
@@ -272,7 +292,54 @@ describe("OpenedProject's run when the project changes", () => {
 
     change(withTableNamed("Orders"));
 
-    const panel = screen.getByRole("region", { name: "Run" });
-    expect(within(panel).getByText(EARLIER_VERSION)).toBeTruthy();
+    expect(within(runExplanation()).getByText(EARLIER_VERSION)).toBeTruthy();
   });
 });
+
+describe.each(["wide", "narrow"] as const)(
+  "OpenedProject's run explanation, %s",
+  (width) => {
+    beforeEach(stubDiagramBrowserApis);
+    afterEach(() => {
+      cleanup();
+      vi.unstubAllGlobals();
+    });
+
+    // Fails if the explanation is in tabs, its parts are out of order, or
+    // the heading doesn't name the workload the run ran. The throttling
+    // finding suggests no fix, so there's no Try: the Template A run in
+    // run-panel-findings.test.tsx checks Try, after Why.
+    it("heads the run with its workload, then the verdict and Why, without tabs", async () => {
+      await renderThrottledRun({ width });
+
+      expect(explanationHeadings()).toEqual([
+        "Run: Steady",
+        "Failing so far",
+        "Why",
+      ]);
+      expect(within(runExplanation()).queryByRole("tablist")).toBeNull();
+    });
+
+    // Fails if the heading names the workload from the project as it is
+    // now, not from the run's own copy (ADR-0018).
+    it("keeps the name the workload had when it ran, after a rename", async () => {
+      const { change } = await renderThrottledRun({ width });
+
+      change(withWorkloadNamed("Lunch rush"));
+
+      expect(explanationHeadings()[0]).toBe("Run: Steady");
+    });
+
+    // Fails if the out-of-date line comes anywhere but first, before the
+    // heading, once the project changes since the run.
+    it("opens with the out-of-date line once the project changes", async () => {
+      const { change } = await renderThrottledRun({ width });
+
+      change(withTableNamed("Orders"));
+
+      expect(runExplanation().textContent).toMatch(
+        new RegExp(`^${EARLIER_VERSION}Run: Steady`),
+      );
+    });
+  },
+);

@@ -353,7 +353,7 @@
         running: {
           label: "Running",
           about:
-            "Run pressed: the run is selected, the Run tab shows it so far, and the run group shows Stop and its progress.",
+            "Run pressed: the run is selected, the Run tab and the badges show it so far, and the run group shows Stop and its progress.",
           selection: "run",
           run: "running",
           tab: "run",
@@ -398,6 +398,15 @@
           run: "current",
           tab: "run",
           folded: true,
+        },
+        collapsed: {
+          label: "Inspector collapsed",
+          about:
+            "The inspector collapsed by its chevron, with orders-db still selected: a strip on the right edge, whose chevron opens it again on the same component. Only you collapse it; selecting or running doesn't.",
+          selection: "component",
+          run: "current",
+          tab: "components",
+          collapsed: true,
         },
         narrow: {
           label: "Narrow window",
@@ -444,8 +453,8 @@
       };
 
       function badge(node, s) {
-        if (s.run === "current" || s.run === "stale") {
-          const fill = s.run === "current" ? " solid" : "";
+        if (s.run !== "none") {
+          const fill = s.run === "stale" ? "" : " solid";
           const mark = node.status === "ok" ? "●" : "■";
           return `<br><span class="badge ${node.status}${fill}">${mark} ${node.status}</span>`;
         }
@@ -634,6 +643,9 @@
       };
 
       function inspectorHtml(s) {
+        if (s.collapsed) {
+          return `<section class="inspector" aria-label="Inspector" style="padding:10px 8px"><i class="ti ti-chevron-left" aria-label="Open the inspector"></i></section>`;
+        }
         const selected = s.selection !== "none";
         return `<section class="inspector ${selected ? "selected" : ""}" aria-label="Inspector">${INSPECTOR[s.selection](s)}</section>`;
       }
@@ -648,7 +660,8 @@
         const left = s.narrow
           ? `<div class="left">${canvasHtml(s)}</div>${inspectorHtml(s)}${dockHtml(s)}`
           : `<div class="left">${canvasHtml(s)}${dockHtml(s)}</div>${inspectorHtml(s)}`;
-        screen.innerHTML = `${bar}${banner}<div class="main">${left}</div>`;
+        const main = s.collapsed ? "main collapsed" : "main";
+        screen.innerHTML = `${bar}${banner}<div class="${main}">${left}</div>`;
         document.getElementById("about").textContent = s.about;
         for (const button of document.querySelectorAll("#switcher button")) {
           button.setAttribute(

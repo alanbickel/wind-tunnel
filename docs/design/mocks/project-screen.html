@@ -2,511 +2,680 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Mock: the canvas-first project screen</title>
+    <title>Mock: the project screen, state by state</title>
     <link rel="stylesheet" href="./mock-tokens.css" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"
     />
     <style>
-      .wf {
-        position: relative;
-        height: 470px;
+      .mock-page {
+        max-width: 1120px;
+      }
+      .switcher {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 0 12px;
+      }
+      .switcher button[aria-pressed="true"] {
+        border-color: var(--border-accent);
+        color: var(--text-accent);
+      }
+      .muted {
+        color: var(--text-secondary);
+      }
+      .screen {
         border: 1px solid var(--border-strong);
         border-radius: 12px;
         overflow: hidden;
         background: var(--surface-1);
         font-size: 12px;
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        height: 640px;
       }
-      .wf .abs {
-        position: absolute;
+      .screen.narrow {
+        width: 440px;
+        height: auto;
       }
       .bar {
-        left: 0;
-        right: 0;
-        top: 0;
-        height: 40px;
-        background: var(--surface-2);
-        border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 0 10px;
+        padding: 8px 12px;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
       }
-      .pill {
-        border: 1px solid var(--border-strong);
-        border-radius: var(--radius);
-        padding: 3px 8px;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        white-space: nowrap;
+      .banner {
+        padding: 5px 12px;
+        background: var(--bg-warning);
+        color: var(--text-warning);
+      }
+      .main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 270px;
+        min-height: 0;
+      }
+      .narrow .main {
+        grid-template-columns: 1fr;
+      }
+      .main.collapsed {
+        grid-template-columns: minmax(0, 1fr) 34px;
+      }
+      .left {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
       }
       .canvas {
-        left: 0;
-        right: 0;
-        top: 40px;
-        bottom: 44px;
+        position: relative;
+        flex: 1;
+        min-height: 210px;
         background-image: radial-gradient(
           var(--border-strong) 1px,
           transparent 1px
         );
         background-size: 16px 16px;
       }
-      .node {
-        width: 100px;
-        height: 62px;
-        background: var(--surface-2);
-        border: 1px solid var(--border-strong);
-        border-radius: 8px;
-        padding: 6px 8px;
-        box-sizing: border-box;
-      }
-      .node b {
-        font-weight: 500;
-        display: block;
-      }
-      .node span {
-        color: var(--text-secondary);
-        font-size: 11px;
-      }
-      .badge {
-        font-size: 11px;
-        border-radius: var(--radius);
-        padding: 1px 6px;
-        display: inline-block;
-        margin-top: 3px;
-      }
-      .insp {
-        right: 8px;
-        top: 48px;
-        bottom: 52px;
-        width: 214px;
-        background: var(--surface-2);
-        border: 1px solid var(--border-strong);
-        border-radius: 10px;
-        padding: 10px;
-        box-sizing: border-box;
-        overflow: hidden;
-      }
-      .dock {
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 44px;
-        background: var(--surface-2);
-        border-top: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 0 10px;
-      }
-      .tool {
+      .rail {
+        position: absolute;
         left: 8px;
-        top: 110px;
-        width: 32px;
-        background: var(--surface-2);
-        border: 1px solid var(--border-strong);
-        border-radius: 8px;
+        top: 10px;
         display: flex;
         flex-direction: column;
+        gap: 8px;
+        padding: 6px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        font-size: 15px;
+      }
+      .stage {
+        position: absolute;
+        inset: 0;
+        transform-origin: 40px 0;
+      }
+      .narrow .stage {
+        transform: scale(0.62);
+      }
+      .node {
+        position: absolute;
+        width: 112px;
+        padding: 6px 8px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        line-height: 1.35;
+      }
+      .node.selected {
+        border-left: 4px solid var(--fill-accent);
+      }
+      .node.faded {
+        opacity: 0.35;
+      }
+      .badge {
+        display: inline-block;
+        margin-top: 3px;
+        padding: 0 6px;
+        border-radius: var(--radius);
+        border: 1px solid;
+      }
+      .badge.ok {
+        color: var(--text-success);
+      }
+      .badge.refused {
+        color: var(--text-danger);
+      }
+      .badge.solid.ok {
+        background: var(--bg-success);
+      }
+      .badge.solid.refused {
+        background: var(--bg-danger);
+      }
+      .hint {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 14px;
+        text-align: center;
+      }
+      .dock {
+        border-top: 1px solid var(--border-strong);
+        background: var(--surface-2);
+        display: flex;
+        flex-direction: column;
+        height: 250px;
+      }
+      .dock.folded {
+        height: auto;
+      }
+      .narrow .dock {
+        height: auto;
+      }
+      .strip {
+        display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 8px 0;
-        font-size: 16px;
-        color: var(--text-secondary);
-      }
-      .s-edit,
-      .s-run,
-      .s-flow {
-        display: none;
-      }
-      .wf[data-s="edit"] .s-edit,
-      .wf[data-s="run"] .s-run,
-      .wf[data-s="flow"] .s-flow {
-        display: block;
-      }
-      .wf[data-s="edit"] .s-edit.fx,
-      .wf[data-s="run"] .s-run.fx,
-      .wf[data-s="flow"] .s-flow.fx {
-        display: flex;
-      }
-      .row {
-        display: flex;
-        justify-content: space-between;
-        padding: 4px 0;
+        gap: 2px;
+        padding: 0 8px;
         border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
       }
-      .muted {
+      .tab {
+        padding: 8px 8px 6px;
+        border-bottom: 2px solid transparent;
         color: var(--text-secondary);
       }
-      .ring {
-        width: 104px;
-        height: 66px;
-        border: 2px solid var(--border-accent);
-        border-radius: 9px;
+      .tab.on {
+        color: var(--text-primary);
+        border-bottom-color: var(--fill-accent);
+      }
+      .group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        margin-left: auto;
+        border: 1px dashed var(--border-accent);
+        border-radius: var(--radius);
+      }
+      .pill {
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        padding: 2px 8px;
+        white-space: nowrap;
+      }
+      .run-btn {
+        background: var(--fill-accent);
+        color: var(--on-accent);
+        border-color: transparent;
+      }
+      .verdict {
+        color: var(--text-danger);
+        border-color: var(--border-danger);
+        background: var(--bg-danger);
+      }
+      .verdict.stale {
+        background: transparent;
+        border-style: dashed;
+      }
+      .body {
+        flex: 1;
+        overflow: auto;
+        padding: 10px 12px;
+        min-height: 0;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 130px minmax(0, 1fr);
+        gap: 12px;
+      }
+      .list div {
+        padding: 3px 6px;
+      }
+      .list div.on {
+        border-left: 3px solid var(--fill-accent);
+        background: var(--fill-ghost-hover);
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 8px;
+      }
+      .card {
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        padding: 6px 8px;
+      }
+      .inspector {
+        border-left: 1px solid var(--border-strong);
+        background: var(--surface-2);
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        overflow: auto;
+      }
+      .narrow .inspector {
+        border-left: 0;
+        border-top: 1px solid var(--border-strong);
+      }
+      .inspector.selected {
+        border-left: 4px solid var(--fill-accent);
+      }
+      .ihead {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+      }
+      .ihead .grow {
+        flex: 1;
+      }
+      .field {
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        padding: 2px 6px;
+        background: var(--surface-2);
+      }
+      .sect {
+        border-top: 1px solid var(--border);
+        padding-top: 6px;
+        font-weight: 600;
+      }
+      .link {
+        color: var(--text-accent);
+      }
+      table {
+        border-collapse: collapse;
+      }
+      td,
+      th {
+        padding: 2px 10px 2px 0;
+        text-align: left;
+      }
+      th {
+        color: var(--text-secondary);
+        font-weight: 500;
       }
     </style>
   </head>
   <body>
     <main class="mock-page">
       <p class="mock-caption">
-        Sketch, 2026-11-11, for #188: the project screen in three states. Not
-        the app, and not kept in step with it; docs/design/user-experience.md is
-        the authority.
+        Sketch, 2026-11-15, for #246: the project screen in each state of the
+        map in docs/design/user-experience.md §5. Not the app, and not kept in
+        step with it; that page is the authority. Add #&lt;state&gt; to the URL
+        to open on a state, and ?shot to hide this caption and the switcher, as
+        the design page's PNGs do.
       </p>
-      <h1 class="sr-only">The canvas-first project screen</h1>
-      <div
-        style="display: flex; gap: 8px; margin: 0 0 10px; align-items: center"
-      >
-        <span class="muted">State:</span>
-        <button data-go="edit">Editing</button>
-        <button data-go="run">After a run</button>
-        <button data-go="flow">Tracing a workflow</button>
-      </div>
-      <div class="wf" id="wf" data-s="run">
-        <div class="abs bar">
-          <i class="ti ti-wind" aria-hidden="true" style="font-size: 16px"></i>
-          <span class="muted">Projects /</span
-          ><span style="font-weight: 500">Serverless API with RDS</span>
-          <i class="ti ti-chevron-down muted" aria-hidden="true"></i>
-          <span style="margin-left: 6px" class="muted"
-            ><i class="ti ti-arrow-back-up" aria-label="Undo"></i>
-            <i class="ti ti-arrow-forward-up" aria-label="Redo"></i
-          ></span>
-          <span style="flex: 1"></span>
-          <span class="pill"
-            ><i class="ti ti-activity" aria-hidden="true"></i>Lunch rush · 20 s
-            · 2k req/s<i class="ti ti-chevron-down" aria-hidden="true"></i
-          ></span>
-          <span
-            class="pill"
-            style="
-              background: var(--fill-accent);
-              color: var(--on-accent);
-              border-color: transparent;
-            "
-            ><i class="ti ti-player-play" aria-hidden="true"></i>Run</span
-          >
-          <span
-            class="pill s-run"
-            style="
-              background: var(--bg-danger);
-              color: var(--text-danger);
-              border-color: var(--border-danger);
-            "
-            >Failing · 43.7%</span
-          >
-          <span class="pill s-edit muted">Out of date</span>
-          <span
-            class="pill s-flow"
-            style="
-              background: var(--bg-danger);
-              color: var(--text-danger);
-              border-color: var(--border-danger);
-            "
-            >Failing · 43.7%</span
-          >
-        </div>
-        <div class="abs canvas">
-          <div
-            class="abs"
-            style="
-              left: 52px;
-              top: 62px;
-              width: 404px;
-              height: 184px;
-              border: 1px dashed var(--border-stronger);
-              border-radius: 10px;
-            "
-          ></div>
-          <div class="abs muted" style="left: 60px; top: 66px; font-size: 11px">
-            <i class="ti ti-cloud" aria-hidden="true"></i> AWS · us-east-1
-          </div>
-          <svg
-            class="abs"
-            style="left: 0; top: 0"
-            width="680"
-            height="386"
-            aria-hidden="true"
-          >
-            <line
-              x1="168"
-              y1="155"
-              x2="208"
-              y2="155"
-              stroke="var(--border-stronger)"
-              stroke-width="1.5"
-            />
-            <line
-              x1="308"
-              y1="155"
-              x2="348"
-              y2="155"
-              stroke="var(--border-stronger)"
-              stroke-width="1.5"
-            />
-          </svg>
-          <div
-            class="abs s-run muted"
-            style="left: 176px; top: 104px; font-size: 11px"
-          >
-            2k/s
-          </div>
-          <div
-            class="abs s-run"
-            style="
-              left: 306px;
-              top: 104px;
-              font-size: 11px;
-              color: var(--text-danger);
-            "
-          >
-            44% fail
-          </div>
-          <div
-            class="abs s-flow badge"
-            style="
-              left: 176px;
-              top: 124px;
-              background: var(--fill-accent);
-              color: var(--on-accent);
-            "
-          >
-            1
-          </div>
-          <div
-            class="abs s-flow badge"
-            style="
-              left: 316px;
-              top: 124px;
-              background: var(--fill-accent);
-              color: var(--on-accent);
-            "
-          >
-            2
-          </div>
-          <div class="abs node" style="left: 68px; top: 124px">
-            <b><i class="ti ti-api" aria-hidden="true"></i> api</b
-            ><span>API Gateway</span><br />
-            <span
-              class="badge s-run"
-              style="background: var(--bg-success); color: var(--text-success)"
-              >ok</span
-            >
-          </div>
-          <div class="abs node" style="left: 208px; top: 124px">
-            <b><i class="ti ti-lambda" aria-hidden="true"></i> fn-orders</b
-            ><span>Lambda</span><br />
-            <span
-              class="badge s-run"
-              style="background: var(--bg-warning); color: var(--text-warning)"
-              >waited</span
-            >
-          </div>
-          <div class="abs node" style="left: 348px; top: 124px">
-            <b><i class="ti ti-database" aria-hidden="true"></i> orders-db</b
-            ><span>RDS</span><br />
-            <span
-              class="badge s-run"
-              style="background: var(--bg-danger); color: var(--text-danger)"
-              >refused</span
-            >
-          </div>
-          <div class="abs s-edit ring" style="left: 346px; top: 122px"></div>
-          <div class="abs s-flow ring" style="left: 66px; top: 122px"></div>
-          <div class="abs s-flow ring" style="left: 206px; top: 122px"></div>
-          <div class="abs s-flow ring" style="left: 346px; top: 122px"></div>
-          <div
-            class="abs fx s-flow"
-            style="
-              left: 120px;
-              top: 262px;
-              background: var(--surface-2);
-              border: 1px solid var(--border-strong);
-              border-radius: 8px;
-              padding: 5px 10px;
-              gap: 10px;
-              align-items: center;
-            "
-          >
-            <span style="font-weight: 500">Get order</span
-            ><span class="muted">step 2 of 3</span>
-            <i class="ti ti-player-skip-back" aria-label="Previous step"></i>
-            <i class="ti ti-player-play" aria-label="Play"></i>
-            <i class="ti ti-player-skip-forward" aria-label="Next step"></i>
-          </div>
-          <div
-            class="abs"
-            style="left: 52px; bottom: 10px; display: flex; gap: 6px"
-          >
-            <span class="pill" style="background: var(--surface-2)"
-              ><i class="ti ti-route" aria-hidden="true"></i>Workflows ▾</span
-            >
-            <span class="pill" style="background: var(--surface-2)"
-              ><i class="ti ti-list" aria-hidden="true"></i>As text</span
-            >
-            <span class="pill" style="background: var(--surface-2)"
-              ><i class="ti ti-minus" aria-label="Zoom out"></i
-              ><i class="ti ti-plus" aria-label="Zoom in"></i
-            ></span>
-          </div>
-        </div>
-        <div class="abs tool">
-          <i class="ti ti-pointer" aria-label="Select"></i>
-          <i class="ti ti-square-plus" aria-label="Add component"></i>
-          <i class="ti ti-arrows-right" aria-label="Connect"></i>
-          <i class="ti ti-route" aria-label="Workflows"></i>
-          <i class="ti ti-activity" aria-label="Workloads"></i>
-        </div>
-        <div class="abs insp s-edit">
-          <div style="display: flex; justify-content: space-between">
-            <span style="font-weight: 500"
-              ><i class="ti ti-database" aria-hidden="true"></i> orders-db</span
-            >
-            <i class="ti ti-x muted" aria-label="Close"></i>
-          </div>
-          <div class="muted" style="margin-bottom: 8px">
-            RDS · called by Get order, Create order
-          </div>
-          <div class="muted" style="font-size: 11px; margin: 4px 0">
-            Capacity
-          </div>
-          <div class="row">
-            <span>Max connections</span><span class="pill">90</span>
-          </div>
-          <div class="row">
-            <span>Query workers</span><span class="pill">16</span>
-          </div>
-          <div class="muted" style="font-size: 11px; margin: 10px 0 4px">
-            Latency
-          </div>
-          <div class="row">
-            <span>Query time</span><span class="pill">lognormal ▾</span>
-          </div>
-          <div class="row">
-            <span>median / p99</span><span>15 / 60 ms</span>
-          </div>
-          <div class="muted" style="font-size: 11px; margin-top: 10px">
-            <i class="ti ti-info-circle" aria-hidden="true"></i> Help text on
-            demand, not inline
-          </div>
-        </div>
-        <div class="abs insp s-run">
-          <div style="display: flex; justify-content: space-between">
-            <span style="font-weight: 500">Run: Lunch rush</span
-            ><i class="ti ti-x muted" aria-label="Close"></i>
-          </div>
-          <div
-            style="
-              background: var(--bg-danger);
-              color: var(--text-danger);
-              border-radius: var(--radius);
-              padding: 6px 8px;
-              margin: 8px 0;
-            "
-          >
-            28,841 of 65,963 failed
-          </div>
-          <div class="muted" style="font-size: 11px; margin-bottom: 4px">
-            Why
-          </div>
-          <div style="padding: 6px 0; border-bottom: 1px solid var(--border)">
-            <span style="color: var(--text-danger)">orders-db</span> refused:
-            too many connections, 14–47 s
-          </div>
-          <div style="padding: 6px 0; border-bottom: 1px solid var(--border)">
-            Requests waited for its 16 query workers, holding connections
-          </div>
-          <div class="muted" style="font-size: 11px; margin: 10px 0 4px">
-            Try
-          </div>
-          <div class="pill" style="margin-bottom: 4px">Raise query workers</div>
-          <div class="pill">Put a queue before writes</div>
-        </div>
-        <div class="abs insp s-flow">
-          <div style="display: flex; justify-content: space-between">
-            <span style="font-weight: 500"
-              ><i class="ti ti-route" aria-hidden="true"></i> Get order</span
-            >
-            <i class="ti ti-x muted" aria-label="Close"></i>
-          </div>
-          <div class="muted" style="margin-bottom: 8px">
-            Used by 3 workloads
-          </div>
-          <div class="row">
-            <span
-              ><i class="ti ti-grip-vertical muted" aria-hidden="true"></i> 1
-              API Gateway · invoke</span
-            >
-          </div>
-          <div
-            class="row"
-            style="padding-left: 12px; background: var(--bg-accent-muted)"
-          >
-            <span
-              ><i class="ti ti-grip-vertical muted" aria-hidden="true"></i> 2
-              fn-orders · invoke</span
-            >
-          </div>
-          <div class="row" style="padding-left: 24px">
-            <span
-              ><i class="ti ti-grip-vertical muted" aria-hidden="true"></i> 3
-              orders-db · read</span
-            >
-          </div>
-          <div class="muted" style="margin-top: 10px">
-            <i class="ti ti-plus" aria-hidden="true"></i> Drag from a box to add
-            a call
-          </div>
-        </div>
-        <div class="abs dock">
-          <span style="font-weight: 500">Timeline</span>
-          <svg width="360" height="28" aria-hidden="true" class="s-run">
-            <polyline
-              fill="none"
-              stroke="var(--text-success)"
-              stroke-width="1.5"
-              points="0,22 60,22 90,10 210,10 240,22 360,22"
-            />
-            <polyline
-              fill="none"
-              stroke="var(--text-danger)"
-              stroke-width="1.5"
-              points="0,26 80,26 100,14 200,14 230,26 360,26"
-            />
-          </svg>
-          <svg width="360" height="28" aria-hidden="true" class="s-flow">
-            <polyline
-              fill="none"
-              stroke="var(--text-success)"
-              stroke-width="1.5"
-              points="0,22 60,22 90,10 210,10 240,22 360,22"
-            />
-            <polyline
-              fill="none"
-              stroke="var(--text-danger)"
-              stroke-width="1.5"
-              points="0,26 80,26 100,14 200,14 230,26 360,26"
-            />
-          </svg>
-          <span class="muted s-edit" style="width: 360px"
-            >Run again to see your changes</span
-          >
-          <span class="muted s-run">The whole run, read-only</span>
-          <span style="flex: 1"></span>
-          <span class="pill"
-            ><i class="ti ti-chart-line" aria-hidden="true"></i>Charts ▴</span
-          >
-        </div>
-      </div>
+      <h1 class="sr-only">The project screen, state by state</h1>
+      <div class="switcher" id="switcher" aria-label="State"></div>
+      <p class="mock-caption" id="about"></p>
+      <div class="screen" id="screen"></div>
     </main>
     <script>
-      for (const button of document.querySelectorAll("[data-go]")) {
-        button.addEventListener("click", () => {
-          document.getElementById("wf").dataset.s = button.dataset.go;
-        });
+      const DESCRIPTION =
+        "API Gateway in front of one Lambda function that reads and writes a relational database.";
+
+      const STATES = {
+        "new-project": {
+          label: "A new project",
+          about:
+            "Three boxes added from the Library, none connected yet: the canvas says how to connect them. Nothing is selected, so the inspector shows the overview, and with no workload the run group says why Run can't run.",
+          selection: "none",
+          run: "none",
+          tab: "library",
+          unconnected: true,
+        },
+        component: {
+          label: "Component",
+          about:
+            "orders-db selected: its settings in the inspector, its row marked in Components.",
+          selection: "component",
+          run: "none",
+          tab: "components",
+        },
+        edge: {
+          label: "Edge",
+          about:
+            "The arrow from fn-orders to orders-db selected: drawn thicker, its settings in the inspector.",
+          selection: "edge",
+          run: "none",
+          tab: "components",
+        },
+        workflow: {
+          label: "Workflow",
+          about:
+            "Get order selected: its path highlighted and numbered, its outline open in the Workflows tab, and the workloads that run it in the inspector.",
+          selection: "workflow",
+          run: "none",
+          tab: "workflows",
+        },
+        step: {
+          label: "Step",
+          about:
+            "Get order's second call selected: marked on the canvas and in the outline, and described in the inspector.",
+          selection: "step",
+          run: "none",
+          tab: "workflows",
+        },
+        workload: {
+          label: "Workload",
+          about:
+            "Lunch rush selected: its editor open in the Workloads tab, and the run group picks it, so Run runs it.",
+          selection: "workload",
+          run: "none",
+          tab: "workloads",
+        },
+        running: {
+          label: "Running",
+          about:
+            "Run pressed: the run is selected, the Run tab shows it so far, and the run group shows Stop and its progress.",
+          selection: "run",
+          run: "running",
+          tab: "run",
+        },
+        "after-run": {
+          label: "After a run",
+          about:
+            "The run finished: still selected, so the inspector explains it and the Run tab holds its evidence. The verdict sits in the run group.",
+          selection: "run",
+          run: "current",
+          tab: "run",
+        },
+        finding: {
+          label: "Finding",
+          about:
+            "A finding selected: the boxes it names are marked, and the explanation stays.",
+          selection: "finding",
+          run: "current",
+          tab: "run",
+        },
+        "component-after-run": {
+          label: "Component after a run",
+          about:
+            "orders-db selected after the run: its settings, then In this run, which says why its badge reads refused. The Run tab stays where it was.",
+          selection: "component",
+          run: "current",
+          tab: "run",
+        },
+        "out-of-date": {
+          label: "Out of date",
+          about:
+            "Max connections changed since the run: the badges are hollow, the verdict is marked out of date, and the explanation opens with a line saying so.",
+          selection: "run",
+          run: "stale",
+          tab: "run",
+        },
+        folded: {
+          label: "Folded, nothing selected",
+          about:
+            "Nothing selected after a run: the overview, with the verdict, which selects the run. The dock is folded to its tab strip, and the run group stays.",
+          selection: "none",
+          run: "current",
+          tab: "run",
+          folded: true,
+        },
+        narrow: {
+          label: "Narrow window",
+          about:
+            "Below the wide breakpoint: the canvas, then the inspector, then the dock, with the run group moved to the top bar, whole.",
+          selection: "run",
+          run: "current",
+          tab: "run",
+          narrow: true,
+        },
+      };
+
+      const NODES = [
+        {
+          id: "gw",
+          name: "API Gateway",
+          type: "API Gateway",
+          x: 70,
+          y: 70,
+          status: "ok",
+        },
+        {
+          id: "fn",
+          name: "fn-orders",
+          type: "Lambda",
+          x: 240,
+          y: 70,
+          status: "ok",
+        },
+        {
+          id: "db",
+          name: "orders-db",
+          type: "RDS",
+          x: 410,
+          y: 70,
+          status: "refused",
+        },
+      ];
+
+      const MARKED = {
+        component: ["db"],
+        step: ["db"],
+        finding: ["db"],
+      };
+
+      function badge(node, s) {
+        if (s.run === "current" || s.run === "stale") {
+          const fill = s.run === "current" ? " solid" : "";
+          const mark = node.status === "ok" ? "●" : "■";
+          return `<br><span class="badge ${node.status}${fill}">${mark} ${node.status}</span>`;
+        }
+        return "";
       }
+
+      function nodeHtml(node, s) {
+        const selected = (MARKED[s.selection] ?? []).includes(node.id);
+        const classes = ["node", selected ? "selected" : ""].join(" ");
+        return `<div class="${classes}" style="left:${node.x}px;top:${node.y}px"><b>${node.name}</b><br><span class="muted">${node.type}</span>${badge(node, s)}</div>`;
+      }
+
+      function arrowsHtml(s) {
+        if (s.unconnected) return "";
+        const y = 92;
+        const flow = s.selection === "workflow" || s.selection === "step";
+        const edge = (from, to, n, thick) => {
+          const x1 = from + 112;
+          const x2 = to;
+          const width = thick ? 4 : flow ? 2.5 : 1.5;
+          const color = flow || thick ? "#378add" : "#8a8880";
+          const label = flow
+            ? `<text x="${(x1 + x2) / 2}" y="${y - 6}" font-size="11" fill="#378add" text-anchor="middle">${n}</text>`
+            : "";
+          return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${color}" stroke-width="${width}" marker-end="url(#head)"/>${label}`;
+        };
+        const stepThick = s.selection === "step";
+        return `<svg style="position:absolute;left:0;top:0;width:600px;height:200px;overflow:visible" aria-hidden="true"><defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a8880"/></marker></defs>${edge(70, 240, 1, false)}${edge(240, 410, 2, s.selection === "edge" || stepThick)}</svg>`;
+      }
+
+      function canvasHtml(s) {
+        const nodes = NODES.map((n) => nodeHtml(n, s)).join("");
+        const hint = s.unconnected
+          ? `<div class="hint muted">Drag from a box's handle to another box to connect them</div>`
+          : "";
+        const rail = `<div class="rail"><i class="ti ti-zoom-in" aria-label="Zoom in"></i><i class="ti ti-zoom-out" aria-label="Zoom out"></i><i class="ti ti-maximize" aria-label="Fit"></i></div>`;
+        return `<div class="canvas"><div class="stage">${arrowsHtml(s)}${nodes}</div>${rail}${hint}</div>`;
+      }
+
+      function runGroupHtml(s) {
+        if (s.unconnected) {
+          return `<div class="group"><span class="muted">No workload yet: add one in Workloads</span><span class="pill run-btn" style="opacity:.5">Run</span><span class="pill" style="opacity:.5">Stop</span></div>`;
+        }
+        const picker = `<span class="pill">Lunch rush <i class="ti ti-chevron-down" aria-hidden="true"></i></span>`;
+        const running = s.run === "running";
+        const buttons = `<span class="pill run-btn" style="${running ? "opacity:.5" : ""}">Run</span><span class="pill" style="${running ? "" : "opacity:.5"}">Stop</span>`;
+        const status = {
+          none: "",
+          running: `<span class="muted">31 of 60 s</span>`,
+          current: `<span class="pill verdict">Failing · 43.7%</span>`,
+          stale: `<span class="pill verdict stale">Failing · 43.7% · out of date</span>`,
+        }[s.run];
+        return `<div class="group">${picker}${buttons}${status}</div>`;
+      }
+
+      const TAB_NAMES = [
+        "Library",
+        "Components",
+        "Workflows",
+        "Workloads",
+        "Run",
+      ];
+
+      function stripHtml(s) {
+        const tabs = TAB_NAMES.filter((t) => t !== "Run" || s.run !== "none")
+          .map(
+            (t) =>
+              `<span class="tab ${t.toLowerCase() === s.tab && !s.folded ? "on" : ""}">${t}</span>`,
+          )
+          .join("");
+        const group = s.narrow ? "" : runGroupHtml(s);
+        const chevron = s.folded ? "ti-chevron-up" : "ti-chevron-down";
+        const label = s.folded ? "Unfold the dock" : "Fold the dock";
+        return `<div class="strip">${tabs}${group}<i class="ti ${chevron}" aria-label="${label}" style="font-size:15px;margin-left:${s.narrow ? "auto" : "6px"}"></i></div>`;
+      }
+
+      const DOCK_BODY = {
+        library: () =>
+          `<div class="cards">${[
+            ["API Gateway", "Takes requests from clients and passes them on"],
+            ["Lambda", "Runs your code for each request"],
+            ["RDS", "A relational database with a fixed pool of connections"],
+            ["DynamoDB", "A key-value table that scales with its capacity"],
+            ["SQS", "A queue that holds messages for a consumer"],
+          ]
+            .map(
+              ([name, line]) =>
+                `<div class="card"><b>${name}</b><br><span class="muted">${line}</span></div>`,
+            )
+            .join(
+              "",
+            )}</div><p class="muted">Drag a card onto the canvas, or click it to place it in the next free spot.</p>`,
+        components: (s) => {
+          const status = (n) =>
+            s.run === "none" ? "" : `<td>${n.status}</td>`;
+          const head = s.run === "none" ? "" : "<th>Last run</th>";
+          const rows = NODES.map(
+            (n) =>
+              `<tr style="${s.selection === "component" && n.id === "db" ? "border-left:3px solid var(--fill-accent)" : ""}"><td>${n.name}</td><td class="muted">${n.type}</td>${status(n)}</tr>`,
+          ).join("");
+          const edgeOn =
+            s.selection === "edge"
+              ? "border-left:3px solid var(--fill-accent)"
+              : "";
+          return `<div class="split" style="grid-template-columns:1fr 1fr"><div><b>Components</b><table><tr><th>Name</th><th>Type</th>${head}</tr>${rows}</table></div><div><b>Connections</b><table><tr><td>API Gateway → fn-orders</td></tr><tr style="${edgeOn}"><td>fn-orders → orders-db</td></tr></table></div></div>`;
+        },
+        workflows: (s) => {
+          const step = (n, text, on) =>
+            `<div style="padding:3px 6px;${on ? "border-left:3px solid var(--fill-accent);background:var(--fill-ghost-hover)" : ""}">${n}. ${text}</div>`;
+          return `<div class="split"><div class="list"><div class="muted">Workflows <span class="pill">Add workflow</span></div><div class="on">Get order</div><div>Create order</div></div><div><b>Get order</b>${step(1, "API Gateway · request", false)}<div style="padding-left:16px">${step(2, "fn-orders · invoke", false)}<div style="padding-left:16px">${step(3, "orders-db · read", s.selection === "step")}<div class="link" style="padding:3px 6px">Add a call from orders-db…</div></div></div></div></div>`;
+        },
+        workloads: () =>
+          `<div class="split"><div class="list"><div class="muted">Workloads <span class="pill">Add workload</span></div><div class="on">Lunch rush</div><div>Steady day</div><div>Long rush</div></div><div><div style="display:flex;gap:14px"><span><span class="muted">Duration</span> <span class="field">60</span> s</span><span><span class="muted">Seed</span> <span class="field">42</span></span><span class="muted">About 66,000 requests, peak 2,000/s</span></div><svg viewBox="0 0 400 60" style="width:100%;height:60px;margin:6px 0" role="img" aria-label="Request-rate profile"><polyline points="0,52 120,48 160,8 240,8 280,48 400,52" fill="none" stroke="#378add" stroke-width="2"/><line x1="0" y1="56" x2="400" y2="56" stroke="#8a8880"/></svg><div><span class="muted">Mix</span> Get order 80% · Create order 20%</div></div></div>`,
+        run: (s) => {
+          const counts =
+            s.run === "running"
+              ? ["33,410", "21,920", "11,470", "20"]
+              : ["65,974", "37,122", "28,841", "11"];
+          const stale =
+            s.run === "stale"
+              ? `<p class="muted">This run is of an earlier version of the project.</p>`
+              : "";
+          return `${stale}<div style="display:flex;gap:24px"><div><b>Requests</b><table><tr><th>Started</th><th>Succeeded</th><th>Failed</th><th>In progress</th></tr><tr><td>${counts.join("</td><td>")}</td></tr></table><p class="muted">Started = succeeded + failed + in progress.</p></div><div style="flex:1"><b>Timeline</b><svg viewBox="0 0 400 70" style="width:100%;height:70px" role="img" aria-label="Requests over time"><polyline points="0,60 120,56 160,14 ${s.run === "running" ? "200,14" : "240,14 280,56 400,60"}" fill="none" stroke="#3b6d11" stroke-width="2"/><polyline points="0,64 150,64 170,30 ${s.run === "running" ? "200,30" : "240,30 260,64 400,64"}" fill="none" stroke="#a32d2d" stroke-width="2"/></svg><span class="pill">All charts</span></div></div>`;
+        },
+      };
+
+      function dockHtml(s) {
+        const body = s.folded
+          ? ""
+          : `<div class="body">${DOCK_BODY[s.tab](s)}</div>`;
+        return `<section class="dock ${s.folded ? "folded" : ""}" aria-label="Dock">${stripHtml(s)}${body}</section>`;
+      }
+
+      const CLOSE = `<i class="ti ti-x" aria-label="Clear the selection"></i>`;
+      const COLLAPSE = `<i class="ti ti-chevron-right" aria-label="Collapse the inspector"></i>`;
+
+      function head(title, selected) {
+        return `<div class="ihead"><span class="grow">${title}</span>${selected ? CLOSE : ""}${COLLAPSE}</div>`;
+      }
+
+      function explanation(s) {
+        const stale =
+          s.run === "stale"
+            ? `<p class="muted">This run is of an earlier version of the project: you've changed it since.</p>`
+            : "";
+        if (s.run === "running") {
+          return `${head("Run: Lunch rush", true)}<p>Running, 31 of 60 s. So far, 11,470 of 33,390 answered requests failed (34.4%).</p>`;
+        }
+        const findingOn =
+          s.selection === "finding"
+            ? "border-left:3px solid var(--fill-accent);padding-left:6px"
+            : "";
+        return `${head("Run: Lunch rush", true)}${stale}<div style="padding:6px 8px;background:var(--bg-danger);color:var(--text-danger)"><b>Failing</b><br>28,841 of 65,963 answered requests failed (43.7%).</div><div class="sect">Why</div><div style="${findingOn}">1. orders-db refused 28,841 requests: all 90 connections were in use.</div><div>1.1 Requests waited for its 16 query workers, holding connections while they waited.</div><div class="sect">Try</div><div>Raise orders-db's query workers, or move to a larger instance class.</div>`;
+      }
+
+      function componentDetails(s) {
+        const run =
+          s.run === "none"
+            ? ""
+            : `<div class="sect">In this run</div><div style="color:var(--text-danger)">■ Refused 28,841 requests</div><div>All 90 connections were in use: requests waited for its 16 query workers while holding one.</div><div class="link">See the run →</div>`;
+        return `${head("orders-db · RDS", true)}<span class="muted">Name</span><span class="field">orders-db</span><span class="muted">Max connections</span><span class="field">90</span><span class="muted">Query workers</span><span class="field">16</span><span class="pill" style="align-self:flex-start">Connect to…</span><span class="pill" style="align-self:flex-start">Remove</span>${run}`;
+      }
+
+      const INSPECTOR = {
+        none: (s) => {
+          const counts = s.unconnected
+            ? "3 components, no workflows, no workloads."
+            : "3 components, 2 workflows, 3 workloads.";
+          const latest =
+            s.run === "none"
+              ? ""
+              : `<div class="sect">Latest run</div><span class="pill verdict" style="align-self:flex-start">Failing · 43.7%</span><span class="muted">Select it to see why.</span>`;
+          return `${head("Serverless API with RDS", false)}<p>${DESCRIPTION}</p><p class="muted">${counts} Nothing selected: select a box, an arrow, or a row to see it here.</p>${latest}`;
+        },
+        component: componentDetails,
+        edge: () =>
+          `${head("fn-orders → orders-db", true)}<span class="muted">Latency</span><span class="field">2 ms</span><span class="muted">Timeout</span><span class="field">3 s</span><span class="muted">Retry</span><span class="field">None</span><div class="sect">Calls along it</div><div>Get order, step 3</div><div>Create order, step 3</div><span class="pill" style="align-self:flex-start">Remove</span>`,
+        workflow: () =>
+          `${head("Get order · Workflow", true)}<span class="muted">Name</span><span class="field">Get order</span><div class="sect">Run by</div><div>Lunch rush, 80%</div><div>Steady day, 70%</div><div>Long rush, 80%</div><span class="pill" style="align-self:flex-start">Remove</span>`,
+        step: () =>
+          `${head("Step 3 of Get order", true)}<div>Calls <b>orders-db</b> with <b>read</b></div><div class="muted">Along fn-orders → orders-db</div><span class="pill" style="align-self:flex-start">Change…</span><span class="pill" style="align-self:flex-start">Remove</span>`,
+        workload: () =>
+          `${head("Lunch rush · Workload", true)}<span class="muted">Name</span><span class="field">Lunch rush</span><p class="muted">No problems: it can run. Its traffic is edited in the Workloads tab.</p><span class="pill" style="align-self:flex-start">Remove</span>`,
+        run: explanation,
+        finding: explanation,
+      };
+
+      function inspectorHtml(s) {
+        const selected = s.selection !== "none";
+        return `<section class="inspector ${selected ? "selected" : ""}" aria-label="Inspector">${INSPECTOR[s.selection](s)}</section>`;
+      }
+
+      function render(key) {
+        const s = STATES[key] ?? STATES["after-run"];
+        const screen = document.getElementById("screen");
+        screen.className = `screen ${s.narrow ? "narrow" : ""}`;
+        const groupInBar = s.narrow ? runGroupHtml(s) : "";
+        const bar = `<div class="bar"><i class="ti ti-wind" aria-hidden="true" style="font-size:16px"></i><b>Wind Tunnel</b><span class="muted">Projects ›</span><b>Serverless API with RDS</b><i class="ti ti-arrow-back-up" aria-label="Undo"></i><i class="ti ti-arrow-forward-up" aria-label="Redo"></i><span style="flex:1"></span>${groupInBar}<i class="ti ti-dots" aria-label="Settings"></i></div>`;
+        const banner = "<div></div>";
+        const left = s.narrow
+          ? `<div class="left">${canvasHtml(s)}</div>${inspectorHtml(s)}${dockHtml(s)}`
+          : `<div class="left">${canvasHtml(s)}${dockHtml(s)}</div>${inspectorHtml(s)}`;
+        screen.innerHTML = `${bar}${banner}<div class="main">${left}</div>`;
+        document.getElementById("about").textContent = s.about;
+        for (const button of document.querySelectorAll("#switcher button")) {
+          button.setAttribute(
+            "aria-pressed",
+            String(button.dataset.go === key),
+          );
+        }
+      }
+
+      if (location.search.includes("shot")) {
+        for (const e of document.querySelectorAll(".mock-caption, .switcher"))
+          e.style.display = "none";
+      }
+      const switcher = document.getElementById("switcher");
+      for (const [key, s] of Object.entries(STATES)) {
+        const button = document.createElement("button");
+        button.textContent = s.label;
+        button.dataset.go = key;
+        button.addEventListener("click", () => {
+          location.hash = key;
+        });
+        switcher.append(button);
+      }
+      window.addEventListener("hashchange", () =>
+        render(location.hash.slice(1)),
+      );
+      render(location.hash.slice(1) || "after-run");
     </script>
   </body>
 </html>

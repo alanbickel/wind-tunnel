@@ -92,7 +92,7 @@ The inspector never shows a list or a whole editor, and the dock never shows one
 
 - **Selecting** moves the focus to the inspector's heading, except when you select from a row in one of the dock's lists, or a finding: then the focus stays where it is, since what you selected it for is beside it.
 - **Clicking** a box, an arrow, or a row selects it; clicking the empty canvas clears the selection.
-- **When the selected thing goes**, the selection clears and the focus moves to the nearest "Add" button ("Add component", or "Add workload"), since what made the selection may be gone too ([#95](https://github.com/alanbickel/wind-tunnel/issues/95)). Undoing the remove selects it again. When an Undo or Redo removes what had the focus, the focus moves to the Undo or Redo button just used.
+- **When the selected thing goes**, the selection clears and the focus moves to where you'd go next in the dock, since what made the selection may be gone too: for a workflow or a workload, its tab's "Add workflow" or "Add workload"; for a component or an edge, the Components tab's list. A step's remove is the exception: the focus goes to its caller in the outline ([#95](https://github.com/alanbickel/wind-tunnel/issues/95)). Undoing the remove selects it again. When an Undo or Redo removes what had the focus, the focus moves to the Undo or Redo button just used.
 - **A finding can name a component that's been removed since the run**, because the run keeps its own copy of the project (§9). Selecting that finding marks nothing, and the finding says the component isn't in the project any more.
 - **A new run replaces the run**, so a selected finding of the old one becomes the new run.
 
@@ -105,9 +105,15 @@ The screen's state is four things, and each changes only as the rules above say:
 | The selection | Nothing, or one of the eight kinds in the table above |
 | The inspector | Open or collapsed |
 | The dock | Which tab shows, and folded or not. Library, Components, Workflows, and Workloads are always there; Run is there once a run has started |
-| The run | None, running, current, or out of date |
+| The run | None; or running or finished, and, either way, current or out of date |
 
-They're independent, so any combination can happen, with two exceptions: the run, or a finding, can be selected only while there's a run, and the run group's verdict shows only once there is one. A collapsed inspector or a folded dock still holds what it shows, so opening it again shows the same thing.
+They're independent: any selection can be seen with the inspector open or collapsed, and beside any tab that's there, folded or not. These are the only limits, so a test written from the map should treat anything else as a bug:
+
+- **No run:** the run and a finding can't be selected, the Run tab isn't there, and the run group has no verdict.
+- **A selection shows a tab only as it's made** (rule 3): a workflow or a step shows Workflows, a workload shows Workloads, and the run shows Run. Every other selection leaves the tab as it was, and from then on you may show any tab, so a selected workflow beside the Library tab is a state, not a bug.
+- **The run group picks a workload only as it's selected** (rule 5): picking another in the run group afterwards leaves the workload selected but not the one Run runs.
+
+A collapsed inspector or a folded dock still holds what it shows, so opening it again shows the same thing.
 
 How the selection moves:
 
@@ -137,23 +143,31 @@ How the run moves, and what each part shows ([§9](#9-runs-and-results) has the 
 stateDiagram-v2
     state "No run" as noRun
     state "Running" as running
-    state "Current" as current
-    state "Out of date" as outOfDate
+    state "Finished" as finished
     [*] --> noRun
     noRun --> running: Run
-    running --> current: it finishes, or Stop
-    current --> outOfDate: a change to what it ran
+    running --> finished: it reaches its duration, or Stop
+    finished --> running: Run
+```
+
+Whether the run is current is separate, and holds from the moment it starts: the run copies the project as it starts (ADR-0018), so a change made while it runs makes it out of date as surely as one made after, and it stays out of date when it finishes. Editing isn't blocked while a run goes.
+
+```mermaid
+stateDiagram-v2
+    state "Current" as current
+    state "Out of date" as outOfDate
+    [*] --> current: Run
+    current --> outOfDate: a change to what it ran, while it runs or after
     outOfDate --> current: Undo back to what it ran
-    current --> running: Run
-    outOfDate --> running: Run
 ```
 
 | The run | Run group | Run tab | Badges | The run's explanation |
 |---|---|---|---|---|
 | None | The workload, and Run, or why it can't run | Not there | None | Can't be selected |
-| Running | The workload, Stop, and its progress | The run so far | From the last run, if there was one | "Running", with its progress |
-| Current | The workload, Run, and the verdict | The totals and charts | Solid | The verdict, Why, and Try |
-| Out of date | The same, the verdict marked "out of date" | The same, with a line saying so | Hollow | The same, opening with a line saying it's of an earlier version |
+| Running, current | The workload, Stop, and its progress | The run so far | From the run so far, solid | "Running", with its progress |
+| Running, out of date | The same, its progress marked "out of date" | The same, with a line saying so | From the run so far, hollow | The same, opening with a line saying it's of an earlier version |
+| Finished, current | The workload, Run, and the verdict | The totals and charts | Solid | The verdict, Why, and Try |
+| Finished, out of date | The same, the verdict marked "out of date" | The same, with a line saying so | Hollow | The same, opening with a line saying it's of an earlier version |
 
 ## 6. Editing and saving
 

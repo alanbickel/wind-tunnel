@@ -141,6 +141,9 @@
      body size, with its badge full width beneath. */
   --node-card-width: 13rem;
   --library-card-min-width: 14rem;
+  /* The Workloads tab's list, beside the open workload's editor: room for a
+     name like "Lunch rush · 1 problem". */
+  --dock-list-width: 14rem;
   /* The shape on a status badge: a circle, triangle, or square, beside its word. */
   --badge-shape-size: 0.75em;
   /* A box's connection handle: the dot drawn, and the pointer target around

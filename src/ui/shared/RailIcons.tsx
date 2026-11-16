@@ -44,14 +44,3 @@ export function WorkflowsIcon() {
     </RailIcon>
   );
 }
-
-/** A rising line of traffic: a workload. */
-export function WorkloadsIcon() {
-  return (
-    <RailIcon>
-      <path d="M3 20h18" />
-      <path d="M4 16l5-5 4 3 7-8" />
-      <path d="M15 6h5v5" />
-    </RailIcon>
-  );
-}

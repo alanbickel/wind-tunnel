@@ -143,6 +143,7 @@ function ProjectCanvas({ screen, wide, runGroup }: ProjectCanvasProps) {
     onRemove: remove,
     onAdd: changes.add,
     listRef: changes.componentsListRef,
+    addingWorkload: changes.addingWorkload,
     announcement: changes.announcement,
   };
   return (
@@ -160,6 +161,15 @@ function ProjectCanvas({ screen, wide, runGroup }: ProjectCanvasProps) {
   );
 }
 
+/** What the dock reads of adding and removing. */
+interface DockChanges extends Pick<
+  AddAndRemove,
+  "add" | "componentsListRef" | "announcement"
+> {
+  /** The Workloads tab's "Add workload". */
+  readonly addingWorkload: AddWorkloadProps;
+}
+
 /** What a project screen holds, and the architecture it draws from them. */
 interface ProjectScreen {
   readonly edits: ProjectEdits;
@@ -168,11 +178,11 @@ interface ProjectScreen {
   readonly undoRedo: UndoRedo;
   /** Removes as `changes.remove` does, opening the panel the focus goes to. */
   readonly remove: AddAndRemove["remove"];
-  /** What the dock reads of adding and removing: adding, the list's ref, and what a remove said. */
-  readonly changes: Pick<
-    AddAndRemove,
-    "add" | "componentsListRef" | "announcement"
-  >;
+  /**
+   * What the dock reads of adding and removing: adding a component or a
+   * workload, the Components tab's list, and what a remove said.
+   */
+  readonly changes: DockChanges;
   /** How much of the canvas the inspector covers, which the diagram fits around. */
   readonly covered: CoveredWidth;
   readonly architecture: ReactNode;
@@ -203,6 +213,7 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     announce: changes.announce,
   });
   const remove = useRevealingRemove({ changes, panels, edits, projectRun });
+  const addingWorkload = useAddingWorkload(changes);
   const covered = useCoveredWidth();
   const architecture = useArchitecture({
     edits,
@@ -214,7 +225,8 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     coveredRightPx: covered.coveredRightPx,
   });
   const held = { edits, projectRun, selecting, undoRedo };
-  return { ...held, remove, changes, covered, architecture };
+  const dockChanges = { ...changes, addingWorkload };
+  return { ...held, remove, changes: dockChanges, covered, architecture };
 }
 
 /**
@@ -232,7 +244,6 @@ function useArchitecture(input: ArchitectureInput) {
   const { selection, select, clear } = selecting;
   const offering = useOffering({ edits, selecting, changes });
   const addingWorkflow = useAddingWorkflow(changes);
-  const addingWorkload = useAddingWorkload(changes);
   return (
     <MemoArchitectureView
       record={edits.record}
@@ -242,7 +253,6 @@ function useArchitecture(input: ArchitectureInput) {
       onConnect={changes.connect}
       onMove={move}
       addingWorkflow={addingWorkflow}
-      addingWorkload={addingWorkload}
       workflowAnnouncement={changes.workflowAnnouncement}
       panels={panels}
       badges={badges}
@@ -337,7 +347,6 @@ function useMove({ edit, project, announce }: MoveInput): Move {
 /** The rail list a remove of each kind opens: where its Add button is. */
 const LIST_OF_REMOVED: Partial<Record<Selection["kind"], CanvasPanelId>> = {
   workflow: "workflows",
-  workload: "workloads",
 };
 
 /** What a remove opens, and picks, around `AddAndRemove`'s. */
@@ -350,12 +359,12 @@ interface RevealingRemoveInput {
 
 /**
  * A remove, as `AddAndRemove` has it, that first opens "Workflows" for a
- * workflow's, or "Workloads" for a workload's: the focus goes to "Add
- * workflow" or "Add workload", in that list, which may be closed. Opened at once, so the
- * button is there to take the focus. A remove of the workload the run
- * group has picked also picks the one after it, or the one before if it was
- * last, which only the project's list, as it was, can say (UX design §2.7
- * step 11). Removing another leaves the group's pick alone.
+ * workflow's: the focus goes to "Add workflow", in that list, which may be
+ * closed. Opened at once, so the button is there to take the focus. A
+ * remove of the workload the run group has picked also picks the one after
+ * it, or the one before if it was last, which only the project's list, as
+ * it was, can say (UX design §2.7 step 11). Removing another leaves the
+ * group's pick alone.
  */
 function useRevealingRemove(
   input: RevealingRemoveInput,

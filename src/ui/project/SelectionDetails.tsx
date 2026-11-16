@@ -33,7 +33,7 @@ import { useConnect, type Connect } from "./useConnect";
 import type { Edit } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
 import { WorkflowOutline } from "./WorkflowOutline";
-import { WorkloadView } from "./WorkloadView";
+import { WorkloadProblems } from "./WorkloadProblems";
 
 export interface SelectionDetailsProps {
   readonly project: Project;
@@ -57,7 +57,8 @@ export interface SelectionDetailsProps {
  * change once it passes its checks, and a component's "Connect to…"; then
  * what calls it (UX design §4.1, §4.3). Or the selected workflow's name field
  * and outline, with the selected step marked in it; or the selected
- * workload's name field and values. Takes the focus to its
+ * workload's name field and problems, whose traffic the dock's Workloads
+ * tab edits. Takes the focus to its
  * heading when `takeFocus` says a selection was just made, so the keyboard and
  * a screen reader land on it. Escape anywhere in it closes it, unless a field
  * has a draft to put back first. Remove asks before it removes.
@@ -284,7 +285,7 @@ function DetailsBody(props: DetailsBodyProps) {
 
 /**
  * A component's settings, then "Connect to…"; an edge's settings; a
- * workflow's name, then its outline; a workload's name, then its values.
+ * workflow's name, then its outline; a workload's name, then its problems.
  * Each is keyed by what's selected, so no draft carries over to the next
  * one.
  */
@@ -307,10 +308,9 @@ const BODIES: KindHandlers<Details, (context: BodyContext) => ReactNode> = {
   workload: (details: WorkloadDetails) => (context) => (
     <div key={details.workloadId}>
       <WorkloadNameField details={details} {...context} />
-      <WorkloadView
-        details={details}
-        onEdit={context.onEdit}
-        announce={context.announce}
+      <WorkloadProblems
+        project={context.project}
+        workloadId={details.workloadId}
       />
     </div>
   ),

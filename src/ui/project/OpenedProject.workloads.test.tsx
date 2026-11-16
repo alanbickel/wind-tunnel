@@ -170,7 +170,7 @@ describe("OpenedProject's workloads", () => {
 
     selectFromList("Steady");
 
-    const details = screen.getByRole("tabpanel", { name: /^Workload: / });
+    const details = screen.getByRole("tabpanel", { name: "Workloads" });
     expect(
       within(details).getByRole<HTMLInputElement>("textbox", {
         name: "Duration",
@@ -206,13 +206,18 @@ describe("OpenedProject's workloads", () => {
     expect(details.textContent).not.toMatch(/\bread\b/);
   });
 
-  // Fails if a stored empty mix isn't said once on the mix, and in the run group, or
-  // a point past the run's end has no note, or a note lands on another row.
+  // Fails if a stored empty mix isn't said once on the mix, in the
+  // inspector, and in the run group, or a point past the run's end has no
+  // note, or a note lands on another row.
   it("shows a hand-broken workload's problem and its notes where they are", () => {
     renderProject({ project: twoWorkloads });
     selectFromList("Broken · 1 problem");
 
-    const details = screen.getByRole("tabpanel", { name: /^Workload: / });
+    const details = screen.getByRole("tabpanel", { name: "Workloads" });
+    const inspected = screen.getByRole("region", { name: "Details" });
+    expect(
+      within(inspected).getByText("The mix has no workflows."),
+    ).toBeTruthy();
 
     expect(within(details).queryByText("The mix has no workflows.")).toBeNull();
     expect(

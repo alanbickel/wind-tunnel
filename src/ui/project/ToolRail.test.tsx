@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ToolRail } from "./ToolRail";
 import { useCanvasPanels } from "./useCanvasPanels";
 
-/** The rail with the screen's panel state, and lists of one button each. */
+/** The rail with the screen's panel state, and a list of one button. */
 function Harness() {
   const panels = useCanvasPanels();
   return (
@@ -13,7 +13,6 @@ function Harness() {
       <ToolRail
         panels={panels}
         workflows={<button type="button">Add workflow</button>}
-        workloads={<button type="button">Add workload</button>}
         workflowAnnouncement=""
       />
     </>
@@ -32,13 +31,14 @@ describe("ToolRail", () => {
   afterEach(cleanup);
 
   // Fails if a rail button loses its name or its tooltip, or the rail stops
-  // being a toolbar with the three buttons in order, or "Add component" comes back.
-  it("is a toolbar of three icon buttons, each with a name and a tooltip", () => {
+  // being a toolbar with the two buttons in order, or "Add component" or
+  // "Workloads", now the dock's tabs, comes back.
+  it("is a toolbar of two icon buttons, each with a name and a tooltip", () => {
     renderRail();
 
     const toolbar = screen.getByRole("toolbar", { name: "Tools" });
     const buttons = [...toolbar.querySelectorAll("button")];
-    const names = ["Connect", "Workflows", "Workloads"];
+    const names = ["Connect", "Workflows"];
     expect(buttons.map((b) => b.textContent)).toEqual(names);
     expect(buttons.map((b) => b.title)).toEqual(names);
     expect(buttons.every((b) => b.querySelector("svg[aria-hidden]"))).toBe(
@@ -66,20 +66,15 @@ describe("ToolRail", () => {
     expect(screen.queryByRole("region", { name: "Connect" })).toBeNull();
   });
 
-  // Fails if Workflows and Workloads share a list, or lose their own Add
-  // buttons, or a list closes when the canvas is clicked, which would end
-  // a pick through its rows.
-  it("opens Workflows and Workloads as separate lists that stay open", () => {
+  // Fails if the Workflows list closes when the canvas is clicked, which
+  // would end a pick through its rows.
+  it("keeps the Workflows list open on a click on the canvas", () => {
     renderRail();
 
     fireEvent.click(railButton("Workflows"));
     fireEvent.mouseDown(railButton("Canvas"));
-    expect(railButton("Add workflow")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Add workload" })).toBeNull();
 
-    fireEvent.click(railButton("Workloads"));
-    expect(railButton("Add workload")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Add workflow" })).toBeNull();
+    expect(railButton("Add workflow")).toBeTruthy();
   });
 
   // Fails if opening one rail panel leaves another open, or Escape in a list
@@ -106,11 +101,10 @@ describe("ToolRail", () => {
     fireEvent.keyDown(railButton("Connect"), { key: "ArrowDown" });
     expect(document.activeElement).toBe(railButton("Workflows"));
 
-    fireEvent.keyDown(railButton("Workflows"), { key: "ArrowUp" });
-    fireEvent.keyDown(railButton("Connect"), { key: "ArrowUp" });
-    expect(document.activeElement).toBe(railButton("Workloads"));
-
-    fireEvent.keyDown(railButton("Workloads"), { key: "ArrowDown" });
+    fireEvent.keyDown(railButton("Workflows"), { key: "ArrowDown" });
     expect(document.activeElement).toBe(railButton("Connect"));
+
+    fireEvent.keyDown(railButton("Connect"), { key: "ArrowUp" });
+    expect(document.activeElement).toBe(railButton("Workflows"));
   });
 });

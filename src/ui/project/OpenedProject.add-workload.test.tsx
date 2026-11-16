@@ -29,8 +29,9 @@ function addWorkload(): HTMLElement {
   return button;
 }
 
+/** The name field, in the inspector's Details: the tab's editor has none. */
 function nameField(): HTMLInputElement {
-  const details = screen.getByRole("region", { name: "Dock" });
+  const details = screen.getByRole("region", { name: "Details" });
   return within(details).getByRole("textbox", { name: "Name" });
 }
 

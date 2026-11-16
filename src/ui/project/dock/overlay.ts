@@ -5,6 +5,7 @@ import type { ProjectRun } from "../../run/useProjectRun";
 import type { AddAndRemove } from "../useAddAndRemove";
 import type { ProjectEdits } from "../useProjectEdits";
 import type { ProjectSelection } from "../useSelection";
+import type { AddWorkloadProps } from "../WorkloadList";
 
 /**
  * What every overlay reads, live from the screen: the run changes with
@@ -21,7 +22,12 @@ export interface OverlayProps {
   readonly onAdd: AddAndRemove["add"];
   /** The Components tab's list, where the focus goes after a remove. */
   readonly listRef: AddAndRemove["componentsListRef"];
-  /** What a component's or a connection's remove says: "Removed Table." */
+  /** The Workloads tab's "Add workload", where a workload's remove sends the focus. */
+  readonly addingWorkload: AddWorkloadProps;
+  /**
+   * What a component's, a connection's, or a workload's remove says:
+   * "Removed Table."
+   */
   readonly announcement: string;
 }
 

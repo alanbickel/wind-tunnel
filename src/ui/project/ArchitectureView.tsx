@@ -24,7 +24,6 @@ import { useDisplayNames } from "./useDisplayNames";
 import { ToolRail } from "./ToolRail";
 import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
-import { WorkloadList, type AddWorkloadProps } from "./WorkloadList";
 import { useEdgeOffers, type OfferingProps } from "./useEdgeOffers";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
@@ -41,11 +40,9 @@ export interface ArchitectureViewProps {
   readonly onMove: (componentId: string, position: Point) => void;
   /** "Add workflow", in the workflows list. */
   readonly addingWorkflow: AddWorkflowProps;
-  /** "Add workload", in the workloads list. */
-  readonly addingWorkload: AddWorkloadProps;
   /**
-   * What a workflow's or a workload's remove announces: "Removed Get
-   * order." Said on the tool rail, not in the list, whose panel may be hidden.
+   * What a workflow's remove announces: "Removed Get order." Said on the
+   * tool rail, not in the list, whose panel may be hidden.
    */
   readonly workflowAnnouncement: string;
   /** Which panel of the tool rail is open. */
@@ -63,8 +60,8 @@ export interface ArchitectureViewProps {
 
 /**
  * The canvas: the project's components and connections as a diagram that
- * fills the room it's given, with a tool rail down its left edge (Connect,
- * Workflows, Workloads), and at its bottom left the workflow picker and
+ * fills the room it's given, with a tool rail down its left edge (Connect
+ * and Workflows), and at its bottom left the workflow picker and
  * zoom, in one row. A click on the diagram selects a
  * component or a connection; the dock's Components tab has the same facts
  * as lists, which every user can rely on. The diagram marks
@@ -77,8 +74,8 @@ export interface ArchitectureViewProps {
  * its place is only visual, so the lists don't change. With no
  * components, a line on the canvas says what to do instead (UX design
  * §2.1 step 1). "Workflows" lists them, each
- * a button that selects it, and "Add workflow"; "Workloads" does the same
- * for workloads. The rail comes first in the tab order.
+ * a button that selects it, and "Add workflow". The rail comes first in
+ * the tab order.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
   const displayNameOf = useDisplayNames();
@@ -123,13 +120,12 @@ function EmptyCanvas() {
   );
 }
 
-/** The tool rail, with the two lists it opens. */
+/** The tool rail, with the list it opens. */
 function Rail(props: ArchitectureViewProps) {
   return (
     <ToolRail
       panels={props.panels}
       workflows={<Workflows {...props} />}
-      workloads={<Workloads {...props} />}
       workflowAnnouncement={props.workflowAnnouncement}
     />
   );
@@ -144,19 +140,6 @@ function Workflows(props: ArchitectureViewProps) {
       selection={selection}
       onSelect={onSelect}
       adding={props.addingWorkflow}
-    />
-  );
-}
-
-/** The workloads list, for the "Workloads" panel. */
-function Workloads(props: ArchitectureViewProps) {
-  const { selection, onSelect } = props;
-  return (
-    <WorkloadList
-      project={props.record.project}
-      selection={selection}
-      onSelect={onSelect}
-      adding={props.addingWorkload}
     />
   );
 }

@@ -285,7 +285,7 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
     const button = revealButton("Read item");
     button.focus();
     fireEvent.click(button);
-    openPanel("Workloads");
+    fireEvent.click(openPanel("Workflows"));
     expect(button.closest("[hidden]")).not.toBeNull();
 
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });

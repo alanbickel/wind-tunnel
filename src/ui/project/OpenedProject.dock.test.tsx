@@ -21,6 +21,7 @@ import {
   dockPanel,
   dockTabs,
   inspector,
+  queryDetailsHeading,
   renderOpenedProject as renderProject,
   runGroup,
   type RenderedProject,
@@ -46,9 +47,19 @@ function openSteady(): void {
   openWorkload("Steady");
 }
 
-/** The editor's heading in the dock, the workload's name and its kind. */
-function workloadHeading(): HTMLElement {
-  return within(dock()).getByRole("heading", { level: 4, name: /· Workload$/ });
+/** The heading of the Workloads tab's editor: the open workload's name. */
+function editorHeading(name: string): HTMLElement {
+  return within(dockPanel("Workloads")).getByRole("heading", {
+    level: 4,
+    name,
+  });
+}
+
+/** Presses the run group's Edit, which selects the picked workload. */
+function pressEdit(): void {
+  const edit = screen.getByRole("button", { name: "Edit" });
+  edit.focus();
+  fireEvent.click(edit);
 }
 
 /** A tab of the dock's, by its label. */
@@ -82,37 +93,40 @@ describe("OpenedProject's dock", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the dock shows a tab but Library and Components with no run and
-  // nothing selected, opens on another than Library, or a workload doesn't
-  // open in a tab labelled with its name.
-  it("shows only Library and Components until a workload is selected, then its tab too", () => {
+  // Fails if the dock leaves out Library, Components, or Workloads with no
+  // run and nothing selected, opens on another than Library, or a workload
+  // doesn't open in the Workloads tab, which shows.
+  it("shows Library, Components, and Workloads, and opens a workload in Workloads", () => {
     renderProject();
-    expect(dockTabs()).toEqual(["Library", "Components"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Workloads"]);
     expect(shownTab()).toBe("Library");
 
     openSteady();
 
-    expect(dockTabs()).toEqual(["Library", "Components", "Workload: Steady"]);
-    expect(workloadHeading().textContent).toBe("Steady · Workload");
+    expect(dockTabs()).toEqual(["Library", "Components", "Workloads"]);
+    expect(shownTab()).toBe("Workloads");
+    expect(editorHeading("Steady")).toBeTruthy();
   });
 
-  // Fails if the workload's editor stays in the inspector's Details too, or
-  // the inspector doesn't close when a workload opens (UX §5).
-  it("closes the inspector, and leaves the workload out of Details", () => {
+  // Fails if selecting a workload collapses the inspector (rule 2), or the
+  // inspector leaves out its name, problems, or Remove, or holds its
+  // editor, which is the tab's, or its name field is in both.
+  it("keeps the inspector open on a workload: its name, problems, and Remove", () => {
     renderProject();
-    const toggle = screen.getByRole("button", { name: "Close the inspector" });
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
 
     openSteady();
 
-    expect(
-      screen
-        .getByRole("button", { name: "Open the inspector" })
-        .getAttribute("aria-expanded"),
-    ).toBe("false");
-    expect(
-      screen.queryAllByRole("heading", { level: 4, name: /· Workload$/ }),
-    ).toHaveLength(1);
+    const toggle = screen.getByRole("button", { name: "Close the details" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(detailsHeading().textContent).toBe("Steady · Workload");
+    expect(document.activeElement).toBe(detailsHeading());
+    const details = screen.getByRole("region", { name: "Details" });
+    const inDetails = within(details);
+    expect(inDetails.getByRole("textbox", { name: "Name" })).toBeTruthy();
+    expect(inDetails.getByText(/^No problems: it can run\./)).toBeTruthy();
+    expect(inDetails.getByRole("button", { name: "Remove" })).toBeTruthy();
+    expect(inDetails.queryByRole("textbox", { name: "Duration" })).toBeNull();
+    expect(screen.getAllByRole("textbox", { name: "Name" })).toHaveLength(1);
   });
 
   // Fails if the Run overlay waits for something other than the run
@@ -125,45 +139,41 @@ describe("OpenedProject's dock", () => {
 
     fireEvent.click(run);
 
-    expect(dockTabs()).toEqual(["Library", "Components", "Run"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
     expect(shownTab()).toBe("Run");
     expect(document.activeElement).toBe(run);
   });
 
-  // Fails if the overlays' tabs aren't in the map's order, Components first, or the
-  // workload's tab doesn't show on its selection while a run is there.
-  it("holds Run and the workload together, on the workload's", async () => {
+  // Fails if the tabs aren't in the modeling loop's order, Workloads just
+  // before Run, or Workloads doesn't show on a workload's selection while a
+  // run is there.
+  it("holds Workloads before Run, and shows it on a workload's selection", async () => {
     const shown = renderProject();
     await runASecond(shown);
 
     openSteady();
 
-    expect(dockTabs()).toEqual([
-      "Library",
-      "Components",
-      "Run",
-      "Workload: Steady",
-    ]);
-    expect(shownTab()).toBe("Workload: Steady");
-    expect(document.activeElement).toBe(workloadHeading());
+    expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
+    expect(shownTab()).toBe("Workloads");
+    expect(document.activeElement).toBe(detailsHeading());
   });
 
-  // Fails if the tab's label is a copy taken when the workload opened,
-  // rather than its name read from the project as it is.
-  it("follows a rename in the tab's label", () => {
+  // Fails if the editor's heading is a copy taken when the workload
+  // opened, rather than its name read from the project as it is.
+  it("follows a rename in the editor's heading", () => {
     renderProject();
     openSteady();
-    const name = within(dock()).getByRole("textbox", { name: "Name" });
+    const name = screen.getByRole("textbox", { name: "Name" });
 
     fireEvent.change(name, { target: { value: "Dinner" } });
     fireEvent.keyDown(name, { key: "Enter" });
 
-    expect(dockTabs()).toEqual(["Library", "Components", "Workload: Dinner"]);
+    expect(editorHeading("Dinner")).toBeTruthy();
   });
 
-  // Fails if switching the dock's tabs changes the selection: the workload
-  // tab would go, or the bar's pick move back to the first workload.
-  it("keeps the workload selected and picked while Run shows", async () => {
+  // Fails if switching the dock's tabs changes the selection, the pick,
+  // or the workload open in the Workloads tab.
+  it("keeps the workload selected, picked, and open while Run shows", async () => {
     const shown = renderProject({ project: twoWorkloads });
     await runASecond(shown);
     openWorkload("Spike");
@@ -172,15 +182,10 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(dockTab("Run"));
 
     expect(shownTab()).toBe("Run");
-    expect(dockTabs()).toEqual([
-      "Library",
-      "Components",
-      "Run",
-      "Workload: Spike",
-    ]);
     expect(picked()).toBe("spike");
-    fireEvent.click(dockTab("Workload: Spike"));
-    expect(workloadHeading().textContent).toBe("Spike · Workload");
+    expect(detailsHeading().textContent).toBe("Spike · Workload");
+    fireEvent.click(dockTab("Workloads"));
+    expect(editorHeading("Spike")).toBeTruthy();
   });
 
   // Fails if switching the dock's tabs clears or replaces a component's
@@ -207,30 +212,49 @@ describe("OpenedProject's dock", () => {
     fireEvent.change(duration, { target: { value: "abc" } });
 
     fireEvent.click(dockTab("Run"));
-    fireEvent.click(dockTab("Workload: Steady"));
+    fireEvent.click(dockTab("Workloads"));
 
     const again = within(dock()).getByRole("textbox", { name: "Duration" });
     expect(again).toBe(duration);
     expect((again as HTMLInputElement).value).toBe("abc");
   });
 
-  // Fails if selecting a workload while Run shows leaves Run showing, so the
-  // heading's focus request lands in a hidden panel.
-  it("shows the workload's tab, focused, when it's selected over Run", async () => {
+  // Fails if the tab closes its workload, or loses its draft, once a
+  // component is selected instead (rule 3: the tab keeps what it has
+  // open), or the inspector doesn't move to the component.
+  it("keeps its workload open, draft and all, while a component is selected", () => {
+    renderProject();
+    openSteady();
+    const duration = within(dock()).getByRole("textbox", { name: "Duration" });
+    fireEvent.change(duration, { target: { value: "abc" } });
+
+    const component = revealButton(/^Function \(Lambda\)/);
+    fireEvent.click(component);
+    expect(detailsHeading().textContent).toBe("Function · Lambda");
+    fireEvent.click(dockTab("Workloads"));
+
+    expect(editorHeading("Steady")).toBeTruthy();
+    const again = within(dock()).getByRole("textbox", { name: "Duration" });
+    expect(again).toBe(duration);
+    expect((again as HTMLInputElement).value).toBe("abc");
+  });
+
+  // Fails if selecting a workload while Run shows leaves Run showing.
+  it("shows Workloads when a workload is selected over Run", async () => {
     const shown = renderProject();
     await runASecond(shown);
     openSteady();
     fireEvent.click(dockTab("Run"));
 
-    openSteady();
+    pressEdit();
 
-    expect(shownTab()).toBe("Workload: Steady");
-    expect(document.activeElement).toBe(workloadHeading());
+    expect(shownTab()).toBe("Workloads");
+    expect(document.activeElement).toBe(detailsHeading());
   });
 
-  // Fails if Run while the workload's tab shows leaves it showing, or
-  // keeps the workload selected rather than selecting the run (so its tab
-  // stays), or moves the focus off Run.
+  // Fails if Run while Workloads shows leaves it showing, or keeps the
+  // workload selected rather than selecting the run, or moves the focus
+  // off Run, or takes the Workloads tab away.
   it("switches to Run on Run, selecting the run and keeping the focus", async () => {
     const shown = renderProject();
     await runASecond(shown);
@@ -241,29 +265,48 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(run);
 
     expect(shownTab()).toBe("Run");
-    expect(dockTabs()).toEqual(["Library", "Components", "Run"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
     expect(document.activeElement).toBe(run);
   });
 
-  // Fails if Close or Escape leaves the workload's tab, or takes the Run
-  // or Components tab with it. The first tab left shows.
+  // Fails if the inspector's × or Escape leaves the workload selected, or
+  // changes the dock: its tabs, the one shown, the workload open in it, or
+  // the pick (rule 7: × clears the selection, and nothing else).
   it.each(["Close", "Escape"])(
-    "clears the selection on %s, leaving Library showing",
+    "clears the selection on %s, leaving the tab as it is",
     async (how) => {
       const shown = renderProject();
       await runASecond(shown);
       openSteady();
 
-      const heading = workloadHeading();
-      if (how === "Escape") fireEvent.keyDown(heading, { key: "Escape" });
-      else
-        fireEvent.click(within(dock()).getByRole("button", { name: /^Close/ }));
+      if (how === "Escape") {
+        fireEvent.keyDown(detailsHeading(), { key: "Escape" });
+      } else {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Close the details" }),
+        );
+      }
 
-      expect(dockTabs()).toEqual(["Library", "Components", "Run"]);
-      expect(shownTab()).toBe("Library");
+      expect(queryDetailsHeading()).toBeNull();
+      expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
+      expect(shownTab()).toBe("Workloads");
+      expect(editorHeading("Steady")).toBeTruthy();
       expect(picked()).toBe("steady");
     },
   );
+
+  // Fails if the tab's editor still has a Close, or Escape in it clears
+  // the selection, as the dock's editor did before the Workloads tab.
+  it("has no Close of its own, and Escape in it leaves the selection", () => {
+    renderProject();
+    openSteady();
+    const panel = dockPanel("Workloads");
+    expect(within(panel).queryByRole("button", { name: /^Close/ })).toBeNull();
+
+    fireEvent.keyDown(editorHeading("Steady"), { key: "Escape" });
+
+    expect(detailsHeading().textContent).toBe("Steady · Workload");
+  });
 
   // Fails if Fold doesn't hide the editor and keep the Unfold button, or if
   // folding unmounts the editor (`{!folded && ...}` for `hidden`), which
@@ -320,7 +363,7 @@ describe("OpenedProject's dock", () => {
   });
 
   // Fails if selecting the already-selected workload leaves a folded dock
-  // folded, so the focus request has no heading to reach.
+  // folded, so its editor stays hidden.
   it("unfolds when the same workload is selected again", () => {
     renderProject();
     openSteady();
@@ -328,47 +371,21 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(
       within(open).getByRole("button", { name: "Fold the dock" }),
     );
-    const edit = screen.getByRole("button", { name: "Edit" });
-    edit.focus();
 
-    fireEvent.click(edit);
+    pressEdit();
 
     expect(
       within(open).getByRole("textbox", { name: "Duration" }),
     ).toBeTruthy();
-    expect(document.activeElement).toBe(workloadHeading());
+    expect(document.activeElement).toBe(detailsHeading());
   });
 
-  // Fails if closing the dock leaves the inspector collapsed.
-  it("brings the inspector back when the dock closes", () => {
-    renderProject();
-    openSteady();
-
-    fireEvent.keyDown(workloadHeading(), { key: "Escape" });
-
-    expect(
-      screen
-        .getByRole("button", { name: "Close the inspector" })
-        .getAttribute("aria-expanded"),
-    ).toBe("true");
-  });
-
-  // Fails if Escape leaves the workload's tab in the dock.
-  it("closes its tab on Escape, leaving Library and Components", () => {
-    renderProject();
-    openSteady();
-
-    fireEvent.keyDown(workloadHeading(), { key: "Escape" });
-
-    expect(dockTabs()).toEqual(["Library", "Components"]);
-  });
-
-  // Fails if a narrow window's dock isn't there with the Library and
-  // Components tabs alone, as a wide window's is.
-  it("shows Library and Components in a narrow window with nothing selected", () => {
+  // Fails if a narrow window's dock leaves out a tab that's always there,
+  // as a wide window's does.
+  it("shows Library, Components, and Workloads in a narrow window with nothing selected", () => {
     renderProject({ width: "narrow" });
 
-    expect(dockTabs()).toEqual(["Library", "Components"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Workloads"]);
   });
 });
 
@@ -470,7 +487,7 @@ describe("OpenedProject's run evidence", () => {
     expect(runPanel.querySelectorAll("table, figure")).toHaveLength(0);
     expect(document.querySelectorAll("figure")).toHaveLength(4);
     expect(dock().querySelectorAll("figure")).toHaveLength(4);
-    expect(dockTabs()).toEqual(["Library", "Components", "Run"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
     expect(
       runPanel.compareDocumentPosition(dock()) &
         Node.DOCUMENT_POSITION_FOLLOWING,

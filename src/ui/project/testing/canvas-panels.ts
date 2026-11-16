@@ -7,8 +7,8 @@ export const TEST_SHELL: ShellParts = {
   hint: null,
 };
 
-/** The canvas's buttons that open its panels. */
-export type CanvasPanelButton = "Workflows" | "Workloads";
+/** The canvas's button that opens its list. */
+export type CanvasPanelButton = "Workflows";
 
 /**
  * A panel's button, found in the rail's toolbar, since the workflow picker
@@ -28,9 +28,9 @@ export function openPanel(button: CanvasPanelButton): HTMLElement {
 }
 
 /**
- * The polite regions: the dock's, which says what a component's or an
- * edge's remove or a move did ("component"), and the tool rail's, beside
- * its toolbar, which says what a workflow's or a workload's remove did
+ * The polite regions: the dock's, which says what a component's, an
+ * edge's, or a workload's remove or a move did ("component"), and the tool
+ * rail's, beside its toolbar, which says what a workflow's remove did
  * ("list").
  */
 export function railRegion(which: "component" | "list"): HTMLElement {
@@ -58,20 +58,24 @@ export function addComponent(typeName: string): void {
 }
 
 /** The canvas's panel buttons, in the order `revealButton` tries them. */
-const PANEL_BUTTONS: readonly CanvasPanelButton[] = ["Workflows", "Workloads"];
+const PANEL_BUTTONS: readonly CanvasPanelButton[] = ["Workflows"];
+
+/** The dock's tabs with lists, in the order `revealButton` tries them. */
+const LIST_TABS = ["Components", "Workloads"] as const;
 
 /**
- * The button named `name`: where it's showing, or else in the canvas panel
- * that holds it, which this opens. For a test that doesn't care which
- * panel a button is in, such as one that selects a component, then a
- * workflow, then a step in Details.
+ * The button named `name`: where it's showing, or else in the dock's tab
+ * or the canvas panel that holds it, which this shows. For a test that
+ * doesn't care where a button is, such as one that selects a component,
+ * then a workflow, then a step in Details.
  */
 export function revealButton(name: string | RegExp): HTMLElement {
   const shown = buttonsNamed(name)[0];
   if (shown !== undefined) return shown;
-  const components = screen.queryByRole("tab", { name: "Components" });
-  if (components !== null) {
-    fireEvent.click(components);
+  for (const tabName of LIST_TABS) {
+    const tab = screen.queryByRole("tab", { name: tabName });
+    if (tab === null) continue;
+    fireEvent.click(tab);
     const row = buttonsNamed(name)[0];
     if (row !== undefined) return row;
   }

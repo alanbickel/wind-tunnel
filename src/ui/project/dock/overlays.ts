@@ -1,16 +1,9 @@
-import type { Overlay, OverlayProps } from "./overlay";
+import type { Overlay } from "./overlay";
 import type { OverlayKey } from "../screen/screen-state";
 import { ComponentsOverlay } from "./ComponentsOverlay";
 import { LibraryOverlay } from "./LibraryOverlay";
 import { RunOverlay } from "./RunOverlay";
-import { WorkloadOverlay } from "./WorkloadOverlay";
-
-/** The selected workload's name, if a workload of the project is selected. */
-function selectedWorkloadName({ project, selecting }: OverlayProps) {
-  const { selection } = selecting;
-  if (selection?.kind !== "workload") return undefined;
-  return project.workloads.find((w) => w.id === selection.workloadId)?.name;
-}
+import { WorkloadsOverlay } from "./WorkloadsOverlay";
 
 /**
  * Every overlay, by key, in the order of their tabs. A key added to
@@ -27,15 +20,15 @@ export const OVERLAYS: Readonly<Record<OverlayKey, Overlay>> = {
     label: () => "Components",
     Content: ComponentsOverlay,
   },
+  workloads: {
+    shows: () => true,
+    label: () => "Workloads",
+    Content: WorkloadsOverlay,
+  },
   run: {
     shows: ({ projectRun }) => projectRun.ran !== undefined,
     label: () => "Run",
     Content: RunOverlay,
-  },
-  workload: {
-    shows: (props) => selectedWorkloadName(props) !== undefined,
-    label: (props) => `Workload: ${selectedWorkloadName(props) ?? ""}`,
-    Content: WorkloadOverlay,
   },
 };
 

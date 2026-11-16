@@ -1,9 +1,21 @@
 /* A narrow window: a full-width section after the inspector's content, in
    page order. */
 .dock {
+  position: relative;
   padding: var(--space-5);
   border-top: var(--floating-border);
   background: var(--color-surface);
+}
+
+/* Read by screen readers, not shown. */
+.announcement {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Wide windows: a band under the canvas, which gives up the height. The

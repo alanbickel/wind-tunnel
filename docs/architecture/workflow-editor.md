@@ -1,10 +1,10 @@
 # The Workflow Editor
 
-How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §7](../design/user-experience.md#7-workflows)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram, and every workflow's path as a line of the diagram's text version. Details has a name field that renames the workflow, and Remove takes it away; each step that's one of another's calls has Move up, Move down, and Remove, and each step that can take a call has "Add a call from …", and the selected step has pickers for its component and action; an `enqueue` step with no async work has "Add async work …", and async work takes the same edits as the main tree ([the commands](#the-commands), [async work](#async-work)). On the canvas, with a workflow selected, each arrow leaving a box in its path has a "+" that adds a call along it ([from the canvas](#adding-a-call-from-the-canvas)). [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §7](../design/user-experience.md#7-workflows)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram. Details has a name field that renames the workflow, and Remove takes it away; each step that's one of another's calls has Move up, Move down, and Remove, and each step that can take a call has "Add a call from …", and the selected step has pickers for its component and action; an `enqueue` step with no async work has "Add async work …", and async work takes the same edits as the main tree ([the commands](#the-commands), [async work](#async-work)). On the canvas, with a workflow selected, each arrow leaving a box in its path has a "+" that adds a call along it ([from the canvas](#adding-a-call-from-the-canvas)). [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
-## A workflow, four ways
+## A workflow, three ways
 
-The same workflow appears four ways, and this section answers "how does the tree on disk become what I see?" The example is Template B's "Create order", because it has both kinds of child: `calls`, made in order while the step holds its component, and `async` work, done later, when a queue's consumer takes the message. (Template A's "Create order" has the same shape without the queue.)
+The same workflow appears three ways on the screen (and a fourth, a path line, that no screen shows yet), and this section answers "how does the tree on disk become what I see?" The example is Template B's "Create order", because it has both kinds of child: `calls`, made in order while the step holds its component, and `async` work, done later, when a queue's consumer takes the message. (Template A's "Create order" has the same shape without the queue.)
 
 **1. The stored call tree.** What `Workflow.root` holds, and the template's JSON: each step has an ID, a component's ID, and an action. A step's `calls` are its children; an `enqueue` may have one `async` child.
 
@@ -34,13 +34,13 @@ flowchart TB
 
 **3. The path on the diagram.** Selecting the workflow highlights its path: every component a step calls, and every edge a call follows, async work included. Here that's the five components above, and the four edges `api → fn-api`, `fn-api → orders-queue`, `orders-queue → fn-writer`, and `fn-writer → orders-db`; orders-read and `fn-api → orders-read`, which only "Get order" uses, aren't on it. Selecting the step `1.1.1.1  fn-writer · invoke` keeps the path and marks fn-writer and `orders-queue → fn-writer`, the edge the queue delivers its message along. [The path on the diagram](#the-path-on-the-diagram) says how.
 
-**4. The path in the text version.** Under the diagram's components and connections, in the canvas's "As text" panel, its text version gives each workflow's path as one line, for a reader who can't see the diagram. [`workflowPathText`](../../src/application/details/workflow-path-text.ts) names each step by its component, and the last step of a path by its action too; a workflow that branches gets a path per leaf, joined by semicolons, and async work follows its queue after "then":
+**4. The path as one line of text (not on the screen yet).** The dock's Components tab lists the components and connections, not the workflows' paths; the old "As text" panel showed these lines, and the Components tab replaced it. The helper stays, tested, for a screen that wants a path in one line. [`workflowPathText`](../../src/application/details/workflow-path-text.ts) names each step by its component, and the last step of a path by its action too; a workflow that branches gets a path per leaf, joined by semicolons, and async work follows its queue after "then":
 
 ```text
 Create order: API Gateway → fn-api → orders-queue (enqueue), then fn-writer → orders-db (write).
 ```
 
-Template A's "Create order" branches nowhere, so it reads "Create order: API Gateway → fn-orders → orders-db (write)."; had fn-orders first read the customer's record, it would read "… → orders-db (read); API Gateway → fn-orders → orders-db (write)." The lines aren't buttons, since the Workflows list under the text version selects a workflow, and they mark no selection.
+Template A's "Create order" branches nowhere, so it reads "Create order: API Gateway → fn-orders → orders-db (write)."; had fn-orders first read the customer's record, it would read "… → orders-db (read); API Gateway → fn-orders → orders-db (write)." The lines are text only: they select nothing and mark no selection.
 
 ## How a step is addressed
 
@@ -56,7 +56,7 @@ How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-gl
 %%{init: {"flowchart": {"wrappingWidth": 320}}}%%
 flowchart TB
     subgraph ui["ui/project/"]
-        list["<b>ArchitectureView</b><br/>[Component]<br/>The Workflows list, a row per workflow, with its problems; the diagram's marks; the text version's path lines"]:::component
+        list["<b>ArchitectureView</b><br/>[Component]<br/>The Workflows list, a row per workflow, with its problems; the diagram's marks"]:::component
         details["<b>SelectionDetails, WorkflowOutline</b><br/>[Component]<br/>The heading, Used by, and the outline with its issues"]:::component
         selecting["<b>useSelection</b><br/>[Component]<br/>The selection, the tab, and where the focus returns"]:::component
         undo["<b>useUndoRedo</b><br/>[Component]<br/>Moves the selection after an undo"]:::component
@@ -67,7 +67,7 @@ flowchart TB
         outline["<b>workflowDetails, usedByLine</b><br/>[Component: details/]<br/>The numbered outline, and its words"]:::component
         checks["<b>workflowRunChecks</b><br/>[Component: run-checks/]<br/>Each issue on its step; the count"]:::component
         phrases["<b>run-issue-phrases</b><br/>[Component: run-checks/]<br/>An issue's words, with the step as the subject"]:::component
-        pathText["<b>workflowPathText</b><br/>[Component: details/]<br/>A workflow's path line, for the text version"]:::component
+        pathText["<b>workflowPathText</b><br/>[Component: details/]<br/>A workflow's path line (no screen shows it yet)"]:::component
         afterUndo["<b>selectionAfterUndo</b><br/>[Component: details/]<br/>Keeps a step while it's there"]:::component
         onDiagram["<b>selectionOnArchitecture</b><br/>[Component: details/]<br/>The path, and what a step marks"]:::component
         offers["<b>callOffersOf</b><br/>[Component: details/]<br/>The arrows that offer a call, and the steps each could go under"]:::component
@@ -119,7 +119,7 @@ A selected workflow's path, or a selected step's, is drawn on the diagram as the
 - **Only what the architecture has.** A step whose component was removed marks nothing, and a call with no edge arrives on none; the outline says why ([How an issue finds its step](#how-an-issue-finds-its-step)). A workflow or step the project doesn't have shows nothing.
 - **How it looks.** A path's boxes get a thick accent border inside their own, and its arrows are drawn at the thick line's width, in the accent color. The selection's bar runs down the box's left edge, and a selected arrow is twice as thick again, so a step's mark reads apart from its workflow's path by shape and width, not color alone. `Diagram.module.css` draws both, from the `on-path` class and React Flow's `selected` class.
 - **The rest fades.** While a path is marked, every box and arrow off it is dimmed (`--faded-opacity`), through the `faded` class. It stays readable and selectable, and the path's thick border and line say which is which, so the fade is never the only cue. With no path, nothing fades.
-- **The calls are numbered.** [`callNumbersOf`](../../src/application/details/call-numbers.ts) numbers the selected workflow's calls (or a selected step's workflow's) from 1, in the order a request makes them: a step's calls in turn, each call's own calls before the next, and a step's async work after its calls, carrying on from the main tree's numbers. It's the order of `stepLinksOf`, and of the path line in the text version. The root step has no call, since the user makes it. Each number goes to the edge its call follows, and an edge several calls share lists each ("2, 6") in one label, so labels never overlap on one arrow. A call with no edge shows no number, though it still uses one. The text version's Connections list says the same: "Function → Table (call 2)", "(calls 2, 6)".
+- **The calls are numbered.** [`callNumbersOf`](../../src/application/details/call-numbers.ts) numbers the selected workflow's calls (or a selected step's workflow's) from 1, in the order a request makes them: a step's calls in turn, each call's own calls before the next, and a step's async work after its calls, carrying on from the main tree's numbers. It's the order of `stepLinksOf`, and of the path line. The root step has no call, since the user makes it. Each number goes to the edge its call follows, and an edge several calls share lists each ("2, 6") in one label, so labels never overlap on one arrow. A call with no edge shows no number, though it still uses one. The Components tab's Connections list says the same: "Function → Table (call 2)", "(calls 2, 6)".
 
 ## How an issue finds its step
 
@@ -431,7 +431,7 @@ stateDiagram-v2
 
 ## Worked example
 
-[`workflow-outlines.test.ts`](../../src/adapters/templates/details/workflow-outlines.test.ts) describes each template's workflows with `DescribeSelection` and lays them out as Details does, each followed by its line in the diagram's text version, in [`workflow-outlines.txt`](../../src/adapters/templates/details/workflow-outlines.txt). It lives beside the templates, since `application/` can't import them. Template A's:
+[`workflow-outlines.test.ts`](../../src/adapters/templates/details/workflow-outlines.test.ts) describes each template's workflows with `DescribeSelection` and lays them out as Details does, each followed by its `workflowPathText` line, in [`workflow-outlines.txt`](../../src/adapters/templates/details/workflow-outlines.txt). It lives beside the templates, since `application/` can't import them. Template A's:
 
 ```text
 Template A: Serverless API with RDS
@@ -451,7 +451,7 @@ Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long 
 Text version: Create order: API Gateway → fn-orders → orders-db (write).
 ```
 
-Template B's "Create order" is the outline, and its path line, in [A workflow, four ways](#a-workflow-four-ways). If an outline or a path line changes, the test fails and the diff shows how. If the change is intended, run `npx vitest run src/adapters/templates/details --update`, then update the excerpts on this page.
+Template B's "Create order" is the outline, and its path line, in [A workflow, three ways](#a-workflow-three-ways). If an outline or a path line changes, the test fails and the diff shows how. If the change is intended, run `npx vitest run src/adapters/templates/details --update`, then update the excerpts on this page.
 
 ### Editing it
 

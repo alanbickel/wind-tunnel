@@ -1,0 +1,16 @@
+.items {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+/* Each row reads as a line of the list, and is a button to select it. The
+   selected one has the selection's filled bar on its left. */
+.item {
+  composes: item from "../../shared/SelectableItem.module.css";
+}
+
+/* With no components, the tab's prompt. */
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}

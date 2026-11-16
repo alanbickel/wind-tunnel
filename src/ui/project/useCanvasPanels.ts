@@ -3,11 +3,9 @@ import { flushSync } from "react-dom";
 
 /**
  * The canvas's panels: the tool rail's four ("add" component's types,
- * "connect"'s hint, the "workflows" and the "workloads"), and the text
- * version at the bottom left.
+ * "connect"'s hint, the "workflows" and the "workloads").
  */
-export type CanvasPanelId =
-  "add" | "connect" | "workflows" | "workloads" | "text";
+export type CanvasPanelId = "add" | "connect" | "workflows" | "workloads";
 
 /**
  * The attribute each panel's section carries, holding its id, so `reveal`
@@ -37,7 +35,6 @@ const PANEL_IDS: ReadonlySet<string> = new Set<CanvasPanelId>([
   "connect",
   "workflows",
   "workloads",
-  "text",
 ]);
 
 /**

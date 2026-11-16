@@ -24,10 +24,8 @@ import {
 export interface AddComponentProps {
   /** Adds a component of the type, and saves it. */
   readonly onAdd: (type: string) => void;
-  /** The "Add component" button, where the focus goes after a remove. */
+  /** The "Add component" button, which keeps the focus as a type is chosen. */
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
-  /** What a remove, which sends the focus here, announces: "Removed Table." */
-  readonly announcement: string;
 }
 
 export interface ToolRailProps {
@@ -81,11 +79,12 @@ const POPOVERS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
  * focus back on its button. A click outside closes Add component's list and
  * Connect's hint; the two lists stay open while you pick through their
  * rows. A closed panel stays mounted, hidden, so its scroll is still there
- * when it opens. Two polite regions say what a remove took: they're on the
- * rail, which always shows, since a list may be closed.
+ * when it opens. A polite region says what a workflow's or a workload's
+ * remove took: it's on the rail, which always shows, since a list may be
+ * closed. (A component's or an edge's is the dock's.)
  */
 export function ToolRail(props: ToolRailProps) {
-  const { panels, adding, workflowAnnouncement } = props;
+  const { panels, workflowAnnouncement } = props;
   const baseId = useId();
   const ids: PanelIds = (id) => `${baseId}-${id}`;
   const railRef = useRef<HTMLDivElement>(null);
@@ -108,7 +107,6 @@ export function ToolRail(props: ToolRailProps) {
           open={panels.open === entry.id}
         />
       ))}
-      <Announcement text={adding.announcement} />
       <Announcement text={workflowAnnouncement} />
     </div>
   );
@@ -304,7 +302,7 @@ function closeOnEscape({ event, panels, ids }: CloseOnEscapeInput): void {
   event.preventDefault();
   event.stopPropagation();
   const button = event.currentTarget.querySelector<HTMLElement>(
-    `[aria-controls="${ids(open as RailPanelId)}"]`,
+    `[aria-controls="${ids(open)}"]`,
   );
   panels.close();
   button?.focus();

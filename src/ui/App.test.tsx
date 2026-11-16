@@ -23,7 +23,6 @@ import { UseCasesProvider } from "./app/UseCasesProvider";
 import { StartupFailure } from "./StartupFailure";
 import { stubDiagramBrowserApis } from "./diagram/testing/stub-diagram-browser-apis";
 import { stubWindowWidth } from "./shared/testing/stub-window-width";
-import { openPanel } from "./project/testing/canvas-panels";
 
 /**
  * The breadcrumb's crumbs: "Projects", then the open project's name, read
@@ -248,7 +247,8 @@ describe("App's blank project", () => {
 
     expect(document.activeElement).toBe(heading);
     expect(breadcrumbTrail()).toEqual(["Projects", "Orders service"]);
-    expect(screen.getByText(PROMPT)).toBeTruthy();
+    // On the canvas, and in the dock's Components tab.
+    expect(screen.getAllByText(PROMPT)).toHaveLength(2);
     expect(
       screen.queryByRole("group", { name: /Architecture diagram/ }),
     ).toBeNull();
@@ -271,7 +271,6 @@ describe("App's blank project", () => {
         name: "Architecture diagram of Orders service",
       }),
     ).toBeTruthy();
-    openPanel("As text");
     const components = screen.getByRole("list", { name: "Components" });
     expect(components.textContent).toBe("lambda-1 (Lambda)");
   });

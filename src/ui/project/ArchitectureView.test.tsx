@@ -13,7 +13,6 @@ import type {
   Point,
   ProjectRecord,
 } from "../../application/ports/project-record";
-import type { ComponentStatus } from "../../application/run-analysis/component-status";
 import { sampleRecord } from "../../application/testing/sample-record";
 import type { RunBadges } from "../run/run-badges";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
@@ -22,7 +21,6 @@ import {
   ArchitectureView,
   type ArchitectureViewProps,
 } from "./ArchitectureView";
-import { openPanel, type CanvasPanelButton } from "./testing/canvas-panels";
 import { useCanvasPanels } from "./useCanvasPanels";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { FADED_CLASS, ON_PATH_CLASS } from "../diagram/to-react-flow";
@@ -93,7 +91,7 @@ function renderView({
         workflowAnnouncement=""
         offering={{ onEdit: vi.fn(), onSelect: vi.fn(), announce: vi.fn() }}
         onMove={onMove}
-        adding={{ onAdd, buttonRef: { current: null }, announcement: "" }}
+        adding={{ onAdd, buttonRef: { current: null } }}
       />
     </UseCasesProvider>
   );
@@ -114,13 +112,6 @@ function diagram(): HTMLElement {
   return screen.getByRole("group", {
     name: "Architecture diagram of Sample project",
   });
-}
-
-function itemsOf(listName: string): (string | null)[] {
-  const list = screen.getByRole("list", { name: listName });
-  return within(list)
-    .getAllByRole("listitem")
-    .map((item) => item.textContent);
 }
 
 describe("ArchitectureView", () => {
@@ -151,7 +142,7 @@ describe("ArchitectureView", () => {
       expect(node.getAttribute("tabindex")).toBe("0");
       const description = node.getAttribute("aria-describedby") ?? "";
       expect(document.getElementById(description)?.textContent).toBe(
-        "Press Enter to show its details. Press the arrow keys, or drag it, to move it. Drag from its right edge to another box to connect them. The text version after the diagram lists the same items.",
+        "Press Enter to show its details. Press the arrow keys, or drag it, to move it. Drag from its right edge to another box to connect them. The Components tab in the dock lists the same items.",
       );
     }
     const nodes = await drawnNodes(diagram());
@@ -231,65 +222,6 @@ describe("ArchitectureView", () => {
     expect(boxesWith(await drawnNodes(diagram()), FADED_CLASS)).toEqual([]);
   });
 
-  // Fails if the text version doesn't number a selected workflow's
-  // connections as the canvas does (each call in order), or numbers any
-  // with no workflow selected.
-  it("numbers the connections in the text version while a workflow is selected", () => {
-    renderView({ selection: { kind: "workflow", workflowId: "read" } });
-    openPanel("As text");
-    expect(itemsOf("Connections")).toEqual([
-      "API → Function (call 1)",
-      "Function → Table (call 2)",
-    ]);
-    cleanup();
-
-    renderView();
-    openPanel("As text");
-    expect(itemsOf("Connections")).toEqual([
-      "API → Function",
-      "Function → Table",
-    ]);
-  });
-
-  // Fails if the text version says "call" for an arrow that several calls
-  // follow, or lists only one of its numbers.
-  it("lists every number of a connection several calls follow, as calls", () => {
-    const twice: ProjectRecord = {
-      ...sampleRecord,
-      project: {
-        ...sampleRecord.project,
-        workflows: sampleRecord.project.workflows.map((workflow) => ({
-          ...workflow,
-          root: {
-            ...workflow.root,
-            calls: [
-              {
-                id: "fn-invoke",
-                componentId: "fn",
-                action: "invoke",
-                calls: [
-                  { id: "table-read", componentId: "table", action: "read" },
-                  { id: "table-again", componentId: "table", action: "read" },
-                ],
-              },
-            ],
-          },
-        })),
-      },
-    };
-
-    renderView({
-      record: twice,
-      selection: { kind: "workflow", workflowId: "read" },
-    });
-    openPanel("As text");
-
-    expect(itemsOf("Connections")).toEqual([
-      "API → Function (call 1)",
-      "Function → Table (calls 2, 3)",
-    ]);
-  });
-
   // Fails if a selected step rings its caller's box, or another, drops
   // its workflow's path, or fades a box on that path (or leaves the spare
   // one unfaded).
@@ -308,95 +240,6 @@ describe("ArchitectureView", () => {
     expect(boxesWith(nodes, FADED_CLASS)).toEqual(["spare"]);
   });
 
-  it("lists the components and connections as text", () => {
-    renderView();
-    openPanel("As text");
-
-    expect(itemsOf("Components")).toEqual([
-      "API (API Gateway)",
-      "Function (Lambda)",
-      "Table (DynamoDB)",
-    ]);
-    expect(itemsOf("Connections")).toEqual([
-      "API → Function",
-      "Function → Table",
-    ]);
-  });
-
-  // Fails if the text version drops the status after a name, leaves it off
-  // a component the run has no entry for, or loses the note when the run is
-  // out of date (componentLine).
-  it("lists each component's status as text, with a note when the run is out of date", () => {
-    const statuses = new Map<string, ComponentStatus>([
-      ["api", "ok"],
-      ["fn", "waited"],
-    ]);
-    const { showBadges } = renderView({
-      badges: { statuses, outOfDate: false },
-    });
-    openPanel("As text");
-
-    expect(itemsOf("Components")).toEqual([
-      "API (API Gateway): ok",
-      "Function (Lambda): waited",
-      "Table (DynamoDB)",
-    ]);
-
-    showBadges({ statuses, outOfDate: true });
-
-    expect(itemsOf("Components")).toEqual([
-      "API (API Gateway): ok, from an earlier version of the project",
-      "Function (Lambda): waited, from an earlier version of the project",
-      "Table (DynamoDB)",
-    ]);
-  });
-
-  // Fails if the text version stops listing each workflow's path.
-  it("lists each workflow's path as text", () => {
-    renderView();
-    openPanel("As text");
-
-    expect(itemsOf("Workflow paths")).toEqual([
-      "Read item: API → Function → Table (read).",
-    ]);
-  });
-
-  // Fails if a project with no workflows gets an empty "Workflow paths"
-  // list, which a screen reader announces as a list of zero items.
-  it("leaves the paths out when there are no workflows", () => {
-    renderView({
-      record: {
-        ...sampleRecord,
-        project: { ...sampleRecord.project, workflows: [] },
-      },
-    });
-    openPanel("As text");
-
-    expect(itemsOf("Components")).toHaveLength(3);
-    expect(screen.queryByRole("list", { name: "Workflow paths" })).toBeNull();
-  });
-
-  // Fails if a text-version button selects the wrong kind of item or the
-  // wrong one, or the list doesn't mark the selection as current.
-  it("selects from the text version, and marks the selection there", () => {
-    const { onSelect } = renderView({
-      selection: { kind: "edge", edgeId: "api-fn" },
-    });
-    openPanel("As text");
-
-    fireEvent.click(screen.getByRole("button", { name: "Table (DynamoDB)" }));
-    fireEvent.click(screen.getByRole("button", { name: "Function → Table" }));
-
-    expect(onSelect.mock.calls).toEqual([
-      [{ kind: "component", componentId: "table" }],
-      [{ kind: "edge", edgeId: "fn-table" }],
-    ]);
-    const current = screen.getAllByRole("button", { current: true });
-    expect(current.map((button) => button.textContent)).toEqual([
-      "API → Function",
-    ]);
-  });
-
   // Fails if the canvas stops being a region named "Architecture", so a
   // screen reader can't jump to it.
   it("is a region named Architecture", () => {
@@ -405,13 +248,6 @@ describe("ArchitectureView", () => {
     expect(screen.getByRole("region", { name: "Architecture" })).toBeTruthy();
   });
 });
-
-/** The region a canvas panel's button opens, by the name it gives it. */
-const PANEL_REGIONS: Record<CanvasPanelButton, string> = {
-  Workflows: "Workflows",
-  Workloads: "Workloads",
-  "As text": "Components, connections, and paths as text",
-};
 
 /** A button on the tool rail: the picker at the bottom left shares "Workflows". */
 function railButton(name: string): HTMLElement {
@@ -432,58 +268,25 @@ describe("ArchitectureView's canvas panels", () => {
   it("opens one panel at a time over the canvas, each from its button", () => {
     renderView();
     const workflows = railButton("Workflows");
-    const text = screen.getByRole("button", { name: "As text" });
+    const workloads = railButton("Workloads");
     expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
 
     fireEvent.click(workflows);
     expect(workflows.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("list", { name: "Workflows" })).toBeTruthy();
 
-    fireEvent.click(text);
+    fireEvent.click(workloads);
     expect(workflows.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
-    expect(screen.getByRole("list", { name: "Components" })).toBeTruthy();
-
-    fireEvent.click(text);
-    expect(text.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByRole("list", { name: "Components" })).toBeNull();
+    expect(screen.getByRole("list", { name: "Workloads" })).toBeTruthy();
   });
 
-  // Fails if Escape in a panel doesn't close it, or leaves the focus in
-  // the hidden panel rather than on the button that opened it.
-  it.each(["Workflows", "Workloads", "As text"] as const)(
-    "closes %s on Escape from inside it, the focus back on its button",
-    (name) => {
-      renderView();
-      const button = openPanel(name);
-      const panel = screen.getByRole("region", { name: PANEL_REGIONS[name] });
-      const inside = within(panel).getAllByRole("button")[0] as HTMLElement;
-      inside.focus();
-
-      fireEvent.keyDown(inside, { key: "Escape" });
-
-      expect(
-        screen.queryByRole("region", { name: PANEL_REGIONS[name] }),
-      ).toBeNull();
-      expect(button.getAttribute("aria-expanded")).toBe("false");
-      expect(document.activeElement).toBe(button);
-    },
-  );
-
-  // Fails if a project with no components offers an empty text version.
-  it("offers no text version without components, but still the workflows", () => {
-    renderView({
-      record: {
-        ...sampleRecord,
-        project: {
-          ...sampleRecord.project,
-          architecture: { components: [], edges: [] },
-          workflows: [],
-        },
-      },
-    });
+  // Fails if the canvas draws the text version again, or the project's
+  // components and connections stop being the Components tab's alone.
+  it("has no text version of its own: the dock's Components tab lists them", () => {
+    renderView();
 
     expect(screen.queryByRole("button", { name: "As text" })).toBeNull();
-    expect(railButton("Workflows")).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Components" })).toBeNull();
   });
 });

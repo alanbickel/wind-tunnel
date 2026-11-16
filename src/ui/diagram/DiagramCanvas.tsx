@@ -37,7 +37,7 @@ import {
  * default offers select, move, and delete. Say what's true instead: a
  * sentence for each thing the canvas lets a box do, in this order.
  */
-const TEXT_VERSION = "The text version after the diagram lists the same items.";
+const TEXT_VERSION = "The Components tab in the dock lists the same items.";
 const READ_ONLY = "Read-only.";
 const SELECT_SENTENCE = "Press Enter to show its details.";
 const MOVE_SENTENCE = "Press the arrow keys, or drag it, to move it.";

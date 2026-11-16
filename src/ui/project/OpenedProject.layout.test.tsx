@@ -280,24 +280,20 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
   // Fails if Escape in Details returns the focus to a button in a canvas
   // panel closed since it made the selection without opening the panel,
   // so in a browser the focus falls to the page.
-  it.each([
-    ["As text", "Function (Lambda)", "Workflows"],
-    ["Workflows", "Read item", "As text"],
-  ] as const)(
-    "opens %s again when Escape returns the focus to %s in it",
-    (panel, name, other) => {
-      renderProject();
-      const button = revealButton(name);
-      button.focus();
-      fireEvent.click(button);
-      openPanel(other);
-      expect(button.closest("[hidden]")).not.toBeNull();
+  it("opens Workflows again when Escape returns the focus to Read item in it", () => {
+    renderProject();
+    const button = revealButton("Read item");
+    button.focus();
+    fireEvent.click(button);
+    openPanel("Workloads");
+    expect(button.closest("[hidden]")).not.toBeNull();
 
-      fireEvent.keyDown(detailsHeading(), { key: "Escape" });
+    fireEvent.keyDown(detailsHeading(), { key: "Escape" });
 
-      expect(panelButton(panel)?.getAttribute("aria-expanded")).toBe("true");
-      expect(button.closest("[hidden]")).toBeNull();
-      expect(document.activeElement).toBe(button);
-    },
-  );
+    expect(panelButton("Workflows")?.getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(button.closest("[hidden]")).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
 });

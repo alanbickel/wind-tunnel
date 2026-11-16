@@ -280,13 +280,10 @@ async function createAndOpen(trace: Trace): Promise<void> {
   trace.action('User clicks "Sample project"');
   fireEvent.click(screen.getByRole("button", { name: "Sample project" }));
   await screen.findByRole("heading", { name: "Sample project" });
-  // In the canvas's "As text" panel, closed: counted, not opened.
-  const components = screen.getByRole("list", {
-    name: "Components",
-    hidden: true,
-  });
+  // In the dock's Components tab.
+  const components = screen.getByRole("list", { name: "Components" });
   trace.screen(
-    `project screen: heading, architecture (${String(within(components).getAllByRole("listitem", { hidden: true }).length)} components), run controls`,
+    `project screen: heading, architecture (${String(within(components).getAllByRole("listitem").length)} components), run controls`,
   );
   trace.screen(breadcrumb());
 }

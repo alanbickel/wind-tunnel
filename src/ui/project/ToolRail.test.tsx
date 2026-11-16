@@ -16,7 +16,7 @@ function Harness({ onAdd }: { readonly onAdd: (type: string) => void }) {
       <button type="button">Canvas</button>
       <ToolRail
         panels={panels}
-        adding={{ onAdd, buttonRef, announcement: "" }}
+        adding={{ onAdd, buttonRef }}
         workflows={<button type="button">Add workflow</button>}
         workloads={<button type="button">Add workload</button>}
         workflowAnnouncement=""

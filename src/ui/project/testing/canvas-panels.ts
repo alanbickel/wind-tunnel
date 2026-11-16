@@ -8,16 +8,13 @@ export const TEST_SHELL: ShellParts = {
 };
 
 /** The canvas's buttons that open its panels. */
-export type CanvasPanelButton = "Workflows" | "Workloads" | "As text";
+export type CanvasPanelButton = "Workflows" | "Workloads";
 
 /**
- * A panel's button. The rail's two are found in its toolbar, since the
- * workflow picker at the bottom left is also named "Workflows" while
- * nothing is selected.
+ * A panel's button, found in the rail's toolbar, since the workflow picker
+ * at the bottom left is also named "Workflows" while nothing is selected.
  */
 export function panelButton(button: CanvasPanelButton): HTMLElement | null {
-  if (button === "As text")
-    return screen.queryByRole("button", { name: button });
   const rail = screen.queryByRole("toolbar", { name: "Tools" });
   return rail && within(rail).queryByRole("button", { name: button });
 }
@@ -31,24 +28,23 @@ export function openPanel(button: CanvasPanelButton): HTMLElement {
 }
 
 /**
- * The tool rail's polite regions, which sit beside its toolbar: what a
- * component's remove or a move says ("component"), and what a workflow's or
- * a workload's remove says ("list").
+ * The polite regions: the dock's, which says what a component's or an
+ * edge's remove or a move did ("component"), and the tool rail's, beside
+ * its toolbar, which says what a workflow's or a workload's remove did
+ * ("list").
  */
 export function railRegion(which: "component" | "list"): HTMLElement {
-  const rail = screen.getByRole("toolbar", { name: "Tools" }).parentElement;
-  const regions = rail?.querySelectorAll<HTMLElement>('[role="status"]');
-  const region = regions?.[which === "component" ? 0 : 1];
-  if (region === undefined) throw new Error(`No ${which} region on the rail`);
+  const parent =
+    which === "component"
+      ? screen.getByRole("region", { name: "Dock" })
+      : screen.getByRole("toolbar", { name: "Tools" }).parentElement;
+  const region = parent?.querySelector<HTMLElement>('[role="status"]');
+  if (region == null) throw new Error(`No ${which} region`);
   return region;
 }
 
 /** The canvas's panel buttons, in the order `revealButton` tries them. */
-const PANEL_BUTTONS: readonly CanvasPanelButton[] = [
-  "As text",
-  "Workflows",
-  "Workloads",
-];
+const PANEL_BUTTONS: readonly CanvasPanelButton[] = ["Workflows", "Workloads"];
 
 /**
  * The button named `name`: where it's showing, or else in the canvas panel
@@ -59,6 +55,12 @@ const PANEL_BUTTONS: readonly CanvasPanelButton[] = [
 export function revealButton(name: string | RegExp): HTMLElement {
   const shown = buttonsNamed(name)[0];
   if (shown !== undefined) return shown;
+  const components = screen.queryByRole("tab", { name: "Components" });
+  if (components !== null) {
+    fireEvent.click(components);
+    const row = buttonsNamed(name)[0];
+    if (row !== undefined) return row;
+  }
   for (const panel of PANEL_BUTTONS) {
     if (panelButton(panel) === null) continue;
     openPanel(panel);

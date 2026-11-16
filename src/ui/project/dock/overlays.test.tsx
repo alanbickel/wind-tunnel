@@ -55,11 +55,14 @@ function propsOf(
   projectRun: ProjectRun = projectRunOf({}),
 ): OverlayProps {
   return {
+    record: sampleRecord,
     project,
     projectRun,
     selecting: selectingOf(selection),
     onEdit: vi.fn(),
     onRemove: vi.fn(),
+    listRef: { current: null },
+    announcement: "",
   };
 }
 
@@ -68,9 +71,27 @@ const steadySelected: Selection = { kind: "workload", workloadId: "steady" };
 describe("the dock's overlays", () => {
   afterEach(cleanup);
 
-  // Fails if the tabs' order stops putting Run first.
-  it("lists Run first, then the workload", () => {
-    expect(OVERLAY_KEYS).toEqual(["run", "workload"]);
+  // Fails if the tabs' order stops putting Components first, then Run.
+  it("lists Components first, then Run, then the workload", () => {
+    expect(OVERLAY_KEYS).toEqual(["components", "run", "workload"]);
+  });
+
+  // Fails if Components' tab is left out for want of a run or a selection,
+  // or for no components in the project.
+  it("always shows the Components tab", () => {
+    const run = { project, workloadId: "steady", snapshots: [] };
+    const empty = {
+      ...project,
+      architecture: { components: [], edges: [] },
+    };
+    expect(OVERLAYS.components.shows(propsOf(undefined))).toBe(true);
+    expect(OVERLAYS.components.shows(propsOf(steadySelected))).toBe(true);
+    expect(
+      OVERLAYS.components.shows(propsOf(undefined, projectRunOf({ run }))),
+    ).toBe(true);
+    expect(
+      OVERLAYS.components.shows({ ...propsOf(undefined), project: empty }),
+    ).toBe(true);
   });
 
   // Fails if Run's tab shows before a run starts, or the workload's shows

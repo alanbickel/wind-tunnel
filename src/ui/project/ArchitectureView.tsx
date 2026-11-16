@@ -305,6 +305,8 @@ const TEXT_ITEMS: KindHandlers<Selection, DiagramItem | undefined> = {
   step: () => undefined,
   workload: () => undefined,
   "new-workflow": () => undefined,
+  // The run marks nothing: its badges are on every box, as always.
+  run: () => undefined,
   // The finding's component is the text version's marked row.
   finding: ({ key }) => ({ kind: "node", id: key.componentId }),
 };

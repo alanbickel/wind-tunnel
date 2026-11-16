@@ -75,6 +75,8 @@ const ON_ARCHITECTURE: KindHandlers<
   workload: () => () => NOTHING_SHOWN,
   // A draft isn't on the diagram until it's saved.
   "new-workflow": () => () => NOTHING_SHOWN,
+  // The run marks nothing: its badges are on every box, as always.
+  run: () => () => NOTHING_SHOWN,
   // A finding rings its component, if the project still has it: the
   // finding is worded from the run's copy, which may have had more.
   finding:

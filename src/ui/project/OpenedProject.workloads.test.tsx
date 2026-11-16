@@ -227,7 +227,9 @@ describe("OpenedProject's workloads", () => {
       "After the run's end (4 s). Arrivals follow the line toward this point, and the run stops at 4 s.",
     ]);
     expect(
-      screen.getByText(/^Broken can't run yet: The mix has no workflows\.$/),
+      within(screen.getByRole("banner")).getByText(
+        /^Broken can't run yet: The mix has no workflows\.$/,
+      ),
     ).toBeTruthy();
   });
 });

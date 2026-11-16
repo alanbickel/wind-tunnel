@@ -13,15 +13,16 @@ import {
   clickRun,
   detailsHeading,
   inspector,
+  overview,
   queryDetailsHeading,
+  queryRunExplanation,
   renderOpenedProject as renderProject,
-  runExplanation,
 } from "./testing/render-opened-project";
 
 /** The inspector's one button that closes and opens it. */
 function inspectorToggle(): HTMLElement {
   return within(inspector()).getByRole("button", {
-    name: /^(Close|Open) the (inspector|details)$/,
+    name: /^(Close|Open) the (inspector|details|run)$/,
   });
 }
 
@@ -153,8 +154,9 @@ describe("OpenedProject's inspector", () => {
   });
 
   // Fails if Close, with a selection shown, collapses the inspector or
-  // keeps the selection, so the run's explanation doesn't come back, or
-  // doesn't return the focus to what made the selection.
+  // keeps the selection, so the overview doesn't come back, brings back
+  // the run's explanation instead, or doesn't return the focus to what
+  // made the selection.
   it("clears a selection on Close, keeping the inspector open", async () => {
     const { runner } = renderProject();
     clickRun();
@@ -170,7 +172,8 @@ describe("OpenedProject's inspector", () => {
 
     expect(inspectorShown()).toBe(true);
     expect(queryDetailsHeading()).toBeNull();
-    expect(runExplanation().isConnected).toBe(true);
+    expect(overview().isConnected).toBe(true);
+    expect(queryRunExplanation()).toBeNull();
     expect(toggle.getAttribute("aria-label")).toBe("Close the inspector");
     expect(document.activeElement).toBe(button);
   });
@@ -198,18 +201,21 @@ describe("OpenedProject's inspector", () => {
     expect(inspectorShown()).toBe(true);
   });
 
-  // Fails if the run's explanation is unmounted while the inspector is
-  // collapsed, which would drop its open explanations.
+  // Fails if the inspector's content is unmounted while it's collapsed,
+  // which would drop what it has open. With the run selected, Close
+  // clears it, so only the overview can be collapsed for now (slice 6 of
+  // #246 gives the inspector a chevron of its own).
   it("keeps its content mounted, hidden, while collapsed", async () => {
     const { runner } = renderProject();
     clickRun();
     await runner.finish();
-    const explanation = runExplanation();
+    fireEvent.click(inspectorToggle());
+    const shown = overview();
 
     fireEvent.click(inspectorToggle());
 
-    expect(explanation.isConnected).toBe(true);
-    expect(explanation.closest("[hidden]")).not.toBeNull();
+    expect(shown.isConnected).toBe(true);
+    expect(shown.closest("[hidden]")).not.toBeNull();
   });
 });
 

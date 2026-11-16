@@ -70,8 +70,3 @@
 .surface > :last-child {
   margin-bottom: 0;
 }
-
-.description {
-  max-width: var(--prose-max-width);
-  color: var(--color-text-muted);
-}

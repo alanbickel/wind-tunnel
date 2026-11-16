@@ -1,4 +1,8 @@
-import type { Selection } from "../../../application/details/selection";
+import type {
+  RunSelection,
+  Selection,
+  WorkloadSelection,
+} from "../../../application/details/selection";
 import type { KindHandlers } from "../../../domain/shared/kind-handlers";
 import { dispatchKind } from "../../shared/kind-dispatch";
 
@@ -37,7 +41,12 @@ export interface ScreenState {
   readonly pickedWorkloadId: string | undefined;
 }
 
-/** Selects one thing, from anywhere: a box, a row, Details, or a finding. */
+/**
+ * Selects one thing, from anywhere: a box, a row, Details, a finding, or
+ * the verdict, which selects the run. Only a run's own controls select
+ * the run or a finding, so neither is selected before the first run (UX
+ * design §5's limit "no run"): the caller holds that, not the state.
+ */
 export interface SelectTransition {
   readonly kind: "select";
   readonly selection: Selection;
@@ -74,7 +83,10 @@ export interface UnfoldDockTransition {
   readonly kind: "unfold-dock";
 }
 
-/** A run starts: the inspector opens, and the dock shows the Run tab. */
+/**
+ * A run starts, which selects it (rule 4), as the verdict does: a new run
+ * replaces the run, so a selected finding of the old one becomes the run.
+ */
 export interface RunTransition {
   readonly kind: "run";
 }
@@ -117,17 +129,8 @@ const TRANSITIONS: KindHandlers<
     ({ selection }) =>
     (state) =>
       selection.kind === "workload"
-        ? // Today a workload opens in the dock, so the inspector collapses,
-          // which §5's rule 2 forbids; slice 5 of issue 246 stops it.
-          {
-            ...state,
-            selection,
-            inspector: "collapsed",
-            dock: unfoldedOn("workload"),
-            // Rule 5: a selected workload is picked, in the same dispatch.
-            pickedWorkloadId: selection.workloadId,
-          }
-        : { ...state, selection, inspector: "open" },
+        ? selectedWorkload(state, selection)
+        : selected(state, selection),
   pick:
     ({ workloadId }) =>
     (state) =>
@@ -149,12 +152,49 @@ const TRANSITIONS: KindHandlers<
     withDock(state, { ...state.dock, folded: true }),
   "unfold-dock": () => (state) =>
     withDock(state, { ...state.dock, folded: false }),
-  run: () => (state) => ({
-    ...state,
-    inspector: "open",
-    dock: unfoldedOn("run"),
-  }),
+  run: () => (state) => selected(state, THE_RUN),
 };
+
+/** The run's selection: there's one run, the latest. */
+const THE_RUN: RunSelection = { kind: "run" };
+
+/**
+ * The dock tab each kind shows as it's selected, unfolding the dock (rules
+ * 2 and 3); the kinds not here leave the dock as it is. A workload's tab
+ * is `selectedWorkload`'s.
+ */
+const TABS_SHOWN: Partial<Record<Selection["kind"], OverlayKey>> = {
+  run: "run",
+};
+
+/**
+ * `state` with `selection` selected and the inspector open, showing the
+ * tab the selection shows, if it shows one.
+ */
+function selected(state: ScreenState, selection: Selection): ScreenState {
+  const next: ScreenState = { ...state, selection, inspector: "open" };
+  const tab = TABS_SHOWN[selection.kind];
+  return tab === undefined ? next : { ...next, dock: unfoldedOn(tab) };
+}
+
+/**
+ * `state` with the workload `selection` selected, open in the dock, and
+ * picked in the run group, in the same dispatch (rule 5). Today a workload
+ * opens in the dock, so the inspector collapses, which §5's rule 2
+ * forbids; slice 5 of issue 246 stops it.
+ */
+function selectedWorkload(
+  state: ScreenState,
+  selection: WorkloadSelection,
+): ScreenState {
+  return {
+    ...state,
+    selection,
+    inspector: "collapsed",
+    dock: unfoldedOn("workload"),
+    pickedWorkloadId: selection.workloadId,
+  };
+}
 
 /** The dock showing `tab`, unfolded. */
 function unfoldedOn(tab: OverlayKey): DockState {

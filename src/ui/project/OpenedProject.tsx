@@ -75,9 +75,9 @@ type BarParts = Pick<ProjectFrameProps, "current" | "controls" | "status">;
 
 /**
  * The project's parts of the top bar: its name and Rename as the last
- * crumb, its controls, and its status line. Run opens the inspector, where
- * the run's verdict and findings are, and shows the dock's Run tab, where
- * its evidence is.
+ * crumb, its controls, and its status line. Run selects the run, so the
+ * inspector explains it and the dock's Run tab shows its evidence; the
+ * verdict selects it again.
  */
 function barParts({ screen, cantRunReasonId }: BarPartsInput): BarParts {
   const { edits, projectRun, undoRedo, selecting } = screen;
@@ -91,6 +91,9 @@ function barParts({ screen, cantRunReasonId }: BarPartsInput): BarParts {
         undoRedo={undoRedo}
         cantRunReasonId={cantRunReasonId}
         onRunStart={selecting.showRun}
+        onSelectRun={() => {
+          selecting.select({ kind: "run" });
+        }}
         onEditWorkload={({ id }) => {
           selecting.select({ kind: "workload", workloadId: id });
         }}

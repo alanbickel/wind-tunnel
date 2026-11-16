@@ -74,7 +74,8 @@ const OUTLASTS_BRINGING_BACK: Record<Selection["kind"], boolean> = {
   step: true,
   workload: true,
   "new-workflow": false,
-  // The run's finding stays, whatever the undo does to the project.
+  // The run, and its finding, stay, whatever the undo does to the project.
+  run: true,
   finding: true,
 };
 
@@ -149,6 +150,7 @@ const PRESENCE: KindHandlers<Selection, (project: Project) => boolean> = {
     ({ workloads }) =>
       workloads.some((w) => w.id === workloadId),
   "new-workflow": () => () => true,
-  // A finding is of the run, not the project.
+  // The run, and a finding, are of the run, not the project.
+  run: () => () => true,
   finding: () => () => true,
 };

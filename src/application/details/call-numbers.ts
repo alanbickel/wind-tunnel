@@ -21,6 +21,7 @@ const WORKFLOW_ID_OF: KindHandlers<Selection, string | undefined> = {
   edge: () => undefined,
   workload: () => undefined,
   "new-workflow": () => undefined,
+  run: () => undefined,
   finding: () => undefined,
 };
 

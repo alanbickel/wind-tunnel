@@ -1,4 +1,4 @@
-import { memo, useId } from "react";
+import { memo, useId, useLayoutEffect, useRef } from "react";
 import type { Workload } from "../../domain/model/project";
 import type { FindingSelecting } from "./finding-selecting";
 import { Findings } from "./Findings";
@@ -15,23 +15,36 @@ export interface RunExplanationProps {
   readonly outOfDate: boolean;
   /** Which finding is selected, and how to select one. */
   readonly findingSelecting: FindingSelecting;
+  /**
+   * Whether the heading should take the focus as it shows: true once,
+   * just after a selection of the run that asked for it, such as the
+   * verdict's.
+   */
+  readonly takeFocus: () => boolean;
 }
 
 /**
- * What the latest run means, as the inspector shows it with nothing
- * selected (UX design §9): the out-of-date line when the project has
- * changed since, "Run: <workload>", named from the run's own copy so a
- * rename since doesn't change it, then the verdict, Why, and Try. The
- * evidence, the totals and charts, is the dock's Run overlay's
- * (`RunEvidence`).
+ * What the latest run means, as the inspector shows it with the run, or
+ * one of its findings, selected (UX design §9): the out-of-date line when
+ * the project has changed since, "Run: <workload>", named from the run's
+ * own copy so a rename since doesn't change it, then the verdict, Why,
+ * and Try. The evidence, the totals and charts, is the dock's Run
+ * overlay's (`RunEvidence`).
  */
 export function RunExplanation(props: RunExplanationProps) {
-  const { meaning, ran, outOfDate, findingSelecting } = props;
+  const { meaning, ran, outOfDate, findingSelecting, takeFocus } = props;
   const headingId = useId();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // A layout effect, so the focus moves in the commit that shows it.
+  useLayoutEffect(() => {
+    if (takeFocus()) headingRef.current?.focus();
+  }, [takeFocus]);
   return (
     <section aria-labelledby={headingId}>
       <RunColumn outOfDate={outOfDate}>
-        <h3 id={headingId}>Run: {ran.name}</h3>
+        <h3 id={headingId} ref={headingRef} tabIndex={-1}>
+          Run: {ran.name}
+        </h3>
         <RunFindings meaning={meaning} selecting={findingSelecting} />
       </RunColumn>
     </section>

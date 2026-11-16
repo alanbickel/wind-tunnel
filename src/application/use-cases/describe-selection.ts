@@ -70,6 +70,8 @@ export class DescribeSelection {
         this.describeWorkload({ project, id: workloadId }),
       // A draft has no details to describe: the UI shows it.
       "new-workflow": () => undefined,
+      // The run has no Details: the inspector shows its explanation.
+      run: () => undefined,
       // A finding has no Details: it marks its component on the diagram.
       finding: () => undefined,
     };

@@ -20,10 +20,12 @@ import {
   dock,
   dockPanel,
   inspector,
+  overview,
   queryDetailsHeading,
   queryRunExplanation,
   renderOpenedProject as renderProject,
   runExplanation,
+  selectTheRun,
   status,
   statusRegions,
 } from "./testing/render-opened-project";
@@ -357,8 +359,9 @@ describe("OpenedProject in a wide window", () => {
     expect(rest.map((heading) => heading.tagName)).toContain("H4");
   });
 
-  // Fails if showing a selection's details stops the run, or going back
-  // to the explanation starts it afresh and loses the results it had.
+  // Fails if showing a selection's details stops the run, or selecting the
+  // run again from its verdict starts it afresh and loses the results it
+  // had.
   it("keeps a run going while a selection shows, with its results there on return", async () => {
     const { runner } = renderProject();
     clickRun();
@@ -370,7 +373,7 @@ describe("OpenedProject in a wide window", () => {
     runner.send(sampleSnapshot({ second: 2, read: { started: 3 } }));
     expect(runner.stopped).toBe(false);
     await runner.finish();
-    fireEvent.keyDown(detailsHeading(), { key: "Escape" });
+    selectTheRun();
 
     expect(runner.runs).toBe(1);
     expect(status()).toBe("Finished Steady. Healthy so far.");
@@ -388,9 +391,10 @@ describe("OpenedProject's selection in a wide window", () => {
   });
 
   // Fails if selecting leaves the run's explanation showing, or the focus
-  // where it was, or Escape leaves Details showing, doesn't bring the
-  // explanation back, or drops the focus on the page.
-  it("shows a selection's details, and Escape goes back to the explanation and the button", async () => {
+  // where it was, or Escape leaves Details showing, doesn't show the
+  // overview (bringing back the run's explanation instead), or drops the
+  // focus on the page.
+  it("shows a selection's details, and Escape goes back to the overview and the button", async () => {
     const { runner } = renderProject();
     clickRun();
     runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
@@ -403,7 +407,8 @@ describe("OpenedProject's selection in a wide window", () => {
     expect(document.activeElement).toBe(detailsHeading());
     expect(detailsHeading().textContent).toBe("Function · Lambda");
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
-    expect(runExplanation()).toBeTruthy();
+    expect(overview()).toBeTruthy();
+    expect(queryRunExplanation()).toBeNull();
     expect(document.activeElement).toBe(button);
     expect(queryDetailsHeading()).toBeNull();
   });

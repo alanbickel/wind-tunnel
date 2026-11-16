@@ -1,0 +1,47 @@
+/* The verdict, a button that selects the run: bordered in its level's
+   colour, which its words also say. */
+.verdict {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border: var(--line-width-thick) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.verdict:hover {
+  background: var(--color-surface-raised);
+}
+
+.verdict[data-level="failing"],
+.verdict[data-level="error"] {
+  border-color: var(--color-status-error);
+}
+
+.verdict[data-level="degraded"] {
+  border-color: var(--color-status-warn);
+}
+
+.verdict[data-level="healthy"] {
+  border-color: var(--color-status-ok);
+}
+
+.stale {
+  color: var(--color-status-warn);
+}
+
+/* Heard, not seen: what the button does, which its look says. */
+.action {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

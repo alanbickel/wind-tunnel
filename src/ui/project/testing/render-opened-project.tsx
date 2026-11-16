@@ -186,9 +186,17 @@ export function inspector(): HTMLElement {
 }
 
 /**
+ * The project's overview, which the inspector shows, wide or narrow, while
+ * nothing is selected: a region named "Overview". It must be there.
+ */
+export function overview(): HTMLElement {
+  return screen.getByRole("region", { name: "Overview" });
+}
+
+/**
  * The run's explanation, which the inspector shows, wide or narrow, while
- * nothing is selected: a region named by its heading, "Run: <workload>".
- * Null while it isn't shown.
+ * the run or one of its findings is selected: a region named by its
+ * heading, "Run: <workload>". Null while it isn't shown.
  */
 export function queryRunExplanation(): HTMLElement | null {
   return screen.queryByRole("region", { name: /^Run: / });
@@ -249,6 +257,22 @@ export function status(): string | null {
 
 export function clickRun(): void {
   fireEvent.click(screen.getByRole("button", { name: "Run" }));
+}
+
+/**
+ * The run group's verdict, which selects the run: a button named by its
+ * verdict ("Healthy", "Failing · 43.7%"), in the top bar.
+ */
+export function barVerdict(): HTMLElement {
+  const buttons = within(bar()).getAllByRole("button");
+  const verdict = buttons.find((b) => b.hasAttribute("data-level"));
+  if (verdict === undefined) throw new Error("the bar should have a verdict");
+  return verdict;
+}
+
+/** Selects the run again from the run group's verdict. */
+export function selectTheRun(): void {
+  fireEvent.click(barVerdict());
 }
 
 /** The record saved for the sample, once a save matching `check` lands. */

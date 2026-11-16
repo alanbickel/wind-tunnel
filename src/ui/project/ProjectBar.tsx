@@ -7,6 +7,7 @@ import type { ProjectRun } from "../run/useProjectRun";
 import { RedoIcon, UndoIcon } from "../shared/ArrowIcons";
 import { inSentence } from "../shared/in-sentence";
 import styles from "./ProjectBar.module.css";
+import { VerdictButton } from "./VerdictButton";
 import type { UndoRedo } from "./useUndoRedo";
 
 export interface ProjectBarProps {
@@ -15,8 +16,10 @@ export interface ProjectBarProps {
   readonly undoRedo: UndoRedo;
   /** The ID of `ProjectStatus`'s line on why the picked workload can't run. */
   readonly cantRunReasonId: string;
-  /** Called when Run starts a run, so the screen can show its results. */
+  /** Called when Run starts a run, so the screen can select it. */
   readonly onRunStart: () => void;
+  /** Called when the verdict is pressed, to select the run again. */
+  readonly onSelectRun: () => void;
   /** Called when Edit is pressed, with the workload the picker shows. */
   readonly onEditWorkload: (workload: Workload) => void;
 }
@@ -26,14 +29,16 @@ export interface ProjectBarProps {
  * Redo, then what runs it. `ProjectStatus` says what they did, on the
  * line under them.
  */
-export function ProjectBar({ undoRedo, ...run }: ProjectBarProps) {
+export function ProjectBar(props: ProjectBarProps) {
+  const { undoRedo, onSelectRun, ...run } = props;
   return (
     <div className={styles.bar}>
       <UndoControls {...undoRedo} />
       <div className={styles.runGroup}>
-        <VerdictChip
+        <VerdictButton
           chip={run.projectRun.chip}
           outOfDate={run.projectRun.outOfDate}
+          onSelectRun={onSelectRun}
         />
         <WorkloadControls {...run} />
       </div>
@@ -143,24 +148,6 @@ function buttonText(verb: string, description: string | undefined): string {
   return `${verb} ${inSentence(description)}`;
 }
 
-type VerdictChipProps = Pick<ProjectRun, "chip" | "outOfDate">;
-
-/**
- * The run's verdict beside Run, drawn only: the status line's regions still
- * announce it, so this isn't one. The level colours it and its text says it
- * in words; with no run, nothing is drawn. "Out of date" goes on it once the
- * project has changed since the run.
- */
-function VerdictChip({ chip, outOfDate }: VerdictChipProps) {
-  if (chip === undefined) return null;
-  return (
-    <p className={styles.chip} data-level={chip.level}>
-      <span>{chip.text}</span>
-      {outOfDate && <span className={styles.chipStale}>Out of date</span>}
-    </p>
-  );
-}
-
 type RunStatusProps = Pick<ProjectRun, "status" | "outOfDate">;
 
 /**
@@ -217,7 +204,7 @@ function SaveStatus({ saveFailed, onRetry }: SaveStatusProps) {
   );
 }
 
-type WorkloadControlsProps = Omit<ProjectBarProps, "undoRedo">;
+type WorkloadControlsProps = Omit<ProjectBarProps, "undoRedo" | "onSelectRun">;
 
 /** The run controls, on the picked workload; a line instead if there are none. */
 function WorkloadControls(props: WorkloadControlsProps) {

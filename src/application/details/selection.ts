@@ -11,6 +11,7 @@ export type Selection =
   | StepSelection
   | WorkloadSelection
   | NewWorkflowSelection
+  | RunSelection
   | FindingSelection;
 
 /** A component, by its id. */
@@ -57,9 +58,19 @@ export interface NewWorkflowSelection {
 }
 
 /**
+ * The run on screen: there's one, the latest, so it needs no id, and a new
+ * run replaces it. It has no Details: the inspector shows the run's
+ * explanation. Only a run's own controls select it, so there's no run
+ * selection before the first run (UX design §5's limit "no run").
+ */
+export interface RunSelection {
+  readonly kind: "run";
+}
+
+/**
  * A finding of the run on screen, by its key. Unlike the others it has no
- * Details: it marks its component on the diagram, and the inspector keeps
- * showing the run's explanation. The finding is worded from the run's copy of the
+ * Details: it marks its component on the diagram, and the inspector shows
+ * the run's explanation, with the finding marked. The finding is worded from the run's copy of the
  * project (ADR-0018), so its component may be gone from the project.
  */
 export interface FindingSelection {

@@ -26,7 +26,7 @@ export interface RunControlsProps {
  * late click on Stop can't start the next run. The one that can't be used
  * is marked unusable (see `Button`) rather than disabled, so the keyboard
  * focus stays on it. A workload with run issues is marked in the picker,
- * and Run is unusable while it's picked; the project bar says why, and
+ * and Run is unusable while it's picked; the run group says why, and
  * Run points to it, so a screen reader reads the reason on Run. Edit,
  * beside the picker, opens the picked workload in Details.
  */

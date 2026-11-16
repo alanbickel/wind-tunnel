@@ -1,55 +1,38 @@
 import type { ReactNode, Ref } from "react";
-import type { Project, Workload } from "../../domain/model/project";
-import { RunControls } from "../run/RunControls";
-import { RunProgress } from "../run/RunProgress";
 import { Button } from "../shared/Button";
 import type { ProjectRun } from "../run/useProjectRun";
 import { RedoIcon, UndoIcon } from "../shared/ArrowIcons";
 import { inSentence } from "../shared/in-sentence";
 import styles from "./ProjectBar.module.css";
-import { VerdictButton } from "./VerdictButton";
 import type { UndoRedo } from "./useUndoRedo";
 
 export interface ProjectBarProps {
-  readonly project: Project;
-  readonly projectRun: ProjectRun;
   readonly undoRedo: UndoRedo;
-  /** The ID of `ProjectStatus`'s line on why the picked workload can't run. */
-  readonly cantRunReasonId: string;
-  /** Called when Run starts a run, so the screen can select it. */
-  readonly onRunStart: () => void;
-  /** Called when the verdict is pressed, to select the run again. */
-  readonly onSelectRun: () => void;
-  /** Called when Edit is pressed, with the workload the picker shows. */
-  readonly onEditWorkload: (workload: Workload) => void;
+  /**
+   * The run group, when the layout puts it in the top bar: a narrow
+   * window's, so Run is never scrolled out of sight.
+   */
+  readonly runGroup?: ReactNode;
 }
 
 /**
  * The project's controls in the top bar's row, after its name: Undo and
- * Redo, then what runs it. `ProjectStatus` says what they did, on the
- * line under them.
+ * Redo, then, in a narrow window, the run group, whole. `ProjectStatus`
+ * says what they did, on the line under them.
  */
-export function ProjectBar(props: ProjectBarProps) {
-  const { undoRedo, onSelectRun, ...run } = props;
+export function ProjectBar({ undoRedo, runGroup }: ProjectBarProps) {
   return (
     <div className={styles.bar}>
       <UndoControls {...undoRedo} />
-      <div className={styles.runGroup}>
-        <VerdictButton
-          chip={run.projectRun.chip}
-          outOfDate={run.projectRun.outOfDate}
-          onSelectRun={onSelectRun}
-        />
-        <WorkloadControls {...run} />
-      </div>
+      {runGroup !== undefined && (
+        <div className={styles.runGroup}>{runGroup}</div>
+      )}
     </div>
   );
 }
 
 export interface ProjectStatusProps {
   readonly projectRun: ProjectRun;
-  /** For the line on why the picked workload can't run, which Run points to. */
-  readonly cantRunReasonId: string;
   /** True once the last change failed to save, until a save works. */
   readonly saveFailed: boolean;
   /** Saves the change that failed again. */
@@ -57,21 +40,17 @@ export interface ProjectStatusProps {
 }
 
 /**
- * The top bar's status line, across the window under its row: how far the
- * run has got, its status, whether it's out of date, why the picked
- * workload can't run, and whether the last change saved. Its regions are
- * there from the start; while they're all empty, it takes no room.
+ * The top bar's status line, across the window under its row: the run's
+ * status, whether it's out of date, and whether the last change saved.
+ * Its regions are there from the start; while they're all empty, it takes
+ * no room.
  */
 export function ProjectStatus(props: ProjectStatusProps) {
-  const { projectRun, cantRunReasonId, saveFailed, onRetry } = props;
-  const { run, ran, status, outOfDate } = projectRun;
+  const { projectRun, saveFailed, onRetry } = props;
+  const { status, outOfDate } = projectRun;
   return (
     <div className={styles.line}>
-      {ran !== undefined && (
-        <RunProgress workload={ran} snapshots={run.snapshots} />
-      )}
       <RunStatus status={status} outOfDate={outOfDate} />
-      <CantRunReason id={cantRunReasonId} projectRun={projectRun} />
       <SaveStatus saveFailed={saveFailed} onRetry={onRetry} />
     </div>
   );
@@ -167,24 +146,6 @@ function RunStatus({ status, outOfDate }: RunStatusProps) {
   );
 }
 
-interface CantRunReasonProps {
-  readonly id: string;
-  readonly projectRun: ProjectRun;
-}
-
-/**
- * Why the picked workload can't run. Mounted from the start, like the run's
- * status, so screen readers announce it when a change to the project stops
- * the workload; Run points to it by `id`, so it's read on Run too.
- */
-function CantRunReason({ id, projectRun }: CantRunReasonProps) {
-  return (
-    <p id={id} role="status" className={styles.cantRun}>
-      {cantRunReason(projectRun)}
-    </p>
-  );
-}
-
 type SaveStatusProps = Pick<ProjectStatusProps, "saveFailed" | "onRetry">;
 
 /**
@@ -202,40 +163,4 @@ function SaveStatus({ saveFailed, onRetry }: SaveStatusProps) {
       {saveFailed && <Button onClick={onRetry}>Try again</Button>}
     </p>
   );
-}
-
-type WorkloadControlsProps = Omit<ProjectBarProps, "undoRedo" | "onSelectRun">;
-
-/** The run controls, on the picked workload; a line instead if there are none. */
-function WorkloadControls(props: WorkloadControlsProps) {
-  const { project, projectRun, cantRunReasonId, onRunStart } = props;
-  const { onEditWorkload } = props;
-  const { run, picked, pick } = projectRun;
-  if (picked === undefined) {
-    return <p>This project has no workloads to run.</p>;
-  }
-  return (
-    <RunControls
-      workloads={project.workloads}
-      workload={picked}
-      onPick={pick}
-      onEdit={() => {
-        onEditWorkload(picked);
-      }}
-      checks={projectRun.checks}
-      cantRunReasonId={cantRunReasonId}
-      running={run.phase.status === "running"}
-      onStart={() => {
-        run.start(picked);
-        onRunStart();
-      }}
-      onStop={run.stop}
-    />
-  );
-}
-
-/** Why the picked workload can't run; empty if it can, or there's none. */
-function cantRunReason({ picked, checks }: ProjectRun): string {
-  if (picked === undefined) return "";
-  return checks.get(picked.id)?.summary ?? "";
 }

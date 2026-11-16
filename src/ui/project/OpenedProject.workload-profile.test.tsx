@@ -58,8 +58,9 @@ function select(name: string): void {
   fireEvent.click(button);
 }
 
+/** The open workload's tab in the dock, not the run group beside it. */
 function details(): HTMLElement {
-  return screen.getByRole("region", { name: "Dock" });
+  return screen.getByRole("tabpanel", { name: /^Workload: / });
 }
 
 function times(): HTMLInputElement[] {

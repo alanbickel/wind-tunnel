@@ -79,7 +79,7 @@ describe("OpenedProject's run, as a selection", () => {
   });
 
   // Fails if, before any run, the overview is missing what the project
-  // is and holds, or something can select the run: a verdict in the bar
+  // is and holds, or something can select the run: a verdict in the run group
   // or the overview, or the run's explanation itself (the limit "no run").
   it("shows the overview before any run, with nothing that selects the run", () => {
     renderProject();
@@ -148,7 +148,7 @@ describe("OpenedProject's run, as a selection", () => {
   });
 
   // Fails if a verdict's name says only the verdict, not that it shows the
-  // run, in the bar or the overview.
+  // run, in the run group or the overview.
   it("names each verdict as showing the run", async () => {
     await renderRun();
     expect(barVerdict().textContent).toMatch(/^Failing.*\. Show the run$/);
@@ -157,9 +157,9 @@ describe("OpenedProject's run, as a selection", () => {
     expect(overviewVerdict().textContent).toMatch(/^Failing.*\. Show the run$/);
   });
 
-  // Fails if the bar's verdict doesn't select the run again from a thing,
-  // or leaves the focus off the run's heading.
-  it("selects the run again from the bar's verdict", async () => {
+  // Fails if the run group's verdict doesn't select the run again from a
+  // thing, or leaves the focus off the run's heading.
+  it("selects the run again from the run group's verdict", async () => {
     await renderRun();
     selectFunction();
     expect(detailsHeading()).toBeTruthy();

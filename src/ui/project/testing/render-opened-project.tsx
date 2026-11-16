@@ -231,13 +231,17 @@ export function statusRegions(): [HTMLElement, HTMLElement] {
 }
 
 /**
- * The bar's region that says why the picked workload can't run, after
- * what Undo did, the run's status, and whether it's out of date.
+ * The run group: the workload Run runs, Run and Stop, and the verdict, at
+ * the end of the dock's tab strip in a wide window, or in the top bar in
+ * a narrow one. There's one of it.
  */
+export function runGroup(): HTMLElement {
+  return screen.getByRole("group", { name: "Run" });
+}
+
+/** The run group's region that says why the picked workload can't run. */
 export function cantRunRegion(): HTMLElement {
-  const region = within(bar()).getAllByRole("status")[3];
-  if (region === undefined) throw new Error("the bar should say why");
-  return region;
+  return within(runGroup()).getByRole("status");
 }
 
 /**
@@ -261,12 +265,12 @@ export function clickRun(): void {
 
 /**
  * The run group's verdict, which selects the run: a button named by its
- * verdict ("Healthy", "Failing · 43.7%"), in the top bar.
+ * verdict ("Healthy", "Failing · 43.7%"), wherever the group is.
  */
 export function barVerdict(): HTMLElement {
-  const buttons = within(bar()).getAllByRole("button");
+  const buttons = within(runGroup()).getAllByRole("button");
   const verdict = buttons.find((b) => b.hasAttribute("data-level"));
-  if (verdict === undefined) throw new Error("the bar should have a verdict");
+  if (verdict === undefined) throw new Error("the group should have a verdict");
   return verdict;
 }
 

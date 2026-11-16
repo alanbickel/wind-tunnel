@@ -25,6 +25,7 @@ import {
   queryRunExplanation,
   renderOpenedProject as renderProject,
   runExplanation,
+  runGroup,
   selectTheRun,
   status,
   statusRegions,
@@ -95,16 +96,17 @@ describe("OpenedProject's project bar", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the top bar loses the project's name, the picker, or Run, or
-  // a run started from the bar doesn't fill the dock's Run overlay.
+  // Fails if the top bar loses the project's name, the dock's run group
+  // loses the picker or Run, or a run started from the group doesn't fill
+  // the dock's Run overlay.
   it("shows the project and runs it, filling the dock's Run overlay", () => {
     const { runner } = renderProject();
-    const inBar = within(bar());
     expect(
-      inBar.getByRole("heading", { level: 2, name: "Sample project" }),
+      within(bar()).getByRole("heading", { level: 2, name: "Sample project" }),
     ).toBeTruthy();
-    expect(inBar.getByRole("combobox", { name: "Workload" })).toBeTruthy();
-    expect(inBar.getByRole("button", { name: "Run" })).toBeTruthy();
+    const inGroup = within(dock());
+    expect(inGroup.getByRole("combobox", { name: "Workload" })).toBeTruthy();
+    expect(inGroup.getByRole("button", { name: "Run" })).toBeTruthy();
     expect(queryRunExplanation()).toBeNull();
 
     clickRun();
@@ -154,7 +156,8 @@ describe("OpenedProject's project bar", () => {
   });
 
   // Fails if the progress bar counts snapshots instead of simulated time
-  // (simulatedSec returning snapshots.length): it would read 2 of 2.5.
+  // (simulatedSec returning snapshots.length): it would read 2 of 2.5. Or
+  // if it stays once the run has ended, when the verdict says how it went.
   it("measures progress in simulated time, so a run that ends partway through a second fills the bar", async () => {
     const [steady] = sampleRecord.project.workloads;
     if (steady === undefined) throw new Error("sample has no workload");
@@ -169,14 +172,16 @@ describe("OpenedProject's project bar", () => {
     // The sampler ticks each second, then once more at the duration.
     runner.send(sampleSnapshot({ second: 1 }));
     runner.send({ ...sampleSnapshot({ second: 3 }), endMs: 2_500 });
-    await runner.finish();
 
-    const progress = screen.getByRole<HTMLProgressElement>("progressbar");
+    const progress =
+      within(runGroup()).getByRole<HTMLProgressElement>("progressbar");
     expect(screen.getByText("2.5 of 2.5 simulated seconds")).toBeTruthy();
     expect(progress.value).toBe(progress.max);
+    await runner.finish();
+    expect(screen.queryByRole("progressbar")).toBeNull();
   });
 
-  // Fails if Stop in the bar doesn't stop the runner, the totals drop what
+  // Fails if Stop in the run group doesn't stop the runner, the totals drop what
   // arrived, or the stopped status line loses how far it got or the
   // verdict's title.
   it("stops partway and says how far it got", async () => {
@@ -309,13 +314,13 @@ describe("OpenedProject's project bar", () => {
     expect(runner.stopped).toBe(true);
   });
 
-  // Fails if a project without workloads gets a Run button, or the bar
-  // stops saying why there's none.
-  it("says so in the bar when the project has no workloads", () => {
+  // Fails if a project without workloads gets a Run button, or the run
+  // group stops saying why there's none.
+  it("says so in the run group when the project has no workloads", () => {
     renderProject({ project: { ...sampleRecord.project, workloads: [] } });
 
     expect(
-      within(bar()).getByText("This project has no workloads to run."),
+      within(runGroup()).getByText("This project has no workloads to run."),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Run" })).toBeNull();
   });

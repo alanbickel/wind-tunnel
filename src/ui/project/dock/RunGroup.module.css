@@ -1,0 +1,18 @@
+/* The workload and Run and Stop, the run's progress or why it can't run,
+   then the verdict: one row, wrapping whole items. */
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.group > * {
+  margin: 0;
+}
+
+/* There with the group, taking no room while the picked workload can run. */
+.cantRun {
+  max-width: var(--prose-max-width);
+  color: var(--color-status-warn);
+}

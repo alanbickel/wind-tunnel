@@ -173,7 +173,7 @@ describe("OpenedProject's removing a workflow", () => {
   });
 
   // Fails if removing a workload's only workflow leaves it runnable, or
-  // the project bar doesn't say why it can't run.
+  // the run group doesn't say why it can't run.
   it("leaves a workload with an empty mix unable to run, and says why", () => {
     renderProject();
     select("Read item");

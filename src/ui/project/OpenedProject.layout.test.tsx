@@ -46,8 +46,9 @@ describe("OpenedProject's canvas-first layout", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the project's name and controls leave the top bar, or the
-  // canvas and the inspector stop being under it, in that order.
+  // Fails if the project's name and controls leave the top bar, the run's
+  // stay in it in a wide window, or the canvas and the inspector stop
+  // being under it, in that order.
   it("puts the project in one top bar, over the canvas and the inspector", () => {
     renderProject();
     const inBar = within(bar());
@@ -61,15 +62,10 @@ describe("OpenedProject's canvas-first layout", () => {
         { level: 2, name: "Sample project" },
       ),
     ).toBeTruthy();
-    for (const name of [
-      "Rename Sample project",
-      "Undo",
-      "Redo",
-      "Run",
-      "Stop",
-    ]) {
+    for (const name of ["Rename Sample project", "Undo", "Redo"]) {
       expect(inBar.getByRole("button", { name })).toBeTruthy();
     }
+    expect(inBar.queryByRole("button", { name: "Run" })).toBeNull();
     const canvas = screen.getByRole("region", { name: "Architecture" });
     for (const under of [canvas, inspector()]) {
       expect(bar().contains(under)).toBe(false);

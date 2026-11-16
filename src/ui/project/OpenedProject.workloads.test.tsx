@@ -9,6 +9,7 @@ import {
   detailsHeading,
   queryDetailsHeading,
   renderOpenedProject as renderProject,
+  runGroup,
 } from "./testing/render-opened-project";
 
 const [steady] = sampleRecord.project.workloads;
@@ -48,7 +49,7 @@ function pickedName(): string | undefined {
   return picker().selectedOptions[0]?.textContent ?? undefined;
 }
 
-/** Presses the project bar's Edit, with the focus on it first. */
+/** Presses the run group's Edit, with the focus on it first. */
 function pressEdit(): HTMLElement {
   const edit = screen.getByRole("button", { name: "Edit" });
   edit.focus();
@@ -105,10 +106,10 @@ describe("OpenedProject's workloads", () => {
   });
 
   // Fails if a row doesn't open the workload in Details with the focus on
-  // its heading, doesn't pick it in the project bar, isn't marked while
+  // its heading, doesn't pick it in the run group, isn't marked while
   // selected, or Escape leaves Details showing or drops the focus instead
   // of returning it to the row.
-  it("opens a workload from its row and picks it in the bar; Escape returns to the row", () => {
+  it("opens a workload from its row and picks it in the run group; Escape returns to the row", () => {
     renderProject({ project: twoWorkloads });
 
     const row = selectFromList("Broken · 1 problem");
@@ -138,9 +139,9 @@ describe("OpenedProject's workloads", () => {
     expect(document.activeElement).toBe(edit);
   });
 
-  // Fails if picking in the bar selects the workload or changes what
-  // Details shows: the links are one way (UX §2.7 step 1).
-  it("picking in the bar changes no selection", () => {
+  // Fails if picking in the run group selects the workload or changes what
+  // Details shows: the links are one way (UX §5 rule 5).
+  it("picking in the run group changes no selection", () => {
     renderProject({ project: twoWorkloads });
     selectFromList("Steady");
 
@@ -151,7 +152,7 @@ describe("OpenedProject's workloads", () => {
   });
 
   // Fails if a change to the project picks the selected workload again,
-  // undoing a pick made in the bar since.
+  // undoing a pick made in the run group since.
   it("doesn't pick the selected workload again when the project changes", () => {
     const { change } = renderProject({ project: twoWorkloads });
     selectFromList("Steady");
@@ -169,7 +170,7 @@ describe("OpenedProject's workloads", () => {
 
     selectFromList("Steady");
 
-    const details = screen.getByRole("region", { name: "Dock" });
+    const details = screen.getByRole("tabpanel", { name: /^Workload: / });
     expect(
       within(details).getByRole<HTMLInputElement>("textbox", {
         name: "Duration",
@@ -205,13 +206,13 @@ describe("OpenedProject's workloads", () => {
     expect(details.textContent).not.toMatch(/\bread\b/);
   });
 
-  // Fails if a stored empty mix isn't said once on the mix, and in the bar, or
+  // Fails if a stored empty mix isn't said once on the mix, and in the run group, or
   // a point past the run's end has no note, or a note lands on another row.
   it("shows a hand-broken workload's problem and its notes where they are", () => {
     renderProject({ project: twoWorkloads });
     selectFromList("Broken · 1 problem");
 
-    const details = screen.getByRole("region", { name: "Dock" });
+    const details = screen.getByRole("tabpanel", { name: /^Workload: / });
 
     expect(within(details).queryByText("The mix has no workflows.")).toBeNull();
     expect(
@@ -227,7 +228,7 @@ describe("OpenedProject's workloads", () => {
       "After the run's end (4 s). Arrivals follow the line toward this point, and the run stops at 4 s.",
     ]);
     expect(
-      within(screen.getByRole("banner")).getByText(
+      within(runGroup()).getByText(
         /^Broken can't run yet: The mix has no workflows\.$/,
       ),
     ).toBeTruthy();

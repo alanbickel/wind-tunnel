@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
@@ -7,6 +13,8 @@ import type { Project } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { revealButton } from "./testing/canvas-panels";
 import {
+  bar,
+  barVerdict,
   clickRun,
   detailsHeading,
   dock,
@@ -15,6 +23,7 @@ import {
   inspector,
   queryDock,
   renderOpenedProject as renderProject,
+  runGroup,
   type RenderedProject,
 } from "./testing/render-opened-project";
 
@@ -74,11 +83,11 @@ describe("OpenedProject's dock", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the dock shows with no run and nothing selected, or a workload
-  // doesn't open in it, in a tab labelled with its name.
-  it("shows nothing until a workload is selected, then its tab", () => {
+  // Fails if the dock shows a tab with no run and nothing selected, or a
+  // workload doesn't open in it, in a tab labelled with its name.
+  it("shows no tab until a workload is selected, then its tab", () => {
     renderProject();
-    expect(queryDock()).toBeNull();
+    expect(within(dock()).queryByRole("tablist")).toBeNull();
 
     openSteady();
 
@@ -106,9 +115,9 @@ describe("OpenedProject's dock", () => {
   });
 
   // Fails if the Run overlay waits for something other than the run
-  // starting (such as `meaning`), or showing it moves the focus off the
-  // run's controls.
-  it("shows a Run tab once a run starts, with the focus left on the bar", () => {
+  // starting (such as `meaning`), or showing it moves the focus off Run,
+  // as mounting the run group afresh when the first tab appears would.
+  it("shows a Run tab once a run starts, with the focus left on Run", () => {
     renderProject();
     const run = screen.getByRole("button", { name: "Run" });
     run.focus();
@@ -117,7 +126,7 @@ describe("OpenedProject's dock", () => {
 
     expect(dockTabs()).toEqual(["Run"]);
     expect(shownTab()).toBe("Run");
-    expect(dock().contains(document.activeElement)).toBe(false);
+    expect(document.activeElement).toBe(run);
   });
 
   // Fails if the overlays' tabs aren't in the map's order, Run first, or the
@@ -333,14 +342,86 @@ describe("OpenedProject's dock", () => {
     ).toBe("true");
   });
 
-  // Fails if Escape leaves the dock open with no run to show.
-  it("closes on Escape when there's no run", () => {
+  // Fails if Escape leaves a tab in the dock with no run to show.
+  it("closes its tab on Escape when there's no run", () => {
     renderProject();
     openSteady();
 
     fireEvent.keyDown(workloadHeading(), { key: "Escape" });
 
+    expect(within(dock()).queryByRole("tablist")).toBeNull();
+  });
+
+  // Fails if a narrow window's dock shows with nothing to show, now that a
+  // wide one always holds the run group.
+  it("shows nothing in a narrow window until a workload is selected", () => {
+    renderProject({ width: "narrow" });
+
     expect(queryDock()).toBeNull();
+  });
+});
+
+describe("OpenedProject's run group", () => {
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  // Fails if the run group leaves the end of the dock's tab strip in a
+  // wide window, or splits: the picker, Run, Stop, and the verdict are one
+  // unit (UX §5 rule 6). Rule 5's pick is in the workloads' tests.
+  it("sits whole at the end of the dock's tab strip", async () => {
+    const shown = renderProject();
+    await runASecond(shown);
+
+    const group = runGroup();
+    expect(dock().contains(group)).toBe(true);
+    expect(bar().contains(group)).toBe(false);
+    const strip = within(dock()).getByRole("tablist").parentElement;
+    expect(strip?.contains(group)).toBe(true);
+    const inGroup = within(group);
+    expect(inGroup.getByRole("combobox", { name: "Workload" })).toBeTruthy();
+    expect(inGroup.getByRole("button", { name: "Run" })).toBeTruthy();
+    expect(inGroup.getByRole("button", { name: "Stop" })).toBeTruthy();
+    expect(barVerdict()).toBeTruthy();
+  });
+
+  // Fails if folding the dock hides the run group with the tabs (rule 6:
+  // Run and the verdict are always on screen).
+  it("stays when the dock folds", async () => {
+    const shown = renderProject();
+    await runASecond(shown);
+
+    fireEvent.click(
+      within(dock()).getByRole("button", { name: "Fold the dock" }),
+    );
+
+    expect(within(dock()).queryByRole("tab")).toBeNull();
+    expect(
+      within(runGroup()).getByRole("button", { name: "Run" }),
+    ).toBeTruthy();
+    expect(barVerdict()).toBeTruthy();
+  });
+
+  // Fails if the run group isn't in the top bar below the wide breakpoint,
+  // or is ever in both places, on either side of it.
+  it("moves to the top bar in a narrow window, and back, never in both", () => {
+    const { resize } = renderProject();
+    expect(screen.getAllByRole("group", { name: "Run" })).toHaveLength(1);
+
+    act(() => {
+      resize("narrow");
+    });
+
+    expect(screen.getAllByRole("group", { name: "Run" })).toHaveLength(1);
+    expect(bar().contains(runGroup())).toBe(true);
+    expect(queryDock()).toBeNull();
+    act(() => {
+      resize("wide");
+    });
+    expect(screen.getAllByRole("group", { name: "Run" })).toHaveLength(1);
+    expect(dock().contains(runGroup())).toBe(true);
   });
 });
 

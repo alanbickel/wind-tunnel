@@ -85,10 +85,10 @@ describe("OpenedProject's adding a workload", () => {
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, 10]);
   });
 
-  // Fails if the bar still shows the workload it showed before, so Run
-  // would run something other than what the user is editing, or the bar
-  // doesn't say why the new workload can't run.
-  it("picks it in the bar, which says why it can't run yet", () => {
+  // Fails if the run group still shows the workload it showed before, so
+  // Run would run something other than what the user is editing, or the
+  // group doesn't say why the new workload can't run.
+  it("picks it in the run group, which says why it can't run yet", () => {
     renderProject();
 
     addWorkload();
@@ -102,7 +102,7 @@ describe("OpenedProject's adding a workload", () => {
   });
 
   // Fails if the new workload's empty-mix issue isn't on its row, in
-  // Details, and in the bar: a new workload starts with it.
+  // Details, and in the run group: a new workload starts with it.
   it("shows the empty-mix issue on the row and in Details", () => {
     renderProject();
 

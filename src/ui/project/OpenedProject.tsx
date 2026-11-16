@@ -20,13 +20,14 @@ import type { OfferingProps } from "./useEdgeOffers";
 import type { AddWorkflowProps } from "./WorkflowList";
 import type { AddWorkloadProps } from "./WorkloadList";
 import styles from "./OpenedProject.module.css";
-import { ProjectBar, ProjectStatus } from "./ProjectBar";
+import { ProjectBar } from "./ProjectBar";
 import {
   ProjectFrame,
   type ProjectFrameProps,
   type ShellParts,
 } from "./ProjectFrame";
 import { ProjectName } from "./ProjectName";
+import { SaveFailure } from "./SaveFailure";
 import { useAddAndRemove, type AddAndRemove } from "./useAddAndRemove";
 import {
   useCanvasPanels,
@@ -103,25 +104,19 @@ interface BarPartsInput {
   readonly runGroup: ReactNode;
 }
 
-type BarParts = Pick<ProjectFrameProps, "current" | "controls" | "status">;
+type BarParts = Pick<ProjectFrameProps, "current" | "controls" | "banner">;
 
 /**
- * The project's parts of the top bar: its name and Rename as the last
- * crumb, its controls, and its status line.
+ * The project's parts of the top bar and the banner under it: its name
+ * and Rename as the last crumb, its controls, and a save that failed.
  */
 function barParts({ screen, runGroup }: BarPartsInput): BarParts {
-  const { edits, projectRun, undoRedo } = screen;
+  const { edits, undoRedo } = screen;
   const { project } = edits.record;
   return {
     current: <ProjectName project={project} onEdit={edits.edit} />,
     controls: <ProjectBar undoRedo={undoRedo} runGroup={runGroup} />,
-    status: (
-      <ProjectStatus
-        projectRun={projectRun}
-        saveFailed={edits.saveFailed}
-        onRetry={edits.retry}
-      />
-    ),
+    banner: <SaveFailure saveFailed={edits.saveFailed} onRetry={edits.retry} />,
   };
 }
 

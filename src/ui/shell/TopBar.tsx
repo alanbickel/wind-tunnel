@@ -13,8 +13,6 @@ export interface TopBarProps {
   readonly onProjects: () => void;
   /** An open project's controls, between the breadcrumb and the settings menu. */
   readonly children?: ReactNode;
-  /** An open project's status line, across the bar under its row. */
-  readonly status?: ReactNode;
 }
 
 /** Three streamlines, the app's mark; the name beside it says what it is. */
@@ -39,10 +37,11 @@ function AppMark() {
 
 /**
  * Across the top of every screen: the app's mark and name, where you are, an open
- * project's controls, and the settings menu, then the project's status line.
+ * project's controls, and the settings menu. Nothing about the run, except
+ * the run group in a narrow window (UX design §2).
  */
 export function TopBar(props: TopBarProps) {
-  const { current, onProjects, children, status } = props;
+  const { current, onProjects, children } = props;
   return (
     <header className={styles.topBar}>
       <AppMark />
@@ -52,7 +51,6 @@ export function TopBar(props: TopBarProps) {
       <div className={styles.end}>
         <SettingsMenu />
       </div>
-      {status}
     </header>
   );
 }

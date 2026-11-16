@@ -19,23 +19,29 @@ export interface ProjectFrameProps {
   readonly current: ReactNode;
   /** The project's controls, in the top bar once it has opened. */
   readonly controls?: ReactNode;
-  /** The project's status line, under the top bar's row. */
-  readonly status?: ReactNode;
+  /**
+   * What affects the whole project, in the banner under the top bar,
+   * before the storage hint: a save that failed.
+   */
+  readonly banner?: ReactNode;
   readonly children: ReactNode;
 }
 
 /**
  * A project screen's frame: one top bar, with the project's controls in
- * it, the dismissible storage hint under it, and the screen's content filling the rest
- * of the window from `--breakpoint-wide` up.
+ * it; the banner under it, which shows only problems that affect the
+ * whole project (a failed save, and the dismissible storage hint); and
+ * the screen's content filling the rest of the window from
+ * `--breakpoint-wide` up.
  */
 export function ProjectFrame(props: ProjectFrameProps) {
-  const { shell, current, controls, status, children } = props;
+  const { shell, current, controls, banner, children } = props;
   return (
     <div className={styles.frame}>
-      <TopBar current={current} onProjects={shell.onProjects} status={status}>
+      <TopBar current={current} onProjects={shell.onProjects}>
         {controls}
       </TopBar>
+      {banner}
       {shell.hint}
       <main className={styles.content}>{children}</main>
     </div>

@@ -1,6 +1,5 @@
 import type { ReactNode, Ref } from "react";
 import { Button } from "../shared/Button";
-import type { ProjectRun } from "../run/useProjectRun";
 import { RedoIcon, UndoIcon } from "../shared/ArrowIcons";
 import { inSentence } from "../shared/in-sentence";
 import styles from "./ProjectBar.module.css";
@@ -17,8 +16,7 @@ export interface ProjectBarProps {
 
 /**
  * The project's controls in the top bar's row, after its name: Undo and
- * Redo, then, in a narrow window, the run group, whole. `ProjectStatus`
- * says what they did, on the line under them.
+ * Redo, then, in a narrow window, the run group, whole.
  */
 export function ProjectBar({ undoRedo, runGroup }: ProjectBarProps) {
   return (
@@ -27,31 +25,6 @@ export function ProjectBar({ undoRedo, runGroup }: ProjectBarProps) {
       {runGroup !== undefined && (
         <div className={styles.runGroup}>{runGroup}</div>
       )}
-    </div>
-  );
-}
-
-export interface ProjectStatusProps {
-  readonly projectRun: ProjectRun;
-  /** True once the last change failed to save, until a save works. */
-  readonly saveFailed: boolean;
-  /** Saves the change that failed again. */
-  readonly onRetry: () => void;
-}
-
-/**
- * The top bar's status line, across the window under its row: the run's
- * status, whether it's out of date, and whether the last change saved.
- * Its regions are there from the start; while they're all empty, it takes
- * no room.
- */
-export function ProjectStatus(props: ProjectStatusProps) {
-  const { projectRun, saveFailed, onRetry } = props;
-  const { status, outOfDate } = projectRun;
-  return (
-    <div className={styles.line}>
-      <RunStatus status={status} outOfDate={outOfDate} />
-      <SaveStatus saveFailed={saveFailed} onRetry={onRetry} />
     </div>
   );
 }
@@ -125,42 +98,4 @@ function HistoryButton(props: HistoryButtonProps) {
 function buttonText(verb: string, description: string | undefined): string {
   if (description === undefined) return verb;
   return `${verb} ${inSentence(description)}`;
-}
-
-type RunStatusProps = Pick<ProjectRun, "status" | "outOfDate">;
-
-/**
- * The run's status, and whether it's out of date. Both regions are mounted
- * from the start, so screen readers announce each change: the run's status,
- * then whether the run is out of date, which changes on its own when the
- * project does.
- */
-function RunStatus({ status, outOfDate }: RunStatusProps) {
-  return (
-    <p className={styles.status}>
-      <span role="status">{status}</span>
-      <span role="status" className={styles.outOfDate}>
-        {outOfDate ? "Out of date" : ""}
-      </span>
-    </p>
-  );
-}
-
-type SaveStatusProps = Pick<ProjectStatusProps, "saveFailed" | "onRetry">;
-
-/**
- * Says when the last change didn't save, and offers to save it again
- * (UX design §4.3). The message's region is mounted from the start, empty,
- * so screen readers announce it; Try again sits outside it, so it isn't
- * read as part of the message.
- */
-function SaveStatus({ saveFailed, onRetry }: SaveStatusProps) {
-  return (
-    <p className={styles.saveStatus}>
-      <span role="status" className={styles.saveFailed}>
-        {saveFailed ? "Couldn't save your last change." : ""}
-      </span>
-      {saveFailed && <Button onClick={onRetry}>Try again</Button>}
-    </p>
-  );
 }

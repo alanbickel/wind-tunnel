@@ -94,7 +94,7 @@ describe("OpenedProject's run when the project changes", () => {
   });
 
   // Fails if a change to the project after a run doesn't mark it out of
-  // date in the bar, the run's explanation, and the dock's Run overlay, whose tables
+  // date in the run group, the run's explanation, and the dock's Run overlay, whose tables
   // are of that version too, or the findings go with it.
   it("says the run is out of date, and keeps its findings", async () => {
     const { runner, change } = renderProject();

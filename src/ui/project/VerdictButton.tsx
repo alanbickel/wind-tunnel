@@ -15,7 +15,7 @@ export interface VerdictButtonProps extends Pick<
  * the project's overview. The level colours it and its words say it; "Out
  * of date" goes on it once the project has changed since the run. With no
  * run, there's none, so the run can't be selected (UX design §5's limit
- * "no run"). The status line still announces the verdict, so this isn't a
+ * "no run"). The run group's status announces the verdict, so this isn't a
  * live region.
  */
 export function VerdictButton({

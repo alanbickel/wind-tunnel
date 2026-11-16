@@ -199,11 +199,10 @@ function tracedUseCases(trace: Trace, runner: SimulationRunner): UseCases {
 }
 
 function status(): string {
-  // The top bar's second status region is the run's, after what Undo did;
-  // the bar's other regions are status regions too, and so is the storage
-  // hint, under the bar.
-  const bar = screen.getByRole("banner");
-  return within(bar).getAllByRole("status")[1]?.textContent ?? "";
+  // The run group's first status region is the run's; the group's others
+  // say whether it's out of date and why the workload can't run.
+  const group = screen.getByRole("group", { name: "Run" });
+  return within(group).getAllByRole("status")[0]?.textContent ?? "";
 }
 
 /** The footer of "Requests (run totals)": the totals across workflows. */

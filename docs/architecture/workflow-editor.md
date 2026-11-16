@@ -385,7 +385,7 @@ sequenceDiagram
     participant D as Details (ui)
     participant R as useAddAndRemove (ui)
     participant E as useProjectEdits (ui)
-    participant P as ProjectStatus (ui)
+    participant P as RunGroup (ui)
     User->>D: Remove, on Get order
     D->>D: asks "Remove Get order?" and "Lunch rush and Steady day run it#59; it leaves their mixes." Focus on Cancel
     User->>D: confirms

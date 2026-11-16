@@ -10,7 +10,7 @@ import { secondsOf } from "./run-charts";
 import type { RunMeaning } from "./useRunFindings";
 import type { RanModel, RunPhase } from "./useSimulationRun";
 
-/** What the status line says about the latest run. */
+/** What the run's status says about the latest run. */
 export interface StatusTextInput {
   readonly phase: RunPhase;
   /** Simulated seconds received. */

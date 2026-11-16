@@ -2,6 +2,7 @@ import { useId } from "react";
 import type { Project, Workload } from "../../../domain/model/project";
 import { RunControls } from "../../run/RunControls";
 import { RunProgress } from "../../run/RunProgress";
+import { RunStatus } from "../../run/RunStatus";
 import type { ProjectRun } from "../../run/useProjectRun";
 import { VerdictButton } from "../VerdictButton";
 import styles from "./RunGroup.module.css";
@@ -22,8 +23,10 @@ export interface RunGroupProps {
  * the verdict, as one unit wherever the layout puts it (§5 rule 6), at the
  * end of the dock's tab strip or, in a narrow window, in the top bar.
  * While a run goes, its progress is beside Stop; when the picked workload
- * can't run, the reason is beside Run. Picking a workload here changes
- * only what Run runs, never the selection (rule 5).
+ * can't run, the reason is beside Run. The run's status and "Out of date"
+ * are announced from here, since the top bar says nothing about the run.
+ * Picking a workload here changes only what Run runs, never the selection
+ * (rule 5).
  */
 export function RunGroup(props: RunGroupProps) {
   const { projectRun, onSelectRun } = props;
@@ -35,6 +38,11 @@ export function RunGroup(props: RunGroupProps) {
       {run.phase.status === "running" && ran !== undefined && (
         <RunProgress workload={ran} snapshots={run.snapshots} />
       )}
+      <RunStatus
+        status={projectRun.status}
+        outOfDate={projectRun.outOfDate}
+        phase={run.phase.status}
+      />
       <CantRunReason id={cantRunReasonId} projectRun={projectRun} />
       <VerdictButton
         chip={projectRun.chip}
@@ -85,9 +93,9 @@ interface CantRunReasonProps {
 
 /**
  * Why the picked workload can't run, beside Run. Mounted with the group,
- * like the run's status, so screen readers announce it when a change to
- * the project stops the workload; Run points to it by `id`, so it's read
- * on Run too.
+ * like the run's status, after it, so screen readers announce it when a
+ * change to the project stops the workload; Run points to it by `id`, so
+ * it's read on Run too.
  */
 function CantRunReason({ id, projectRun }: CantRunReasonProps) {
   return (

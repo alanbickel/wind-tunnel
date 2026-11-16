@@ -1,0 +1,15 @@
+/* Heard, not seen: the verdict chip and the progress bar show the same. */
+.heard {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A failed run's problem, which shows nowhere else. */
+.failed {
+  max-width: var(--prose-max-width);
+  color: var(--color-status-error);
+}

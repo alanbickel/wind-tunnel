@@ -10,6 +10,7 @@ import {
   detailsHeading,
   renderOpenedProject as renderProject,
   savedRecord,
+  statusRegions,
   undoneRegion,
 } from "./testing/render-opened-project";
 
@@ -178,9 +179,6 @@ describe("OpenedProject's adding a workload", () => {
 
     addWorkload();
 
-    const [, outOfDate] = within(screen.getByRole("banner"))
-      .getAllByRole("status")
-      .slice(1, 3);
-    expect(outOfDate?.textContent).toBe("");
+    expect(statusRegions()[1].textContent).toBe("");
   });
 });

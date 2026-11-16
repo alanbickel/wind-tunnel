@@ -281,6 +281,7 @@ async function createAndOpen(trace: Trace): Promise<void> {
   fireEvent.click(screen.getByRole("button", { name: "Sample project" }));
   await screen.findByRole("heading", { name: "Sample project" });
   // In the dock's Components tab.
+  fireEvent.click(screen.getByRole("tab", { name: "Components" }));
   const components = screen.getByRole("list", { name: "Components" });
   trace.screen(
     `project screen: heading, architecture (${String(within(components).getAllByRole("listitem").length)} components), run controls`,

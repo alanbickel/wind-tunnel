@@ -11,7 +11,6 @@ import type {
 import type { Project } from "../../domain/model/project";
 import { useProjectRun, type ProjectRun } from "../run/useProjectRun";
 import { useWideWindow } from "../shared/useWideWindow";
-import type { AddComponentProps } from "./ToolRail";
 import { ArchitectureView } from "./ArchitectureView";
 import { Inspector, StackedInspector } from "./Inspector";
 import { Dock } from "./dock/Dock";
@@ -142,6 +141,7 @@ function ProjectCanvas({ screen, wide, runGroup }: ProjectCanvasProps) {
     selecting,
     onEdit: edits.edit,
     onRemove: remove,
+    onAdd: changes.add,
     listRef: changes.componentsListRef,
     announcement: changes.announcement,
   };
@@ -168,8 +168,11 @@ interface ProjectScreen {
   readonly undoRedo: UndoRedo;
   /** Removes as `changes.remove` does, opening the panel the focus goes to. */
   readonly remove: AddAndRemove["remove"];
-  /** What the dock reads of adding and removing: the list's ref, and what a remove said. */
-  readonly changes: Pick<AddAndRemove, "componentsListRef" | "announcement">;
+  /** What the dock reads of adding and removing: adding, the list's ref, and what a remove said. */
+  readonly changes: Pick<
+    AddAndRemove,
+    "add" | "componentsListRef" | "announcement"
+  >;
   /** How much of the canvas the inspector covers, which the diagram fits around. */
   readonly covered: CoveredWidth;
   readonly architecture: ReactNode;
@@ -227,7 +230,6 @@ function useArchitecture(input: ArchitectureInput) {
   const { edits, selecting, changes, move, panels, badges } = input;
   const { coveredRightPx } = input;
   const { selection, select, clear } = selecting;
-  const adding = useAdding(changes);
   const offering = useOffering({ edits, selecting, changes });
   const addingWorkflow = useAddingWorkflow(changes);
   const addingWorkload = useAddingWorkload(changes);
@@ -239,7 +241,6 @@ function useArchitecture(input: ArchitectureInput) {
       onClear={clear}
       onConnect={changes.connect}
       onMove={move}
-      adding={adding}
       addingWorkflow={addingWorkflow}
       addingWorkload={addingWorkload}
       workflowAnnouncement={changes.workflowAnnouncement}
@@ -281,15 +282,6 @@ function useAddingWorkload(changes: AddAndRemove): AddWorkloadProps {
   return useMemo(
     () => ({ onAdd: addWorkload, buttonRef: addWorkloadButtonRef }),
     [addWorkload, addWorkloadButtonRef],
-  );
-}
-
-/** "Add component"'s props, the same object while its parts are. */
-function useAdding(changes: AddAndRemove): AddComponentProps {
-  const { add, addButtonRef } = changes;
-  return useMemo(
-    () => ({ onAdd: add, buttonRef: addButtonRef }),
-    [add, addButtonRef],
   );
 }
 

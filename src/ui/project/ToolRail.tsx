@@ -7,13 +7,7 @@ import {
   type RefObject,
 } from "react";
 import { Button } from "../shared/Button";
-import {
-  AddComponentIcon,
-  ConnectIcon,
-  WorkflowsIcon,
-  WorkloadsIcon,
-} from "../shared/RailIcons";
-import { ComponentTypeList } from "./ComponentTypeList";
+import { ConnectIcon, WorkflowsIcon, WorkloadsIcon } from "../shared/RailIcons";
 import styles from "./ToolRail.module.css";
 import {
   CANVAS_PANEL_ATTRIBUTE,
@@ -21,16 +15,8 @@ import {
   type CanvasPanels,
 } from "./useCanvasPanels";
 
-export interface AddComponentProps {
-  /** Adds a component of the type, and saves it. */
-  readonly onAdd: (type: string) => void;
-  /** The "Add component" button, which keeps the focus as a type is chosen. */
-  readonly buttonRef: RefObject<HTMLButtonElement | null>;
-}
-
 export interface ToolRailProps {
   readonly panels: CanvasPanels;
-  readonly adding: AddComponentProps;
   /** The workflows list, which "Workflows" opens. */
   readonly workflows: ReactNode;
   /** The workloads list, which "Workloads" opens. */
@@ -39,15 +25,9 @@ export interface ToolRailProps {
   readonly workflowAnnouncement: string;
 }
 
-/** The panels the rail opens: the first two are popovers, the others lists. */
-type RailPanelId = Extract<
-  CanvasPanelId,
-  "add" | "connect" | "workflows" | "workloads"
->;
-
 /** One rail button, and the panel it opens. */
 interface RailEntry {
-  readonly id: RailPanelId;
+  readonly id: CanvasPanelId;
   /** The button's name, its tooltip, and its panel's name. */
   readonly name: string;
   readonly icon: ReactNode;
@@ -56,10 +36,9 @@ interface RailEntry {
 }
 
 /** Each panel's element id, which its button controls. */
-type PanelIds = (id: RailPanelId) => string;
+type PanelIds = (id: CanvasPanelId) => string;
 
 const RAIL_PANELS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
-  "add",
   "connect",
   "workflows",
   "workloads",
@@ -67,17 +46,17 @@ const RAIL_PANELS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
 
 /** The popovers, which close on a click outside; a list stays open. */
 const POPOVERS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
-  "add",
   "connect",
 ]);
 
 /**
- * The tool rail down the canvas's left edge (UX design §2): Add component,
- * Connect, Workflows, and Workloads, as a toolbar of icon buttons. Each
+ * The tool rail down the canvas's left edge (UX design §2): Connect,
+ * Workflows, and Workloads, as a toolbar of icon buttons. (Adding a
+ * component is the dock's Library tab.) Each
  * opens its panel beside the rail, over the canvas, one at a time (the
  * canvas's panel state holds which). Escape closes the open one and puts the
- * focus back on its button. A click outside closes Add component's list and
- * Connect's hint; the two lists stay open while you pick through their
+ * focus back on its button. A click outside closes Connect's hint; the two
+ * lists stay open while you pick through their
  * rows. A closed panel stays mounted, hidden, so its scroll is still there
  * when it opens. A polite region says what a workflow's or a workload's
  * remove took: it's on the rail, which always shows, since a list may be
@@ -135,30 +114,10 @@ function RailButtons({ entries, ids, panels }: RailButtonsProps) {
   );
 }
 
-/** "Add component", and the types it lists: choosing one adds it. */
-function addEntry({ panels, adding }: ToolRailProps): RailEntry {
-  return {
-    id: "add",
-    name: "Add component",
-    icon: <AddComponentIcon />,
-    buttonRef: adding.buttonRef,
-    content: (
-      <ComponentTypeList
-        onChoose={(type) => {
-          panels.close();
-          adding.buttonRef.current?.focus();
-          adding.onAdd(type);
-        }}
-      />
-    ),
-  };
-}
-
 /** The rail's buttons, in order, each with what its panel holds. */
 function railEntries(props: ToolRailProps): RailEntry[] {
   const { workflows, workloads } = props;
   return [
-    addEntry(props),
     {
       id: "connect",
       name: "Connect",

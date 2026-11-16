@@ -17,6 +17,8 @@ export interface OverlayProps {
   readonly selecting: ProjectSelection;
   readonly onEdit: ProjectEdits["edit"];
   readonly onRemove: AddAndRemove["remove"];
+  /** Adds a component of the type, selected with its name focused. */
+  readonly onAdd: AddAndRemove["add"];
   /** The Components tab's list, where the focus goes after a remove. */
   readonly listRef: AddAndRemove["componentsListRef"];
   /** What a component's or a connection's remove says: "Removed Table." */

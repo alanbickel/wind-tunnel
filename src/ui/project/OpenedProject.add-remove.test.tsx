@@ -12,24 +12,14 @@ import {
   savedRecord,
 } from "./testing/render-opened-project";
 
-import { railRegion, revealButton } from "./testing/canvas-panels";
+import {
+  addComponent as add,
+  railRegion,
+  revealButton,
+} from "./testing/canvas-panels";
 
 function componentIds(record: ProjectRecord): string[] {
   return record.project.architecture.components.map((c) => c.id);
-}
-
-function addButton(): HTMLElement {
-  return screen.getByRole("button", { name: "Add component" });
-}
-
-/** Opens "Add component" and chooses the type whose line starts `name`. */
-function add(name: string): void {
-  fireEvent.click(addButton());
-  const list = screen.getByRole("list", { name: "Component types" });
-  const type = within(list).getByRole("button", {
-    name: new RegExp(`^${name}:`),
-  });
-  fireEvent.click(type);
 }
 
 /** Selects a component from the diagram's text version. */
@@ -86,6 +76,26 @@ describe("OpenedProject's adding and removing components", () => {
     expect(screen.getByText(/^Called by: nothing yet\./).textContent).toContain(
       "A component does nothing until a workflow step calls it.",
     );
+  });
+
+  // Fails if the project screen doesn't open on the Library tab, or an add
+  // moves the dock off it, so the next one isn't a click away.
+  it("opens on the Library, and an add leaves the dock on it", () => {
+    renderOpenedProject();
+    const library = screen.getByRole("tab", { name: "Library" });
+    expect(library.getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Add component" })).toBeNull();
+
+    add("DynamoDB");
+
+    expect(detailsHeading().textContent).toBe("dynamodb-1 · DynamoDB");
+    expect(
+      screen
+        .getByRole("tab", { name: "Library" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    add("DynamoDB");
+    expect(detailsHeading().textContent).toBe("dynamodb-2 · DynamoDB");
   });
 
   // Fails if the confirmation doesn't name the component's edge or count

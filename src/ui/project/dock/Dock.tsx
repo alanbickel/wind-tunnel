@@ -18,7 +18,7 @@ export interface DockProps extends OverlayProps {
  * The dock along the bottom of the canvas, as wide as the window (UX
  * design §2, "The dock"). It holds the overlays that have something to
  * show, each in a tab, Components first, and the run group at the end of
- * their strip. Components is always there, so the dock never is nothing.
+ * their strip. Library and Components are always there, so the dock never is nothing.
  * Which tab shows and whether it's folded are the
  * screen's view state (`selecting.dock`), which the dock reads and the
  * user's changes go to. When the shown overlay's tab isn't there, the

@@ -112,7 +112,7 @@ export interface TypeFields {
   /** The component definition's type, e.g. `"rds"`. */
   readonly type: string;
   /**
-   * What the type is for, after its display name in "Add component", e.g.
+   * What the type is for, after its display name in the Library, e.g.
    * "the front door; throttles requests over its rate." for API Gateway.
    */
   readonly purpose: string;

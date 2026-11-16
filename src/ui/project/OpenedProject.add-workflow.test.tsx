@@ -20,7 +20,7 @@ import {
   statusRegions,
 } from "./testing/render-opened-project";
 
-import { revealButton } from "./testing/canvas-panels";
+import { addComponent, revealButton } from "./testing/canvas-panels";
 
 /** A blank project: no components, so no workflow can start. */
 const blank: Project = {
@@ -244,9 +244,7 @@ describe("OpenedProject's Add workflow", () => {
   // chosen, so that choosing its action saves a step that calls nothing.
   it("drops a component from the draft when an Undo removes it", () => {
     renderProject({ project: noWorkflows });
-    fireEvent.click(screen.getByRole("button", { name: "Add component" }));
-    const types = screen.getByRole("list", { name: "Component types" });
-    fireEvent.click(within(types).getByRole("button", { name: /^DynamoDB:/ }));
+    addComponent("DynamoDB");
     fireEvent.click(addWorkflowButton());
     const added = within(picker("Component"))
       .getAllByRole("option")

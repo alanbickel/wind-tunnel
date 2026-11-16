@@ -17,6 +17,7 @@ import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { useAnnouncement } from "../shared/useAnnouncement";
+import { focusComponentsList } from "./dock/focus-components-list";
 import { useConnect } from "./useConnect";
 import type { Edit, ProjectEdits } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
@@ -42,14 +43,19 @@ export interface AddAndRemove {
   readonly connect: (from: string, to: string) => void;
   /**
    * Removes the component, edge, workflow, or workload and saves, clears
-   * the selection, moves the focus to "Add component" ("Add workflow" for
-   * a workflow, "Add workload" for a workload), since what made the selection may be gone, and announces it
-   * in the region beside that button, since the focus has left what changed.
+   * the selection, moves the focus to the Components tab's list ("Add
+   * workflow" for a workflow, "Add workload" for a workload), since what
+   * made the selection may be gone, and announces it in the region beside
+   * it, since the focus has left what changed. A component's or an
+   * edge's remove doesn't change the dock's tab or unfold it, so when the
+   * list is hidden the focus goes to the Components tab, or to Unfold.
    */
   readonly remove: (target: Selection) => void;
-  /** The "Add component" button. */
+  /** The "Add component" button, which keeps the focus as a type is chosen. */
   readonly addButtonRef: RefObject<HTMLButtonElement | null>;
-  /** "Removed Table.", for the polite region beside "Add component". */
+  /** The Components tab's list, where a component's or an edge's remove sends the focus. */
+  readonly componentsListRef: RefObject<HTMLDivElement | null>;
+  /** "Removed Table.", for the polite region in the dock. */
   readonly announcement: string;
   /** Says a message in that region, without moving the focus. */
   readonly announce: (message: string) => void;
@@ -65,13 +71,22 @@ export interface AddAndRemove {
   readonly workflowAnnouncement: string;
 }
 
-/** Where a remove leaves the focus, and says what it removed. */
+/**
+ * Where a remove leaves the focus (the element the ref holds, and how to
+ * focus it), and says what it removed.
+ */
 interface RemovalPlace {
-  readonly buttonRef: RefObject<HTMLButtonElement | null>;
+  readonly elementRef: RefObject<HTMLElement | null>;
+  readonly focus: (element: HTMLElement | null) => void;
   readonly announce: (message: string) => void;
 }
 
-/** The button a remove sends the focus to: by what it removed. */
+/** Focuses a button, if it's on the page. */
+function focusButton(element: HTMLElement | null): void {
+  element?.focus();
+}
+
+/** The place a remove sends the focus to: by what it removed. */
 type RemovalPlaceName = "component" | "workflow" | "workload";
 
 type RemovalPlaces = Readonly<Record<RemovalPlaceName, RemovalPlace>>;
@@ -91,10 +106,9 @@ export function useAddAndRemove(
   const addWorkflow = useAddWorkflow(selecting.select);
   const addWorkload = useAddWorkload(edit, selecting.select);
   const connect = useAnnouncedConnect(edits, announce);
-  const panel = useRemovalPlaces({
-    component: { buttonRef: addButtonRef, announce },
-  });
-  const { places, addWorkflowButtonRef, addWorkloadButtonRef } = panel;
+  const panel = useRemovalPlaces(announce);
+  const { places, componentsListRef } = panel;
+  const { addWorkflowButtonRef, addWorkloadButtonRef } = panel;
   const remove = useRemove({ edits, selecting, places });
   return {
     add,
@@ -103,6 +117,7 @@ export function useAddAndRemove(
     connect,
     remove,
     addButtonRef,
+    componentsListRef,
     announcement,
     announce,
     addWorkflowButtonRef,
@@ -114,6 +129,7 @@ export function useAddAndRemove(
 /** The places a remove can leave the focus. */
 interface RemovalPlacesResult {
   readonly places: RemovalPlaces;
+  readonly componentsListRef: RefObject<HTMLDivElement | null>;
   readonly addWorkflowButtonRef: RefObject<HTMLButtonElement | null>;
   readonly addWorkloadButtonRef: RefObject<HTMLButtonElement | null>;
   /** What the Workflows and Workloads lists' removes announced. */
@@ -121,22 +137,31 @@ interface RemovalPlacesResult {
 }
 
 /**
- * The places for each kind of remove. A workflow's and a workload's
- * buttons are in lists that may be closed, so both announce from the one
- * region on the rail.
+ * The places for each kind of remove. A component's and an edge's is the
+ * Components tab's list, which announces from the dock's region
+ * (`announceComponent`). A workflow's and a workload's buttons are in
+ * lists that may be closed, so both announce from the one region on the
+ * rail.
  */
 function useRemovalPlaces(
-  places: Pick<RemovalPlaces, "component">,
+  announceComponent: RemovalPlace["announce"],
 ): RemovalPlacesResult {
+  const componentsListRef = useRef<HTMLDivElement>(null);
   const addWorkflowButtonRef = useRef<HTMLButtonElement>(null);
   const addWorkloadButtonRef = useRef<HTMLButtonElement>(null);
   const [announcement, announce] = useAnnouncement();
+  const button = { focus: focusButton, announce };
   return {
     places: {
-      ...places,
-      workflow: { buttonRef: addWorkflowButtonRef, announce },
-      workload: { buttonRef: addWorkloadButtonRef, announce },
+      component: {
+        elementRef: componentsListRef,
+        focus: focusComponentsList,
+        announce: announceComponent,
+      },
+      workflow: { elementRef: addWorkflowButtonRef, ...button },
+      workload: { elementRef: addWorkloadButtonRef, ...button },
     },
+    componentsListRef,
     addWorkflowButtonRef,
     addWorkloadButtonRef,
     announcement,
@@ -230,14 +255,14 @@ function useRemove({
     (target: Selection) => {
       const removal = dispatchKind(REMOVALS, target)(record);
       if (removal === undefined) return;
-      const { buttonRef, announce } = {
+      const { elementRef, focus, announce } = {
         component,
         workflow,
         workload,
       }[removal.place];
       edit(removal.edit);
       clear();
-      buttonRef.current?.focus();
+      focus(elementRef.current);
       announce(removal.message);
     },
     [record, edit, clear, component, workflow, workload],

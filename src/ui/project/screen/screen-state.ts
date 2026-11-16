@@ -10,7 +10,7 @@ import { dispatchKind } from "../../shared/kind-dispatch";
 export type InspectorState = "open" | "collapsed";
 
 /** The dock's tabs, by key: the keys of its overlays (`dock/overlays.ts`). */
-export type OverlayKey = "run" | "workload";
+export type OverlayKey = "components" | "run" | "workload";
 
 /**
  * The dock in UX design §5's map: which tab shows, and whether it's
@@ -111,12 +111,12 @@ export type ScreenTransition =
 
 /**
  * A project screen as it opens: nothing selected, the inspector open, and
- * the dock unfolded on the Run tab, which shows once a run starts.
+ * the dock unfolded on the Components tab, which is always there.
  */
 export const INITIAL_SCREEN_STATE: ScreenState = {
   selection: undefined,
   inspector: "open",
-  dock: { shown: "run", folded: false },
+  dock: { shown: "components", folded: false },
   pickedWorkloadId: undefined,
 };
 

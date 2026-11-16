@@ -133,14 +133,17 @@ interface ProjectCanvasProps {
  * width; then the dock.
  */
 function ProjectCanvas({ screen, wide, runGroup }: ProjectCanvasProps) {
-  const { edits, projectRun, selecting, remove } = screen;
+  const { edits, projectRun, selecting, remove, changes } = screen;
   const { screenRef, inspectorRef } = screen.covered;
   const inspector = {
+    record: edits.record,
     project: edits.record.project,
     projectRun,
     selecting,
     onEdit: edits.edit,
     onRemove: remove,
+    listRef: changes.componentsListRef,
+    announcement: changes.announcement,
   };
   return (
     <div className={styles.screen}>
@@ -165,6 +168,8 @@ interface ProjectScreen {
   readonly undoRedo: UndoRedo;
   /** Removes as `changes.remove` does, opening the panel the focus goes to. */
   readonly remove: AddAndRemove["remove"];
+  /** What the dock reads of adding and removing: the list's ref, and what a remove said. */
+  readonly changes: Pick<AddAndRemove, "componentsListRef" | "announcement">;
   /** How much of the canvas the inspector covers, which the diagram fits around. */
   readonly covered: CoveredWidth;
   readonly architecture: ReactNode;
@@ -206,7 +211,7 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     coveredRightPx: covered.coveredRightPx,
   });
   const held = { edits, projectRun, selecting, undoRedo };
-  return { ...held, remove, covered, architecture };
+  return { ...held, remove, changes, covered, architecture };
 }
 
 /**
@@ -281,10 +286,10 @@ function useAddingWorkload(changes: AddAndRemove): AddWorkloadProps {
 
 /** "Add component"'s props, the same object while its parts are. */
 function useAdding(changes: AddAndRemove): AddComponentProps {
-  const { add, addButtonRef, announcement } = changes;
+  const { add, addButtonRef } = changes;
   return useMemo(
-    () => ({ onAdd: add, buttonRef: addButtonRef, announcement }),
-    [add, addButtonRef, announcement],
+    () => ({ onAdd: add, buttonRef: addButtonRef }),
+    [add, addButtonRef],
   );
 }
 

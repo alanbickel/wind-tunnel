@@ -17,24 +17,28 @@ export interface DockProps extends OverlayProps {
 /**
  * The dock along the bottom of the canvas, as wide as the window (UX
  * design §2, "The dock"). It holds the overlays that have something to
- * show, each in a tab, Run first, and the run group at the end of their
- * strip. With no overlay to show it holds the run group alone, and is
- * nothing without one. Which tab shows and whether it's folded are the
+ * show, each in a tab, Components first, and the run group at the end of
+ * their strip. Components is always there, so the dock never is nothing.
+ * Which tab shows and whether it's folded are the
  * screen's view state (`selecting.dock`), which the dock reads and the
  * user's changes go to. When the shown overlay's tab isn't there, the
  * first one left shows. Fold shrinks it to one line, the run group and
  * Unfold, and keeps every overlay mounted, hidden, so a draft and the
- * charts survive.
+ * charts survive. A polite region always in it says what a remove of a
+ * component or a connection removed, since the focus has left what changed
+ * and the Components tab may be hidden.
  */
 export function Dock(props: DockProps) {
   const { runGroup, ...overlay } = props;
   const keys = OVERLAY_KEYS.filter((key) => OVERLAYS[key].shows(overlay));
   const [first] = keys;
-  if (first === undefined && runGroup === undefined) return null;
   const { shown } = overlay.selecting.dock;
   const selected = keys.includes(shown) ? shown : (first ?? shown);
   return (
     <section aria-label="Dock" className={styles.dock}>
+      <p role="status" className={styles.announcement}>
+        {overlay.announcement}
+      </p>
       <OverlayTabs
         overlay={overlay}
         tabs={keys}

@@ -65,7 +65,7 @@ const PICK = (workloadId: string): ScreenTransition => ({
   workloadId,
 });
 
-const EVERY_TAB: readonly OverlayKey[] = ["run", "workload"];
+const EVERY_TAB: readonly OverlayKey[] = ["components", "run", "workload"];
 
 /** The state the screen reaches by `transitions`, from when it opens. */
 function after(...transitions: ScreenTransition[]): ScreenState {
@@ -194,9 +194,13 @@ describe("how the selection moves", () => {
 });
 
 describe("the map: the dock", () => {
-  // Fails if a screen opens on another tab than Run, or folded.
-  it("opens unfolded, on the Run tab", () => {
-    expect(INITIAL_SCREEN_STATE.dock).toEqual({ shown: "run", folded: false });
+  // Fails if a screen opens on another tab than Components, which is always
+  // there, or folded.
+  it("opens unfolded, on the Components tab", () => {
+    expect(INITIAL_SCREEN_STATE.dock).toEqual({
+      shown: "components",
+      folded: false,
+    });
   });
 
   // Fails if any selection can't be seen beside some tab, folded or not.
@@ -225,7 +229,7 @@ describe("the map: the dock", () => {
   // Fails if a change the dock already shows makes a new state, so React
   // renders the screen again for nothing.
   it.each([
-    ["showing the tab shown", INITIAL_SCREEN_STATE, SHOW("run")],
+    ["showing the tab shown", INITIAL_SCREEN_STATE, SHOW("components")],
     ["folding a folded", after(FOLD), FOLD],
     ["unfolding an unfolded", INITIAL_SCREEN_STATE, UNFOLD],
   ] as const)("keeps the state on %s dock", (_, state, transition) => {
@@ -233,11 +237,10 @@ describe("the map: the dock", () => {
   });
 
   // Which tabs are there isn't held here: the dock reads it from the run
-  // and the selection, so "no run: the Run tab isn't there" is tested in
-  // `dock/overlays.test.tsx`.
-  it.todo(
-    "Library, Components, Workflows, and Workloads are always there (slice 4 of #246)",
-  );
+  // and the selection, so "no run: the Run tab isn't there" and "Components
+  // is always there" are tested in `dock/overlays.test.tsx`.
+  it.todo("Library is always there (slice 4, part 2 of #246)");
+  it.todo("Workflows and Workloads are always there (slice 5 of #246)");
 });
 
 describe("rule 1: the selection alone decides what the inspector shows", () => {
@@ -411,7 +414,7 @@ describe("rule 2: only the user folds the dock", () => {
   });
 
   it.todo(
-    "selecting a workflow or a step unfolds it on Workflows (slice 4 of #246)",
+    "selecting a workflow or a step unfolds it on Workflows (slice 5 of #246)",
   );
 });
 
@@ -447,10 +450,24 @@ describe("rule 3: a selection may show a tab; switching tabs changes nothing els
     });
   });
 
+  // Fails if selecting a component or an edge, from a row or the canvas,
+  // changes the tab the dock shows or whether it's folded (rule 3).
+  it.each([
+    ["component", { kind: "component", componentId: "fn" }],
+    ["edge", { kind: "edge", edgeId: "api-fn" }],
+  ] as const)("leaves the tab and the folding on selecting a %s", (_, s) => {
+    for (const tab of EVERY_TAB) {
+      for (const folded of [true, false]) {
+        const before = after(SHOW(tab), ...(folded ? [FOLD] : []));
+        expect(nextScreenState(before, SELECT(s)).dock).toEqual(before.dock);
+      }
+    }
+  });
+
   it.todo(
-    "a workload shows the Workloads tab, with its editor open (slice 4 of #246)",
+    "a workload shows the Workloads tab, with its editor open (slice 5 of #246)",
   );
-  it.todo("a workflow or a step shows the Workflows tab (slice 4 of #246)");
+  it.todo("a workflow or a step shows the Workflows tab (slice 5 of #246)");
 });
 
 describe("the limit: a selection shows a tab only as it's made", () => {

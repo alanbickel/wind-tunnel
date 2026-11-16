@@ -339,7 +339,7 @@ describe("OpenedProject in a wide window", () => {
   it("shows one surface, without tabs, that says nothing is selected", () => {
     renderProject();
 
-    expect(screen.queryAllByRole("tab")).toEqual([]);
+    expect(within(inspector()).queryAllByRole("tab")).toEqual([]);
     expect(within(inspector()).getByText(/^Nothing selected./)).toBeTruthy();
     const toggle = within(inspector()).getByRole("button", {
       name: "Close the inspector",

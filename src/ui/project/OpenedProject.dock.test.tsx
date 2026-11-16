@@ -21,7 +21,6 @@ import {
   dockPanel,
   dockTabs,
   inspector,
-  queryDock,
   renderOpenedProject as renderProject,
   runGroup,
   type RenderedProject,
@@ -83,15 +82,16 @@ describe("OpenedProject's dock", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the dock shows a tab with no run and nothing selected, or a
-  // workload doesn't open in it, in a tab labelled with its name.
-  it("shows no tab until a workload is selected, then its tab", () => {
+  // Fails if the dock shows a tab but Components with no run and nothing
+  // selected, or a workload doesn't open in a tab labelled with its name.
+  it("shows only Components until a workload is selected, then its tab too", () => {
     renderProject();
-    expect(within(dock()).queryByRole("tablist")).toBeNull();
+    expect(dockTabs()).toEqual(["Components"]);
+    expect(shownTab()).toBe("Components");
 
     openSteady();
 
-    expect(dockTabs()).toEqual(["Workload: Steady"]);
+    expect(dockTabs()).toEqual(["Components", "Workload: Steady"]);
     expect(workloadHeading().textContent).toBe("Steady · Workload");
   });
 
@@ -124,12 +124,12 @@ describe("OpenedProject's dock", () => {
 
     fireEvent.click(run);
 
-    expect(dockTabs()).toEqual(["Run"]);
+    expect(dockTabs()).toEqual(["Components", "Run"]);
     expect(shownTab()).toBe("Run");
     expect(document.activeElement).toBe(run);
   });
 
-  // Fails if the overlays' tabs aren't in the map's order, Run first, or the
+  // Fails if the overlays' tabs aren't in the map's order, Components first, or the
   // workload's tab doesn't show on its selection while a run is there.
   it("holds Run and the workload together, on the workload's", async () => {
     const shown = renderProject();
@@ -137,7 +137,7 @@ describe("OpenedProject's dock", () => {
 
     openSteady();
 
-    expect(dockTabs()).toEqual(["Run", "Workload: Steady"]);
+    expect(dockTabs()).toEqual(["Components", "Run", "Workload: Steady"]);
     expect(shownTab()).toBe("Workload: Steady");
     expect(document.activeElement).toBe(workloadHeading());
   });
@@ -152,7 +152,7 @@ describe("OpenedProject's dock", () => {
     fireEvent.change(name, { target: { value: "Dinner" } });
     fireEvent.keyDown(name, { key: "Enter" });
 
-    expect(dockTabs()).toEqual(["Workload: Dinner"]);
+    expect(dockTabs()).toEqual(["Components", "Workload: Dinner"]);
   });
 
   // Fails if switching the dock's tabs changes the selection: the workload
@@ -166,7 +166,7 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(dockTab("Run"));
 
     expect(shownTab()).toBe("Run");
-    expect(dockTabs()).toEqual(["Run", "Workload: Spike"]);
+    expect(dockTabs()).toEqual(["Components", "Run", "Workload: Spike"]);
     expect(picked()).toBe("spike");
     fireEvent.click(dockTab("Workload: Spike"));
     expect(workloadHeading().textContent).toBe("Spike · Workload");
@@ -230,14 +230,14 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(run);
 
     expect(shownTab()).toBe("Run");
-    expect(dockTabs()).toEqual(["Run"]);
+    expect(dockTabs()).toEqual(["Components", "Run"]);
     expect(document.activeElement).toBe(run);
   });
 
   // Fails if Close or Escape leaves the workload's tab, or takes the Run
-  // tab with it.
+  // or Components tab with it. The first tab left shows.
   it.each(["Close", "Escape"])(
-    "clears the selection on %s, leaving Run showing",
+    "clears the selection on %s, leaving Components showing",
     async (how) => {
       const shown = renderProject();
       await runASecond(shown);
@@ -248,8 +248,8 @@ describe("OpenedProject's dock", () => {
       else
         fireEvent.click(within(dock()).getByRole("button", { name: /^Close/ }));
 
-      expect(dockTabs()).toEqual(["Run"]);
-      expect(shownTab()).toBe("Run");
+      expect(dockTabs()).toEqual(["Components", "Run"]);
+      expect(shownTab()).toBe("Components");
       expect(picked()).toBe("steady");
     },
   );
@@ -342,22 +342,22 @@ describe("OpenedProject's dock", () => {
     ).toBe("true");
   });
 
-  // Fails if Escape leaves a tab in the dock with no run to show.
-  it("closes its tab on Escape when there's no run", () => {
+  // Fails if Escape leaves the workload's tab in the dock.
+  it("closes its tab on Escape, leaving Components", () => {
     renderProject();
     openSteady();
 
     fireEvent.keyDown(workloadHeading(), { key: "Escape" });
 
-    expect(within(dock()).queryByRole("tablist")).toBeNull();
+    expect(dockTabs()).toEqual(["Components"]);
   });
 
-  // Fails if a narrow window's dock shows with nothing to show, now that a
-  // wide one always holds the run group.
-  it("shows nothing in a narrow window until a workload is selected", () => {
+  // Fails if a narrow window's dock isn't there with the Components tab
+  // alone, as a wide window's is.
+  it("shows the Components tab in a narrow window with nothing selected", () => {
     renderProject({ width: "narrow" });
 
-    expect(queryDock()).toBeNull();
+    expect(dockTabs()).toEqual(["Components"]);
   });
 });
 
@@ -416,7 +416,7 @@ describe("OpenedProject's run group", () => {
 
     expect(screen.getAllByRole("group", { name: "Run" })).toHaveLength(1);
     expect(bar().contains(runGroup())).toBe(true);
-    expect(queryDock()).toBeNull();
+    expect(dock().contains(runGroup())).toBe(false);
     act(() => {
       resize("wide");
     });
@@ -459,7 +459,7 @@ describe("OpenedProject's run evidence", () => {
     expect(runPanel.querySelectorAll("table, figure")).toHaveLength(0);
     expect(document.querySelectorAll("figure")).toHaveLength(4);
     expect(dock().querySelectorAll("figure")).toHaveLength(4);
-    expect(dockTabs()).toEqual(["Run"]);
+    expect(dockTabs()).toEqual(["Components", "Run"]);
     expect(
       runPanel.compareDocumentPosition(dock()) &
         Node.DOCUMENT_POSITION_FOLLOWING,

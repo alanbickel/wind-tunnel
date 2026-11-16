@@ -39,7 +39,12 @@ function select(name: string): void {
   fireEvent.click(button);
 }
 
-/** The polite region beside "Add component", which says what a remove took. */
+/** The Components tab's list, which the focus goes to after a remove. */
+function componentsList(): HTMLElement {
+  return screen.getByRole("group", { name: "Components and connections" });
+}
+
+/** The polite region in the dock, which says what a remove took. */
 function removedRegion(): HTMLElement {
   return railRegion("component");
 }
@@ -110,7 +115,7 @@ describe("OpenedProject's adding and removing components", () => {
     ]);
     expect(saved.project.workflows).toEqual(sampleRecord.project.workflows);
     expect(queryDetailsHeading()).toBeNull();
-    expect(document.activeElement).toBe(addButton());
+    expect(document.activeElement).toBe(componentsList());
     expect(cantRunRegion().textContent).toBe(
       "Steady can't run yet: Read item calls a component that isn't in the architecture any more.",
     );
@@ -130,6 +135,29 @@ describe("OpenedProject's adding and removing components", () => {
 
     expect(removedRegion()).toBe(region);
     expect(region.textContent).toBe("Removed Function.");
+  });
+
+  // Fails if a remove with the dock folded unfolds it or changes its tab
+  // (UX §5 rule 2), or loses the focus to the hidden list, instead of
+  // moving it to Unfold, with the removal still announced.
+  it("leaves a folded dock folded, the focus on Unfold", () => {
+    renderOpenedProject();
+    select("Function (Lambda)");
+    const dock = screen.getByRole("region", { name: "Dock" });
+    fireEvent.click(
+      within(dock).getByRole("button", { name: "Fold the dock" }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    const asking = screen.getByRole("group", { name: /^Remove Function/ });
+    fireEvent.click(within(asking).getByRole("button", { name: "Remove" }));
+
+    const unfold = within(dock).getByRole("button", {
+      name: "Unfold the dock",
+    });
+    expect(document.activeElement).toBe(unfold);
+    expect(unfold.getAttribute("aria-expanded")).toBe("false");
+    expect(removedRegion().textContent).toBe("Removed Function.");
   });
 
   // Fails if Cancel or Escape removes anything, Escape also closes

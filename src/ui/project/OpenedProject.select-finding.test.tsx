@@ -17,9 +17,11 @@ import {
   clickRun,
   detailsHeading,
   inspector,
+  overview,
   queryRunExplanation,
   renderOpenedProject as renderProject,
   runExplanation,
+  selectTheRun,
   type RenderedProject,
 } from "./testing/render-opened-project";
 
@@ -119,36 +121,46 @@ describe("OpenedProject's selected finding", () => {
     expect(runExplanation()).toBeTruthy();
   });
 
-  // Fails if Escape in the findings leaves the finding selected or moves
-  // the focus off it.
-  it("clears on Escape, leaving the focus on the finding", async () => {
-    await renderRun();
+  // Fails if Escape in the findings leaves the finding selected, shows
+  // anything but the overview, or loses the focus with the finding's
+  // button, rather than returning it to what had it when Run selected
+  // the run: the screen's heading, which takes it as the screen opens.
+  it("clears on Escape to the overview, the focus back where it was on Run", async () => {
+    const rendered = renderProject();
+    const opener = document.activeElement;
+    expect(opener).not.toBe(document.body);
+    clickRun();
+    rendered.runner.send(throttledSecond(1));
+    await rendered.runner.finish();
     firstFinding().focus();
     fireEvent.click(firstFinding());
 
     fireEvent.keyDown(firstFinding(), { key: "Escape" });
 
-    expect(firstFinding().getAttribute("aria-current")).toBeNull();
     expect((await drawnNode("table")).classList.contains("selected")).toBe(
       false,
     );
-    expect(document.activeElement).toBe(firstFinding());
+    expect(queryRunExplanation()).toBeNull();
+    expect(overview()).toBeTruthy();
+    expect(document.activeElement).toBe(opener);
   });
 
-  // Fails if a click on the empty canvas leaves the finding selected, or
-  // selecting a component doesn't replace it with the component's details.
+  // Fails if a click on the empty canvas leaves the finding selected or
+  // shows anything but the overview, or selecting a component doesn't
+  // replace the finding with the component's details.
   it("clears on a click on the empty canvas, and gives way to another selection", async () => {
     await renderRun();
     fireEvent.click(firstFinding());
     fireEvent.click(document.querySelector(".react-flow__pane") as Element);
-    expect(firstFinding().getAttribute("aria-current")).toBeNull();
+    expect(queryRunExplanation()).toBeNull();
+    expect(overview().isConnected).toBe(true);
 
+    selectTheRun();
     fireEvent.click(firstFinding());
     fireEvent.click(await drawnNode("fn"));
 
     expect(queryRunExplanation()).toBeNull();
-    fireEvent.keyDown(detailsHeading(), { key: "Escape" });
-    expect(firstFinding().getAttribute("aria-current")).toBeNull();
+    expect(detailsHeading().isConnected).toBe(true);
   });
 
   // Fails if the message isn't in a live region that was already on the

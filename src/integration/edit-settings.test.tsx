@@ -44,11 +44,30 @@ function openAndSelect(
   saveProject?: UseCases["saveProject"],
 ) {
   const rendered = renderOpenedProject({ project, saveProject });
+  selectComponent(project, componentName);
+  return rendered;
+}
+
+/** Selects a component from the diagram's text version. */
+function selectComponent(project: Project, componentName: string): void {
   const component = project.architecture.components.find(
     (c) => c.name === componentName,
   );
   if (component === undefined) throw new Error(`no ${componentName}`);
-  fireEvent.click(revealButton(textLine(component)));
+  // After a run, the line goes on to say how the component did.
+  const line = textLine(component).replace(/[()]/g, "\\$&");
+  fireEvent.click(revealButton(new RegExp(`^${line}`)));
+}
+
+/**
+ * Renders the project, runs it to the end, and then selects a component,
+ * since Run selects the run.
+ */
+async function runAndSelect(project: Project, componentName: string) {
+  const rendered = renderOpenedProject({ project });
+  fireEvent.click(screen.getByRole("button", { name: "Run" }));
+  await rendered.runner.finish();
+  selectComponent(project, componentName);
   return rendered;
 }
 
@@ -123,9 +142,7 @@ describe("editing a component's settings", () => {
   // Fails if leaving the field doesn't save, the save isn't of the new
   // value, or the run on screen isn't marked out of date by the change.
   it("saves query workers on leaving the field, and the run goes out of date", async () => {
-    const { runner, projects } = openAndSelect(projectA, "orders-db");
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    await runner.finish();
+    const { projects } = await runAndSelect(projectA, "orders-db");
     expect(barStatus()[1]).toBe("");
 
     typeAndLeave(field("Query workers"), "64");
@@ -140,9 +157,7 @@ describe("editing a component's settings", () => {
   // run would go out of date), its message isn't tied to the field, or
   // Escape doesn't put the saved value back.
   it("holds 0 as a draft with its message, and Escape puts back the value", async () => {
-    const { runner, projects } = openAndSelect(projectA, "orders-db");
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    await runner.finish();
+    const { projects } = await runAndSelect(projectA, "orders-db");
     const workers = field("Query workers");
 
     typeAndLeave(workers, "0");

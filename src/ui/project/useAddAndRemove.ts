@@ -325,6 +325,7 @@ const REMOVALS: KindHandlers<
     },
   // A draft is dropped, not removed.
   "new-workflow": () => () => undefined,
-  // A finding is of the run; there's nothing to remove.
+  // The run, and a finding of it, aren't the project's to remove.
+  run: () => () => undefined,
   finding: () => () => undefined,
 };

@@ -30,9 +30,10 @@ export interface ProjectSelection {
   /** Which tab the dock shows, whether it's folded, and the user's changes. */
   readonly dock: DockControls;
   /**
-   * What starting a run does to the screen: opens the inspector, where
-   * the run's verdict and findings are, and shows the dock's Run tab,
-   * unfolded, where its evidence is.
+   * What starting a run does to the screen: selects the run, so the
+   * inspector opens on its explanation, and the dock shows its Run tab,
+   * unfolded, where its evidence is. The focus stays, and is remembered,
+   * as `select` remembers it, for `close`.
    */
   readonly showRun: () => void;
   /**
@@ -61,7 +62,7 @@ export interface ProjectSelection {
    */
   readonly selectFinding: (key: FindingKey) => void;
   /**
-   * Clears the selection, so the inspector shows the run's explanation,
+   * Clears the selection, so the inspector shows the project's overview,
    * leaving the focus where it is.
    */
   readonly clear: () => void;
@@ -74,7 +75,8 @@ export interface ProjectSelection {
   readonly takeFocus: (target: FocusTarget) => boolean;
   /**
    * Clears the selection, as `clear` does, and returns the focus to the element
-   * that had it when the selection was made, if it's still on the page.
+   * that had it when the selection was made, if it's still on the page;
+   * if not, to the overview's heading.
    */
   readonly close: () => void;
 }
@@ -106,21 +108,50 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
     request(undefined);
     dispatch({ kind: "clear" });
   }, [request]);
-  const { select, close } = useOpener({ selectWithin, clear, reveal });
+  const { runWithin, selectFinding } = useRunSelecting({ request, dispatch });
+  const opening = { selectWithin, clear, runWithin, request, reveal };
+  const opened = useOpener(opening);
+  const inspector = useInspector({ screen, dispatch });
+  const dock = useDock({ screen, dispatch });
+  const picking = usePicking({ screen, dispatch });
+
+  const changes = { ...opened, selectWithin, selectFinding, clear };
+  const regions = { ...inspector, ...dock, ...picking };
+  return { selection: screen.selection, ...regions, ...changes, takeFocus };
+}
+
+/** How to change the view state, and to ask for the focus. */
+interface RunSelectingInput {
+  readonly request: FocusRequest["request"];
+  readonly dispatch: ScreenReducer["dispatch"];
+}
+
+/** Selecting the run, as Run does, and a finding of it. */
+interface RunSelecting extends Pick<ProjectSelection, "selectFinding"> {
+  /** Selects the run, as Run does, leaving the focus and the opener. */
+  readonly runWithin: () => void;
+}
+
+/**
+ * Selecting the run, or one of its findings, neither of which moves the
+ * focus: Run, and the finding, are where the user is.
+ */
+function useRunSelecting({
+  request,
+  dispatch,
+}: RunSelectingInput): RunSelecting {
+  const runWithin = useCallback(() => {
+    request(undefined);
+    dispatch({ kind: "run" });
+  }, [request, dispatch]);
   const selectFinding = useCallback(
     (key: FindingKey) => {
       request(undefined);
       dispatch({ kind: "select", selection: { kind: "finding", key } });
     },
-    [request],
+    [request, dispatch],
   );
-  const inspector = useInspector({ screen, dispatch });
-  const dock = useDock({ screen, dispatch });
-  const picking = usePicking({ screen, dispatch });
-
-  const changes = { select, selectWithin, selectFinding, clear, close };
-  const regions = { ...inspector, ...dock, ...picking };
-  return { selection: screen.selection, ...regions, ...changes, takeFocus };
+  return { runWithin, selectFinding };
 }
 
 /** The view state, and how to change it. */
@@ -137,11 +168,11 @@ export interface DockControls extends DockState {
   readonly fold: (folded: boolean) => void;
 }
 
-/** The dock's tab and folding, the user's show and fold, and Run's. */
+/** The dock's tab and folding, and the user's show and fold. */
 function useDock({
   screen,
   dispatch,
-}: ScreenReducer): Pick<ProjectSelection, "dock" | "showRun"> {
+}: ScreenReducer): Pick<ProjectSelection, "dock"> {
   const show = useCallback(
     (tab: OverlayKey) => {
       dispatch({ kind: "show-tab", tab });
@@ -154,10 +185,7 @@ function useDock({
     },
     [dispatch],
   );
-  const showRun = useCallback(() => {
-    dispatch({ kind: "run" });
-  }, [dispatch]);
-  return { dock: { ...screen.dock, show, fold }, showRun };
+  return { dock: { ...screen.dock, show, fold } };
 }
 
 /** The run group's pick, and how to change it. */
@@ -192,23 +220,27 @@ function useInspector({
 export type RevealElement = (element: HTMLElement) => void;
 
 /**
- * The changes the opener is remembered and returned around, and what
- * shows it again.
+ * The changes the opener is remembered and returned around, what shows it
+ * again, and how to ask for the focus when it's gone.
  */
 interface OpenerInput extends Pick<ProjectSelection, "selectWithin" | "clear"> {
+  /** Selects the run, as Run does, keeping the opener. */
+  readonly runWithin: () => void;
+  readonly request: FocusRequest["request"];
   readonly reveal: RevealElement;
 }
 
 /**
- * `select`, which remembers the element that had the focus, and `close`,
- * which shows it again if it's been hidden since, and returns the focus
- * to it.
+ * `select` and `showRun`, which remember the element that had the focus,
+ * and `close`, which shows it again if it's been hidden since, and returns
+ * the focus to it. If it's gone from the page, as the overview's verdict
+ * goes once it selects the run, the overview's heading takes the focus,
+ * so it isn't lost.
  */
-function useOpener({
-  selectWithin,
-  clear,
-  reveal,
-}: OpenerInput): Pick<ProjectSelection, "select" | "close"> {
+function useOpener(
+  input: OpenerInput,
+): Pick<ProjectSelection, "select" | "close" | "showRun"> {
+  const { selectWithin, clear, runWithin, request, reveal } = input;
   const opener = useRef<HTMLElement | null>(null);
   const select = useCallback(
     (next: Selection, focus?: FocusTarget) => {
@@ -217,15 +249,22 @@ function useOpener({
     },
     [selectWithin],
   );
+  const showRun = useCallback(() => {
+    opener.current = focusedElement();
+    runWithin();
+  }, [runWithin]);
   const close = useCallback(() => {
     const element = opener.current;
     opener.current = null;
     clear();
-    if (!element?.isConnected) return;
+    if (!element?.isConnected) {
+      request("heading");
+      return;
+    }
     reveal(element);
     element.focus();
-  }, [clear, reveal]);
-  return { select, close };
+  }, [clear, request, reveal]);
+  return { select, close, showRun };
 }
 
 /** Which part of Details should take the focus next, if any. */
@@ -249,7 +288,12 @@ function useFocusRequest(): FocusRequest {
   return { request, takeFocus };
 }
 
+/**
+ * The element that has the focus, if any: the body, which has it when
+ * nothing does, is no place to return it to.
+ */
 function focusedElement(): HTMLElement | null {
   const element = document.activeElement;
+  if (element === document.body) return null;
   return element instanceof HTMLElement ? element : null;
 }

@@ -20,6 +20,7 @@ const WORKFLOW: Selection = { kind: "workflow", workflowId: "order" };
 const STEP: Selection = { kind: "step", workflowId: "order", stepId: "s1" };
 const WORKLOAD: Selection = { kind: "workload", workloadId: "rush" };
 const NEW_WORKFLOW: Selection = { kind: "new-workflow" };
+const THE_RUN: Selection = { kind: "run" };
 const FINDING: Selection = {
   kind: "finding",
   key: {
@@ -37,9 +38,16 @@ const EVERY_SELECTION = [
   STEP,
   WORKLOAD,
   NEW_WORKFLOW,
+  THE_RUN,
   FINDING,
 ];
 const ALL_BUT_WORKLOAD = EVERY_SELECTION.filter((s) => s !== WORKLOAD);
+/** The selections that show no dock tab as they're made (rule 3). */
+const SHOWING_NO_TAB = ALL_BUT_WORKLOAD.filter((s) => s !== THE_RUN);
+/** The selections a run can be replaced under: the run, and its finding. */
+const OF_THE_RUN = [THE_RUN, FINDING];
+/** Every selection but the run, so each can move to it. */
+const ALL_BUT_THE_RUN = EVERY_SELECTION.filter((s) => s !== THE_RUN);
 
 const SELECT = (selection: Selection): ScreenTransition => ({
   kind: "select",
@@ -78,7 +86,11 @@ describe("the map: the selection and the inspector", () => {
     expect(after(SELECT(selection)).selection).toBe(selection);
   });
 
-  it.todo("the run can be selected (slice 3 of #246)");
+  // Fails if the run can't be selected, as a verdict selects it, or is
+  // selected as something else.
+  it("selects the run", () => {
+    expect(after(SELECT(THE_RUN)).selection).toEqual({ kind: "run" });
+  });
 
   // Fails if collapsing the inspector clears the selection, or any kind
   // can't be seen with the inspector collapsed.
@@ -120,7 +132,11 @@ describe("the map: the selection and the inspector", () => {
     expect(nextScreenState(state, transition)).toBe(state);
   });
 
-  it.todo("no run: the run and a finding can't be selected (slice 3 of #246)");
+  // No run: the run and a finding can't be selected. The state doesn't
+  // know whether there's a run: only a run's controls select either (Run,
+  // the verdicts, and the findings), and a run, once there, stays until
+  // the screen closes. So the limit is the screen's, tested in
+  // `OpenedProject.select-run.test.tsx`.
 });
 
 describe("how the selection moves", () => {
@@ -140,12 +156,41 @@ describe("how the selection moves", () => {
     expect(after(SELECT(selection), CLEAR).selection).toBeUndefined();
   });
 
-  it.todo("Run selects the run, from nothing or a thing (slice 3 of #246)");
-  it.todo("a verdict selects the run again (slice 3 of #246)");
-  it.todo("a finding moves back to the run on Run (slice 3 of #246)");
-  it.todo(
-    "a new run replaces the run, so a selected finding becomes the run (slice 3 of #246)",
-  );
+  // Fails if Run leaves a selection, or nothing, as it was, rather than
+  // selecting the run (rule 4).
+  it("Run selects the run, from nothing", () => {
+    expect(after(RUN).selection).toEqual(THE_RUN);
+  });
+
+  // Fails if Run keeps any thing selected, or a finding of the run on
+  // screen, which a new run replaces, rather than moving to the run.
+  it.each(ALL_BUT_THE_RUN)("Run selects the run, from a $kind", (s) => {
+    expect(after(SELECT(s), RUN).selection).toEqual(THE_RUN);
+  });
+
+  // Fails if a new run keeps the old run's finding selected: the run it
+  // was of is gone, so the selection moves to the new one.
+  it("a new run replaces the run, so a selected finding becomes the run", () => {
+    expect(after(RUN, SELECT(FINDING), RUN).selection).toEqual(THE_RUN);
+  });
+
+  // Fails if a verdict, selected after something else, doesn't select the
+  // run again.
+  it.each(ALL_BUT_THE_RUN)("a verdict selects the run from a $kind", (s) => {
+    expect(after(RUN, SELECT(s), SELECT(THE_RUN)).selection).toEqual(THE_RUN);
+  });
+
+  // Fails if the run, once selected, can't move to a thing: a click on a
+  // box takes you back to the box.
+  it.each(ALL_BUT_THE_RUN)("moves from the run to a $kind", (s) => {
+    expect(after(RUN, SELECT(s)).selection).toBe(s);
+  });
+
+  // Fails if × or Escape, with the run or its finding selected, leaves it
+  // selected, so the overview doesn't show.
+  it.each(OF_THE_RUN)("clears the run's $kind to nothing", (s) => {
+    expect(after(RUN, SELECT(s), CLEAR).selection).toBeUndefined();
+  });
 });
 
 describe("the map: the dock", () => {
@@ -337,9 +382,7 @@ describe("rule 2: only the user folds the dock", () => {
   // Fails if a selection that shows no tab unfolds a folded dock, or
   // clearing the selection does.
   it.each([
-    ...ALL_BUT_WORKLOAD.map(
-      (s) => [`selecting a ${s.kind}`, SELECT(s)] as const,
-    ),
+    ...SHOWING_NO_TAB.map((s) => [`selecting a ${s.kind}`, SELECT(s)] as const),
     ["clearing the selection", CLEAR] as const,
   ])("leaves it folded on %s", (_, transition) => {
     expect(after(FOLD, transition).dock.folded).toBe(true);
@@ -358,9 +401,13 @@ describe("rule 2: only the user folds the dock", () => {
     );
   });
 
-  // Fails if Run leaves a folded dock folded, so the run's evidence is hidden.
-  it("unfolds it on Run", () => {
-    expect(after(FOLD, RUN).dock.folded).toBe(false);
+  // Fails if Run, or a verdict selecting the run, leaves a folded dock
+  // folded, so the run's evidence is hidden.
+  it.each([
+    ["Run", RUN],
+    ["selecting the run", SELECT(THE_RUN)],
+  ] as const)("unfolds it on %s", (_, transition) => {
+    expect(after(FOLD, transition).dock.folded).toBe(false);
   });
 
   it.todo(
@@ -376,10 +423,14 @@ describe("rule 3: a selection may show a tab; switching tabs changes nothing els
     expect(again.dock.shown).toBe("workload");
   });
 
-  // Fails if Run doesn't show the Run tab, or changes the selection.
-  it("shows the Run tab on Run, keeping the selection", () => {
-    expect(after(SELECT(WORKLOAD), RUN)).toMatchObject({
-      selection: WORKLOAD,
+  // Fails if Run, or selecting the run again, doesn't show the Run tab, or
+  // doesn't select the run, over another tab.
+  it.each([
+    ["Run", RUN],
+    ["selecting the run", SELECT(THE_RUN)],
+  ] as const)("selects the run on %s, which shows the Run tab", (_, t) => {
+    expect(after(SELECT(WORKLOAD), t)).toMatchObject({
+      selection: THE_RUN,
       dock: { shown: "run" },
     });
   });
@@ -400,12 +451,11 @@ describe("rule 3: a selection may show a tab; switching tabs changes nothing els
     "a workload shows the Workloads tab, with its editor open (slice 4 of #246)",
   );
   it.todo("a workflow or a step shows the Workflows tab (slice 4 of #246)");
-  it.todo("Run selects the run, which shows the Run tab (slice 3 of #246)");
 });
 
 describe("the limit: a selection shows a tab only as it's made", () => {
   // Fails if a selection that shows no tab moves the dock off its tab.
-  it.each(ALL_BUT_WORKLOAD)(
+  it.each(SHOWING_NO_TAB)(
     "leaves the tab on selecting a $kind",
     (selection) => {
       expect(after(SHOW("workload"), SELECT(selection)).dock.shown).toBe(

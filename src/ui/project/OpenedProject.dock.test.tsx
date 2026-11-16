@@ -209,8 +209,9 @@ describe("OpenedProject's dock", () => {
   });
 
   // Fails if Run while the workload's tab shows leaves it showing, or
-  // changes the selection, or moves the focus into the dock.
-  it("switches to Run on Run, keeping the selection and the focus", async () => {
+  // keeps the workload selected rather than selecting the run (so its tab
+  // stays), or moves the focus off Run.
+  it("switches to Run on Run, selecting the run and keeping the focus", async () => {
     const shown = renderProject();
     await runASecond(shown);
     openSteady();
@@ -220,8 +221,8 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(run);
 
     expect(shownTab()).toBe("Run");
-    expect(dockTabs()).toEqual(["Run", "Workload: Steady"]);
-    expect(dock().contains(document.activeElement)).toBe(false);
+    expect(dockTabs()).toEqual(["Run"]);
+    expect(document.activeElement).toBe(run);
   });
 
   // Fails if Close or Escape leaves the workload's tab, or takes the Run

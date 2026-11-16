@@ -129,7 +129,7 @@ describe("OpenedProject's project bar", () => {
     expect(screen.queryByRole("progressbar")).toBeNull();
   });
 
-  // Fails if the status line stops ending with the verdict's title, or a
+  // Fails if the run's status stops ending with the verdict's title, or a
   // failed request with a cause doesn't turn the verdict to Failing.
   it("fills in totals and charts as snapshots arrive, then finishes", async () => {
     const { runner } = renderProject();
@@ -182,7 +182,7 @@ describe("OpenedProject's project bar", () => {
   });
 
   // Fails if Stop in the run group doesn't stop the runner, the totals drop what
-  // arrived, or the stopped status line loses how far it got or the
+  // arrived, or the stopped run's status loses how far it got or the
   // verdict's title.
   it("stops partway and says how far it got", async () => {
     const { runner } = renderProject();
@@ -201,7 +201,7 @@ describe("OpenedProject's project bar", () => {
     expect(requestsSoFar()).toEqual(["All workflows", "5", "0", "0", "5"]);
   });
 
-  // Fails if a run that throws doesn't say so in the status line, or the
+  // Fails if a run that throws doesn't say so in the run's status, or the
   // line drops the error's message.
   it("says why a run failed", async () => {
     const { runner } = renderProject();
@@ -215,7 +215,7 @@ describe("OpenedProject's project bar", () => {
   });
 
   // Fails if Run runs another workload than the one picked, the picker
-  // stays usable while running, or the status line loses the verdict's title.
+  // stays usable while running, or the run's status loses the verdict's title.
   it("runs the workload picked, and locks the picker while it runs", () => {
     const { runner } = renderProject({ project: twoWorkloads });
     const picker = screen.getByRole("combobox", { name: "Workload" });
@@ -262,7 +262,7 @@ describe("OpenedProject's project bar", () => {
     expect(status()).toBe("Finished Steady. Healthy so far.");
   });
 
-  // Fails if the status line pairs a new run with the previous run's
+  // Fails if the run's status pairs a new run with the previous run's
   // verdict while the deferred snapshots catch up: it reads "Running
   // Steady… Failing so far." for a commit, and a screen reader can say so.
   it("never announces the previous run's verdict as a new run starts", async () => {

@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sampleRecord } from "../../application/testing/sample-record";
+import type { Project } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
   openPanel,
@@ -17,7 +19,18 @@ import {
   queryDetailsHeading,
   queryRunExplanation,
   renderOpenedProject as renderProject,
+  status,
+  statusRegions,
+  undoneRegion,
 } from "./testing/render-opened-project";
+
+/** The sample project with its first workload renamed, which a run used. */
+function withWorkloadRenamed(): Project {
+  const [first, ...rest] = sampleRecord.project.workloads;
+  if (first === undefined) throw new Error("the sample has a workload");
+  const workloads = [{ ...first, name: "Steady, renamed" }, ...rest];
+  return { ...sampleRecord.project, workloads };
+}
 
 /** The inspector's one button that closes and opens it. */
 function inspectorToggle(): HTMLElement {
@@ -77,6 +90,24 @@ describe("OpenedProject's canvas-first layout", () => {
       canvas.compareDocumentPosition(inspector()) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  // Fails if anything about the run comes back to a wide window's top bar
+  // after a run: its status or "Out of date" (the status line that was
+  // under the bar's row), or the verdict. Undo's region is the bar's only one.
+  it("keeps the run out of the top bar after a run", async () => {
+    const { runner, change } = renderProject();
+    clickRun();
+    await runner.finish();
+    change(withWorkloadRenamed());
+    // The run has said all it will, somewhere: it's finished, and out of date.
+    expect(status()).toMatch(/^Finished Steady./);
+    expect(statusRegions()[1].textContent).toBe("Out of date");
+
+    const inBar = within(bar());
+    expect(inBar.getAllByRole("status")).toEqual([undoneRegion()]);
+    expect(inBar.queryByRole("button", { name: /Show the run/ })).toBeNull();
+    expect(bar().textContent).not.toMatch(/Finished|Out of date|so far/);
   });
 
   // Fails if the app mark stops being drawn before the name, or stops being

@@ -16,62 +16,6 @@
   justify-content: flex-end;
 }
 
-/* The status line: the whole width of the bar, under its row, its items
-   at the end, under the run's controls. Spaced with margins, not a column
-   gap, so an empty status takes no room across. It always has the height of
-   one line, so a run's first status doesn't push the canvas down. */
-.line {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  min-block-size: 1lh;
-}
-
-.line > * {
-  margin: 0;
-}
-
-.line > :not(:first-child) {
-  margin-inline-start: var(--space-3);
-}
-
-/* The status regions stay rendered while they're empty, so screen readers
-   know them before their first text and announce that; they just take no
-   room. The run's status is empty only before the first run, and a run
-   can't be out of date before there is one. */
-.status {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: var(--space-2);
-}
-
-/* Rendered, so screen readers keep them, but without room or a margin. */
-.line > .status:has(> :first-child:empty),
-.line > .saveStatus:has(> :first-child:empty) {
-  margin-inline-start: 0;
-}
-
-.outOfDate {
-  color: var(--color-status-warn);
-  font-weight: var(--font-weight-bold);
-}
-
-/* Like the run's status: there from the start, taking no room while the
-   last change saved. */
-.saveStatus {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--space-2);
-}
-
-.saveFailed {
-  color: var(--color-status-error);
-  font-weight: var(--font-weight-bold);
-}
-
 /* Undo and Redo, after the project's name. */
 .undo {
   display: flex;

@@ -1,0 +1,22 @@
+/* One line across the window under the top bar, like the storage hint's,
+   with Try again at its end. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  background: var(--color-surface-raised);
+  border-bottom: var(--line-width) solid var(--color-divider);
+  border-left: var(--line-width-thick) solid var(--color-status-error);
+  padding: var(--space-1) var(--space-5);
+  font-size: var(--font-size-sm);
+}
+
+.text {
+  margin: 0;
+}
+
+.strip > .text {
+  color: var(--color-status-error);
+  font-weight: var(--font-weight-bold);
+}

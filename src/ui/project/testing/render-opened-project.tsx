@@ -221,11 +221,14 @@ export function bar(): HTMLElement {
   return screen.getByRole("banner");
 }
 
-/** The bar's status regions: the run's status, then whether it's out of date. */
+/**
+ * The run group's status regions: the run's status, then whether it's out
+ * of date. The top bar says nothing about the run.
+ */
 export function statusRegions(): [HTMLElement, HTMLElement] {
-  const [, runStatus, outOfDate] = within(bar()).getAllByRole("status");
+  const [runStatus, outOfDate] = within(runGroup()).getAllByRole("status");
   if (runStatus === undefined || outOfDate === undefined) {
-    throw new Error("the bar should have two status regions");
+    throw new Error("the run group should have two status regions");
   }
   return [runStatus, outOfDate];
 }
@@ -239,14 +242,19 @@ export function runGroup(): HTMLElement {
   return screen.getByRole("group", { name: "Run" });
 }
 
-/** The run group's region that says why the picked workload can't run. */
+/**
+ * The run group's region that says why the picked workload can't run,
+ * after the run's two.
+ */
 export function cantRunRegion(): HTMLElement {
-  return within(runGroup()).getByRole("status");
+  const region = within(runGroup()).getAllByRole("status")[2];
+  if (region === undefined) throw new Error("the run group should say why");
+  return region;
 }
 
 /**
- * The bar's region that says what Undo or Redo did, under the project's
- * name, before the run's regions.
+ * The bar's region that says what Undo or Redo did, beside Undo and Redo,
+ * before the narrow window's run group.
  */
 export function undoneRegion(): HTMLElement {
   const region = within(bar()).getAllByRole("status")[0];
@@ -254,7 +262,18 @@ export function undoneRegion(): HTMLElement {
   return region;
 }
 
-/** The run's status line. */
+/**
+ * The banner's region that says the last change didn't save: the first
+ * strip under the top bar, before the storage hint.
+ */
+export function saveFailureRegion(): HTMLElement {
+  const strip = bar().nextElementSibling;
+  const region = strip?.querySelector<HTMLElement>(':scope > [role="status"]');
+  if (region == null) throw new Error("the banner should say a save failed");
+  return region;
+}
+
+/** The run's status, in the run group. */
 export function status(): string | null {
   return statusRegions()[0].textContent;
 }

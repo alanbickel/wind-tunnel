@@ -178,7 +178,7 @@ How edits reach storage is [ADR-0019](../adr/0019-edit-projects-with-commands-an
 - **The architecture must always be valid; workflows and workloads needn't be.** A component's settings and the edges can't be saved broken, and the screen's pickers and fields can't make them so. A workflow or a workload with a problem saves, shows the problem where it is, and stops only runs that need it (§3, principle 5).
 - **A remove takes only what it owns.** Removing a component takes its edges; removing a step takes the calls under it; removing a workflow takes it out of the workloads' mixes.
 - **Undo** takes back one saved change at a time, and says which ("Undo change orders-db's query workers"). A remove comes back whole, with what it took. A draft, the selection, and a run are never undo steps. The history lasts while the project is open.
-- **If a save fails** (the browser's storage refused it), the top bar says so and offers "Try again", and the change stays on screen.
+- **If a save fails** (the browser's storage refused it), the banner under the top bar says so and offers "Try again", and the change stays on screen.
 
 Names are unique where a user picks one by name: projects, workflows, workloads, and components of one type. They're compared ignoring case and the spaces around them.
 

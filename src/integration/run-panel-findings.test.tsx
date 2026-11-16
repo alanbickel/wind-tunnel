@@ -148,9 +148,10 @@ function cliReading(run: Parameters<typeof findRun>[0]): PanelRun {
   };
 }
 
-/** The run's status line: the second status region, after what Undo did. */
+/** The run's status: the run group's first status region. */
 function runStatus(): string | null | undefined {
-  return screen.getAllByRole("status")[1]?.textContent;
+  const group = screen.getByRole("group", { name: "Run" });
+  return within(group).getAllByRole("status")[0]?.textContent;
 }
 
 /** The section the verdict's title names. */
@@ -240,8 +241,8 @@ describe("the run panel's findings, Template A, lunch rush", () => {
     );
   });
 
-  // Fails if the status line stops announcing the verdict's title.
-  it("announces the verdict in the status line", () => {
+  // Fails if the run's status stops announcing the verdict's title.
+  it("announces the verdict in the run's status", () => {
     expect(runStatus()).toBe(
       "Finished Lunch rush, 20 s at 2,000 requests/s. Failing.",
     );

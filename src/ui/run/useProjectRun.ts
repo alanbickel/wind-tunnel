@@ -21,7 +21,7 @@ import {
 
 /**
  * A project screen's run, for every part of the screen that shows it: the
- * run group, the top bar's status line, and the run's results.
+ * run group, with its status, and the run's results.
  */
 export interface ProjectRun {
   readonly run: SimulationRun;
@@ -34,7 +34,7 @@ export interface ProjectRun {
   readonly ran: Workload | undefined;
   /** What the latest run means so far; undefined before the first. */
   readonly meaning: RunMeaning | undefined;
-  /** The status line's text; empty before the first run. */
+  /** The run's status, announced from the run group; empty before the first run. */
   readonly status: string;
   /** The verdict chip beside Run; undefined with no run to show. */
   readonly chip: VerdictChipText | undefined;
@@ -89,7 +89,7 @@ export function useProjectRun(project: Project, picking: Picking): ProjectRun {
   };
 }
 
-/** The run in words: the status line's text, and the verdict chip's. */
+/** The run in words: its status, and the verdict chip's text. */
 function runWords(
   run: SimulationRun,
   meaning: RunMeaning | undefined,

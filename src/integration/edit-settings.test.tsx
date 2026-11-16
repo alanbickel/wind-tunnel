@@ -27,6 +27,8 @@ import { stubDiagramBrowserApis } from "../ui/diagram/testing/stub-diagram-brows
 import {
   queryDetailsHeading,
   renderOpenedProject,
+  saveFailureRegion,
+  statusRegions,
 } from "../ui/project/testing/render-opened-project";
 
 import { revealButton } from "../ui/project/testing/canvas-panels";
@@ -99,16 +101,9 @@ function firstDescription(input: HTMLElement): string | null | undefined {
     : document.getElementById(first)?.textContent;
 }
 
-/**
- * The project bar's status regions after Undo's: run status, out of date,
- * save failure.
- */
-function barStatus(): (string | null)[] {
-  const bar = screen.getByRole("banner");
-  return within(bar)
-    .getAllByRole("status")
-    .slice(1)
-    .map((region) => region.textContent);
+/** What the run group's out-of-date region says. */
+function outOfDate(): string | null {
+  return statusRegions()[1].textContent;
 }
 
 /** The record saved for `project`, once a save lands. */
@@ -143,13 +138,13 @@ describe("editing a component's settings", () => {
   // value, or the run on screen isn't marked out of date by the change.
   it("saves query workers on leaving the field, and the run goes out of date", async () => {
     const { projects } = await runAndSelect(projectA, "orders-db");
-    expect(barStatus()[1]).toBe("");
+    expect(outOfDate()).toBe("");
 
     typeAndLeave(field("Query workers"), "64");
 
     const saved = await savedRecord(projects, projectA);
     expect(configIn(saved, "orders-db")?.["queryWorkers"]).toBe(64);
-    expect(barStatus()[1]).toBe("Out of date");
+    expect(outOfDate()).toBe("Out of date");
     expect(field("Query workers").value).toBe("64");
   });
 
@@ -164,7 +159,7 @@ describe("editing a component's settings", () => {
 
     expect(workers.getAttribute("aria-invalid")).toBe("true");
     expect(firstDescription(workers)).toBe("Query workers must be at least 1.");
-    expect(barStatus()[1]).toBe("");
+    expect(outOfDate()).toBe("");
     fireEvent.keyDown(workers, { key: "Escape" });
     expect(workers.value).toBe("16");
     expect(workers.getAttribute("aria-invalid")).toBe("false");
@@ -289,9 +284,10 @@ describe("editing a component's settings", () => {
     ).toBe("fn-orders-api");
   });
 
-  // Fails if a failed save isn't said in the bar, the change leaves the
-  // screen, or Try again doesn't save it.
-  it("says a save failed, keeps the change, and Try again saves it", async () => {
+  // Fails if a failed save isn't said in the banner, from a region that
+  // was there, empty, before; the change leaves the screen; or Try again
+  // doesn't save it.
+  it("says a save failed in the banner, keeps the change, and Try again saves it", async () => {
     const projects = new InMemoryProjectRepository();
     const execute = vi.fn<UseCases["saveProject"]["execute"]>();
     execute.mockRejectedValueOnce(new Error("The quota is full."));
@@ -299,18 +295,21 @@ describe("editing a component's settings", () => {
       awsSaveProject(projects).execute(record),
     );
     openAndSelect(projectA, "orders-db", { execute });
+    const region = saveFailureRegion();
+    expect(region.textContent).toBe("");
 
     typeAndLeave(field("Query workers"), "64");
 
     await waitFor(() => {
-      expect(barStatus()[2]).toBe("Couldn't save your last change.");
+      expect(region.textContent).toBe("Couldn't save your last change.");
     });
+    expect(saveFailureRegion()).toBe(region);
     expect(field("Query workers").value).toBe("64");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     const saved = await savedRecord(projects, projectA);
     expect(configIn(saved, "orders-db")?.["queryWorkers"]).toBe(64);
     await waitFor(() => {
-      expect(barStatus()[2]).toBe("");
+      expect(region.textContent).toBe("");
     });
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });

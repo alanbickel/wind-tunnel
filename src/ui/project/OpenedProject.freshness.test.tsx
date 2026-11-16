@@ -7,11 +7,11 @@ import type { Project } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { revealButton } from "./testing/canvas-panels";
 import {
-  bar,
   clickRun,
   dockPanel,
   renderOpenedProject as renderProject,
   runExplanation,
+  runGroup,
   status,
   statusRegions,
 } from "./testing/render-opened-project";
@@ -115,17 +115,17 @@ describe("OpenedProject's run when the project changes", () => {
     ).toBeTruthy();
   });
 
-  // Fails if the bar draws no verdict chip beside Run once a run has
+  // Fails if the run group draws no verdict chip beside Run once a run has
   // finished, if the chip is drawn inside a `role=status` region (it would
   // announce twice), or if it doesn't carry "Out of date" after an edit.
-  it("shows the verdict chip in the bar, with Out of date after an edit", async () => {
+  it("shows the verdict chip in the run group, with Out of date after an edit", async () => {
     const { runner, change } = renderProject();
-    expect(within(bar()).queryByText(/Failing/)).toBeNull();
+    expect(within(runGroup()).queryByText(/Failing/)).toBeNull();
     clickRun();
     runner.send(throttledSecond(1));
     await runner.finish();
 
-    const chip = within(bar()).getByText(/^Failing so far · \d+\.\d%$/);
+    const chip = within(runGroup()).getByText(/^Failing so far · \d+\.\d%$/);
     expect(chip.closest("[data-level]")?.getAttribute("data-level")).toBe(
       "failing",
     );

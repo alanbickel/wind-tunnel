@@ -153,9 +153,9 @@ describe("OpenedProject's removing a workload", () => {
     expect(region.textContent).toBe("Removed Lunch rush.");
   });
 
-  // Fails if the bar keeps the removed workload, or picks the first
+  // Fails if the run group keeps the removed workload, or picks the first
   // instead of the one after it.
-  it("picks the workload after it in the bar", () => {
+  it("picks the workload after it in the run group", () => {
     renderProject({ project: threeWorkloads });
 
     removeWorkload("Lunch rush");
@@ -163,9 +163,9 @@ describe("OpenedProject's removing a workload", () => {
     expect(pickedName()).toBe("Dinner");
   });
 
-  // Fails if removing a workload other than the picked one moves the bar's
-  // pick, here to the one after the removed.
-  it("leaves the bar's pick alone when another workload is removed", () => {
+  // Fails if removing a workload other than the picked one moves the run
+  // group's pick, here to the one after the removed.
+  it("leaves the run group's pick alone when another workload is removed", () => {
     renderProject({ project: threeWorkloads });
     select("Lunch rush");
     fireEvent.change(picker(), { target: { value: "steady" } });

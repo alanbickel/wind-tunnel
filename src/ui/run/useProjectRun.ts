@@ -21,7 +21,7 @@ import {
 
 /**
  * A project screen's run, for every part of the screen that shows it: the
- * project bar's controls and status, and the run's results.
+ * run group, the top bar's status line, and the run's results.
  */
 export interface ProjectRun {
   readonly run: SimulationRun;

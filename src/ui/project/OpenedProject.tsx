@@ -1,4 +1,4 @@
-import { memo, useCallback, useId, useMemo, type ReactNode } from "react";
+import { memo, useCallback, useMemo, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { nameOf } from "../../application/details/name-of";
 import { workloadAfterRemoval } from "../../application/details/workload-after-removal";
@@ -15,6 +15,7 @@ import type { AddComponentProps } from "./ToolRail";
 import { ArchitectureView } from "./ArchitectureView";
 import { Inspector, StackedInspector } from "./Inspector";
 import { Dock } from "./dock/Dock";
+import { RunGroup } from "./dock/RunGroup";
 import type { OfferingProps } from "./useEdgeOffers";
 import type { AddWorkflowProps } from "./WorkflowList";
 import type { AddWorkloadProps } from "./WorkloadList";
@@ -50,59 +51,73 @@ export interface OpenedProjectProps {
  * name, Rename, and its controls, and under it the canvas. In a wide
  * window the canvas fills the rest of it, with the inspector over its
  * right; in a narrow one it keeps a fixed height, and the inspector's
- * content follows it, full-width. The record with its edits, the run, and
+ * content follows it, full-width. The run group is at the end of the
+ * dock's tab strip in a wide window, and in the top bar in a narrow one:
+ * one of it at a time. The record with its edits, the run, and
  * the selection are held here, so every part of the screen reads the same
  * ones, and a tab or layout change doesn't stop the run.
  */
 export function OpenedProject(props: OpenedProjectProps) {
   const { record: loaded, shell, onProjectNameChange } = props;
   const screen = useProjectScreen({ loaded, onProjectNameChange });
-  const cantRunReasonId = useId();
+  const wide = useWideWindow();
+  const runGroup = runGroupOf(screen);
   return (
-    <ProjectFrame shell={shell} {...barParts({ screen, cantRunReasonId })}>
-      <ProjectCanvas screen={screen} />
+    <ProjectFrame
+      shell={shell}
+      {...barParts({ screen, runGroup: wide ? undefined : runGroup })}
+    >
+      <ProjectCanvas
+        screen={screen}
+        wide={wide}
+        runGroup={wide ? runGroup : undefined}
+      />
     </ProjectFrame>
   );
 }
 
-/** What the screen holds, and the id Run and the can't-run line share. */
+/**
+ * The run group, from what the screen holds. Run selects the run, so the
+ * inspector explains it and the dock's Run tab shows its evidence; the
+ * verdict selects it again; Edit selects the picked workload.
+ */
+function runGroupOf({ edits, projectRun, selecting }: ProjectScreen) {
+  return (
+    <RunGroup
+      project={edits.record.project}
+      projectRun={projectRun}
+      onRunStart={selecting.showRun}
+      onSelectRun={() => {
+        selecting.select({ kind: "run" });
+      }}
+      onEditWorkload={({ id }) => {
+        selecting.select({ kind: "workload", workloadId: id });
+      }}
+    />
+  );
+}
+
+/** What the screen holds, and the run group, if the top bar holds it. */
 interface BarPartsInput {
   readonly screen: ProjectScreen;
-  readonly cantRunReasonId: string;
+  readonly runGroup: ReactNode;
 }
 
 type BarParts = Pick<ProjectFrameProps, "current" | "controls" | "status">;
 
 /**
  * The project's parts of the top bar: its name and Rename as the last
- * crumb, its controls, and its status line. Run selects the run, so the
- * inspector explains it and the dock's Run tab shows its evidence; the
- * verdict selects it again.
+ * crumb, its controls, and its status line.
  */
-function barParts({ screen, cantRunReasonId }: BarPartsInput): BarParts {
-  const { edits, projectRun, undoRedo, selecting } = screen;
+function barParts({ screen, runGroup }: BarPartsInput): BarParts {
+  const { edits, projectRun, undoRedo } = screen;
   const { project } = edits.record;
   return {
     current: <ProjectName project={project} onEdit={edits.edit} />,
-    controls: (
-      <ProjectBar
-        project={project}
-        projectRun={projectRun}
-        undoRedo={undoRedo}
-        cantRunReasonId={cantRunReasonId}
-        onRunStart={selecting.showRun}
-        onSelectRun={() => {
-          selecting.select({ kind: "run" });
-        }}
-        onEditWorkload={({ id }) => {
-          selecting.select({ kind: "workload", workloadId: id });
-        }}
-      />
-    ),
+    controls: <ProjectBar undoRedo={undoRedo} runGroup={runGroup} />,
     status: (
       <ProjectStatus
         projectRun={projectRun}
-        cantRunReasonId={cantRunReasonId}
         saveFailed={edits.saveFailed}
         onRetry={edits.retry}
       />
@@ -112,13 +127,17 @@ function barParts({ screen, cantRunReasonId }: BarPartsInput): BarParts {
 
 interface ProjectCanvasProps {
   readonly screen: ProjectScreen;
+  /** Whether the window is at least `--breakpoint-wide` across. */
+  readonly wide: boolean;
+  /** The run group, if the dock holds it. */
+  readonly runGroup: ReactNode;
 }
 
 /**
  * The canvas, and the inspector over it or under it, by the window's
  * width; then the dock.
  */
-function ProjectCanvas({ screen }: ProjectCanvasProps) {
+function ProjectCanvas({ screen, wide, runGroup }: ProjectCanvasProps) {
   const { edits, projectRun, selecting, remove } = screen;
   const { screenRef, inspectorRef } = screen.covered;
   const inspector = {
@@ -132,13 +151,13 @@ function ProjectCanvas({ screen }: ProjectCanvasProps) {
     <div className={styles.screen}>
       <div ref={screenRef} className={styles.canvas}>
         {screen.architecture}
-        {useWideWindow() ? (
+        {wide ? (
           <Inspector ref={inspectorRef} {...inspector} />
         ) : (
           <StackedInspector {...inspector} />
         )}
       </div>
-      <Dock {...inspector} />
+      <Dock {...inspector} runGroup={runGroup} />
     </div>
   );
 }
@@ -341,10 +360,10 @@ interface RevealingRemoveInput {
  * A remove, as `AddAndRemove` has it, that first opens "Workflows" for a
  * workflow's, or "Workloads" for a workload's: the focus goes to "Add
  * workflow" or "Add workload", in that list, which may be closed. Opened at once, so the
- * button is there to take the focus. A remove of the workload the project
- * bar has picked also picks the one after it, or the one before if it was
+ * button is there to take the focus. A remove of the workload the run
+ * group has picked also picks the one after it, or the one before if it was
  * last, which only the project's list, as it was, can say (UX design §2.7
- * step 11). Removing another leaves the bar's pick alone.
+ * step 11). Removing another leaves the group's pick alone.
  */
 function useRevealingRemove(
   input: RevealingRemoveInput,
@@ -361,7 +380,7 @@ function useRevealingRemove(
           show(list);
         });
       }
-      // Only the bar's own pick moves; another stays where it is.
+      // Only the group's own pick moves; another stays where it is.
       if (target.kind === "workload" && picked?.id === target.workloadId) {
         const removedId = target.workloadId;
         const next = workloadAfterRemoval({ workloads, removedId });

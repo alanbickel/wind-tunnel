@@ -14,6 +14,17 @@ export interface TabsProps<Id extends string> {
   readonly tabs: readonly TabDefinition<Id>[];
   readonly selected: Id;
   readonly onSelect: (id: Id) => void;
+  /** What sits at the end of the tabs' row, after them; it isn't a tab. */
+  readonly end?: ReactNode;
+  /** Folds the tabs away, leaving only `end`; unfolded without it. */
+  readonly fold?: TabsFold;
+}
+
+/** Whether the tabs are folded, and the id of the panels' box, which folds. */
+export interface TabsFold {
+  readonly folded: boolean;
+  /** For the control that folds them, to point to. */
+  readonly panelsId: string;
 }
 
 /**
@@ -25,7 +36,9 @@ export interface TabsProps<Id extends string> {
  * there when its tab is selected again. Each panel scrolls on its own and
  * takes a tab stop, so the keyboard can scroll it. Each starts with its
  * tab's label as a visually hidden h3, a Panel's level, so the headings in
- * it sit under that label in a screen reader's outline.
+ * it sit under that label in a screen reader's outline. Folded, the tab
+ * list and the panels are hidden, still mounted, and `end` stays. With no
+ * tabs there's no tab list, only `end`, in the same place in the tree.
  */
 export function Tabs<Id extends string>(props: TabsProps<Id>) {
   const baseId = useId();
@@ -33,23 +46,20 @@ export function Tabs<Id extends string>(props: TabsProps<Id>) {
     tab: (id) => `${baseId}-tab-${id}`,
     panel: (id) => `${baseId}-panel-${id}`,
   };
+  const folded = props.fold?.folded ?? false;
   return (
     <div className={styles.tabs}>
-      <TabList {...props} ids={ids} />
-      {props.tabs.map(({ id, label, content }) => (
-        <div
-          key={id}
-          id={ids.panel(id)}
-          role="tabpanel"
-          aria-labelledby={ids.tab(id)}
-          className={styles.panel}
-          tabIndex={0}
-          hidden={id !== props.selected}
-        >
-          <h3 className={styles.heading}>{label}</h3>
-          {content}
-        </div>
-      ))}
+      <div className={styles.strip}>
+        {props.tabs.length > 0 && (
+          <TabList {...props} ids={ids} folded={folded} />
+        )}
+        {props.end !== undefined && (
+          <div className={styles.end}>{props.end}</div>
+        )}
+      </div>
+      <div id={props.fold?.panelsId} hidden={folded} className={styles.panels}>
+        <TabPanels {...props} ids={ids} />
+      </div>
     </div>
   );
 }
@@ -60,17 +70,41 @@ interface TabIds<Id extends string> {
   readonly panel: (id: Id) => string;
 }
 
-interface TabListProps<Id extends string> extends TabsProps<Id> {
+interface TabPanelsProps<Id extends string> extends TabsProps<Id> {
   readonly ids: TabIds<Id>;
+}
+
+/** Every tab's panel, mounted, with all but the selected one's hidden. */
+function TabPanels<Id extends string>(props: TabPanelsProps<Id>) {
+  const { tabs, selected, ids } = props;
+  return tabs.map(({ id, label, content }) => (
+    <div
+      key={id}
+      id={ids.panel(id)}
+      role="tabpanel"
+      aria-labelledby={ids.tab(id)}
+      className={styles.panel}
+      tabIndex={0}
+      hidden={id !== selected}
+    >
+      <h3 className={styles.heading}>{label}</h3>
+      {content}
+    </div>
+  ));
+}
+
+interface TabListProps<Id extends string> extends TabPanelsProps<Id> {
+  readonly folded: boolean;
 }
 
 /** The row of tabs, with the selected one the only tab stop. */
 function TabList<Id extends string>(props: TabListProps<Id>) {
-  const { label, tabs, selected, onSelect, ids } = props;
+  const { label, tabs, selected, onSelect, ids, folded } = props;
   return (
     <div
       role="tablist"
       aria-label={label}
+      hidden={folded}
       className={styles.list}
       onKeyDown={(event) => {
         moveByKey({ event, tabs, selected, onSelect });

@@ -4,65 +4,93 @@ import { Tabs } from "../../shared/Tabs";
 import styles from "./Dock.module.css";
 import type { OverlayProps } from "./overlay";
 import { OVERLAY_KEYS, OVERLAYS } from "./overlays";
+import type { OverlayKey } from "../screen/screen-state";
+
+export interface DockProps extends OverlayProps {
+  /**
+   * The run group, at the end of the tab strip, when the layout puts it in
+   * the dock: a wide window's. It stays when the dock folds.
+   */
+  readonly runGroup?: ReactNode;
+}
 
 /**
  * The dock along the bottom of the canvas, as wide as the window (UX
  * design §2, "The dock"). It holds the overlays that have something to
- * show, each in a tab, Run first, and nothing when none has. Which tab
- * shows and whether it's folded are the screen's view state
- * (`selecting.dock`), which the dock reads and the user's changes go
- * to. When the shown overlay's tab isn't there, the first one left
- * shows. Fold shrinks it to one line and keeps every overlay mounted,
- * hidden, so a draft and the charts survive.
+ * show, each in a tab, Run first, and the run group at the end of their
+ * strip. With no overlay to show it holds the run group alone, and is
+ * nothing without one. Which tab shows and whether it's folded are the
+ * screen's view state (`selecting.dock`), which the dock reads and the
+ * user's changes go to. When the shown overlay's tab isn't there, the
+ * first one left shows. Fold shrinks it to one line, the run group and
+ * Unfold, and keeps every overlay mounted, hidden, so a draft and the
+ * charts survive.
  */
-export function Dock(props: OverlayProps) {
-  const { shown, show, folded, fold } = props.selecting.dock;
-  const keys = OVERLAY_KEYS.filter((key) => OVERLAYS[key].shows(props));
+export function Dock(props: DockProps) {
+  const { runGroup, ...overlay } = props;
+  const keys = OVERLAY_KEYS.filter((key) => OVERLAYS[key].shows(overlay));
   const [first] = keys;
-  if (first === undefined) return null;
-  const selected = keys.includes(shown) ? shown : first;
-  return (
-    <DockBand folded={folded} onFold={fold}>
-      <Tabs
-        label="Dock overlays"
-        selected={selected}
-        onSelect={show}
-        tabs={keys.map((key) => {
-          const { label, Content } = OVERLAYS[key];
-          return {
-            id: key,
-            label: label(props),
-            content: <Content {...props} />,
-          };
-        })}
-      />
-    </DockBand>
-  );
-}
-
-interface DockBandProps {
-  readonly folded: boolean;
-  readonly onFold: (folded: boolean) => void;
-  readonly children: ReactNode;
-}
-
-/** The dock's box: Fold, then what it holds, hidden while folded. */
-function DockBand({ folded, onFold, children }: DockBandProps) {
-  const bodyId = useId();
+  if (first === undefined && runGroup === undefined) return null;
+  const { shown } = overlay.selecting.dock;
+  const selected = keys.includes(shown) ? shown : (first ?? shown);
   return (
     <section aria-label="Dock" className={styles.dock}>
-      <FoldButton
-        folded={folded}
-        controls={bodyId}
-        onToggle={() => {
-          onFold(!folded);
-        }}
+      <OverlayTabs
+        overlay={overlay}
+        tabs={keys}
+        selected={selected}
+        runGroup={runGroup}
       />
-      <div id={bodyId} hidden={folded} className={styles.body}>
-        {children}
-      </div>
     </section>
   );
+}
+
+interface OverlayTabsProps {
+  readonly overlay: OverlayProps;
+  /** The overlays that show, in their tabs' order. */
+  readonly tabs: readonly OverlayKey[];
+  readonly selected: OverlayKey;
+  readonly runGroup: ReactNode;
+}
+
+/**
+ * The overlays' tabs, then the run group and Fold at their strip's end;
+ * Fold only while there's a tab, so something to fold. The run group keeps
+ * its place in the tree as tabs come and go, so it isn't mounted afresh
+ * and the focus stays on Run when a run's tab appears.
+ */
+function OverlayTabs({ overlay, tabs, selected, runGroup }: OverlayTabsProps) {
+  const { show, folded, fold } = overlay.selecting.dock;
+  const panelsId = useId();
+  return (
+    <Tabs
+      label="Dock overlays"
+      selected={selected}
+      onSelect={show}
+      fold={{ folded: folded && tabs.length > 0, panelsId }}
+      end={
+        <>
+          {runGroup}
+          {tabs.length > 0 && (
+            <FoldButton
+              folded={folded}
+              controls={panelsId}
+              onToggle={() => {
+                fold(!folded);
+              }}
+            />
+          )}
+        </>
+      }
+      tabs={tabs.map((key) => overlayTab(key, overlay))}
+    />
+  );
+}
+
+/** One overlay's tab: its label and what draws it, from the screen. */
+function overlayTab(key: OverlayKey, overlay: OverlayProps) {
+  const { label, Content } = OVERLAYS[key];
+  return { id: key, label: label(overlay), content: <Content {...overlay} /> };
 }
 
 interface FoldButtonProps {
@@ -71,18 +99,16 @@ interface FoldButtonProps {
   readonly onToggle: () => void;
 }
 
-/** Folds the dock to this one line, or unfolds it. */
+/** Folds the dock to its one line, or unfolds it. */
 function FoldButton({ folded, controls, onToggle }: FoldButtonProps) {
   return (
-    <div className={styles.bar}>
-      <Button
-        label={folded ? "Unfold the dock" : "Fold the dock"}
-        expanded={!folded}
-        controls={controls}
-        onClick={onToggle}
-      >
-        {folded ? "Unfold" : "Fold"}
-      </Button>
-    </div>
+    <Button
+      label={folded ? "Unfold the dock" : "Fold the dock"}
+      expanded={!folded}
+      controls={controls}
+      onClick={onToggle}
+    >
+      {folded ? "Unfold" : "Fold"}
+    </Button>
   );
 }

@@ -1,7 +1,7 @@
-/* In the top bar's row, after the project's name: Undo and Redo, then
-   the run's controls. Each group is an item of the bar's own row, so the
-   bar wraps whole groups, never one group inside a narrow box; the run's
-   controls take the room left, at its end. */
+/* In the top bar's row, after the project's name: Undo and Redo, then,
+   in a narrow window, the run group. Each group is an item of the bar's
+   own row, so the bar wraps whole groups, never one group inside a narrow
+   box; the run group takes the room left, at its end. */
 .bar {
   display: contents;
 }
@@ -10,22 +10,12 @@
   margin-block: var(--space-1);
 }
 
-.bar > :last-child {
+.runGroup {
+  display: flex;
   flex: 1;
   justify-content: flex-end;
 }
 
-/* The verdict chip, then Run and the rest of its controls, at the bar's
-   end. */
-.runGroup {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* The verdict: the level colours its border, and its words say it too, so
-   colour is never the only signal. */
 /* The status line: the whole width of the bar, under its row, its items
    at the end, under the run's controls. Spaced with margins, not a column
    gap, so an empty status takes no room across. It always has the height of
@@ -59,8 +49,7 @@
 
 /* Rendered, so screen readers keep them, but without room or a margin. */
 .line > .status:has(> :first-child:empty),
-.line > .saveStatus:has(> :first-child:empty),
-.line > .cantRun:empty {
+.line > .saveStatus:has(> :first-child:empty) {
   margin-inline-start: 0;
 }
 
@@ -81,13 +70,6 @@
 .saveFailed {
   color: var(--color-status-error);
   font-weight: var(--font-weight-bold);
-}
-
-/* Like the run's status: there from the start, taking no room while the
-   picked workload can run. */
-.cantRun {
-  max-width: var(--prose-max-width);
-  color: var(--color-status-warn);
 }
 
 /* Undo and Redo, after the project's name. */

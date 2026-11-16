@@ -101,7 +101,7 @@ function firstDescription(input: HTMLElement): string | null | undefined {
 
 /**
  * The project bar's status regions after Undo's: run status, out of date,
- * why the workload can't run, save failure.
+ * save failure.
  */
 function barStatus(): (string | null)[] {
   const bar = screen.getByRole("banner");
@@ -303,14 +303,14 @@ describe("editing a component's settings", () => {
     typeAndLeave(field("Query workers"), "64");
 
     await waitFor(() => {
-      expect(barStatus()[3]).toBe("Couldn't save your last change.");
+      expect(barStatus()[2]).toBe("Couldn't save your last change.");
     });
     expect(field("Query workers").value).toBe("64");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     const saved = await savedRecord(projects, projectA);
     expect(configIn(saved, "orders-db")?.["queryWorkers"]).toBe(64);
     await waitFor(() => {
-      expect(barStatus()[3]).toBe("");
+      expect(barStatus()[2]).toBe("");
     });
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });

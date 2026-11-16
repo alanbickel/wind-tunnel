@@ -9,7 +9,8 @@ import {
 } from "./screen-state";
 
 // The map of UX design §5, as far as the screen's state holds it today:
-// the selection, the inspector, the dock, and the run group's pick. Each rule and limit about
+// the selection, the inspector, the dock, and the run group's pick.
+// Each rule and limit about
 // them has a test where today's screen follows it, and an `it.todo` naming
 // the #246 slice that makes it hold where it doesn't.
 

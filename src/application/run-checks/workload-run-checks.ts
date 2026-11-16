@@ -39,7 +39,7 @@ export interface WorkloadRunCheck {
    */
   readonly reasons: readonly string[];
   /**
-   * One message for the project bar: "Lunch rush can't run yet: Get order
+   * One message for the run group, beside Run: "Lunch rush can't run yet: Get order
    * and Create order call a component that isn't in the architecture any more."
    * Empty when it can run.
    */

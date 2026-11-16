@@ -267,7 +267,7 @@ export function clickRun(): void {
  * The run group's verdict, which selects the run: a button named by its
  * verdict ("Healthy", "Failing · 43.7%"), wherever the group is.
  */
-export function barVerdict(): HTMLElement {
+export function groupVerdict(): HTMLElement {
   const buttons = within(runGroup()).getAllByRole("button");
   const verdict = buttons.find((b) => b.hasAttribute("data-level"));
   if (verdict === undefined) throw new Error("the group should have a verdict");
@@ -276,7 +276,7 @@ export function barVerdict(): HTMLElement {
 
 /** Selects the run again from the run group's verdict. */
 export function selectTheRun(): void {
-  fireEvent.click(barVerdict());
+  fireEvent.click(groupVerdict());
 }
 
 /** The record saved for the sample, once a save matching `check` lands. */

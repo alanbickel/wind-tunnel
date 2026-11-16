@@ -6,7 +6,7 @@ import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 import { revealButton } from "./testing/canvas-panels";
 import {
-  barVerdict,
+  groupVerdict,
   clickRun,
   detailsHeading,
   inspector,
@@ -92,7 +92,7 @@ describe("OpenedProject's run, as a selection", () => {
     expect(
       within(shown).queryByRole("region", { name: "Latest run" }),
     ).toBeNull();
-    expect(() => barVerdict()).toThrow();
+    expect(() => groupVerdict()).toThrow();
     expect(queryRunExplanation()).toBeNull();
   });
 
@@ -151,7 +151,7 @@ describe("OpenedProject's run, as a selection", () => {
   // run, in the run group or the overview.
   it("names each verdict as showing the run", async () => {
     await renderRun();
-    expect(barVerdict().textContent).toMatch(/^Failing.*\. Show the run$/);
+    expect(groupVerdict().textContent).toMatch(/^Failing.*\. Show the run$/);
     fireEvent.click(document.querySelector(".react-flow__pane") as Element);
 
     expect(overviewVerdict().textContent).toMatch(/^Failing.*\. Show the run$/);
@@ -188,7 +188,7 @@ describe("OpenedProject's run, as a selection", () => {
     "clears the run on %s, showing the overview",
     async (how) => {
       await renderRun();
-      barVerdict().focus();
+      groupVerdict().focus();
       selectTheRun();
 
       if (how === "Escape") fireEvent.keyDown(runHeading(), { key: "Escape" });
@@ -199,7 +199,7 @@ describe("OpenedProject's run, as a selection", () => {
 
       expect(queryRunExplanation()).toBeNull();
       expect(overview()).toBeTruthy();
-      expect(document.activeElement).toBe(barVerdict());
+      expect(document.activeElement).toBe(groupVerdict());
     },
   );
 });

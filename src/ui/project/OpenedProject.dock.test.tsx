@@ -14,7 +14,7 @@ import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-
 import { revealButton } from "./testing/canvas-panels";
 import {
   bar,
-  barVerdict,
+  groupVerdict,
   clickRun,
   detailsHeading,
   dock,
@@ -384,7 +384,7 @@ describe("OpenedProject's run group", () => {
     expect(inGroup.getByRole("combobox", { name: "Workload" })).toBeTruthy();
     expect(inGroup.getByRole("button", { name: "Run" })).toBeTruthy();
     expect(inGroup.getByRole("button", { name: "Stop" })).toBeTruthy();
-    expect(barVerdict()).toBeTruthy();
+    expect(groupVerdict()).toBeTruthy();
   });
 
   // Fails if folding the dock hides the run group with the tabs (rule 6:
@@ -401,7 +401,7 @@ describe("OpenedProject's run group", () => {
     expect(
       within(runGroup()).getByRole("button", { name: "Run" }),
     ).toBeTruthy();
-    expect(barVerdict()).toBeTruthy();
+    expect(groupVerdict()).toBeTruthy();
   });
 
   // Fails if the run group isn't in the top bar below the wide breakpoint,

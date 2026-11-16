@@ -36,6 +36,13 @@ export interface ProjectSelection {
    */
   readonly showRun: () => void;
   /**
+   * The id of the workload the run group picks, which a selected workload
+   * sets; undefined until one is picked.
+   */
+  readonly pickedWorkloadId: string | undefined;
+  /** Picks a workload in the run group, changing only the pick. */
+  readonly pick: (workloadId: string) => void;
+  /**
    * Selects, and shows its details in an open inspector, whose `focus` takes the focus: its heading
    * unless given. Remembers the element that had the focus, such as the
    * button that made the selection, so `close` can return it.
@@ -109,9 +116,10 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
   );
   const inspector = useInspector({ screen, dispatch });
   const dock = useDock({ screen, dispatch });
+  const picking = usePicking({ screen, dispatch });
 
   const changes = { select, selectWithin, selectFinding, clear, close };
-  const regions = { ...inspector, ...dock };
+  const regions = { ...inspector, ...dock, ...picking };
   return { selection: screen.selection, ...regions, ...changes, takeFocus };
 }
 
@@ -150,6 +158,20 @@ function useDock({
     dispatch({ kind: "run" });
   }, [dispatch]);
   return { dock: { ...screen.dock, show, fold }, showRun };
+}
+
+/** The run group's pick, and how to change it. */
+function usePicking({
+  screen,
+  dispatch,
+}: ScreenReducer): Pick<ProjectSelection, "pickedWorkloadId" | "pick"> {
+  const pick = useCallback(
+    (workloadId: string) => {
+      dispatch({ kind: "pick", workloadId });
+    },
+    [dispatch],
+  );
+  return { pickedWorkloadId: screen.pickedWorkloadId, pick };
 }
 
 /** Whether the inspector is open, and the user's open and collapse. */

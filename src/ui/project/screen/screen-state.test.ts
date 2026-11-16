@@ -9,7 +9,8 @@ import {
 } from "./screen-state";
 
 // The map of UX design §5, as far as the screen's state holds it today:
-// the selection, the inspector, and the dock. Each rule and limit about
+// the selection, the inspector, the dock, and the run group's pick.
+// Each rule and limit about
 // them has a test where today's screen follows it, and an `it.todo` naming
 // the #246 slice that makes it hold where it doesn't.
 
@@ -51,6 +52,10 @@ const SHOW = (tab: OverlayKey): ScreenTransition => ({ kind: "show-tab", tab });
 const FOLD: ScreenTransition = { kind: "fold-dock" };
 const UNFOLD: ScreenTransition = { kind: "unfold-dock" };
 const RUN: ScreenTransition = { kind: "run" };
+const PICK = (workloadId: string): ScreenTransition => ({
+  kind: "pick",
+  workloadId,
+});
 
 const EVERY_TAB: readonly OverlayKey[] = ["run", "workload"];
 
@@ -213,9 +218,64 @@ describe("rule 1: the selection alone decides what the inspector shows", () => {
     });
   });
 
-  it.todo(
-    "picking a workload in the run group leaves the selection (#251, slice 2 of #246)",
+  // Fails if picking a workload in the run group changes the selection or
+  // the inspector, whatever is selected.
+  it.each(EVERY_SELECTION)(
+    "picking a workload leaves a selected $kind",
+    (selection) => {
+      const before = after(SELECT(selection), COLLAPSE);
+      expect(nextScreenState(before, PICK("lunch"))).toMatchObject({
+        selection,
+        inspector: "collapsed",
+      });
+    },
   );
+});
+
+describe("rule 5: the run group picks the workload you select", () => {
+  // Fails if a screen opens with a workload picked: the screen shows the
+  // project's first until one is.
+  it("opens with none picked", () => {
+    expect(INITIAL_SCREEN_STATE.pickedWorkloadId).toBeUndefined();
+  });
+
+  // Fails if selecting a workload doesn't pick it, from nothing or over
+  // another pick, in the same dispatch.
+  it.each([
+    ["nothing picked", after()],
+    ["another picked", after(PICK("lunch"))],
+  ])("picks a selected workload over %s", (_, before) => {
+    expect(nextScreenState(before, SELECT(WORKLOAD)).pickedWorkloadId).toBe(
+      "rush",
+    );
+  });
+
+  // Fails if picking in the run group changes what's dispatched anywhere
+  // but the pick: the selection, the inspector, or the dock.
+  it("a pick changes only the pick", () => {
+    const before = after(SELECT(WORKLOAD), SHOW("run"), FOLD);
+    expect(nextScreenState(before, PICK("lunch"))).toEqual({
+      ...before,
+      pickedWorkloadId: "lunch",
+    });
+  });
+
+  // Fails if selecting something that isn't a workload changes the pick.
+  it.each(ALL_BUT_WORKLOAD)("a $kind's selection leaves the pick", (s) => {
+    expect(after(PICK("lunch"), SELECT(s)).pickedWorkloadId).toBe("lunch");
+  });
+
+  // Fails if clearing the selection changes the pick.
+  it("clearing the selection leaves the pick", () => {
+    expect(after(SELECT(WORKLOAD), CLEAR).pickedWorkloadId).toBe("rush");
+  });
+
+  // Fails if picking the workload already picked makes a new state, so React
+  // renders the screen again for nothing.
+  it("keeps the state on picking the one picked", () => {
+    const state = after(PICK("lunch"));
+    expect(nextScreenState(state, PICK("lunch"))).toBe(state);
+  });
 });
 
 describe("rule 2: only the user collapses the inspector", () => {
@@ -359,12 +419,28 @@ describe("the limit: a selection shows a tab only as it's made", () => {
     expect(after(SELECT(WORKLOAD), CLEAR).dock.shown).toBe("workload");
   });
 
+  // Fails if picking in the run group moves the dock off its tab.
+  it("leaves the tab on picking a workload", () => {
+    expect(after(SHOW("run"), PICK("lunch")).dock.shown).toBe("run");
+  });
+
   // Fails if a selection holds its tab, so the user can't show another
   // beside it.
   it("lets the user show another tab beside a selected workload", () => {
     expect(after(SELECT(WORKLOAD), SHOW("run"))).toMatchObject({
       selection: WORKLOAD,
       dock: { shown: "run" },
+    });
+  });
+});
+
+describe("the limit: the run group picks a workload only as it's selected", () => {
+  // Fails if a later pick in the run group moves the selection with it, or
+  // is undone by the selection that came before it.
+  it("leaves the workload selected but not picked after another is picked", () => {
+    expect(after(SELECT(WORKLOAD), PICK("lunch"))).toMatchObject({
+      selection: WORKLOAD,
+      pickedWorkloadId: "lunch",
     });
   });
 });

@@ -1,6 +1,12 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useReducer, useRef } from "react";
 import type { Selection } from "../../application/details/selection";
 import type { FindingKey } from "../../application/run-analysis/findings/finding";
+import {
+  INITIAL_SCREEN_STATE,
+  nextScreenState,
+  type ScreenState,
+  type ScreenTransition,
+} from "./screen/screen-state";
 
 /**
  * What in Details takes the focus after a selection: its heading, or a new
@@ -57,67 +63,62 @@ export interface ProjectSelection {
 }
 
 /**
- * The selection a project screen holds above both columns (UX design
- * §4.1), so the diagram, its text version, and Details read the same one.
- * It lasts while the screen is open, and isn't saved with the project.
- * `reveal` shows an element that may have been hidden since it made the
- * selection, such as a button in a canvas panel closed since, so `close`
- * can return the focus to it.
+ * The selection and the inspector of a project screen, held in its view
+ * state (`screen/screen-state.ts`, ADR-0023) and changed only by its
+ * transitions, so the diagram, its text version, and Details read the
+ * same ones. The focus isn't view state: the target asked to take it,
+ * and the element `close` returns it to, are held here, around the
+ * state. `reveal` shows an element that may have been hidden since it
+ * made the selection, such as a button in a canvas panel closed since,
+ * so `close` can return the focus to it.
  */
 export function useSelection(reveal: RevealElement): ProjectSelection {
-  const [selection, setSelection] = useState<Selection>();
-  const [inspectorOpen, showInspector] = useState(true);
+  const [screen, dispatch] = useReducer(nextScreenState, INITIAL_SCREEN_STATE);
   const { request, takeFocus } = useFocusRequest();
 
   const selectWithin = useCallback(
-    (next: Selection, focus: FocusTarget = "heading") => {
+    (selection: Selection, focus: FocusTarget = "heading") => {
       request(focus);
-      setSelection(next);
-      // A workload opens in the dock, so the inspector closes (UX §5).
-      showInspector(next.kind !== "workload");
+      dispatch({ kind: "select", selection });
     },
     [request],
   );
   const clear = useCallback(() => {
     request(undefined);
-    setSelection(undefined);
-    showInspector(true);
+    dispatch({ kind: "clear" });
   }, [request]);
   const { select, close } = useOpener({ selectWithin, clear, reveal });
-  const selectFinding = useFindingSelect({
-    request,
-    setSelection,
-    showInspector,
-  });
-
-  const changes = { select, selectWithin, selectFinding, clear, close };
-  const inspector = { inspectorOpen, showInspector };
-  return { selection, ...inspector, ...changes, takeFocus };
-}
-
-/** What selecting a finding changes. */
-interface FindingSelectInput {
-  readonly request: FocusRequest["request"];
-  readonly setSelection: (selection: Selection) => void;
-  readonly showInspector: (open: boolean) => void;
-}
-
-/**
- * Selects a finding: no focus is asked for, so only the selection changes,
- * and the inspector opens if it was closed.
- */
-function useFindingSelect(
-  input: FindingSelectInput,
-): ProjectSelection["selectFinding"] {
-  const { request, setSelection, showInspector } = input;
-  return useCallback(
+  const selectFinding = useCallback(
     (key: FindingKey) => {
       request(undefined);
-      setSelection({ kind: "finding", key });
-      showInspector(true);
+      dispatch({ kind: "select", selection: { kind: "finding", key } });
     },
-    [request, setSelection, showInspector],
+    [request],
   );
+  const inspector = useInspector({ screen, dispatch });
+
+  const changes = { select, selectWithin, selectFinding, clear, close };
+  return { selection: screen.selection, ...inspector, ...changes, takeFocus };
+}
+
+/** The view state, and how to change it. */
+interface ScreenReducer {
+  readonly screen: ScreenState;
+  readonly dispatch: (transition: ScreenTransition) => void;
+}
+
+/** Whether the inspector is open, and the user's open and collapse. */
+function useInspector({
+  screen,
+  dispatch,
+}: ScreenReducer): Pick<ProjectSelection, "inspectorOpen" | "showInspector"> {
+  const showInspector = useCallback(
+    (open: boolean) => {
+      dispatch({ kind: open ? "open-inspector" : "collapse-inspector" });
+    },
+    [dispatch],
+  );
+  return { inspectorOpen: screen.inspector === "open", showInspector };
 }
 
 /** Shows an element, if something has hidden it, so it can take the focus. */

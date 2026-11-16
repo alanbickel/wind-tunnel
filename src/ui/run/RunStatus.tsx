@@ -1,3 +1,4 @@
+import { statusLookOf, type StatusLook } from "./run-status";
 import type { ProjectRun } from "./useProjectRun";
 import type { RunPhase } from "./useSimulationRun";
 import styles from "./RunStatus.module.css";
@@ -10,17 +11,10 @@ export interface RunStatusProps extends Pick<
   readonly phase: RunPhase["status"];
 }
 
-/**
- * How each phase's status is drawn. The verdict chip and the progress bar
- * show a run's state, so its status is only heard; a failed run's problem
- * shows nowhere else, so it's seen too.
- */
-const STATUS_CLASS: Record<RunPhase["status"], string | undefined> = {
-  idle: styles.heard,
-  running: styles.heard,
-  finished: styles.heard,
-  stopped: styles.heard,
-  failed: styles.failed,
+const LOOK_CLASS: Record<StatusLook, string | undefined> = {
+  heard: styles.heard,
+  seen: styles.seen,
+  error: styles.failed,
 };
 
 /**
@@ -33,7 +27,7 @@ const STATUS_CLASS: Record<RunPhase["status"], string | undefined> = {
 export function RunStatus({ status, outOfDate, phase }: RunStatusProps) {
   return (
     <>
-      <p role="status" className={STATUS_CLASS[phase]}>
+      <p role="status" className={LOOK_CLASS[statusLookOf(phase)]}>
         {status}
       </p>
       <p role="status" className={styles.heard}>

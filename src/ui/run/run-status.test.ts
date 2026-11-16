@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Verdict } from "../../application/run-analysis/findings/verdict";
 import type { Project, Workload } from "../../domain/model/project";
-import { verdictChipOf } from "./run-status";
+import { statusLookOf, verdictChipOf } from "./run-status";
 import type { RunPhase } from "./useSimulationRun";
 
 const workload = {
@@ -73,5 +73,20 @@ describe("verdictChipOf", () => {
   it("says when the run failed", () => {
     const failed: RunPhase = { status: "failed", ...ran, problem: "boom" };
     expect(chip(failed)).toEqual({ level: "error", text: "Run failed" });
+  });
+});
+
+describe("statusLookOf", () => {
+  // Fails if a stopped run's status is only heard, though its chip doesn't say how far it got.
+  it("shows a stopped run's status, and a failed run's as an error", () => {
+    expect(statusLookOf("stopped")).toBe("seen");
+    expect(statusLookOf("failed")).toBe("error");
+  });
+
+  // Fails if a status the chip or the progress bar already shows is drawn too.
+  it("only voices the status while the chip and the progress bar show it", () => {
+    expect(
+      (["idle", "running", "finished"] as const).map(statusLookOf),
+    ).toEqual(["heard", "heard", "heard"]);
   });
 });

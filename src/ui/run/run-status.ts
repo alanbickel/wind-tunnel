@@ -44,6 +44,26 @@ function statusTexts({
   };
 }
 
+/**
+ * How the run's status is drawn: only heard while the verdict chip and the
+ * progress bar show the same; seen when it says what nothing else does,
+ * how far a stopped run got, or why a run failed.
+ */
+export type StatusLook = "heard" | "seen" | "error";
+
+const STATUS_LOOKS: Record<RunPhase["status"], StatusLook> = {
+  idle: "heard",
+  running: "heard",
+  finished: "heard",
+  stopped: "seen",
+  failed: "error",
+};
+
+/** How the status of a run in this phase is drawn. */
+export function statusLookOf(phase: RunPhase["status"]): StatusLook {
+  return STATUS_LOOKS[phase];
+}
+
 /** What colours the verdict chip: the verdict's level, or the run's state. */
 export type ChipLevel = VerdictLevel | "running" | "error";
 

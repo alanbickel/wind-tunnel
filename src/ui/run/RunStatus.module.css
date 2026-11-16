@@ -8,6 +8,11 @@
   white-space: nowrap;
 }
 
+/* How far a stopped run got, which the chip doesn't say. */
+.seen {
+  max-width: var(--prose-max-width);
+}
+
 /* A failed run's problem, which shows nowhere else. */
 .failed {
   max-width: var(--prose-max-width);

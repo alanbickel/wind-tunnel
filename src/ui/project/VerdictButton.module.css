@@ -35,3 +35,13 @@
 .stale {
   color: var(--color-status-warn);
 }
+
+/* Heard, not seen: what the button does, which its look says. */
+.action {
+  position: absolute;
+  width: var(--visually-hidden-size);
+  height: var(--visually-hidden-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

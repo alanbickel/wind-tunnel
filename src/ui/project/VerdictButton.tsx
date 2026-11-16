@@ -33,6 +33,7 @@ export function VerdictButton({
     >
       <span>{chip.text}</span>
       {outOfDate && <span className={styles.stale}>Out of date</span>}
+      <span className={styles.action}>. Show the run</span>
     </button>
   );
 }

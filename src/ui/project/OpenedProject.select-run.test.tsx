@@ -26,15 +26,20 @@ import {
 async function renderRun(): Promise<RenderedProject> {
   const rendered = renderProject();
   clickRun();
-  rendered.runner.send(
+  await runToTheEnd(rendered);
+  return rendered;
+}
+
+/** Sends a second of the table throttling a read, and ends the run. */
+async function runToTheEnd({ runner }: RenderedProject): Promise<void> {
+  runner.send(
     sampleSnapshot({
       second: 1,
       read: { started: 1, failed: 1, failures: { "table: throttled": 1 } },
       table: { arrivals: 1, rejected: 1 },
     }),
   );
-  await rendered.runner.finish();
-  return rendered;
+  await runner.finish();
 }
 
 /** The run's explanation's heading, which takes the focus on a verdict. */
@@ -114,22 +119,17 @@ describe("OpenedProject's run, as a selection", () => {
   });
 
   // Fails if a new run keeps the old run's finding selected, rather than
-  // selecting the new run.
+  // selecting the new run. The new run has the same finding, so a kept
+  // selection would still mark its button.
   it("selects the new run on Run, from a finding of the old one", async () => {
-    const { runner } = await renderRun();
+    const rendered = await renderRun();
     fireEvent.click(firstFinding());
     expect(firstFinding().getAttribute("aria-current")).toBe("true");
 
     clickRun();
-    runner.send(sampleSnapshot({ second: 1, read: { started: 5 } }));
-    await runner.finish();
+    await runToTheEnd(rendered);
 
-    expect(runExplanation()).toBeTruthy();
-    expect(
-      within(runExplanation())
-        .queryAllByRole("button")
-        .some((b) => b.getAttribute("aria-current") === "true"),
-    ).toBe(false);
+    expect(firstFinding().getAttribute("aria-current")).toBeNull();
   });
 
   // Fails if nothing selected after a run shows the run's explanation, or
@@ -145,6 +145,16 @@ describe("OpenedProject's run, as a selection", () => {
 
     expect(document.activeElement).toBe(runHeading());
     expect(screen.queryByRole("region", { name: "Overview" })).toBeNull();
+  });
+
+  // Fails if a verdict's name says only the verdict, not that it shows the
+  // run, in the bar or the overview.
+  it("names each verdict as showing the run", async () => {
+    await renderRun();
+    expect(barVerdict().textContent).toMatch(/^Failing.*\. Show the run$/);
+    fireEvent.click(document.querySelector(".react-flow__pane") as Element);
+
+    expect(overviewVerdict().textContent).toMatch(/^Failing.*\. Show the run$/);
   });
 
   // Fails if the bar's verdict doesn't select the run again from a thing,

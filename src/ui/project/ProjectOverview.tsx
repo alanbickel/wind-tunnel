@@ -76,16 +76,17 @@ interface ProblemsProps {
  */
 function Problems({ project, checks }: ProblemsProps) {
   const headingId = useId();
-  const summaries = project.workloads
-    .map(({ id }) => checks.get(id)?.summary ?? "")
-    .filter((summary) => summary !== "");
-  if (summaries.length === 0) return null;
+  // Keyed by the workload, since two workloads can give the same summary.
+  const problems = project.workloads
+    .map(({ id }) => ({ id, summary: checks.get(id)?.summary ?? "" }))
+    .filter(({ summary }) => summary !== "");
+  if (problems.length === 0) return null;
   return (
     <section aria-labelledby={headingId}>
       <h4 id={headingId}>Problems</h4>
       <ul>
-        {summaries.map((summary) => (
-          <li key={summary}>{summary}</li>
+        {problems.map(({ id, summary }) => (
+          <li key={id}>{summary}</li>
         ))}
       </ul>
     </section>

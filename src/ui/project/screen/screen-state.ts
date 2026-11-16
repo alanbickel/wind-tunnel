@@ -22,13 +22,19 @@ export interface DockState {
 /**
  * The project screen's view state, held in one place (ADR-0023): one
  * part per row of UX design §5's map. It lasts while the screen is open,
- * and isn't saved with the project. The workload Run runs join it as a
- * part of their own.
+ * and isn't saved with the project.
  */
 export interface ScreenState {
   readonly selection: Selection | undefined;
   readonly inspector: InspectorState;
   readonly dock: DockState;
+  /**
+   * The id of the workload the run group picks, which Run runs; undefined
+   * until one is picked. The screen reads the workload from the project
+   * each time, and shows the project's first when this isn't there, so
+   * the state holds no project data.
+   */
+  readonly pickedWorkloadId: string | undefined;
 }
 
 /** Selects one thing, from anywhere: a box, a row, Details, or a finding. */
@@ -73,9 +79,16 @@ export interface RunTransition {
   readonly kind: "run";
 }
 
+/** The run group picks a workload, which changes only the pick (rule 5). */
+export interface PickTransition {
+  readonly kind: "pick";
+  readonly workloadId: string;
+}
+
 /** Every way the screen's view state can change (UX design §5's rules). */
 export type ScreenTransition =
   | SelectTransition
+  | PickTransition
   | ClearTransition
   | CollapseInspectorTransition
   | OpenInspectorTransition
@@ -92,6 +105,7 @@ export const INITIAL_SCREEN_STATE: ScreenState = {
   selection: undefined,
   inspector: "open",
   dock: { shown: "run", folded: false },
+  pickedWorkloadId: undefined,
 };
 
 /** Each transition, as a pure function from one state to the next. */
@@ -110,8 +124,16 @@ const TRANSITIONS: KindHandlers<
             selection,
             inspector: "collapsed",
             dock: unfoldedOn("workload"),
+            // Rule 5: a selected workload is picked, in the same dispatch.
+            pickedWorkloadId: selection.workloadId,
           }
         : { ...state, selection, inspector: "open" },
+  pick:
+    ({ workloadId }) =>
+    (state) =>
+      state.pickedWorkloadId === workloadId
+        ? state
+        : { ...state, pickedWorkloadId: workloadId },
   clear: () => (state) => ({
     ...state,
     selection: undefined,

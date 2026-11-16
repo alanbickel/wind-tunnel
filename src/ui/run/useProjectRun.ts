@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { runIsCurrent } from "../../application/run-analysis/run-freshness";
 import type { WorkloadRunChecks } from "../../application/run-checks/workload-run-checks";
 import type { Project, Workload } from "../../domain/model/project";
@@ -47,16 +47,23 @@ export interface ProjectRun {
   readonly badges: RunBadges | undefined;
 }
 
+/** The picked workload's id, which the screen's view state holds, and its change. */
+export interface Picking {
+  readonly pickedId: string | undefined;
+  readonly pick: (workloadId: string) => void;
+}
+
 /**
- * Runs the project's workloads, starting with the picker on the first, and
- * works out what each run means. Held by the project screen, above the
- * parts that show it, so they all read the same run, and a part that's
- * hidden or swapped (a tab, a narrower window) doesn't stop it.
+ * Runs the project's workloads, with the picker on the workload `picking`
+ * names (the first, until one is picked), and works out what each run
+ * means. Held by the project screen, above the parts that show it, so
+ * they all read the same run, and a part that's hidden or swapped (a tab,
+ * a narrower window) doesn't stop it.
  */
-export function useProjectRun(project: Project): ProjectRun {
+export function useProjectRun(project: Project, picking: Picking): ProjectRun {
   const run = useSimulationRun(project);
   const checks = useWorkloadChecks(project);
-  const [picked, pick] = usePickedWorkload(project);
+  const [picked, pick] = usePickedWorkload(project, picking);
   const ranModel = ranModelOf(run.phase);
   const meaning = useRunFindings({ ran: ranModel, received: run });
   const { status, chip } = runWords(run, meaning);
@@ -99,16 +106,19 @@ function runWords(
 type PickedWorkload = readonly [Workload | undefined, ProjectRun["pick"]];
 
 /**
- * The workload the picker shows. It's remembered by id and read from the
- * project each time, so a rename shows in the picker, and a run starts on
- * the workload as it is now. One the project no longer has, as after an
- * undo of its add, gives way to the first.
+ * The workload the picker shows, from the id the screen's view state
+ * holds. It's read from the project each time, so a rename shows in the
+ * picker, and a run starts on the workload as it is now. One the project
+ * no longer has, as after an undo of its add, gives way to the first.
  */
-function usePickedWorkload(project: Project): PickedWorkload {
-  const [pickedId, setPickedId] = useState(project.workloads[0]?.id);
-  const pick = useCallback((workload: Workload) => {
-    setPickedId(workload.id);
-  }, []);
+function usePickedWorkload(project: Project, picking: Picking): PickedWorkload {
+  const { pickedId, pick: pickId } = picking;
+  const pick = useCallback(
+    (workload: Workload) => {
+      pickId(workload.id);
+    },
+    [pickId],
+  );
   const picked =
     project.workloads.find((w) => w.id === pickedId) ?? project.workloads[0];
   return [picked, pick];

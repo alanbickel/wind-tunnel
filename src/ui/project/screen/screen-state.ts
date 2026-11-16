@@ -5,15 +5,30 @@ import { dispatchKind } from "../../shared/kind-dispatch";
 /** The inspector's two states in UX design §5's map. */
 export type InspectorState = "open" | "collapsed";
 
+/** The dock's tabs, by key: the keys of its overlays (`dock/overlays.ts`). */
+export type OverlayKey = "run" | "workload";
+
+/**
+ * The dock in UX design §5's map: which tab shows, and whether it's
+ * folded. Which tabs are there isn't held: the dock reads that from the
+ * project, the run, and the selection, and shows the first one left when
+ * `shown` isn't there.
+ */
+export interface DockState {
+  readonly shown: OverlayKey;
+  readonly folded: boolean;
+}
+
 /**
  * The project screen's view state, held in one place (ADR-0023): one
  * part per row of UX design §5's map. It lasts while the screen is open,
- * and isn't saved with the project. The dock and the workload Run runs
- * join it as parts of their own.
+ * and isn't saved with the project. The workload Run runs join it as a
+ * part of their own.
  */
 export interface ScreenState {
   readonly selection: Selection | undefined;
   readonly inspector: InspectorState;
+  readonly dock: DockState;
 }
 
 /** Selects one thing, from anywhere: a box, a row, Details, or a finding. */
@@ -37,17 +52,46 @@ export interface OpenInspectorTransition {
   readonly kind: "open-inspector";
 }
 
+/** The user shows one of the dock's tabs. */
+export interface ShowTabTransition {
+  readonly kind: "show-tab";
+  readonly tab: OverlayKey;
+}
+
+/** The user folds the dock to one line. */
+export interface FoldDockTransition {
+  readonly kind: "fold-dock";
+}
+
+/** The user unfolds the folded dock. */
+export interface UnfoldDockTransition {
+  readonly kind: "unfold-dock";
+}
+
+/** A run starts: the inspector opens, and the dock shows the Run tab. */
+export interface RunTransition {
+  readonly kind: "run";
+}
+
 /** Every way the screen's view state can change (UX design §5's rules). */
 export type ScreenTransition =
   | SelectTransition
   | ClearTransition
   | CollapseInspectorTransition
-  | OpenInspectorTransition;
+  | OpenInspectorTransition
+  | ShowTabTransition
+  | FoldDockTransition
+  | UnfoldDockTransition
+  | RunTransition;
 
-/** A project screen as it opens: nothing selected, the inspector open. */
+/**
+ * A project screen as it opens: nothing selected, the inspector open, and
+ * the dock unfolded on the Run tab, which shows once a run starts.
+ */
 export const INITIAL_SCREEN_STATE: ScreenState = {
   selection: undefined,
   inspector: "open",
+  dock: { shown: "run", folded: false },
 };
 
 /** Each transition, as a pure function from one state to the next. */
@@ -57,16 +101,43 @@ const TRANSITIONS: KindHandlers<
 > = {
   select:
     ({ selection }) =>
-    () => ({
-      selection,
-      // Today a workload opens in the dock, so the inspector collapses,
-      // which §5's rule 2 forbids; slice 5 of issue 246 stops it.
-      inspector: selection.kind === "workload" ? "collapsed" : "open",
-    }),
-  clear: () => () => ({ selection: undefined, inspector: "open" }),
+    (state) =>
+      selection.kind === "workload"
+        ? // Today a workload opens in the dock, so the inspector collapses,
+          // which §5's rule 2 forbids; slice 5 of issue 246 stops it.
+          {
+            ...state,
+            selection,
+            inspector: "collapsed",
+            dock: unfoldedOn("workload"),
+          }
+        : { ...state, selection, inspector: "open" },
+  clear: () => (state) => ({
+    ...state,
+    selection: undefined,
+    inspector: "open",
+  }),
   "collapse-inspector": () => (state) => withInspector(state, "collapsed"),
   "open-inspector": () => (state) => withInspector(state, "open"),
+  "show-tab":
+    ({ tab }) =>
+    (state) =>
+      withDock(state, { ...state.dock, shown: tab }),
+  "fold-dock": () => (state) =>
+    withDock(state, { ...state.dock, folded: true }),
+  "unfold-dock": () => (state) =>
+    withDock(state, { ...state.dock, folded: false }),
+  run: () => (state) => ({
+    ...state,
+    inspector: "open",
+    dock: unfoldedOn("run"),
+  }),
 };
+
+/** The dock showing `tab`, unfolded. */
+function unfoldedOn(tab: OverlayKey): DockState {
+  return { shown: tab, folded: false };
+}
 
 /**
  * `state` with the inspector `inspector`. It's `state` itself when the
@@ -77,6 +148,16 @@ function withInspector(
   inspector: InspectorState,
 ): ScreenState {
   return state.inspector === inspector ? state : { ...state, inspector };
+}
+
+/**
+ * `state` with the dock `dock`. It's `state` itself when the dock already
+ * is, so React skips the render, as `useState` did.
+ */
+function withDock(state: ScreenState, dock: DockState): ScreenState {
+  const same =
+    state.dock.shown === dock.shown && state.dock.folded === dock.folded;
+  return same ? state : { ...state, dock };
 }
 
 /** The state `transition` moves the screen to from `state`. */

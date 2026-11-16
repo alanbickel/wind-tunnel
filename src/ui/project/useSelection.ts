@@ -4,6 +4,8 @@ import type { FindingKey } from "../../application/run-analysis/findings/finding
 import {
   INITIAL_SCREEN_STATE,
   nextScreenState,
+  type DockState,
+  type OverlayKey,
   type ScreenState,
   type ScreenTransition,
 } from "./screen/screen-state";
@@ -25,6 +27,14 @@ export interface ProjectSelection {
    */
   readonly inspectorOpen: boolean;
   readonly showInspector: (open: boolean) => void;
+  /** Which tab the dock shows, whether it's folded, and the user's changes. */
+  readonly dock: DockControls;
+  /**
+   * What starting a run does to the screen: opens the inspector, where
+   * the run's verdict and findings are, and shows the dock's Run tab,
+   * unfolded, where its evidence is.
+   */
+  readonly showRun: () => void;
   /**
    * Selects, and shows its details in an open inspector, whose `focus` takes the focus: its heading
    * unless given. Remembers the element that had the focus, such as the
@@ -63,14 +73,16 @@ export interface ProjectSelection {
 }
 
 /**
- * The selection and the inspector of a project screen, held in its view
- * state (`screen/screen-state.ts`, ADR-0023) and changed only by its
- * transitions, so the diagram, its text version, and Details read the
- * same ones. The focus isn't view state: the target asked to take it,
- * and the element `close` returns it to, are held here, around the
- * state. `reveal` shows an element that may have been hidden since it
- * made the selection, such as a button in a canvas panel closed since,
- * so `close` can return the focus to it.
+ * The selection, the inspector, and the dock of a project screen, held in
+ * its view state (`screen/screen-state.ts`, ADR-0023) and changed only by
+ * its transitions, so the diagram, its text version, Details, and the
+ * dock read the same ones. One transition changes all it touches, so a
+ * workload's selection and its tab in the dock draw in the same render.
+ * The focus isn't view state: the target asked to take it, and the
+ * element `close` returns it to, are held here, around the state.
+ * `reveal` shows an element that may have been hidden since it made the
+ * selection, such as a button in a canvas panel closed since, so `close`
+ * can return the focus to it.
  */
 export function useSelection(reveal: RevealElement): ProjectSelection {
   const [screen, dispatch] = useReducer(nextScreenState, INITIAL_SCREEN_STATE);
@@ -96,15 +108,48 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
     [request],
   );
   const inspector = useInspector({ screen, dispatch });
+  const dock = useDock({ screen, dispatch });
 
   const changes = { select, selectWithin, selectFinding, clear, close };
-  return { selection: screen.selection, ...inspector, ...changes, takeFocus };
+  const regions = { ...inspector, ...dock };
+  return { selection: screen.selection, ...regions, ...changes, takeFocus };
 }
 
 /** The view state, and how to change it. */
 interface ScreenReducer {
   readonly screen: ScreenState;
   readonly dispatch: (transition: ScreenTransition) => void;
+}
+
+/** The dock's part of the view state, and the user's changes to it. */
+export interface DockControls extends DockState {
+  /** Shows the tab `tab`, changing nothing else. */
+  readonly show: (tab: OverlayKey) => void;
+  /** Folds the dock, or unfolds it. */
+  readonly fold: (folded: boolean) => void;
+}
+
+/** The dock's tab and folding, the user's show and fold, and Run's. */
+function useDock({
+  screen,
+  dispatch,
+}: ScreenReducer): Pick<ProjectSelection, "dock" | "showRun"> {
+  const show = useCallback(
+    (tab: OverlayKey) => {
+      dispatch({ kind: "show-tab", tab });
+    },
+    [dispatch],
+  );
+  const fold = useCallback(
+    (folded: boolean) => {
+      dispatch({ kind: folded ? "fold-dock" : "unfold-dock" });
+    },
+    [dispatch],
+  );
+  const showRun = useCallback(() => {
+    dispatch({ kind: "run" });
+  }, [dispatch]);
+  return { dock: { ...screen.dock, show, fold }, showRun };
 }
 
 /** Whether the inspector is open, and the user's open and collapse. */

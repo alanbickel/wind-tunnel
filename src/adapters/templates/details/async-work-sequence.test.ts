@@ -48,7 +48,7 @@ import {
 const WORKFLOW_ID = "create-order";
 const WRITE_STEP = "create-order-orders-db";
 
-/** Template A with "orders-queue" (SQS) and "fn-writer" (Lambda), as "Add component" and rename leave them. */
+/** Template A with "orders-queue" (SQS) and "fn-writer" (Lambda), as adding from the Library and rename leave them. */
 function withQueueAndWriter(): ProjectRecord {
   const base: ProjectRecord = {
     project: projectA,

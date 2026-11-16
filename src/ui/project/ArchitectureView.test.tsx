@@ -75,7 +75,6 @@ function renderView({
 }: RenderViewInput = {}) {
   const onSelect = vi.fn<(selection: Selection) => void>();
   const onClear = vi.fn<() => void>();
-  const onAdd = vi.fn<(type: string) => void>();
   const onMove = vi.fn<(componentId: string, position: Point) => void>();
   const tree = (shown: RunBadges | undefined) => (
     <UseCasesProvider useCases={fakeUseCases()}>
@@ -91,7 +90,6 @@ function renderView({
         workflowAnnouncement=""
         offering={{ onEdit: vi.fn(), onSelect: vi.fn(), announce: vi.fn() }}
         onMove={onMove}
-        adding={{ onAdd, buttonRef: { current: null } }}
       />
     </UseCasesProvider>
   );
@@ -99,7 +97,6 @@ function renderView({
   return {
     onSelect,
     onClear,
-    onAdd,
     onMove,
     /** Draws the same view again, with other badges. */
     showBadges: (shown: RunBadges | undefined) => {

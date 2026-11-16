@@ -61,6 +61,7 @@ function propsOf(
     selecting: selectingOf(selection),
     onEdit: vi.fn(),
     onRemove: vi.fn(),
+    onAdd: vi.fn(),
     listRef: { current: null },
     announcement: "",
   };
@@ -71,9 +72,27 @@ const steadySelected: Selection = { kind: "workload", workloadId: "steady" };
 describe("the dock's overlays", () => {
   afterEach(cleanup);
 
-  // Fails if the tabs' order stops putting Components first, then Run.
-  it("lists Components first, then Run, then the workload", () => {
-    expect(OVERLAY_KEYS).toEqual(["components", "run", "workload"]);
+  // Fails if the tabs' order stops putting Library first, then Components, then Run.
+  it("lists Library first, then Components, Run, and the workload", () => {
+    expect(OVERLAY_KEYS).toEqual(["library", "components", "run", "workload"]);
+  });
+
+  // Fails if Library's tab is left out for want of a run, a selection, or
+  // components, so there'd be no place to add the first one.
+  it("always shows the Library tab", () => {
+    const run = { project, workloadId: "steady", snapshots: [] };
+    const empty = {
+      ...project,
+      architecture: { components: [], edges: [] },
+    };
+    expect(OVERLAYS.library.shows(propsOf(undefined))).toBe(true);
+    expect(OVERLAYS.library.shows(propsOf(steadySelected))).toBe(true);
+    expect(
+      OVERLAYS.library.shows(propsOf(undefined, projectRunOf({ run }))),
+    ).toBe(true);
+    expect(
+      OVERLAYS.library.shows({ ...propsOf(undefined), project: empty }),
+    ).toBe(true);
   });
 
   // Fails if Components' tab is left out for want of a run or a selection,

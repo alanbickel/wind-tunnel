@@ -2,10 +2,10 @@ import { useCallback, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 
 /**
- * The canvas's panels: the tool rail's four ("add" component's types,
- * "connect"'s hint, the "workflows" and the "workloads").
+ * The canvas's panels: the tool rail's three ("connect"'s hint, the
+ * "workflows" and the "workloads").
  */
-export type CanvasPanelId = "add" | "connect" | "workflows" | "workloads";
+export type CanvasPanelId = "connect" | "workflows" | "workloads";
 
 /**
  * The attribute each panel's section carries, holding its id, so `reveal`
@@ -31,7 +31,6 @@ export interface CanvasPanels {
 
 /** The panel ids, so an attribute's value can be checked against them. */
 const PANEL_IDS: ReadonlySet<string> = new Set<CanvasPanelId>([
-  "add",
   "connect",
   "workflows",
   "workloads",

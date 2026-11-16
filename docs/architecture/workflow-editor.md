@@ -294,7 +294,7 @@ sequenceDiagram
 - **How it looks.** A "+" button in React Flow's label layer ([`OfferEdge`](../../src/ui/diagram/OfferEdge.tsx)), named and given a tooltip for what it does, and always drawn, so it's never shown by color alone and never needs hover to be found. A click on it doesn't reach the canvas, which would clear the selection; a click on the arrow itself still selects the arrow. The arrow's call numbers sit above the button.
 - **Which step gets the call.** The selected step, if it's on the arrow's source box; otherwise the only step there. If the box is in the path more than once and none of its steps is selected, the popover asks "Under step", naming each by its outline number and label.
 - **Which action.** Asked, as "Action", only when the target accepts several (RDS takes `read` and `write`); with one, the call is added at once with no popover. The popover is [`OfferQuestionForm`](../../src/ui/project/OfferQuestionForm.tsx), which takes the focus; Escape, from the form or from the "+", closes it, adds nothing, and returns the focus to the "+". A change to the selection or the project while it's open closes it too, since its answer would save under the old offer.
-- **The focus and the selection** are the outline's: the new step is selected, and the announcement comes from the polite region beside "Add component" (a move on the canvas says its words there too), since Details may be closed.
+- **The focus and the selection** are the outline's: the new step is selected, and the announcement comes from the polite region in the dock (a move on the canvas says its words there too), since Details may be closed.
 
 ## Changing a step
 

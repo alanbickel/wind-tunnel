@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useUseCases } from "../app/useUseCases";
 
-/** A component type's name in words, from the types "Add component" offers. */
+/** A component type's name in words, from the types the Library offers. */
 export function useDisplayNames(): (type: string) => string {
   const { listComponentTypes } = useUseCases();
   return useMemo(() => {

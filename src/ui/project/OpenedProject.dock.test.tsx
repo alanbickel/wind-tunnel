@@ -82,16 +82,17 @@ describe("OpenedProject's dock", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the dock shows a tab but Components with no run and nothing
-  // selected, or a workload doesn't open in a tab labelled with its name.
-  it("shows only Components until a workload is selected, then its tab too", () => {
+  // Fails if the dock shows a tab but Library and Components with no run and
+  // nothing selected, opens on another than Library, or a workload doesn't
+  // open in a tab labelled with its name.
+  it("shows only Library and Components until a workload is selected, then its tab too", () => {
     renderProject();
-    expect(dockTabs()).toEqual(["Components"]);
-    expect(shownTab()).toBe("Components");
+    expect(dockTabs()).toEqual(["Library", "Components"]);
+    expect(shownTab()).toBe("Library");
 
     openSteady();
 
-    expect(dockTabs()).toEqual(["Components", "Workload: Steady"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Workload: Steady"]);
     expect(workloadHeading().textContent).toBe("Steady · Workload");
   });
 
@@ -124,7 +125,7 @@ describe("OpenedProject's dock", () => {
 
     fireEvent.click(run);
 
-    expect(dockTabs()).toEqual(["Components", "Run"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Run"]);
     expect(shownTab()).toBe("Run");
     expect(document.activeElement).toBe(run);
   });
@@ -137,7 +138,12 @@ describe("OpenedProject's dock", () => {
 
     openSteady();
 
-    expect(dockTabs()).toEqual(["Components", "Run", "Workload: Steady"]);
+    expect(dockTabs()).toEqual([
+      "Library",
+      "Components",
+      "Run",
+      "Workload: Steady",
+    ]);
     expect(shownTab()).toBe("Workload: Steady");
     expect(document.activeElement).toBe(workloadHeading());
   });
@@ -152,7 +158,7 @@ describe("OpenedProject's dock", () => {
     fireEvent.change(name, { target: { value: "Dinner" } });
     fireEvent.keyDown(name, { key: "Enter" });
 
-    expect(dockTabs()).toEqual(["Components", "Workload: Dinner"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Workload: Dinner"]);
   });
 
   // Fails if switching the dock's tabs changes the selection: the workload
@@ -166,7 +172,12 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(dockTab("Run"));
 
     expect(shownTab()).toBe("Run");
-    expect(dockTabs()).toEqual(["Components", "Run", "Workload: Spike"]);
+    expect(dockTabs()).toEqual([
+      "Library",
+      "Components",
+      "Run",
+      "Workload: Spike",
+    ]);
     expect(picked()).toBe("spike");
     fireEvent.click(dockTab("Workload: Spike"));
     expect(workloadHeading().textContent).toBe("Spike · Workload");
@@ -230,14 +241,14 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(run);
 
     expect(shownTab()).toBe("Run");
-    expect(dockTabs()).toEqual(["Components", "Run"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Run"]);
     expect(document.activeElement).toBe(run);
   });
 
   // Fails if Close or Escape leaves the workload's tab, or takes the Run
   // or Components tab with it. The first tab left shows.
   it.each(["Close", "Escape"])(
-    "clears the selection on %s, leaving Components showing",
+    "clears the selection on %s, leaving Library showing",
     async (how) => {
       const shown = renderProject();
       await runASecond(shown);
@@ -248,8 +259,8 @@ describe("OpenedProject's dock", () => {
       else
         fireEvent.click(within(dock()).getByRole("button", { name: /^Close/ }));
 
-      expect(dockTabs()).toEqual(["Components", "Run"]);
-      expect(shownTab()).toBe("Components");
+      expect(dockTabs()).toEqual(["Library", "Components", "Run"]);
+      expect(shownTab()).toBe("Library");
       expect(picked()).toBe("steady");
     },
   );
@@ -343,21 +354,21 @@ describe("OpenedProject's dock", () => {
   });
 
   // Fails if Escape leaves the workload's tab in the dock.
-  it("closes its tab on Escape, leaving Components", () => {
+  it("closes its tab on Escape, leaving Library and Components", () => {
     renderProject();
     openSteady();
 
     fireEvent.keyDown(workloadHeading(), { key: "Escape" });
 
-    expect(dockTabs()).toEqual(["Components"]);
+    expect(dockTabs()).toEqual(["Library", "Components"]);
   });
 
-  // Fails if a narrow window's dock isn't there with the Components tab
-  // alone, as a wide window's is.
-  it("shows the Components tab in a narrow window with nothing selected", () => {
+  // Fails if a narrow window's dock isn't there with the Library and
+  // Components tabs alone, as a wide window's is.
+  it("shows Library and Components in a narrow window with nothing selected", () => {
     renderProject({ width: "narrow" });
 
-    expect(dockTabs()).toEqual(["Components"]);
+    expect(dockTabs()).toEqual(["Library", "Components"]);
   });
 });
 
@@ -459,7 +470,7 @@ describe("OpenedProject's run evidence", () => {
     expect(runPanel.querySelectorAll("table, figure")).toHaveLength(0);
     expect(document.querySelectorAll("figure")).toHaveLength(4);
     expect(dock().querySelectorAll("figure")).toHaveLength(4);
-    expect(dockTabs()).toEqual(["Components", "Run"]);
+    expect(dockTabs()).toEqual(["Library", "Components", "Run"]);
     expect(
       runPanel.compareDocumentPosition(dock()) &
         Node.DOCUMENT_POSITION_FOLLOWING,

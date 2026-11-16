@@ -42,6 +42,7 @@ function renderTab({
     selecting: selecting as ProjectSelection,
     onEdit: vi.fn(),
     onRemove: vi.fn(),
+    onAdd: vi.fn(),
     listRef: { current: null },
     announcement: "",
   };

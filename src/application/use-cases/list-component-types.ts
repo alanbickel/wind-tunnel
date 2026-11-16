@@ -8,7 +8,7 @@ export interface ListComponentTypesDependencies {
   readonly fields: FieldCatalog;
 }
 
-/** One type "Add component" offers. */
+/** One type the dock's Library offers. */
 export interface ComponentTypeChoice {
   /** The component definition's type, e.g. `"api-gateway"`. */
   readonly type: string;

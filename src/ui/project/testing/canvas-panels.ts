@@ -43,6 +43,20 @@ export function railRegion(which: "component" | "list"): HTMLElement {
   return region;
 }
 
+/**
+ * Adds a component from the dock's Library tab, showing the tab first if
+ * it isn't: clicks the card whose name starts `typeName`.
+ */
+export function addComponent(typeName: string): void {
+  const tab = screen.queryByRole("tab", { name: "Library" });
+  if (tab !== null) fireEvent.click(tab);
+  const list = screen.getByRole("list", { name: "Component types" });
+  const card = within(list).getByRole("button", {
+    name: new RegExp(`^${typeName} `),
+  });
+  fireEvent.click(card);
+}
+
 /** The canvas's panel buttons, in the order `revealButton` tries them. */
 const PANEL_BUTTONS: readonly CanvasPanelButton[] = ["Workflows", "Workloads"];
 

@@ -51,8 +51,6 @@ export interface AddAndRemove {
    * list is hidden the focus goes to the Components tab, or to Unfold.
    */
   readonly remove: (target: Selection) => void;
-  /** The "Add component" button, which keeps the focus as a type is chosen. */
-  readonly addButtonRef: RefObject<HTMLButtonElement | null>;
   /** The Components tab's list, where a component's or an edge's remove sends the focus. */
   readonly componentsListRef: RefObject<HTMLDivElement | null>;
   /** "Removed Table.", for the polite region in the dock. */
@@ -100,7 +98,6 @@ export function useAddAndRemove(
   selecting: ProjectSelection,
 ): AddAndRemove {
   const { edit } = edits;
-  const addButtonRef = useRef<HTMLButtonElement>(null);
   const [announcement, announce] = useAnnouncement();
   const add = useAdd(edit, selecting.select);
   const addWorkflow = useAddWorkflow(selecting.select);
@@ -116,7 +113,6 @@ export function useAddAndRemove(
     addWorkload,
     connect,
     remove,
-    addButtonRef,
     componentsListRef,
     announcement,
     announce,

@@ -21,7 +21,7 @@ import type { ZoomActions } from "../diagram/zoom-actions";
 import { CanvasPanels, type CanvasPanelsProps } from "./CanvasPanels";
 import { selectionOf } from "./diagram-items";
 import { useDisplayNames } from "./useDisplayNames";
-import { ToolRail, type AddComponentProps } from "./ToolRail";
+import { ToolRail } from "./ToolRail";
 import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
 import { WorkloadList, type AddWorkloadProps } from "./WorkloadList";
@@ -39,8 +39,6 @@ export interface ArchitectureViewProps {
   readonly onConnect: (from: string, to: string) => void;
   /** Moves a component to where it was put on the diagram. */
   readonly onMove: (componentId: string, position: Point) => void;
-  /** "Add component", on the tool rail. */
-  readonly adding: AddComponentProps;
   /** "Add workflow", in the workflows list. */
   readonly addingWorkflow: AddWorkflowProps;
   /** "Add workload", in the workloads list. */
@@ -65,8 +63,8 @@ export interface ArchitectureViewProps {
 
 /**
  * The canvas: the project's components and connections as a diagram that
- * fills the room it's given, with a tool rail down its left edge (Add
- * component, Connect, Workflows, Workloads), and at its bottom left the
+ * fills the room it's given, with a tool rail down its left edge (Connect,
+ * Workflows, Workloads), and at its bottom left the
  * workflow picker and zoom, in one row. A click on the diagram selects a
  * component or a connection; the dock's Components tab has the same facts
  * as lists, which every user can rely on. The diagram marks
@@ -80,8 +78,7 @@ export interface ArchitectureViewProps {
  * components, a line on the canvas says what to do instead (UX design
  * §2.1 step 1). "Workflows" lists them, each
  * a button that selects it, and "Add workflow"; "Workloads" does the same
- * for workloads. The rail comes first in the tab order, as "Add component"
- * did above the diagram.
+ * for workloads. The rail comes first in the tab order.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
   const displayNameOf = useDisplayNames();
@@ -131,7 +128,6 @@ function Rail(props: ArchitectureViewProps) {
   return (
     <ToolRail
       panels={props.panels}
-      adding={props.adding}
       workflows={<Workflows {...props} />}
       workloads={<Workloads {...props} />}
       workflowAnnouncement={props.workflowAnnouncement}

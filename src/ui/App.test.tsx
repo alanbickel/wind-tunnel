@@ -22,6 +22,7 @@ import { inMemoryUseCases } from "./app/testing/in-memory-use-cases";
 import { UseCasesProvider } from "./app/UseCasesProvider";
 import { StartupFailure } from "./StartupFailure";
 import { stubDiagramBrowserApis } from "./diagram/testing/stub-diagram-browser-apis";
+import { addComponent } from "./project/testing/canvas-panels";
 import { stubWindowWidth } from "./shared/testing/stub-window-width";
 
 /**
@@ -261,9 +262,7 @@ describe("App's blank project", () => {
     await renderApp();
     await createOrdersService();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add component" }));
-    const types = screen.getByRole("list", { name: "Component types" });
-    fireEvent.click(within(types).getByRole("button", { name: /^Lambda:/ }));
+    addComponent("Lambda");
 
     expect(screen.queryByText(PROMPT)).toBeNull();
     expect(
@@ -271,6 +270,7 @@ describe("App's blank project", () => {
         name: "Architecture diagram of Orders service",
       }),
     ).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Components" }));
     const components = screen.getByRole("list", { name: "Components" });
     expect(components.textContent).toBe("lambda-1 (Lambda)");
   });

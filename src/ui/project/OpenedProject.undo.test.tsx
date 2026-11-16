@@ -22,7 +22,7 @@ import {
   undoneRegion,
 } from "./testing/render-opened-project";
 
-import { revealButton } from "./testing/canvas-panels";
+import { addComponent, revealButton } from "./testing/canvas-panels";
 
 /** Selects a component from the diagram's text version, as the keyboard does. */
 function select(name: string): void {
@@ -284,9 +284,7 @@ describe("OpenedProject's undo and redo", () => {
   // selected, or moves the focus off Undo.
   it("clears the selection when undoing the add of the selected component", () => {
     renderOpenedProject();
-    fireEvent.click(screen.getByRole("button", { name: "Add component" }));
-    const list = screen.getByRole("list", { name: "Component types" });
-    fireEvent.click(within(list).getByRole("button", { name: /^SQS:/ }));
+    addComponent("SQS");
     expect(queryDetailsHeading()?.textContent).toBe("sqs-1 · SQS");
 
     // A click focuses the button in a browser, but not in jsdom.
@@ -333,7 +331,5 @@ describe("OpenedProject's undo and redo", () => {
 
 /** Adds an SQS component from the palette, which selects it. */
 function addSqs(): void {
-  fireEvent.click(screen.getByRole("button", { name: "Add component" }));
-  const list = screen.getByRole("list", { name: "Component types" });
-  fireEvent.click(within(list).getByRole("button", { name: /^SQS:/ }));
+  addComponent("SQS");
 }

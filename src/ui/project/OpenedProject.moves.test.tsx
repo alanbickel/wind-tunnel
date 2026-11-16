@@ -39,7 +39,7 @@ function clickNode(box: HTMLElement): void {
   fireEvent.click(box);
 }
 
-/** The polite region beside "Add component", which says what a move did. */
+/** The polite region in the dock, which says what a move did. */
 function movedRegion(): HTMLElement {
   return railRegion("component");
 }

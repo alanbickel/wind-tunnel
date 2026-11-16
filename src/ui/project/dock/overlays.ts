@@ -1,6 +1,7 @@
 import type { Overlay, OverlayProps } from "./overlay";
 import type { OverlayKey } from "../screen/screen-state";
 import { ComponentsOverlay } from "./ComponentsOverlay";
+import { LibraryOverlay } from "./LibraryOverlay";
 import { RunOverlay } from "./RunOverlay";
 import { WorkloadOverlay } from "./WorkloadOverlay";
 
@@ -16,6 +17,11 @@ function selectedWorkloadName({ project, selecting }: OverlayProps) {
  * `OverlayKey` doesn't compile until it's registered here.
  */
 export const OVERLAYS: Readonly<Record<OverlayKey, Overlay>> = {
+  library: {
+    shows: () => true,
+    label: () => "Library",
+    Content: LibraryOverlay,
+  },
   components: {
     shows: () => true,
     label: () => "Components",

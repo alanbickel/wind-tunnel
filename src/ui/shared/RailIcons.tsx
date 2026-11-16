@@ -22,16 +22,6 @@ function RailIcon({ children }: { readonly children: ReactNode }) {
   );
 }
 
-/** A box with a plus: add a component. */
-export function AddComponentIcon() {
-  return (
-    <RailIcon>
-      <rect x="3" y="3" width="18" height="18" rx="3" />
-      <path d="M12 8v8M8 12h8" />
-    </RailIcon>
-  );
-}
-
 /** Two boxes joined by a line: connect them. */
 export function ConnectIcon() {
   return (

@@ -65,7 +65,12 @@ const PICK = (workloadId: string): ScreenTransition => ({
   workloadId,
 });
 
-const EVERY_TAB: readonly OverlayKey[] = ["components", "run", "workload"];
+const EVERY_TAB: readonly OverlayKey[] = [
+  "library",
+  "components",
+  "run",
+  "workload",
+];
 
 /** The state the screen reaches by `transitions`, from when it opens. */
 function after(...transitions: ScreenTransition[]): ScreenState {
@@ -194,11 +199,11 @@ describe("how the selection moves", () => {
 });
 
 describe("the map: the dock", () => {
-  // Fails if a screen opens on another tab than Components, which is always
+  // Fails if a screen opens on another tab than Library, which is always
   // there, or folded.
-  it("opens unfolded, on the Components tab", () => {
+  it("opens unfolded, on the Library tab", () => {
     expect(INITIAL_SCREEN_STATE.dock).toEqual({
-      shown: "components",
+      shown: "library",
       folded: false,
     });
   });
@@ -229,7 +234,7 @@ describe("the map: the dock", () => {
   // Fails if a change the dock already shows makes a new state, so React
   // renders the screen again for nothing.
   it.each([
-    ["showing the tab shown", INITIAL_SCREEN_STATE, SHOW("components")],
+    ["showing the tab shown", INITIAL_SCREEN_STATE, SHOW("library")],
     ["folding a folded", after(FOLD), FOLD],
     ["unfolding an unfolded", INITIAL_SCREEN_STATE, UNFOLD],
   ] as const)("keeps the state on %s dock", (_, state, transition) => {

@@ -25,12 +25,9 @@ export interface ToolRailProps {
   readonly workflowAnnouncement: string;
 }
 
-/** The panels the rail opens: the first is a popover, the others lists. */
-type RailPanelId = CanvasPanelId;
-
 /** One rail button, and the panel it opens. */
 interface RailEntry {
-  readonly id: RailPanelId;
+  readonly id: CanvasPanelId;
   /** The button's name, its tooltip, and its panel's name. */
   readonly name: string;
   readonly icon: ReactNode;
@@ -39,7 +36,7 @@ interface RailEntry {
 }
 
 /** Each panel's element id, which its button controls. */
-type PanelIds = (id: RailPanelId) => string;
+type PanelIds = (id: CanvasPanelId) => string;
 
 const RAIL_PANELS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
   "connect",

@@ -242,9 +242,8 @@ describe("the map: the dock", () => {
   });
 
   // Which tabs are there isn't held here: the dock reads it from the run
-  // and the selection, so "no run: the Run tab isn't there" and "Components
-  // is always there" are tested in `dock/overlays.test.tsx`.
-  it.todo("Library is always there (slice 4, part 2 of #246)");
+  // and the selection, so "no run: the Run tab isn't there" and "Library and
+  // Components are always there" are tested in `dock/overlays.test.tsx`.
   it.todo("Workflows and Workloads are always there (slice 5 of #246)");
 });
 

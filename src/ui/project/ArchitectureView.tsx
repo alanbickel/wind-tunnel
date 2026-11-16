@@ -64,8 +64,8 @@ export interface ArchitectureViewProps {
 /**
  * The canvas: the project's components and connections as a diagram that
  * fills the room it's given, with a tool rail down its left edge (Connect,
- * Workflows, Workloads), and at its bottom left the
- * workflow picker and zoom, in one row. A click on the diagram selects a
+ * Workflows, Workloads), and at its bottom left the workflow picker and
+ * zoom, in one row. A click on the diagram selects a
  * component or a connection; the dock's Components tab has the same facts
  * as lists, which every user can rely on. The diagram marks
  * the selection, and a selected workflow's path, or a selected step's and

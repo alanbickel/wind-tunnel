@@ -64,9 +64,20 @@ const TRANSITIONS: KindHandlers<
       inspector: selection.kind === "workload" ? "collapsed" : "open",
     }),
   clear: () => () => ({ selection: undefined, inspector: "open" }),
-  "collapse-inspector": () => (state) => ({ ...state, inspector: "collapsed" }),
-  "open-inspector": () => (state) => ({ ...state, inspector: "open" }),
+  "collapse-inspector": () => (state) => withInspector(state, "collapsed"),
+  "open-inspector": () => (state) => withInspector(state, "open"),
 };
+
+/**
+ * `state` with the inspector `inspector`. It's `state` itself when the
+ * inspector already is, so React skips the render, as `useState` did.
+ */
+function withInspector(
+  state: ScreenState,
+  inspector: InspectorState,
+): ScreenState {
+  return state.inspector === inspector ? state : { ...state, inspector };
+}
 
 /** The state `transition` moves the screen to from `state`. */
 export function nextScreenState(

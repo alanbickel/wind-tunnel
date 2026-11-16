@@ -77,11 +77,12 @@ export interface ProjectSelection {
  * its view state (`screen/screen-state.ts`, ADR-0023) and changed only by
  * its transitions, so the diagram, its text version, Details, and the
  * dock read the same ones. One transition changes all it touches, so a
- * workload's selection and its tab in the dock draw in the same render. The focus isn't view state: the target asked to take it,
- * and the element `close` returns it to, are held here, around the
- * state. `reveal` shows an element that may have been hidden since it
- * made the selection, such as a button in a canvas panel closed since,
- * so `close` can return the focus to it.
+ * workload's selection and its tab in the dock draw in the same render.
+ * The focus isn't view state: the target asked to take it, and the
+ * element `close` returns it to, are held here, around the state.
+ * `reveal` shows an element that may have been hidden since it made the
+ * selection, such as a button in a canvas panel closed since, so `close`
+ * can return the focus to it.
  */
 export function useSelection(reveal: RevealElement): ProjectSelection {
   const [screen, dispatch] = useReducer(nextScreenState, INITIAL_SCREEN_STATE);

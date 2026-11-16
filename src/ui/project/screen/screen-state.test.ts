@@ -10,9 +10,8 @@ import {
 
 // The map of UX design §5, as far as the screen's state holds it today:
 // the selection, the inspector, and the dock. Each rule and limit about
-// them has a
-// test where today's screen follows it, and an `it.todo` naming the
-// #246 slice that makes it hold where it doesn't.
+// them has a test where today's screen follows it, and an `it.todo` naming
+// the #246 slice that makes it hold where it doesn't.
 
 const COMPONENT: Selection = { kind: "component", componentId: "api" };
 const EDGE: Selection = { kind: "edge", edgeId: "api-db" };

@@ -99,6 +99,15 @@ describe("the map: the selection and the inspector", () => {
     expect(nextScreenState(collapsed, OPEN).selection).toBe(COMPONENT);
   });
 
+  // Fails if collapsing or opening an inspector already in that state makes
+  // a new state, so React renders the screen again for nothing.
+  it.each([
+    ["collapsing a collapsed", after(COLLAPSE), COLLAPSE],
+    ["opening an open", INITIAL_SCREEN_STATE, OPEN],
+  ] as const)("keeps the state on %s inspector", (_, state, transition) => {
+    expect(nextScreenState(state, transition)).toBe(state);
+  });
+
   it.todo("no run: the run and a finding can't be selected (slice 3 of #246)");
 });
 
@@ -154,6 +163,18 @@ describe("rule 2: only the user collapses the inspector", () => {
   // Fails if the user's collapse doesn't collapse the inspector.
   it("collapses it when the user does", () => {
     expect(after(COLLAPSE).inspector).toBe("collapsed");
+  });
+
+  // Fails if selecting leaves a collapsed inspector collapsed: today the
+  // screen opens it again.
+  it("opens a collapsed inspector on selecting", () => {
+    expect(after(COLLAPSE, SELECT(EDGE)).inspector).toBe("open");
+  });
+
+  // Fails if clearing the selection leaves a collapsed inspector collapsed:
+  // today the screen opens it again, on the overview.
+  it("opens a collapsed inspector on clearing the selection", () => {
+    expect(after(SELECT(COMPONENT), COLLAPSE, CLEAR).inspector).toBe("open");
   });
 
   it.todo(

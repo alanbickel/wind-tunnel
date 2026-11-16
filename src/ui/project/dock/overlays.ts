@@ -1,5 +1,5 @@
 import type { Overlay, OverlayProps } from "./overlay";
-import type { OverlayKey } from "./overlay-request";
+import type { OverlayKey } from "../screen/screen-state";
 import { RunOverlay } from "./RunOverlay";
 import { WorkloadOverlay } from "./WorkloadOverlay";
 
@@ -12,7 +12,7 @@ function selectedWorkloadName({ project, selecting }: OverlayProps) {
 
 /**
  * Every overlay, by key, in the order of their tabs. A key added to
- * `OverlayRequest` doesn't compile until it's registered here.
+ * `OverlayKey` doesn't compile until it's registered here.
  */
 export const OVERLAYS: Readonly<Record<OverlayKey, Overlay>> = {
   run: {

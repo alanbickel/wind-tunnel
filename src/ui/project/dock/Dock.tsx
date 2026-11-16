@@ -1,32 +1,22 @@
-import { useId, useState, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Button } from "../../shared/Button";
 import { Tabs } from "../../shared/Tabs";
 import styles from "./Dock.module.css";
 import type { OverlayProps } from "./overlay";
-import type { OverlayKey, OverlayRequest } from "./overlay-request";
 import { OVERLAY_KEYS, OVERLAYS } from "./overlays";
-
-/** What the dock's overlays read, and the screen's latest ask for one. */
-export interface DockProps extends OverlayProps {
-  /**
-   * The latest ask for an overlay (`useDockRequests`): a new object for
-   * each ask, a repeat of the last included, so each one is seen.
-   */
-  readonly request: OverlayRequest | undefined;
-}
 
 /**
  * The dock along the bottom of the canvas, as wide as the window (UX
  * design §2, "The dock"). It holds the overlays that have something to
- * show, each in a tab, Run first, and nothing when none has. It decides
- * which shows and whether it's folded: an ask shows that overlay's tab,
- * unfolded, and switching tabs changes nothing else. When the shown
- * overlay's tab goes, the first one left shows. Fold shrinks it to one
- * line and keeps every overlay mounted, hidden, so a draft and the charts
- * survive.
+ * show, each in a tab, Run first, and nothing when none has. Which tab
+ * shows and whether it's folded are the screen's view state
+ * (`selecting.dock`), which the dock reads and the user's changes go
+ * to. When the shown overlay's tab isn't there, the first one left
+ * shows. Fold shrinks it to one line and keeps every overlay mounted,
+ * hidden, so a draft and the charts survive.
  */
-export function Dock(props: DockProps) {
-  const { shown, show, folded, fold } = useDockState(props.request);
+export function Dock(props: OverlayProps) {
+  const { shown, show, folded, fold } = props.selecting.dock;
   const keys = OVERLAY_KEYS.filter((key) => OVERLAYS[key].shows(props));
   const [first] = keys;
   if (first === undefined) return null;
@@ -48,33 +38,6 @@ export function Dock(props: DockProps) {
       />
     </DockBand>
   );
-}
-
-/** Which overlay the dock shows, whether it's folded, and how to change them. */
-interface DockState {
-  readonly shown: OverlayKey;
-  readonly show: (key: OverlayKey) => void;
-  readonly folded: boolean;
-  readonly fold: (folded: boolean) => void;
-}
-
-/**
- * The dock's own state, which a new ask moves to the asked-for overlay,
- * unfolded. Derived while drawing, so the overlay shows in the same
- * render as the ask, before its focus request runs.
- */
-function useDockState(request: OverlayRequest | undefined): DockState {
-  const [shown, show] = useState<OverlayKey>("run");
-  const [folded, fold] = useState(false);
-  const [seen, setSeen] = useState(request);
-  if (seen !== request) {
-    setSeen(request);
-    if (request !== undefined) {
-      show(request.key);
-      fold(false);
-    }
-  }
-  return { shown, show, folded, fold };
 }
 
 interface DockBandProps {

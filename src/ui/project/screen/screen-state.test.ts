@@ -3,12 +3,14 @@ import type { Selection } from "../../../application/details/selection";
 import {
   INITIAL_SCREEN_STATE,
   nextScreenState,
+  type OverlayKey,
   type ScreenState,
   type ScreenTransition,
 } from "./screen-state";
 
 // The map of UX design §5, as far as the screen's state holds it today:
-// the selection and the inspector. Each rule and limit about them has a
+// the selection, the inspector, and the dock. Each rule and limit about
+// them has a
 // test where today's screen follows it, and an `it.todo` naming the
 // #246 slice that makes it hold where it doesn't.
 
@@ -46,6 +48,12 @@ const SELECT = (selection: Selection): ScreenTransition => ({
 const CLEAR: ScreenTransition = { kind: "clear" };
 const COLLAPSE: ScreenTransition = { kind: "collapse-inspector" };
 const OPEN: ScreenTransition = { kind: "open-inspector" };
+const SHOW = (tab: OverlayKey): ScreenTransition => ({ kind: "show-tab", tab });
+const FOLD: ScreenTransition = { kind: "fold-dock" };
+const UNFOLD: ScreenTransition = { kind: "unfold-dock" };
+const RUN: ScreenTransition = { kind: "run" };
+
+const EVERY_TAB: readonly OverlayKey[] = ["run", "workload"];
 
 /** The state the screen reaches by `transitions`, from when it opens. */
 function after(...transitions: ScreenTransition[]): ScreenState {
@@ -55,7 +63,7 @@ function after(...transitions: ScreenTransition[]): ScreenState {
 describe("the map: the selection and the inspector", () => {
   // Fails if a screen opens with something selected or the inspector collapsed.
   it("opens with nothing selected and the inspector open", () => {
-    expect(INITIAL_SCREEN_STATE).toEqual({
+    expect(INITIAL_SCREEN_STATE).toMatchObject({
       selection: undefined,
       inspector: "open",
     });
@@ -73,7 +81,7 @@ describe("the map: the selection and the inspector", () => {
   it.each(EVERY_SELECTION)(
     "shows a $kind with the inspector collapsed",
     (selection) => {
-      expect(after(SELECT(selection), COLLAPSE)).toEqual({
+      expect(after(SELECT(selection), COLLAPSE)).toMatchObject({
         selection,
         inspector: "collapsed",
       });
@@ -85,7 +93,7 @@ describe("the map: the selection and the inspector", () => {
   it.each(EVERY_SELECTION)(
     "shows a $kind with the inspector open",
     (selection) => {
-      expect(after(SELECT(selection), COLLAPSE, OPEN)).toEqual({
+      expect(after(SELECT(selection), COLLAPSE, OPEN)).toMatchObject({
         selection,
         inspector: "open",
       });
@@ -136,10 +144,76 @@ describe("how the selection moves", () => {
   );
 });
 
-describe("rule 1: the selection alone decides what the inspector shows", () => {
+describe("the map: the dock", () => {
+  // Fails if a screen opens on another tab than Run, or folded.
+  it("opens unfolded, on the Run tab", () => {
+    expect(INITIAL_SCREEN_STATE.dock).toEqual({ shown: "run", folded: false });
+  });
+
+  // Fails if any selection can't be seen beside some tab, folded or not.
+  describe.each(EVERY_SELECTION)("beside a $kind", (selection) => {
+    it.each(
+      EVERY_TAB.flatMap((tab) => [[tab, true] as const, [tab, false] as const]),
+    )("shows the %s tab, folded %s", (tab, folded) => {
+      const shown = after(
+        SELECT(selection),
+        SHOW(tab),
+        ...(folded ? [FOLD] : []),
+      );
+      expect(shown).toMatchObject({ selection, dock: { shown: tab, folded } });
+    });
+  });
+
+  // Fails if a folded dock loses its tab, so unfolding it shows another.
+  it("unfolds on the tab it held", () => {
+    const folded = after(SHOW("workload"), FOLD);
+    expect(nextScreenState(folded, UNFOLD).dock).toEqual({
+      shown: "workload",
+      folded: false,
+    });
+  });
+
+  // Fails if a change the dock already shows makes a new state, so React
+  // renders the screen again for nothing.
+  it.each([
+    ["showing the tab shown", INITIAL_SCREEN_STATE, SHOW("run")],
+    ["folding a folded", after(FOLD), FOLD],
+    ["unfolding an unfolded", INITIAL_SCREEN_STATE, UNFOLD],
+  ] as const)("keeps the state on %s dock", (_, state, transition) => {
+    expect(nextScreenState(state, transition)).toBe(state);
+  });
+
+  // Which tabs are there isn't held here: the dock reads it from the run
+  // and the selection, so "no run: the Run tab isn't there" is tested in
+  // `dock/overlays.test.tsx`.
   it.todo(
-    "showing a dock tab leaves the selection and the inspector (#250, slice 2 of #246)",
+    "Library, Components, Workflows, and Workloads are always there (slice 4 of #246)",
   );
+});
+
+describe("rule 1: the selection alone decides what the inspector shows", () => {
+  // Fails if showing a tab changes the selection or the inspector.
+  it.each(EVERY_TAB)("showing the %s tab leaves them", (tab) => {
+    const before = after(SELECT(EDGE), COLLAPSE);
+    expect(nextScreenState(before, SHOW(tab))).toMatchObject({
+      selection: EDGE,
+      inspector: "collapsed",
+    });
+  });
+
+  // Fails if folding or unfolding the dock changes the selection or the
+  // inspector.
+  it.each([
+    ["folding", FOLD],
+    ["unfolding", UNFOLD],
+  ] as const)("%s the dock leaves them", (_, transition) => {
+    const before = after(SELECT(EDGE), COLLAPSE, FOLD, UNFOLD);
+    expect(nextScreenState(before, transition)).toMatchObject({
+      selection: EDGE,
+      inspector: "collapsed",
+    });
+  });
+
   it.todo(
     "picking a workload in the run group leaves the selection (#251, slice 2 of #246)",
   );
@@ -180,7 +254,120 @@ describe("rule 2: only the user collapses the inspector", () => {
   it.todo(
     "selecting a workload leaves the inspector open: today it collapses (slice 5 of #246)",
   );
+  // Fails if Run leaves a collapsed inspector collapsed: today the screen
+  // opens it, where the run's verdict and findings are.
+  it("opens a collapsed inspector on Run", () => {
+    expect(after(COLLAPSE, RUN).inspector).toBe("open");
+  });
+
   it.todo("Run leaves the inspector as it is (slice 3 of #246)");
+});
+
+describe("rule 2: only the user folds the dock", () => {
+  // Fails if selecting anything, or clearing, or Run, folds the dock.
+  it.each([
+    ...EVERY_SELECTION.map(
+      (s) => [`selecting a ${s.kind}`, SELECT(s)] as const,
+    ),
+    ["clearing the selection", CLEAR] as const,
+    ["Run", RUN] as const,
+  ])("leaves it unfolded on %s", (_, transition) => {
+    expect(after(SELECT(COMPONENT), transition).dock.folded).toBe(false);
+  });
+
+  // Fails if a selection that shows no tab unfolds a folded dock, or
+  // clearing the selection does.
+  it.each([
+    ...ALL_BUT_WORKLOAD.map(
+      (s) => [`selecting a ${s.kind}`, SELECT(s)] as const,
+    ),
+    ["clearing the selection", CLEAR] as const,
+  ])("leaves it folded on %s", (_, transition) => {
+    expect(after(FOLD, transition).dock.folded).toBe(true);
+  });
+
+  // Fails if the user's fold doesn't fold the dock.
+  it("folds it when the user does", () => {
+    expect(after(FOLD).dock.folded).toBe(true);
+  });
+
+  // Fails if selecting a workload leaves a folded dock folded, so its
+  // editor's heading can't take the focus.
+  it("unfolds it on selecting a workload, the same one again included", () => {
+    expect(after(SELECT(WORKLOAD), FOLD, SELECT(WORKLOAD)).dock.folded).toBe(
+      false,
+    );
+  });
+
+  // Fails if Run leaves a folded dock folded, so the run's evidence is hidden.
+  it("unfolds it on Run", () => {
+    expect(after(FOLD, RUN).dock.folded).toBe(false);
+  });
+
+  it.todo(
+    "selecting a workflow or a step unfolds it on Workflows (slice 4 of #246)",
+  );
+});
+
+describe("rule 3: a selection may show a tab; switching tabs changes nothing else", () => {
+  // Fails if selecting a workload doesn't show its tab, or selecting it
+  // again over another tab doesn't.
+  it("shows the workload's tab on selecting a workload, the same one again included", () => {
+    const again = after(SELECT(WORKLOAD), SHOW("run"), SELECT(WORKLOAD));
+    expect(again.dock.shown).toBe("workload");
+  });
+
+  // Fails if Run doesn't show the Run tab, or changes the selection.
+  it("shows the Run tab on Run, keeping the selection", () => {
+    expect(after(SELECT(WORKLOAD), RUN)).toMatchObject({
+      selection: WORKLOAD,
+      dock: { shown: "run" },
+    });
+  });
+
+  // Fails if showing a tab folds or unfolds the dock. Rule 1's tests
+  // check it leaves the selection and the inspector. Each tab keeping its
+  // own state while another shows is the UI's, tested in
+  // `OpenedProject.dock.test.tsx`.
+  it.each([true, false])("leaves the folding as it is, folded %s", (folded) => {
+    const before = after(...(folded ? [FOLD] : []));
+    expect(nextScreenState(before, SHOW("workload")).dock).toEqual({
+      shown: "workload",
+      folded,
+    });
+  });
+
+  it.todo(
+    "a workload shows the Workloads tab, with its editor open (slice 4 of #246)",
+  );
+  it.todo("a workflow or a step shows the Workflows tab (slice 4 of #246)");
+  it.todo("Run selects the run, which shows the Run tab (slice 3 of #246)");
+});
+
+describe("the limit: a selection shows a tab only as it's made", () => {
+  // Fails if a selection that shows no tab moves the dock off its tab.
+  it.each(ALL_BUT_WORKLOAD)(
+    "leaves the tab on selecting a $kind",
+    (selection) => {
+      expect(after(SHOW("workload"), SELECT(selection)).dock.shown).toBe(
+        "workload",
+      );
+    },
+  );
+
+  // Fails if clearing the selection moves the dock off its tab.
+  it("leaves the tab on clearing the selection", () => {
+    expect(after(SELECT(WORKLOAD), CLEAR).dock.shown).toBe("workload");
+  });
+
+  // Fails if a selection holds its tab, so the user can't show another
+  // beside it.
+  it("lets the user show another tab beside a selected workload", () => {
+    expect(after(SELECT(WORKLOAD), SHOW("run"))).toMatchObject({
+      selection: WORKLOAD,
+      dock: { shown: "run" },
+    });
+  });
 });
 
 describe("rule 7: × clears the selection; the chevron collapses", () => {

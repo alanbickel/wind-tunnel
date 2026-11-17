@@ -3,7 +3,7 @@ import type { Selection } from "../../application/details/selection";
 import type { Project } from "../../domain/model/project";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
-import styles from "./ArchitectureView.module.css";
+import styles from "./DockList.module.css";
 
 export interface WorkflowListProps {
   readonly project: Project;

@@ -5,7 +5,7 @@ import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
 import { dispatchKind } from "../shared/kind-dispatch";
-import styles from "./ArchitectureView.module.css";
+import styles from "./DockList.module.css";
 
 export interface WorkloadListProps {
   readonly project: Project;

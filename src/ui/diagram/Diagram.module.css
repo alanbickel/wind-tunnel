@@ -131,7 +131,7 @@
   left: 50%;
   transform: translateX(-50%);
   margin-top: var(--space-1);
-  min-width: var(--picker-max-width);
+  min-width: var(--popover-min-width);
   padding: var(--space-2);
   background: var(--color-surface);
   border: var(--floating-border);

@@ -4,11 +4,19 @@ import {
   useReactFlow,
   useStore,
   type AriaLabelConfig,
+  type FitViewOptions,
   type Node,
   type ReactFlowProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect, useMemo, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
 import {
   canConnect,
   NO_MARKS,
@@ -20,7 +28,7 @@ import {
   type DiagramMove,
   type DiagramNode,
 } from "./diagram-model";
-import { FIT } from "./fit-options";
+import { fitOptions } from "./fit-options";
 import { nodeIdOf } from "./node-id-of";
 import type { ZoomActions } from "./zoom-actions";
 import { toFlowEdge, toFlowNode, withOffer } from "./to-react-flow";
@@ -48,42 +56,62 @@ const CONNECT_SENTENCE =
 const GRID_DOT_SIZE = 2;
 
 /**
- * Fits the diagram to its box again whenever the box changes size. React
- * Flow's `fitView` fits only once, when the diagram opens, but the box
- * grows and shrinks with the window, and as the inspector beside it
- * collapses and opens. Render it inside `<ReactFlow>`.
+ * How the diagram fits, and whether the user has moved the view since the
+ * last fit: a pan, a wheel or pinch zoom, or a zoom button. While they
+ * have, a change of the box's size keeps their view.
  */
-function FitViewOnResize() {
+interface FitState {
+  readonly fit: FitViewOptions;
+  readonly viewMoved: RefObject<boolean>;
+}
+
+/**
+ * Fits the diagram to its box again whenever the box changes size, or the
+ * fit does (the rail's inset is measured after the first render), until
+ * the user moves the view. React Flow's `fitView` fits only once, when
+ * the diagram opens, but the box grows and shrinks with the window, the
+ * dock, and the inspector. Render it inside `<ReactFlow>`.
+ */
+function FitViewOnResize({ fit, viewMoved }: FitState) {
   const { fitView } = useReactFlow();
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
 
   useEffect(() => {
-    void fitView(FIT);
-  }, [fitView, width, height]);
+    if (viewMoved.current) return;
+    void fitView(fit);
+  }, [fitView, fit, viewMoved, width, height]);
 
   return null;
 }
 
-interface ReportZoomProps {
+interface ReportZoomProps extends FitState {
   readonly onZoom: DiagramCanvasProps["onZoom"];
 }
 
 /**
  * Hands the zoom actions to whoever draws the buttons, which can't use React
- * Flow's hooks from outside it. Fit uses the same options as the automatic
- * fit. Render it inside `<ReactFlow>`.
+ * Flow's hooks from outside it. Zooming in or out is a move of the view, so
+ * resizes keep it; Fit uses the automatic fit's options, and resizes fit
+ * again after it. Render it inside `<ReactFlow>`.
  */
-function ReportZoom({ onZoom }: ReportZoomProps) {
+function ReportZoom({ onZoom, fit, viewMoved }: ReportZoomProps) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   useEffect(() => {
+    const moved = (zoom: () => unknown) => () => {
+      viewMoved.current = true;
+      void zoom();
+    };
     onZoom?.({
-      zoomIn: () => void zoomIn(),
-      zoomOut: () => void zoomOut(),
-      fit: () => void fitView(FIT),
+      zoomIn: moved(zoomIn),
+      zoomOut: moved(zoomOut),
+      fit: () => {
+        viewMoved.current = false;
+        void fitView(fit);
+      },
     });
-  }, [onZoom, zoomIn, zoomOut, fitView]);
+  }, [onZoom, zoomIn, zoomOut, fitView, fit, viewMoved]);
 
   useEffect(
     () => () => {
@@ -107,6 +135,11 @@ export interface DiagramCanvasProps {
   readonly onMove?: ((move: DiagramMove) => void) | undefined;
   /** Called with the zoom actions once they work, and with undefined when they go. */
   readonly onZoom?: ((zoom: ZoomActions | undefined) => void) | undefined;
+  /**
+   * How far from the canvas's left edge something covers it (the tool
+   * rail), which a fit leaves clear. None by default.
+   */
+  readonly fitLeftInsetPx?: number | undefined;
 }
 
 /**
@@ -117,6 +150,7 @@ export function DiagramCanvas(props: DiagramCanvasProps) {
   const { content, onSelect, onConnect, onMove, onZoom } = props;
   const { marks = NO_MARKS } = props;
   const items = useFlowItems({ content, marks, offers: props.offers, onMove });
+  const fitting = useFitState(props.fitLeftInsetPx ?? 0);
   return (
     <ReactFlow
       nodes={items.nodes}
@@ -133,13 +167,35 @@ export function DiagramCanvas(props: DiagramCanvasProps) {
       {...items.nodeProps}
       ariaLabelConfig={descriptionsOf({ onSelect, onConnect, onMove })}
       fitView
-      fitViewOptions={FIT}
+      fitViewOptions={fitting.state.fit}
+      onMoveStart={fitting.onMoveStart}
     >
       <Background size={GRID_DOT_SIZE} />
-      <FitViewOnResize />
-      <ReportZoom onZoom={onZoom} />
+      <FitViewOnResize {...fitting.state} />
+      <ReportZoom onZoom={onZoom} {...fitting.state} />
     </ReactFlow>
   );
+}
+
+/** The fit state, and what React Flow calls when the view starts to move. */
+interface Fitting {
+  readonly state: FitState;
+  readonly onMoveStart: NonNullable<ReactFlowProps["onMoveStart"]>;
+}
+
+/**
+ * The fit for the inset, and whether the user has moved the view, which
+ * starts false and is set by the user's moves: React Flow passes no event
+ * when the code moves the view, as a fit does, and only the user's moves
+ * have one.
+ */
+function useFitState(leftInsetPx: number): Fitting {
+  const fit = useMemo(() => fitOptions(leftInsetPx), [leftInsetPx]);
+  const viewMoved = useRef(false);
+  const onMoveStart = useCallback<Fitting["onMoveStart"]>((event) => {
+    if (event !== null) viewMoved.current = true;
+  }, []);
+  return { state: { fit, viewMoved }, onMoveStart };
 }
 
 /** What the canvas draws: its content and its marks, and what a move is reported to. */

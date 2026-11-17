@@ -3,6 +3,9 @@
    top bar in a wide one. */
 .canvas {
   position: relative;
+  /* Keeps the rail's and React Flow's layers inside, under a narrow
+     window's top bar, which the page scrolls under. */
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: var(--diagram-height);

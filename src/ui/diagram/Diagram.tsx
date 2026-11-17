@@ -63,6 +63,12 @@ export interface DiagramProps {
    * puts them.
    */
   readonly onZoom?: ((zoom: ZoomActions | undefined) => void) | undefined;
+  /**
+   * How far from the diagram's left edge something drawn over it covers
+   * it, such as a tool rail, in pixels: a fit leaves it clear. None if not
+   * given.
+   */
+  readonly fitLeftInsetPx?: number | undefined;
 }
 
 /**
@@ -79,9 +85,10 @@ export interface DiagramProps {
  * can select the same things. It has no border, so it can fill a screen
  * edge to edge, with its zoom actions reported through `onZoom`. Place it
  * in a flex column: it's `--diagram-height` tall, or it fills the room a
- * fixed-height column leaves it, and refits when that room changes. While
- * React Flow loads, or if it can't, the box holds its place. It fits the
- * boxes in, at most at their own size.
+ * fixed-height column leaves it, and refits when that room changes, until
+ * the user pans or zooms; Fit fits it again, and resizes refit after it.
+ * While React Flow loads, or if it can't, the box holds its place. It fits
+ * the boxes in, at most at their own size, clear of `fitLeftInsetPx`.
  */
 export function Diagram(props: DiagramProps) {
   const { label, ...canvasProps } = props;

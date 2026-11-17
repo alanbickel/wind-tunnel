@@ -29,7 +29,24 @@ function railButton(name: string): HTMLElement {
 }
 
 describe("ToolRail", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  // Fails if the rail doesn't report what it covers, or reports only its
+  // width: a fit would put a box in the gap between the canvas's edge and
+  // the rail, or right against the rail.
+  it("reports its left offset, its width, and the same gap again", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockReturnValue(16);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(48);
+    const onInset = vi.fn<(leftInsetPx: number) => void>();
+    const panels = { open: undefined, toggle: vi.fn(), close: vi.fn() };
+
+    render(<ToolRail panels={panels} zoom={undefined} onInset={onInset} />);
+
+    expect(onInset).toHaveBeenLastCalledWith(80);
+  });
 
   // Fails if a rail button loses its name or its tooltip, or the rail stops
   // being a toolbar with zoom, fit, and Connect in order, or "Workflows",

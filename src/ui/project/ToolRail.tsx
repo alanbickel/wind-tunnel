@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -16,6 +17,11 @@ export interface ToolRailProps {
   readonly panels: CanvasPanels;
   /** The diagram's zoom actions, once it has loaded; none with no boxes. */
   readonly zoom: ZoomActions | undefined;
+  /**
+   * Called with how far from the canvas's left edge the rail covers it,
+   * with the same gap again beyond it, so a fit can keep the boxes clear.
+   */
+  readonly onInset?: ((leftInsetPx: number) => void) | undefined;
 }
 
 /**
@@ -27,7 +33,7 @@ export interface ToolRailProps {
  * a click outside it, closes it, and Escape puts the focus back on
  * Connect.
  */
-export function ToolRail({ panels, zoom }: ToolRailProps) {
+export function ToolRail({ panels, zoom, onInset }: ToolRailProps) {
   const hintId = useId();
   const railRef = useRef<HTMLDivElement>(null);
   const connectRef = useRef<HTMLButtonElement>(null);
@@ -41,6 +47,7 @@ export function ToolRail({ panels, zoom }: ToolRailProps) {
       }}
     >
       <div
+        ref={useInsetMeasure(onInset)}
         role="toolbar"
         aria-label="Tools"
         aria-orientation="vertical"
@@ -52,6 +59,21 @@ export function ToolRail({ panels, zoom }: ToolRailProps) {
       </div>
       <ConnectPanel panels={panels} hintId={hintId} />
     </div>
+  );
+}
+
+/**
+ * A ref that measures the toolbar once it's drawn: its left offset in the
+ * canvas, its width, and the same gap again on its right. It's measured
+ * once, since its size is set in rem and doesn't change with the window.
+ */
+function useInsetMeasure(onInset: ToolRailProps["onInset"]) {
+  return useCallback(
+    (toolbar: HTMLDivElement | null) => {
+      if (toolbar === null) return;
+      onInset?.(2 * toolbar.offsetLeft + toolbar.offsetWidth);
+    },
+    [onInset],
   );
 }
 

@@ -75,13 +75,18 @@ export function ArchitectureView(props: ArchitectureViewProps) {
   const selecting = useDiagramSelection(props);
   const empty = content.nodes.length === 0;
   const [zoom, setZoom] = useState<ZoomActions>();
-  const drawn = { ...props, content, selecting, onZoom: setZoom };
+  const [railInsetPx, setRailInsetPx] = useState(0);
+  const drawn = { ...props, content, selecting, onZoom: setZoom, railInsetPx };
   return (
     <section aria-labelledby={headingId} className={styles.canvas}>
       <h3 id={headingId} className={styles.heading}>
         Architecture
       </h3>
-      <ToolRail panels={props.panels} zoom={empty ? undefined : zoom} />
+      <ToolRail
+        panels={props.panels}
+        zoom={empty ? undefined : zoom}
+        onInset={setRailInsetPx}
+      />
       {empty ? <EmptyCanvas /> : <Drawing {...drawn} />}
     </section>
   );
@@ -102,6 +107,8 @@ interface DrawingProps extends ArchitectureViewProps {
   readonly selecting: DiagramSelection;
   /** Called with the diagram's zoom actions once it has loaded. */
   readonly onZoom: (zoom: ZoomActions | undefined) => void;
+  /** How much of the canvas's left the tool rail covers, which a fit leaves clear. */
+  readonly railInsetPx: number;
 }
 
 /** The diagram of a project with components. */
@@ -126,6 +133,7 @@ function Drawing(props: DrawingProps) {
         onMove(id, position);
       }}
       onZoom={props.onZoom}
+      fitLeftInsetPx={props.railInsetPx}
     />
   );
 }

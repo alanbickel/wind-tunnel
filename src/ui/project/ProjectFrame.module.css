@@ -1,8 +1,16 @@
 /* Narrow windows: the bar, the hint, then the content, and the page
-   scrolls, bar and all. */
+   scrolls under the bar, which stays at the window's top with the run
+   group in it, so Run never scrolls out of sight. Above the page's
+   content, which never stacks higher (the canvas isolates its layers). */
 .frame {
   display: flex;
   flex-direction: column;
+}
+
+.frame > header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .content {

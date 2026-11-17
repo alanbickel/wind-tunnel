@@ -7,24 +7,16 @@ import type { UndoRedo } from "./useUndoRedo";
 
 export interface ProjectBarProps {
   readonly undoRedo: UndoRedo;
-  /**
-   * The run group, when the layout puts it in the top bar: a narrow
-   * window's, so Run is never scrolled out of sight.
-   */
-  readonly runGroup?: ReactNode;
 }
 
 /**
  * The project's controls in the top bar's row, after its name: Undo and
- * Redo, then, in a narrow window, the run group, whole.
+ * Redo. A narrow window's run group is the bar's own row, not one of these.
  */
-export function ProjectBar({ undoRedo, runGroup }: ProjectBarProps) {
+export function ProjectBar({ undoRedo }: ProjectBarProps) {
   return (
     <div className={styles.bar}>
       <UndoControls {...undoRedo} />
-      {runGroup !== undefined && (
-        <div className={styles.runGroup}>{runGroup}</div>
-      )}
     </div>
   );
 }

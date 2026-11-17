@@ -19,6 +19,8 @@ export interface ProjectFrameProps {
   readonly current: ReactNode;
   /** The project's controls, in the top bar once it has opened. */
   readonly controls?: ReactNode;
+  /** A row of the top bar's own, under its first: a narrow window's run group. */
+  readonly barRow?: ReactNode;
   /**
    * What affects the whole project, in the banner under the top bar,
    * before the storage hint: a save that failed.
@@ -32,13 +34,14 @@ export interface ProjectFrameProps {
  * it; the banner under it, which shows only problems that affect the
  * whole project (a failed save, and the dismissible storage hint); and
  * the screen's content filling the rest of the window from
- * `--breakpoint-wide` up.
+ * `--breakpoint-wide` up. Below it, the page scrolls and the top bar stays
+ * at the window's top.
  */
 export function ProjectFrame(props: ProjectFrameProps) {
-  const { shell, current, controls, banner, children } = props;
+  const { shell, current, controls, barRow, banner, children } = props;
   return (
     <div className={styles.frame}>
-      <TopBar current={current} onProjects={shell.onProjects}>
+      <TopBar current={current} onProjects={shell.onProjects} row={barRow}>
         {controls}
       </TopBar>
       {banner}

@@ -153,6 +153,11 @@
   --handle-target-size: 2.75rem;
   /* The window's height, less any browser toolbars showing. */
   --window-height: 100dvh;
+  /* The most height of the dock's content, inside its padding, in a
+     narrow window, where the page scrolls: most of the window, leaving
+     room for the top bar that stays over it, so the dock's tabs and its
+     panel's end can both be in view. */
+  --dock-stacked-max-height: 75dvh;
   /* A round icon button, such as an info control, sized to its text. */
   --icon-button-size: 1.5em;
   /* A popover's narrowest width, such as the canvas offer's question. */

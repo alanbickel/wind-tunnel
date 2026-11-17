@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DiagramCanvas } from "./DiagramCanvas";
 import type { DiagramContent } from "./diagram-model";
-import { FIT } from "./fit-options";
+import { FIT, fitOptions } from "./fit-options";
 import type { ZoomActions } from "./zoom-actions";
 import { dragNode, mouse } from "./testing/drag-node";
 import {
@@ -69,6 +69,60 @@ describe("DiagramCanvas", () => {
   });
 });
 
+describe("DiagramCanvas's fit after the user moves the view", () => {
+  let zoom: ZoomActions | undefined;
+  beforeEach(() => {
+    stubDiagramBrowserApis();
+    measureBoxAt(800, 400);
+    render(
+      <DiagramCanvas
+        content={content}
+        onZoom={(actions) => {
+          zoom = actions;
+        }}
+      />,
+    );
+    fitView.mockClear();
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  // Fails if a pan the user makes doesn't count as moving the view (the
+  // onMoveStart that marks it, or its null check, gone), so folding the
+  // dock or resizing the window would throw their view away.
+  it("keeps a view the user panned when the box changes size", () => {
+    const pane = document.querySelector(".react-flow__pane");
+    if (pane === null) throw new Error("the pane should be drawn");
+    mouse({ target: pane, type: "mouseDown", point: [100, 100] });
+    mouse({ target: document, type: "mouseMove", point: [150, 120] });
+    mouse({ target: document, type: "mouseUp", point: [150, 120] });
+
+    measureBoxAt(800, 200);
+    resizeWindow();
+
+    expect(fitView).not.toHaveBeenCalled();
+  });
+
+  // Fails if a zoom button's zoom isn't a move of the view, so a resize
+  // refits over it, or Fit doesn't clear the move, so resizes never fit
+  // again after it.
+  it("keeps a zoom button's zoom, until Fit, then fits on resize again", () => {
+    zoom?.zoomIn();
+    measureBoxAt(800, 200);
+    resizeWindow();
+    expect(fitView).not.toHaveBeenCalled();
+
+    zoom?.fit();
+    measureBoxAt(800, 300);
+    resizeWindow();
+
+    expect(fitView).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("DiagramCanvas's zoom actions", () => {
   beforeEach(() => {
     stubDiagramBrowserApis();
@@ -92,6 +146,20 @@ describe("DiagramCanvas's zoom actions", () => {
     onZoom.mock.lastCall?.[0]?.fit();
 
     expect(fitView).toHaveBeenCalledExactlyOnceWith(FIT);
+  });
+
+  // Fails if the canvas drops its rail inset from the fit, so Fit puts the
+  // left boxes under the tool rail.
+  it("fits clear of the inset on the left", () => {
+    const onZoom = vi.fn<(zoom: ZoomActions | undefined) => void>();
+    render(
+      <DiagramCanvas content={content} onZoom={onZoom} fitLeftInsetPx={80} />,
+    );
+    fitView.mockClear();
+
+    onZoom.mock.lastCall?.[0]?.fit();
+
+    expect(fitView).toHaveBeenCalledExactlyOnceWith(fitOptions(80));
   });
 
   // Fails if the zoom actions reach the wrong React Flow call, or the canvas

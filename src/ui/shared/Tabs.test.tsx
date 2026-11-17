@@ -48,6 +48,38 @@ function showing(): [string | null | undefined, string | null | undefined] {
 describe("Tabs", () => {
   afterEach(cleanup);
 
+  // Fails if `beside` isn't right after the tab list and before `end`, so
+  // the focus would reach it out of the order it's seen in, or if folding
+  // hides it with the tabs, leaving nothing to unfold them with.
+  it("puts beside after the tabs and before end, and keeps it when folded", () => {
+    const strip = (folded: boolean) => (
+      <Tabs
+        label="Fruit"
+        selected="apple"
+        onSelect={() => undefined}
+        tabs={[{ id: "apple", label: "Apple", content: <p>Apple panel</p> }]}
+        beside={<button type="button">Fold</button>}
+        end={<button type="button">End</button>}
+        fold={{ folded, panelsId: "panels" }}
+      />
+    );
+    const { rerender } = render(strip(false));
+    const order = () =>
+      screen.getAllByRole("button").map((button) => button.textContent);
+    expect(order()).toEqual(["Fold", "End"]);
+    expect(
+      screen
+        .getByRole("tablist")
+        .compareDocumentPosition(screen.getByRole("button", { name: "Fold" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    rerender(strip(true));
+
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(order()).toEqual(["Fold", "End"]);
+  });
+
   // Fails if the selected tab loses aria-selected or its tab stop, an
   // unselected tab keeps a tab stop (one Tab press would land on it), or
   // a panel isn't labelled by its tab.

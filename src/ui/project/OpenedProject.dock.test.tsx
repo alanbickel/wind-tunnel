@@ -420,6 +420,25 @@ describe("OpenedProject's run group", () => {
     expect(groupVerdict()).toBeTruthy();
   });
 
+  // Fails if Fold leaves its place right after the tabs, before the run
+  // group, folded or not: the focus would reach the strip's controls out of
+  // the order they're seen in, with the run group wrapping to its own row.
+  it("follows the tabs and Fold, folded or not", () => {
+    renderProject();
+    const fold = () =>
+      within(dock()).getByRole("button", { name: /^(Fold|Unfold) the dock$/ });
+    const before = (first: Element, second: Element) =>
+      (first.compareDocumentPosition(second) &
+        Node.DOCUMENT_POSITION_FOLLOWING) !==
+      0;
+    expect(before(within(dock()).getByRole("tablist"), fold())).toBe(true);
+    expect(before(fold(), runGroup())).toBe(true);
+
+    fireEvent.click(fold());
+
+    expect(before(fold(), runGroup())).toBe(true);
+  });
+
   // Fails if folding the dock hides the run group with the tabs (rule 6:
   // Run and the verdict are always on screen).
   it("stays when the dock folds", async () => {
@@ -438,7 +457,8 @@ describe("OpenedProject's run group", () => {
   });
 
   // Fails if the run group isn't in the top bar below the wide breakpoint,
-  // or is ever in both places, on either side of it.
+  // or comes before the settings menu there (it's the bar's own row, after
+  // the first), or is ever in both places, on either side of it.
   it("moves to the top bar in a narrow window, and back, never in both", () => {
     const { resize } = renderProject();
     expect(screen.getAllByRole("group", { name: "Run" })).toHaveLength(1);
@@ -450,6 +470,13 @@ describe("OpenedProject's run group", () => {
     expect(screen.getAllByRole("group", { name: "Run" })).toHaveLength(1);
     expect(bar().contains(runGroup())).toBe(true);
     expect(dock().contains(runGroup())).toBe(false);
+    // After the settings menu, on the bar's row of its own, so the focus
+    // goes through the bar's first row before it.
+    const settings = within(bar()).getByRole("button", { name: /settings/i });
+    expect(
+      settings.compareDocumentPosition(runGroup()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     act(() => {
       resize("wide");
     });

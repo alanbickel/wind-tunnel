@@ -102,18 +102,23 @@ interface BarPartsInput {
   readonly runGroup: ReactNode;
 }
 
-type BarParts = Pick<ProjectFrameProps, "current" | "controls" | "banner">;
+type BarParts = Pick<
+  ProjectFrameProps,
+  "current" | "controls" | "barRow" | "banner"
+>;
 
 /**
  * The project's parts of the top bar and the banner under it: its name
- * and Rename as the last crumb, its controls, and a save that failed.
+ * and Rename as the last crumb, its controls, the run group on a row of
+ * its own when the bar holds it, and a save that failed.
  */
 function barParts({ screen, runGroup }: BarPartsInput): BarParts {
   const { edits, undoRedo } = screen;
   const { project } = edits.record;
   return {
     current: <ProjectName project={project} onEdit={edits.edit} />,
-    controls: <ProjectBar undoRedo={undoRedo} runGroup={runGroup} />,
+    controls: <ProjectBar undoRedo={undoRedo} />,
+    barRow: runGroup,
     banner: <SaveFailure saveFailed={edits.saveFailed} onRetry={edits.retry} />,
   };
 }

@@ -1,7 +1,13 @@
 /* A narrow window: a full-width section after the inspector's content, in
-   page order. */
+   page order, its content at most --dock-stacked-max-height tall. The
+   tabs stay in view, and the shown overlay scrolls inside its panel, so a
+   long overlay (the run's charts) doesn't make the page many windows
+   tall. */
 .dock {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: var(--dock-stacked-max-height);
   padding: var(--space-5);
   border-top: var(--floating-border);
   background: var(--color-surface);
@@ -22,9 +28,7 @@
    tabs stay in view, and the shown overlay scrolls inside its panel. */
 @media (min-width: 64rem) {
   .dock {
-    display: flex;
     flex: none;
-    flex-direction: column;
     max-height: 50%;
     overflow-y: auto;
   }

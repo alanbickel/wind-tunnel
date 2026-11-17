@@ -1,19 +1,11 @@
-/* In the top bar's row, after the project's name: Undo and Redo, then,
-   in a narrow window, the run group. Each group is an item of the bar's
-   own row, so the bar wraps whole groups, never one group inside a narrow
-   box; the run group takes the room left, at its end. */
+/* In the top bar's row, after the project's name: Undo and Redo, an item
+   of the bar's own row, so the bar wraps it whole. */
 .bar {
   display: contents;
 }
 
 .bar > * {
   margin-block: var(--space-1);
-}
-
-.runGroup {
-  display: flex;
-  flex: 1;
-  justify-content: flex-end;
 }
 
 /* Undo and Redo, after the project's name. */

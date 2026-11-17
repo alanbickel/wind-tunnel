@@ -31,3 +31,8 @@
 .end {
   margin-left: auto;
 }
+
+/* A row of its own, the bar's full width: a narrow window's run group. */
+.row {
+  flex-basis: 100%;
+}

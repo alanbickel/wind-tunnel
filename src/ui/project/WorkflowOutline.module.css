@@ -1,8 +1,3 @@
-.usedBy {
-  max-width: var(--prose-max-width);
-  margin: 0 0 var(--space-3);
-}
-
 /* Each list of steps; the numbers say the order, so no markers. A step's
    calls and async work sit indented under it, as a tree. */
 .outline {

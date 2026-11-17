@@ -36,6 +36,9 @@ const twoWorkloads: Project = {
   workloads: [steady, { ...steady, id: "spike", name: "Spike" }],
 };
 
+/** The dock's tabs that are always there, in order: then Run, once a run starts. */
+const ALWAYS_THERE = ["Library", "Components", "Workflows", "Workloads"];
+
 /** Selects a workload from its row in the "Workloads" list. */
 function openWorkload(name: string): void {
   const row = revealButton(name);
@@ -93,17 +96,17 @@ describe("OpenedProject's dock", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if the dock leaves out Library, Components, or Workloads with no
+  // Fails if the dock leaves out Library, Components, Workflows, or Workloads with no
   // run and nothing selected, opens on another than Library, or a workload
   // doesn't open in the Workloads tab, which shows.
-  it("shows Library, Components, and Workloads, and opens a workload in Workloads", () => {
+  it("shows Library, Components, Workflows, and Workloads, and opens a workload in Workloads", () => {
     renderProject();
-    expect(dockTabs()).toEqual(["Library", "Components", "Workloads"]);
+    expect(dockTabs()).toEqual(ALWAYS_THERE);
     expect(shownTab()).toBe("Library");
 
     openSteady();
 
-    expect(dockTabs()).toEqual(["Library", "Components", "Workloads"]);
+    expect(dockTabs()).toEqual(ALWAYS_THERE);
     expect(shownTab()).toBe("Workloads");
     expect(editorHeading("Steady")).toBeTruthy();
   });
@@ -139,7 +142,7 @@ describe("OpenedProject's dock", () => {
 
     fireEvent.click(run);
 
-    expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
+    expect(dockTabs()).toEqual([...ALWAYS_THERE, "Run"]);
     expect(shownTab()).toBe("Run");
     expect(document.activeElement).toBe(run);
   });
@@ -153,7 +156,7 @@ describe("OpenedProject's dock", () => {
 
     openSteady();
 
-    expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
+    expect(dockTabs()).toEqual([...ALWAYS_THERE, "Run"]);
     expect(shownTab()).toBe("Workloads");
     expect(document.activeElement).toBe(detailsHeading());
   });
@@ -265,7 +268,7 @@ describe("OpenedProject's dock", () => {
     fireEvent.click(run);
 
     expect(shownTab()).toBe("Run");
-    expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
+    expect(dockTabs()).toEqual([...ALWAYS_THERE, "Run"]);
     expect(document.activeElement).toBe(run);
   });
 
@@ -288,7 +291,7 @@ describe("OpenedProject's dock", () => {
       }
 
       expect(queryDetailsHeading()).toBeNull();
-      expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
+      expect(dockTabs()).toEqual([...ALWAYS_THERE, "Run"]);
       expect(shownTab()).toBe("Workloads");
       expect(editorHeading("Steady")).toBeTruthy();
       expect(picked()).toBe("steady");
@@ -382,10 +385,10 @@ describe("OpenedProject's dock", () => {
 
   // Fails if a narrow window's dock leaves out a tab that's always there,
   // as a wide window's does.
-  it("shows Library, Components, and Workloads in a narrow window with nothing selected", () => {
+  it("shows Library, Components, Workflows, and Workloads in a narrow window with nothing selected", () => {
     renderProject({ width: "narrow" });
 
-    expect(dockTabs()).toEqual(["Library", "Components", "Workloads"]);
+    expect(dockTabs()).toEqual(ALWAYS_THERE);
   });
 });
 
@@ -487,7 +490,7 @@ describe("OpenedProject's run evidence", () => {
     expect(runPanel.querySelectorAll("table, figure")).toHaveLength(0);
     expect(document.querySelectorAll("figure")).toHaveLength(4);
     expect(dock().querySelectorAll("figure")).toHaveLength(4);
-    expect(dockTabs()).toEqual(["Library", "Components", "Workloads", "Run"]);
+    expect(dockTabs()).toEqual([...ALWAYS_THERE, "Run"]);
     expect(
       runPanel.compareDocumentPosition(dock()) &
         Node.DOCUMENT_POSITION_FOLLOWING,

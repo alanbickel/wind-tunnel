@@ -7,39 +7,14 @@ export const TEST_SHELL: ShellParts = {
   hint: null,
 };
 
-/** The canvas's button that opens its list. */
-export type CanvasPanelButton = "Workflows";
-
 /**
- * A panel's button, found in the rail's toolbar, since the workflow picker
- * at the bottom left is also named "Workflows" while nothing is selected.
+ * The dock's polite region, which says what a remove of a component, an
+ * edge, a workflow, or a workload, or a move, did.
  */
-export function panelButton(button: CanvasPanelButton): HTMLElement | null {
-  const rail = screen.queryByRole("toolbar", { name: "Tools" });
-  return rail && within(rail).queryByRole("button", { name: button });
-}
-
-/** Opens a canvas panel, unless it's open already, and returns its button. */
-export function openPanel(button: CanvasPanelButton): HTMLElement {
-  const opener = panelButton(button);
-  if (opener === null) throw new Error(`No ${button} button`);
-  if (opener.getAttribute("aria-expanded") !== "true") fireEvent.click(opener);
-  return opener;
-}
-
-/**
- * The polite regions: the dock's, which says what a component's, an
- * edge's, or a workload's remove or a move did ("dock"), and the tool
- * rail's, beside its toolbar, which says what a workflow's remove did
- * ("rail").
- */
-export function politeRegion(which: "dock" | "rail"): HTMLElement {
-  const parent =
-    which === "dock"
-      ? screen.getByRole("region", { name: "Dock" })
-      : screen.getByRole("toolbar", { name: "Tools" }).parentElement;
-  const region = parent?.querySelector<HTMLElement>('[role="status"]');
-  if (region == null) throw new Error(`No ${which} region`);
+export function dockRegion(): HTMLElement {
+  const dock = screen.getByRole("region", { name: "Dock" });
+  const region = dock.querySelector<HTMLElement>(':scope > [role="status"]');
+  if (region == null) throw new Error("No dock region");
   return region;
 }
 
@@ -57,17 +32,14 @@ export function addComponent(typeName: string): void {
   fireEvent.click(card);
 }
 
-/** The canvas's panel buttons, in the order `revealButton` tries them. */
-const PANEL_BUTTONS: readonly CanvasPanelButton[] = ["Workflows"];
-
 /** The dock's tabs with lists, in the order `revealButton` tries them. */
-const LIST_TABS = ["Components", "Workloads"] as const;
+const LIST_TABS = ["Components", "Workflows", "Workloads"] as const;
 
 /**
  * The button named `name`: where it's showing, or else in the dock's tab
- * or the canvas panel that holds it, which this shows. For a test that
- * doesn't care where a button is, such as one that selects a component,
- * then a workflow, then a step in Details.
+ * that holds it, which this shows. For a test that doesn't care where a
+ * button is, such as one that selects a component, then a workflow, then
+ * a step in its outline.
  */
 export function revealButton(name: string | RegExp): HTMLElement {
   const shown = buttonsNamed(name)[0];
@@ -79,21 +51,10 @@ export function revealButton(name: string | RegExp): HTMLElement {
     const row = buttonsNamed(name)[0];
     if (row !== undefined) return row;
   }
-  for (const panel of PANEL_BUTTONS) {
-    if (panelButton(panel) === null) continue;
-    openPanel(panel);
-    const found = buttonsNamed(name)[0];
-    if (found !== undefined) return found;
-  }
-  throw new Error(`No button ${String(name)}, shown or in a canvas panel`);
+  throw new Error(`No button ${String(name)}, shown or in a dock tab`);
 }
 
-/**
- * The buttons with the name, but the workflow picker's, which shows the
- * selected workflow's name, as that workflow's row in the list does.
- */
+/** The buttons with the name that are showing. */
 function buttonsNamed(name: string | RegExp): HTMLElement[] {
-  return screen
-    .queryAllByRole("button", { name })
-    .filter((button) => !button.hasAttribute("aria-haspopup"));
+  return screen.queryAllByRole("button", { name });
 }

@@ -14,7 +14,7 @@ import {
 
 import {
   addComponent as add,
-  politeRegion,
+  dockRegion,
   revealButton,
 } from "./testing/canvas-panels";
 
@@ -36,7 +36,7 @@ function componentsList(): HTMLElement {
 
 /** The polite region in the dock, which says what a remove took. */
 function removedRegion(): HTMLElement {
-  return politeRegion("dock");
+  return dockRegion();
 }
 
 /** Remove's confirmation, by its question. */

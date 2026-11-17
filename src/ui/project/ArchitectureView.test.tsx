@@ -85,8 +85,6 @@ function renderView({
         onSelect={onSelect}
         onClear={onClear}
         onConnect={vi.fn()}
-        addingWorkflow={{ onAdd: vi.fn(), buttonRef: { current: null } }}
-        workflowAnnouncement=""
         offering={{ onEdit: vi.fn(), onSelect: vi.fn(), announce: vi.fn() }}
         onMove={onMove}
       />
@@ -245,13 +243,19 @@ describe("ArchitectureView", () => {
   });
 });
 
-/** A button on the tool rail: the picker at the bottom left shares "Workflows". */
+/** The tool rail's buttons, by their names, in order. */
+function railButtons(): HTMLElement[] {
+  const rail = screen.getByRole("toolbar", { name: "Tools" });
+  return within(rail).getAllByRole("button");
+}
+
+/** A button on the tool rail. */
 function railButton(name: string): HTMLElement {
   const rail = screen.getByRole("toolbar", { name: "Tools" });
   return within(rail).getByRole("button", { name });
 }
 
-describe("ArchitectureView's canvas panels", () => {
+describe("ArchitectureView's tool rail", () => {
   preloadBeforeAll(() => import("../diagram/DiagramCanvas"));
   beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
@@ -259,20 +263,52 @@ describe("ArchitectureView's canvas panels", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if a panel starts open, or its button stops saying whether it's
-  // open, or opening one leaves the other open over it.
-  it("opens one panel at a time over the canvas, each from its button", () => {
+  // Fails if zoom or fit leaves the rail, Connect goes before slice 7, or
+  // the rail's Workflows list, the workflow picker, or the bottom-left row
+  // comes back: the Workflows tab is the one place a workflow is picked.
+  it("holds zoom out, zoom in, fit, and Connect, and no workflows", () => {
     renderView();
-    const workflows = railButton("Workflows");
-    expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
 
-    fireEvent.click(workflows);
-    expect(workflows.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("list", { name: "Workflows" })).toBeTruthy();
+    expect(
+      railButtons().map((b) => b.getAttribute("aria-label") ?? b.title),
+    ).toEqual(["Zoom out", "Zoom in", "Fit to screen", "Connect"]);
+    expect(screen.queryAllByRole("button", { name: /Workflows/ })).toEqual([]);
+    expect(
+      document.querySelector('[aria-haspopup="menu"], [aria-haspopup="true"]'),
+    ).toBeNull();
+  });
 
-    fireEvent.click(railButton("Connect"));
-    expect(workflows.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
+  // Fails if the rail's zoom isn't wired to the diagram once it has loaded,
+  // or is usable on an empty canvas, which has nothing to zoom.
+  it("makes zoom usable once the diagram has loaded, and not with no boxes", async () => {
+    renderView();
+    await waitFor(() => {
+      expect(railButton("Zoom in").getAttribute("aria-disabled")).toBe("false");
+    });
+    cleanup();
+
+    renderView({
+      record: {
+        ...sampleRecord,
+        project: {
+          ...sampleRecord.project,
+          architecture: { components: [], edges: [] },
+        },
+      },
+    });
+    expect(railButton("Fit to screen").getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+  });
+
+  // Fails if Connect's hint doesn't open from its button, beside the rail.
+  it("opens Connect's hint from its button", () => {
+    renderView();
+    const connect = railButton("Connect");
+
+    fireEvent.click(connect);
+
+    expect(connect.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("region", { name: "Connect" })).toBeTruthy();
   });
 

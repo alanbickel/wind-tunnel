@@ -4,12 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleRecord } from "../../application/testing/sample-record";
 import type { Project } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import {
-  openPanel,
-  panelButton,
-  politeRegion,
-  revealButton,
-} from "./testing/canvas-panels";
+import { dockRegion, revealButton } from "./testing/canvas-panels";
 import {
   bar,
   clickRun,
@@ -246,54 +241,52 @@ describe("OpenedProject's inspector", () => {
   });
 });
 
-describe("OpenedProject's Workflows panel and a workflow's remove", () => {
+describe("OpenedProject's Workflows tab, hidden by another", () => {
   beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
   });
 
-  // Fails if a workflow's remove leaves the Workflows panel closed, so
-  // the focus can't land on "Add workflow" and falls to the page, or says
-  // what it removed from a region inside the panel, hidden until the
-  // remove reveals it, so a screen reader may not announce it.
-  it("opens Workflows to put the focus on Add workflow", () => {
+  /** A dock tab, by its label. */
+  function tab(name: string): HTMLElement {
+    return screen.getByRole("tab", { name });
+  }
+
+  // Fails if a workflow's remove, with another tab showing, shows the
+  // Workflows tab (only the user changes the tab), drops the focus to the
+  // page instead of on the Workflows tab, or says what it removed from a
+  // region hidden with the tab, so a screen reader may not announce it.
+  it("sends a workflow's remove to the Workflows tab, and says it from the dock", () => {
     renderProject();
-    const workflows = openPanel("Workflows");
-    const region = politeRegion("rail");
+    const region = dockRegion();
     fireEvent.click(revealButton("Read item"));
-    fireEvent.click(workflows);
-    expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
+    fireEvent.click(tab("Library"));
 
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     const asking = screen.getByRole("group", { name: "Remove Read item?" });
     fireEvent.click(within(asking).getByRole("button", { name: "Remove" }));
 
-    expect(workflows.getAttribute("aria-expanded")).toBe("true");
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Add workflow" }),
-    );
+    expect(tab("Library").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab("Workflows"));
     expect(region.closest("[hidden]")).toBeNull();
     expect(region.textContent).toBe("Removed Read item.");
   });
 
-  // Fails if Escape in Details returns the focus to a button in a canvas
-  // panel closed since it made the selection without opening the panel,
-  // so in a browser the focus falls to the page.
-  it("opens Workflows again when Escape returns the focus to Read item in it", () => {
+  // Fails if Escape in Details returns the focus to the workflow's row in a
+  // tab hidden since it made the selection, so in a browser the focus
+  // falls to the page, or shows that tab (only the user changes the tab).
+  it("returns Escape's focus to the Workflows tab while another shows", () => {
     renderProject();
     const button = revealButton("Read item");
     button.focus();
     fireEvent.click(button);
-    fireEvent.click(openPanel("Workflows"));
+    fireEvent.click(tab("Library"));
     expect(button.closest("[hidden]")).not.toBeNull();
 
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
 
-    expect(panelButton("Workflows")?.getAttribute("aria-expanded")).toBe(
-      "true",
-    );
-    expect(button.closest("[hidden]")).toBeNull();
-    expect(document.activeElement).toBe(button);
+    expect(tab("Library").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab("Workflows"));
   });
 });

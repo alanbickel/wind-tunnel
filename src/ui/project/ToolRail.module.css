@@ -32,8 +32,8 @@
   white-space: nowrap;
 }
 
-/* The open panel, beside the rail and over the canvas. No display here: one
-   would override a closed panel's display: none. */
+/* Connect's hint, open beside the rail and over the canvas. No display here:
+   one would override a closed panel's display: none. */
 .panel {
   position: absolute;
   top: var(--space-4);
@@ -62,15 +62,4 @@
 
 .heading {
   margin: 0 0 var(--space-2);
-}
-
-/* Heard, not seen: the focus is on a button, and the canvas shows the change. */
-.announcement {
-  position: absolute;
-  width: var(--visually-hidden-size);
-  height: var(--visually-hidden-size);
-  margin: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }

@@ -59,7 +59,9 @@ function propsOf(
     onRemove: vi.fn(),
     onAdd: vi.fn(),
     listRef: { current: null },
+    addingWorkflow: { onAdd: vi.fn(), buttonRef: { current: null } },
     addingWorkload: { onAdd: vi.fn(), buttonRef: { current: null } },
+    stepRows: { buttons: () => () => undefined, after: vi.fn() },
     announcement: "",
   };
 }
@@ -70,15 +72,22 @@ describe("the dock's overlays", () => {
   afterEach(cleanup);
 
   // Fails if the tabs' order stops being the modeling loop's: Library,
-  // Components, Workloads, then Run.
-  it("lists Library first, then Components, Workloads, and Run", () => {
-    expect(OVERLAY_KEYS).toEqual(["library", "components", "workloads", "run"]);
+  // Components, Workflows, Workloads, then Run.
+  it("lists Library first, then Components, Workflows, Workloads, and Run", () => {
+    expect(OVERLAY_KEYS).toEqual([
+      "library",
+      "components",
+      "workflows",
+      "workloads",
+      "run",
+    ]);
   });
 
   // Fails if the tab's label isn't its name, or depends on the selection.
   it.each([
     ["library", "Library"],
     ["components", "Components"],
+    ["workflows", "Workflows"],
     ["workloads", "Workloads"],
     ["run", "Run"],
   ] as const)("labels the %s tab %s", (key, label) => {
@@ -87,15 +96,16 @@ describe("the dock's overlays", () => {
   });
 
   // Fails if one of the always-there tabs is left out for want of a run, a
-  // selection, components, or workloads, so there'd be no place to add the
-  // first one.
-  it.each(["library", "components", "workloads"] as const)(
+  // selection, components, workflows, or workloads, so there'd be no place
+  // to add the first one.
+  it.each(["library", "components", "workflows", "workloads"] as const)(
     "always shows the %s tab",
     (key) => {
       const run = { project, workloadId: "steady", snapshots: [] };
       const empty = {
         ...project,
         architecture: { components: [], edges: [] },
+        workflows: [],
         workloads: [],
       };
       const { shows } = OVERLAYS[key];

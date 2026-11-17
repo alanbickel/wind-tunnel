@@ -5,6 +5,7 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import type { Project, Step } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
+  outlineStatus,
   renderOpenedProject as renderProject,
   savedRecord,
 } from "./testing/render-opened-project";
@@ -31,11 +32,6 @@ function outlineText(): string[] {
     .getAllByRole("button")
     .map((button) => button.textContent)
     .filter((text) => /^[0-9]/.test(text));
-}
-
-function detailsStatus(): HTMLElement {
-  const details = screen.getByRole("region", { name: "Details" });
-  return within(details).getByRole("status");
 }
 
 function picker(label: string): HTMLSelectElement {
@@ -101,7 +97,7 @@ describe("OpenedProject's changing a workflow's step", () => {
         .getByRole("button", { name: /^1\.1\.1 Table · write/ })
         .getAttribute("aria-current"),
     ).toBe("true");
-    expect(detailsStatus().textContent).toBe(
+    expect(outlineStatus().textContent).toBe(
       "Changed Table · read to Table · write.",
     );
     expect(
@@ -288,7 +284,7 @@ describe("OpenedProject's changing a workflow's step", () => {
     fireEvent.click(screen.getByRole("button", { name: "Change" }));
 
     expect(outlineText()).toEqual(["1 API · invoke", "1.1 Table · write"]);
-    expect(detailsStatus().textContent).toBe(
+    expect(outlineStatus().textContent).toBe(
       "Changed Function · invoke to Table · write. The 2 steps under it are gone.",
     );
     await savedRecord(

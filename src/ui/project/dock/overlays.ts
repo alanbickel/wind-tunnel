@@ -3,6 +3,7 @@ import type { OverlayKey } from "../screen/screen-state";
 import { ComponentsOverlay } from "./ComponentsOverlay";
 import { LibraryOverlay } from "./LibraryOverlay";
 import { RunOverlay } from "./RunOverlay";
+import { WorkflowsOverlay } from "./WorkflowsOverlay";
 import { WorkloadsOverlay } from "./WorkloadsOverlay";
 
 /**
@@ -19,6 +20,11 @@ export const OVERLAYS: Readonly<Record<OverlayKey, Overlay>> = {
     shows: () => true,
     label: () => "Components",
     Content: ComponentsOverlay,
+  },
+  workflows: {
+    shows: () => true,
+    label: () => "Workflows",
+    Content: WorkflowsOverlay,
   },
   workloads: {
     shows: () => true,

@@ -1,6 +1,7 @@
 import { useCallback, useReducer, useRef } from "react";
 import type { Selection } from "../../application/details/selection";
 import type { FindingKey } from "../../application/run-analysis/findings/finding";
+import { focusInDock } from "./dock/focus-in-dock";
 import {
   INITIAL_SCREEN_STATE,
   nextScreenState,
@@ -50,15 +51,21 @@ export interface ProjectSelection {
    */
   readonly openWorkloadId: string | undefined;
   /**
+   * The id of the workflow open in the dock's Workflows tab, which a
+   * selected workflow or step sets and nothing else changes; undefined
+   * until one is selected. It may name a workflow that has gone since.
+   */
+  readonly openWorkflowId: string | undefined;
+  /**
    * Selects, and shows its details in an open inspector, whose `focus` takes the focus: its heading
    * unless given. Remembers the element that had the focus, such as the
    * button that made the selection, so `close` can return it.
    */
   readonly select: (selection: Selection, focus?: FocusTarget) => void;
   /**
-   * Selects something Details shows, such as a step in a workflow's
-   * outline, as `select` does, but keeps the element `close` returns the
-   * focus to: the one that has it now is in Details, and goes with it.
+   * Selects as `select` does, but keeps the element `close` returns the
+   * focus to: the one that has it now is about to go, such as a step's
+   * Remove, or "Add a call" once the call is added.
    */
   readonly selectWithin: (selection: Selection, focus?: FocusTarget) => void;
   /**
@@ -81,8 +88,9 @@ export interface ProjectSelection {
   readonly takeFocus: (target: FocusTarget) => boolean;
   /**
    * Clears the selection, as `clear` does, and returns the focus to the element
-   * that had it when the selection was made, if it's still on the page;
-   * if not, to the overview's heading.
+   * that had it when the selection was made, if it's still on the page
+   * (its dock tab, or Unfold, while the dock hides it); if not, to the
+   * overview's heading.
    */
   readonly close: () => void;
 }
@@ -95,11 +103,8 @@ export interface ProjectSelection {
  * workload's selection and its tab in the dock draw in the same render.
  * The focus isn't view state: the target asked to take it, and the
  * element `close` returns it to, are held here, around the state.
- * `reveal` shows an element that may have been hidden since it made the
- * selection, such as a button in a canvas panel closed since, so `close`
- * can return the focus to it.
  */
-export function useSelection(reveal: RevealElement): ProjectSelection {
+export function useSelection(): ProjectSelection {
   const [screen, dispatch] = useReducer(nextScreenState, INITIAL_SCREEN_STATE);
   const { request, takeFocus } = useFocusRequest();
 
@@ -115,7 +120,7 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
     dispatch({ kind: "clear" });
   }, [request]);
   const { runWithin, selectFinding } = useRunSelecting({ request, dispatch });
-  const opening = { selectWithin, clear, runWithin, request, reveal };
+  const opening = { selectWithin, clear, runWithin, request };
   const opened = useOpener(opening);
   const inspector = useInspector({ screen, dispatch });
   const dock = useDock({ screen, dispatch });
@@ -123,8 +128,9 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
 
   const changes = { ...opened, selectWithin, selectFinding, clear };
   const regions = { ...inspector, ...dock, ...picking };
-  const { selection, openWorkloadId } = screen;
-  return { selection, openWorkloadId, ...regions, ...changes, takeFocus };
+  const { selection, openWorkloadId, openWorkflowId } = screen;
+  const open = { openWorkloadId, openWorkflowId };
+  return { selection, ...open, ...regions, ...changes, takeFocus };
 }
 
 /** How to change the view state, and to ask for the focus. */
@@ -223,31 +229,27 @@ function useInspector({
   return { inspectorOpen: screen.inspector === "open", showInspector };
 }
 
-/** Shows an element, if something has hidden it, so it can take the focus. */
-export type RevealElement = (element: HTMLElement) => void;
-
 /**
- * The changes the opener is remembered and returned around, what shows it
- * again, and how to ask for the focus when it's gone.
+ * The changes the opener is remembered and returned around, and how to
+ * ask for the focus when it's gone.
  */
 interface OpenerInput extends Pick<ProjectSelection, "selectWithin" | "clear"> {
   /** Selects the run, as Run does, keeping the opener. */
   readonly runWithin: () => void;
   readonly request: FocusRequest["request"];
-  readonly reveal: RevealElement;
 }
 
 /**
  * `select` and `showRun`, which remember the element that had the focus,
- * and `close`, which shows it again if it's been hidden since, and returns
- * the focus to it. If it's gone from the page, as the overview's verdict
+ * and `close`, which returns the focus to it, or to its dock tab (or
+ * Unfold) if the dock hides it now. If it's gone from the page, as the overview's verdict
  * goes once it selects the run, the overview's heading takes the focus,
  * so it isn't lost.
  */
 function useOpener(
   input: OpenerInput,
 ): Pick<ProjectSelection, "select" | "close" | "showRun"> {
-  const { selectWithin, clear, runWithin, request, reveal } = input;
+  const { selectWithin, clear, runWithin, request } = input;
   const opener = useRef<HTMLElement | null>(null);
   const select = useCallback(
     (next: Selection, focus?: FocusTarget) => {
@@ -268,9 +270,8 @@ function useOpener(
       request("heading");
       return;
     }
-    reveal(element);
-    element.focus();
-  }, [clear, request, reveal]);
+    focusInDock(element);
+  }, [clear, request]);
   return { select, close, showRun };
 }
 

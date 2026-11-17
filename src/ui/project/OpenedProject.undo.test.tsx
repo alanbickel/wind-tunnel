@@ -245,7 +245,9 @@ describe("OpenedProject's undo and redo", () => {
     historyButton("Undo").focus();
     fireEvent.click(historyButton("Undo"));
 
-    expect(queryDetailsHeading()?.textContent).toBe("Read item · Workflow");
+    expect(queryDetailsHeading()?.textContent).toBe(
+      "Function · invoke · Step 1.1 of Read item",
+    );
     const step = screen.getByRole("button", { name: "1.1 Function · invoke" });
     expect(step.getAttribute("aria-current")).toBe("true");
     expect(undoneRegion().textContent).toBe(
@@ -262,17 +264,20 @@ describe("OpenedProject's undo and redo", () => {
     removeSelected();
     select("Read item · 1 problem");
     select("1.1.1 a removed component · read");
+    // On the step in the inspector, and under its line in the outline.
     expect(
-      screen.getByText(
+      screen.getAllByText(
         "This step calls a component that isn't in the architecture any more.",
       ),
-    ).toBeTruthy();
+    ).toHaveLength(2);
 
     // A click focuses the button in a browser, but not in jsdom.
     historyButton("Undo").focus();
     fireEvent.click(historyButton("Undo"));
 
-    expect(queryDetailsHeading()?.textContent).toBe("Read item · Workflow");
+    expect(queryDetailsHeading()?.textContent).toBe(
+      "Table · read · Step 1.1.1 of Read item",
+    );
     const step = screen.getByRole("button", { name: "1.1.1 Table · read" });
     expect(step.getAttribute("aria-current")).toBe("true");
     expect(step.getAttribute("aria-describedby")).toBeNull();

@@ -1,5 +1,4 @@
 import { memo, useCallback, useMemo, type ReactNode } from "react";
-import { flushSync } from "react-dom";
 import { nameOf } from "../../application/details/name-of";
 import { workloadAfterRemoval } from "../../application/details/workload-after-removal";
 import type { Selection } from "../../application/details/selection";
@@ -14,6 +13,7 @@ import { useWideWindow } from "../shared/useWideWindow";
 import { ArchitectureView } from "./ArchitectureView";
 import { Inspector, StackedInspector } from "./Inspector";
 import { Dock } from "./dock/Dock";
+import type { OverlayProps } from "./dock/overlay";
 import { RunGroup } from "./dock/RunGroup";
 import type { OfferingProps } from "./useEdgeOffers";
 import type { AddWorkflowProps } from "./WorkflowList";
@@ -28,12 +28,12 @@ import {
 import { ProjectName } from "./ProjectName";
 import { SaveFailure } from "./SaveFailure";
 import { useAddAndRemove, type AddAndRemove } from "./useAddAndRemove";
-import {
-  useCanvasPanels,
-  type CanvasPanelId,
-  type CanvasPanels,
-} from "./useCanvasPanels";
+import { useCanvasPanels, type CanvasPanels } from "./useCanvasPanels";
 import { useCoveredWidth, type CoveredWidth } from "./useCoveredWidth";
+import {
+  useFocusAfterRedraw,
+  type FocusAfterRedraw,
+} from "./useFocusAfterRedraw";
 import { useProjectEdits, type ProjectEdits } from "./useProjectEdits";
 import { useSelection, type ProjectSelection } from "./useSelection";
 import { useUndoRedo, type UndoRedo } from "./useUndoRedo";
@@ -132,20 +132,8 @@ interface ProjectCanvasProps {
  * width; then the dock.
  */
 function ProjectCanvas({ screen, wide, runGroup }: ProjectCanvasProps) {
-  const { edits, projectRun, selecting, remove, changes } = screen;
   const { screenRef, inspectorRef } = screen.covered;
-  const inspector = {
-    record: edits.record,
-    project: edits.record.project,
-    projectRun,
-    selecting,
-    onEdit: edits.edit,
-    onRemove: remove,
-    onAdd: changes.add,
-    listRef: changes.componentsListRef,
-    addingWorkload: changes.addingWorkload,
-    announcement: changes.announcement,
-  };
+  const inspector = overlayPropsOf(screen);
   return (
     <div className={styles.screen}>
       <div ref={screenRef} className={styles.canvas}>
@@ -161,11 +149,32 @@ function ProjectCanvas({ screen, wide, runGroup }: ProjectCanvasProps) {
   );
 }
 
+/** What the inspector and the dock's overlays read, from what the screen holds. */
+function overlayPropsOf(screen: ProjectScreen): OverlayProps {
+  const { edits, projectRun, selecting, remove, changes } = screen;
+  return {
+    record: edits.record,
+    project: edits.record.project,
+    projectRun,
+    selecting,
+    onEdit: edits.edit,
+    onRemove: remove,
+    onAdd: changes.add,
+    listRef: changes.componentsListRef,
+    addingWorkflow: changes.addingWorkflow,
+    addingWorkload: changes.addingWorkload,
+    stepRows: screen.stepRows,
+    announcement: changes.announcement,
+  };
+}
+
 /** What the dock reads of adding and removing. */
 interface DockChanges extends Pick<
   AddAndRemove,
   "add" | "componentsListRef" | "announcement"
 > {
+  /** The Workflows tab's "Add workflow". */
+  readonly addingWorkflow: AddWorkflowProps;
   /** The Workloads tab's "Add workload". */
   readonly addingWorkload: AddWorkloadProps;
 }
@@ -176,13 +185,16 @@ interface ProjectScreen {
   readonly projectRun: ProjectRun;
   readonly selecting: ProjectSelection;
   readonly undoRedo: UndoRedo;
-  /** Removes as `changes.remove` does, opening the panel the focus goes to. */
+  /** Removes as `changes.remove` does, moving the run group's pick off a removed workload. */
   readonly remove: AddAndRemove["remove"];
   /**
-   * What the dock reads of adding and removing: adding a component or a
-   * workload, the Components tab's list, and what a remove said.
+   * What the dock reads of adding and removing: adding a component, a
+   * workflow, or a workload, the Components tab's list, and what a remove
+   * said.
    */
   readonly changes: DockChanges;
+  /** The outline's step lines, which a step's remove or add focuses. */
+  readonly stepRows: FocusAfterRedraw;
   /** How much of the canvas the inspector covers, which the diagram fits around. */
   readonly covered: CoveredWidth;
   readonly architecture: ReactNode;
@@ -201,7 +213,7 @@ interface ProjectScreenInput {
 function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   const edits = useProjectEdits(input.loaded, input.onProjectNameChange);
   const panels = useCanvasPanels();
-  const selecting = useSelection(panels.reveal);
+  const selecting = useSelection();
   const { pickedWorkloadId: pickedId, pick } = selecting;
   const projectRun = useProjectRun(edits.record.project, { pickedId, pick });
   const changes = useAddAndRemove(edits, selecting);
@@ -212,8 +224,10 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     project: edits.record.project,
     announce: changes.announce,
   });
-  const remove = useRevealingRemove({ changes, panels, edits, projectRun });
-  const addingWorkload = useAddingWorkload(changes);
+  const remove = usePickingRemove({ changes, edits, projectRun });
+  const dockChanges = useDockChanges(changes);
+  // The screen's, so its layout effect runs after the outline's has drawn.
+  const stepRows = useFocusAfterRedraw();
   const covered = useCoveredWidth();
   const architecture = useArchitecture({
     edits,
@@ -224,8 +238,7 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     badges: projectRun.badges,
     coveredRightPx: covered.coveredRightPx,
   });
-  const held = { edits, projectRun, selecting, undoRedo };
-  const dockChanges = { ...changes, addingWorkload };
+  const held = { edits, projectRun, selecting, undoRedo, stepRows };
   return { ...held, remove, changes: dockChanges, covered, architecture };
 }
 
@@ -243,7 +256,6 @@ function useArchitecture(input: ArchitectureInput) {
   const { coveredRightPx } = input;
   const { selection, select, clear } = selecting;
   const offering = useOffering({ edits, selecting, changes });
-  const addingWorkflow = useAddingWorkflow(changes);
   return (
     <MemoArchitectureView
       record={edits.record}
@@ -252,8 +264,6 @@ function useArchitecture(input: ArchitectureInput) {
       onClear={clear}
       onConnect={changes.connect}
       onMove={move}
-      addingWorkflow={addingWorkflow}
-      workflowAnnouncement={changes.workflowAnnouncement}
       panels={panels}
       badges={badges}
       offering={offering}
@@ -275,6 +285,13 @@ function useOffering({
     () => ({ onEdit: edit, onSelect: selectWithin, announce }),
     [edit, selectWithin, announce],
   );
+}
+
+/** Adding and removing, with the dock's two Add buttons' props. */
+function useDockChanges(changes: AddAndRemove): DockChanges {
+  const addingWorkflow = useAddingWorkflow(changes);
+  const addingWorkload = useAddingWorkload(changes);
+  return { ...changes, addingWorkflow, addingWorkload };
 }
 
 /** "Add workflow"'s props, the same object while its parts are. */
@@ -344,43 +361,26 @@ function useMove({ edit, project, announce }: MoveInput): Move {
   );
 }
 
-/** The rail list a remove of each kind opens: where its Add button is. */
-const LIST_OF_REMOVED: Partial<Record<Selection["kind"], CanvasPanelId>> = {
-  workflow: "workflows",
-};
-
-/** What a remove opens, and picks, around `AddAndRemove`'s. */
-interface RevealingRemoveInput {
+/** What a remove picks, around `AddAndRemove`'s. */
+interface PickingRemoveInput {
   readonly changes: AddAndRemove;
-  readonly panels: CanvasPanels;
   readonly edits: ProjectEdits;
   readonly projectRun: ProjectRun;
 }
 
 /**
- * A remove, as `AddAndRemove` has it, that first opens "Workflows" for a
- * workflow's: the focus goes to "Add workflow", in that list, which may be
- * closed. Opened at once, so the button is there to take the focus. A
- * remove of the workload the run group has picked also picks the one after
- * it, or the one before if it was last, which only the project's list, as
- * it was, can say (UX design §2.7 step 11). Removing another leaves the
- * group's pick alone.
+ * A remove, as `AddAndRemove` has it, that moves the run group's pick off
+ * a removed workload: a remove of the workload the run group has picked
+ * also picks the one after it, or the one before if it was last, which
+ * only the project's list, as it was, can say (UX design §2.7 step 11).
+ * Removing another leaves the group's pick alone.
  */
-function useRevealingRemove(
-  input: RevealingRemoveInput,
-): AddAndRemove["remove"] {
+function usePickingRemove(input: PickingRemoveInput): AddAndRemove["remove"] {
   const { remove } = input.changes;
-  const { show } = input.panels;
   const { pick, picked } = input.projectRun;
   const { workloads } = input.edits.record.project;
   return useCallback(
     (target: Selection) => {
-      const list = LIST_OF_REMOVED[target.kind];
-      if (list !== undefined) {
-        flushSync(() => {
-          show(list);
-        });
-      }
       // Only the group's own pick moves; another stays where it is.
       if (target.kind === "workload" && picked?.id === target.workloadId) {
         const removedId = target.workloadId;
@@ -389,6 +389,6 @@ function useRevealingRemove(
       }
       remove(target);
     },
-    [remove, show, pick, picked, workloads],
+    [remove, pick, picked, workloads],
   );
 }

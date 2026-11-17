@@ -1,6 +1,8 @@
 import type {
   RunSelection,
   Selection,
+  StepSelection,
+  WorkflowSelection,
   WorkloadSelection,
 } from "../../../application/details/selection";
 import type { KindHandlers } from "../../../domain/shared/kind-handlers";
@@ -10,7 +12,8 @@ import { dispatchKind } from "../../shared/kind-dispatch";
 export type InspectorState = "open" | "collapsed";
 
 /** The dock's tabs, by key: the keys of its overlays (`dock/overlays.ts`). */
-export type OverlayKey = "library" | "components" | "workloads" | "run";
+export type OverlayKey =
+  "library" | "components" | "workflows" | "workloads" | "run";
 
 /**
  * The dock in UX design §5's map: which tab shows, and whether it's
@@ -47,6 +50,13 @@ export interface ScreenState {
    * or an undo, it opens nothing, and the state holds no project data.
    */
   readonly openWorkloadId: string | undefined;
+  /**
+   * The id of the workflow open in the dock's Workflows tab, whose outline
+   * it shows; undefined until a workflow or one of its steps is selected.
+   * Like `openWorkloadId`, it stays as other things are selected (rule 3),
+   * and is read against the project each time.
+   */
+  readonly openWorkflowId: string | undefined;
 }
 
 /**
@@ -129,6 +139,7 @@ export const INITIAL_SCREEN_STATE: ScreenState = {
   dock: { shown: "library", folded: false },
   pickedWorkloadId: undefined,
   openWorkloadId: undefined,
+  openWorkflowId: undefined,
 };
 
 /** Each transition, as a pure function from one state to the next. */
@@ -136,12 +147,7 @@ const TRANSITIONS: KindHandlers<
   ScreenTransition,
   (state: ScreenState) => ScreenState
 > = {
-  select:
-    ({ selection }) =>
-    (state) =>
-      selection.kind === "workload"
-        ? selectedWorkload(state, selection)
-        : selected(state, selection),
+  select: ({ selection }) => dispatchKind(SELECTING, selection),
   pick:
     ({ workloadId }) =>
     (state) =>
@@ -166,13 +172,29 @@ const TRANSITIONS: KindHandlers<
   run: () => (state) => selected(state, THE_RUN),
 };
 
+/**
+ * How each kind is selected: a workload, and a workflow or a step, also
+ * open in their dock tab; every other kind is `selected`'s.
+ */
+const SELECTING: KindHandlers<Selection, (state: ScreenState) => ScreenState> =
+  {
+    component: (selection) => (state) => selected(state, selection),
+    edge: (selection) => (state) => selected(state, selection),
+    workflow: (selection) => (state) => selectedWorkflow(state, selection),
+    step: (selection) => (state) => selectedWorkflow(state, selection),
+    workload: (selection) => (state) => selectedWorkload(state, selection),
+    "new-workflow": (selection) => (state) => selected(state, selection),
+    run: (selection) => (state) => selected(state, selection),
+    finding: (selection) => (state) => selected(state, selection),
+  };
+
 /** The run's selection: there's one run, the latest. */
 const THE_RUN: RunSelection = { kind: "run" };
 
 /**
  * The dock tab each kind shows as it's selected, unfolding the dock (rules
  * 2 and 3); the kinds not here leave the dock as it is. A workload's tab
- * is `selectedWorkload`'s.
+ * is `selectedWorkload`'s, and a workflow's or a step's `selectedWorkflow`'s.
  */
 const TABS_SHOWN: Partial<Record<Selection["kind"], OverlayKey>> = {
   run: "run",
@@ -205,6 +227,24 @@ function selectedWorkload(
     dock: unfoldedOn("workloads"),
     pickedWorkloadId: workloadId,
     openWorkloadId: workloadId,
+  };
+}
+
+/**
+ * `state` with the workflow or step `selection` selected, the inspector
+ * open on it, and its workflow open in the Workflows tab, shown and
+ * unfolded, in the same dispatch (rules 2 and 3).
+ */
+function selectedWorkflow(
+  state: ScreenState,
+  selection: WorkflowSelection | StepSelection,
+): ScreenState {
+  return {
+    ...state,
+    selection,
+    inspector: "open",
+    dock: unfoldedOn("workflows"),
+    openWorkflowId: selection.workflowId,
   };
 }
 

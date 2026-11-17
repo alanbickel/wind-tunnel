@@ -3,131 +3,99 @@ import {
   useId,
   useRef,
   type KeyboardEvent,
-  type ReactNode,
   type RefObject,
 } from "react";
+import type { ZoomActions } from "../diagram/zoom-actions";
+import { ZoomButtons } from "../diagram/ZoomButtons";
 import { Button } from "../shared/Button";
-import { ConnectIcon, WorkflowsIcon } from "../shared/RailIcons";
+import { ConnectIcon } from "../shared/RailIcons";
 import styles from "./ToolRail.module.css";
-import {
-  CANVAS_PANEL_ATTRIBUTE,
-  type CanvasPanelId,
-  type CanvasPanels,
-} from "./useCanvasPanels";
+import type { CanvasPanels } from "./useCanvasPanels";
 
 export interface ToolRailProps {
   readonly panels: CanvasPanels;
-  /** The workflows list, which "Workflows" opens. */
-  readonly workflows: ReactNode;
-  /** What a workflow's remove announces: "Removed Get order." */
-  readonly workflowAnnouncement: string;
+  /** The diagram's zoom actions, once it has loaded; none with no boxes. */
+  readonly zoom: ZoomActions | undefined;
 }
-
-/** One rail button, and the panel it opens. */
-interface RailEntry {
-  readonly id: CanvasPanelId;
-  /** The button's name, its tooltip, and its panel's name. */
-  readonly name: string;
-  readonly icon: ReactNode;
-  readonly content: ReactNode;
-  readonly buttonRef?: RefObject<HTMLButtonElement | null>;
-}
-
-/** Each panel's element id, which its button controls. */
-type PanelIds = (id: CanvasPanelId) => string;
-
-const RAIL_PANELS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
-  "connect",
-  "workflows",
-]);
-
-/** The popovers, which close on a click outside; a list stays open. */
-const POPOVERS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
-  "connect",
-]);
 
 /**
- * The tool rail down the canvas's left edge (UX design §2): Connect and
- * Workflows, as a toolbar of icon buttons. (Adding a component is the
- * dock's Library tab, and the workloads are its Workloads tab.) Each
- * opens its panel beside the rail, over the canvas, one at a time (the
- * canvas's panel state holds which). Escape closes the open one and puts the
- * focus back on its button. A click outside closes Connect's hint; the
- * list stays open while you pick through its
- * rows. A closed panel stays mounted, hidden, so its scroll is still there
- * when it opens. A polite region says what a workflow's remove took: it's
- * on the rail, which always shows, since the list may be closed. (A
- * component's, an edge's, or a workload's is the dock's.)
+ * The tool rail down the canvas's left edge (UX design §2): the canvas's
+ * view, zoom in, zoom out, and fit, then Connect, as a toolbar of icon
+ * buttons. Nothing else floats over the canvas: the lists and editors are
+ * the dock's. Connect opens a hint beside the rail, over the canvas, until
+ * the connect hint on the canvas replaces it (slice 7 of issue 246); Escape, or
+ * a click outside it, closes it, and Escape puts the focus back on
+ * Connect.
  */
-export function ToolRail(props: ToolRailProps) {
-  const { panels, workflowAnnouncement } = props;
-  const baseId = useId();
-  const ids: PanelIds = (id) => `${baseId}-${id}`;
+export function ToolRail({ panels, zoom }: ToolRailProps) {
+  const hintId = useId();
   const railRef = useRef<HTMLDivElement>(null);
+  const connectRef = useRef<HTMLButtonElement>(null);
   useCloseOnOutsideClick(railRef, panels);
-  const entries = railEntries(props);
   return (
     <div
       ref={railRef}
       className={styles.rail}
       onKeyDown={(event) => {
-        closeOnEscape({ event, panels, ids });
+        closeOnEscape({ event, panels, connectRef });
       }}
     >
-      <RailButtons entries={entries} ids={ids} panels={panels} />
-      {entries.map((entry) => (
-        <RailPanel
-          key={entry.id}
-          entry={entry}
-          elementId={ids(entry.id)}
-          open={panels.open === entry.id}
-        />
-      ))}
-      <Announcement text={workflowAnnouncement} />
+      <div
+        role="toolbar"
+        aria-label="Tools"
+        aria-orientation="vertical"
+        className={styles.buttons}
+        onKeyDown={moveBetweenButtons}
+      >
+        <ZoomButtons zoom={zoom} />
+        <ConnectButton panels={panels} hintId={hintId} ref={connectRef} />
+      </div>
+      <ConnectPanel panels={panels} hintId={hintId} />
     </div>
   );
 }
 
-interface RailButtonsProps {
-  readonly entries: readonly RailEntry[];
-  readonly ids: PanelIds;
+interface ConnectButtonProps {
   readonly panels: CanvasPanels;
+  /** The hint's element id, which the button controls. */
+  readonly hintId: string;
+  readonly ref: RefObject<HTMLButtonElement | null>;
 }
 
-/** The toolbar: a button per entry. */
-function RailButtons({ entries, ids, panels }: RailButtonsProps) {
+/** Connect: an icon button that opens and closes its hint; its name is hidden text. */
+function ConnectButton({ panels, hintId, ref }: ConnectButtonProps) {
+  const open = panels.open === "connect";
   return (
-    <div
-      role="toolbar"
-      aria-label="Tools"
-      aria-orientation="vertical"
-      className={styles.buttons}
-      onKeyDown={moveBetweenButtons}
+    <Button
+      ref={ref}
+      variant="icon"
+      title="Connect"
+      expanded={open}
+      controls={open ? hintId : undefined}
+      onClick={() => {
+        panels.toggle("connect");
+      }}
     >
-      {entries.map((entry) => (
-        <RailButton key={entry.id} entry={entry} ids={ids} panels={panels} />
-      ))}
-    </div>
+      <ConnectIcon />
+      <span className={styles.name}>Connect</span>
+    </Button>
   );
 }
 
-/** The rail's buttons, in order, each with what its panel holds. */
-function railEntries(props: ToolRailProps): RailEntry[] {
-  const { workflows } = props;
-  return [
-    {
-      id: "connect",
-      name: "Connect",
-      icon: <ConnectIcon />,
-      content: <ConnectHint />,
-    },
-    {
-      id: "workflows",
-      name: "Workflows",
-      icon: <WorkflowsIcon />,
-      content: workflows,
-    },
-  ];
+type ConnectPanelProps = Omit<ConnectButtonProps, "ref">;
+
+/** Connect's hint, beside the rail, while it's open. */
+function ConnectPanel({ panels, hintId }: ConnectPanelProps) {
+  return (
+    <section
+      id={hintId}
+      aria-label="Connect"
+      hidden={panels.open !== "connect"}
+      className={styles.panel}
+    >
+      <ConnectHint />
+    </section>
+  );
 }
 
 /**
@@ -146,82 +114,14 @@ function ConnectHint() {
   );
 }
 
-interface RailButtonProps {
-  readonly entry: RailEntry;
-  readonly ids: PanelIds;
-  readonly panels: CanvasPanels;
-}
-
-/** The icon button that opens and closes one panel; its name is hidden text. */
-function RailButton({ entry, ids, panels }: RailButtonProps) {
-  const { id, name, icon, buttonRef } = entry;
-  const open = panels.open === id;
-  return (
-    <Button
-      ref={buttonRef}
-      variant="icon"
-      title={name}
-      expanded={open}
-      controls={open ? ids(id) : undefined}
-      onClick={() => {
-        panels.toggle(id);
-      }}
-    >
-      {icon}
-      <span className={styles.name}>{name}</span>
-    </Button>
-  );
-}
-
-interface RailPanelProps {
-  readonly entry: RailEntry;
-  readonly elementId: string;
-  readonly open: boolean;
-}
-
-/**
- * One panel: a region that may scroll, and so takes a tab stop. It names
- * its panel in `CANVAS_PANEL_ATTRIBUTE`, so `reveal` can open it.
- */
-function RailPanel({ entry, elementId, open }: RailPanelProps) {
-  return (
-    <section
-      id={elementId}
-      {...{ [CANVAS_PANEL_ATTRIBUTE]: entry.id }}
-      aria-label={entry.name}
-      hidden={!open}
-      tabIndex={0}
-      className={styles.panel}
-    >
-      {entry.content}
-    </section>
-  );
-}
-
-interface AnnouncementProps {
-  readonly text: string;
-}
-
-/**
- * A polite region, on the page from the start, empty, so a screen reader
- * announces a message put in it.
- */
-function Announcement({ text }: AnnouncementProps) {
-  return (
-    <p role="status" className={styles.announcement}>
-      {text}
-    </p>
-  );
-}
-
-/** Closes an open popover when a press lands outside the rail. */
+/** Closes the open hint when a press lands outside the rail. */
 function useCloseOnOutsideClick(
   railRef: RefObject<HTMLElement | null>,
   panels: CanvasPanels,
 ): void {
   const { open, close } = panels;
   useEffect(() => {
-    if (open === undefined || !POPOVERS.has(open)) return;
+    if (open === undefined) return;
     const onPress = (event: MouseEvent) => {
       const inside =
         event.target instanceof Node && railRef.current?.contains(event.target);
@@ -238,24 +138,16 @@ function useCloseOnOutsideClick(
 interface CloseOnEscapeInput {
   readonly event: KeyboardEvent<HTMLElement>;
   readonly panels: CanvasPanels;
-  readonly ids: PanelIds;
+  readonly connectRef: RefObject<HTMLButtonElement | null>;
 }
 
-/**
- * Escape closes the open rail panel and focuses its button, the one that
- * controls it, and goes no further.
- */
-function closeOnEscape({ event, panels, ids }: CloseOnEscapeInput): void {
-  const { open } = panels;
-  if (event.key !== "Escape" || open === undefined) return;
-  if (!RAIL_PANELS.has(open)) return;
+/** Escape closes the open hint, focuses Connect, and goes no further. */
+function closeOnEscape({ event, panels, connectRef }: CloseOnEscapeInput) {
+  if (event.key !== "Escape" || panels.open === undefined) return;
   event.preventDefault();
   event.stopPropagation();
-  const button = event.currentTarget.querySelector<HTMLElement>(
-    `[aria-controls="${ids(open)}"]`,
-  );
   panels.close();
-  button?.focus();
+  connectRef.current?.focus();
 }
 
 /** The arrow keys move between the toolbar's buttons. */

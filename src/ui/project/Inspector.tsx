@@ -15,6 +15,7 @@ import styles from "./Inspector.module.css";
 import { ProjectOverview } from "./ProjectOverview";
 import { SelectionDetails } from "./SelectionDetails";
 import type { AddAndRemove } from "./useAddAndRemove";
+import type { FocusAfterRedraw } from "./useFocusAfterRedraw";
 import type { ProjectEdits } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
 
@@ -25,6 +26,8 @@ export interface InspectorProps {
   readonly selecting: ProjectSelection;
   readonly onEdit: ProjectEdits["edit"];
   readonly onRemove: AddAndRemove["remove"];
+  /** The outline's step lines, where a selected step's remove sends the focus. */
+  readonly stepRows: FocusAfterRedraw;
   /** The inspector's box, so the screen can measure what it covers. */
   readonly ref?: Ref<HTMLElement> | undefined;
 }
@@ -233,7 +236,7 @@ function useHeadingFocus({ takeFocus }: ProjectSelection): () => boolean {
 
 /** The selection's details, in a region of their own named "Details". */
 function Details(props: InspectorContentProps) {
-  const { project, selecting, onEdit, onRemove, closable } = props;
+  const { project, selecting, onEdit, onRemove, stepRows, closable } = props;
   const { selection, selectWithin, close, takeFocus } = selecting;
   if (selection === undefined) return null;
   return (
@@ -244,6 +247,7 @@ function Details(props: InspectorContentProps) {
         onEdit={onEdit}
         onRemove={onRemove}
         onSelect={selectWithin}
+        stepRows={stepRows}
         onClose={close}
         takeFocus={takeFocus}
         closable={closable ?? false}

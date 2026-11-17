@@ -166,6 +166,15 @@ export function dockPanel(label: string | RegExp): HTMLElement {
   return within(dock()).getByRole("tabpanel", { name: label });
 }
 
+/**
+ * The Workflows tab's polite region, beside the open workflow's outline,
+ * which says what a step's edit there did. The tab must be showing.
+ */
+export function outlineStatus(): HTMLElement {
+  const outline = within(dockPanel("Workflows")).getByRole("region");
+  return within(outline).getByRole("status");
+}
+
 /** A wide window's inspector, which floats over the canvas. */
 export function inspector(): HTMLElement {
   return screen.getByRole("region", { name: "Inspector" });

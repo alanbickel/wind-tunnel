@@ -1,44 +1,21 @@
 import { useCallback, useMemo, useState } from "react";
-import { flushSync } from "react-dom";
-
-/** The canvas's panels: the tool rail's two ("connect"'s hint and the "workflows"). */
-export type CanvasPanelId = "connect" | "workflows";
 
 /**
- * The attribute each panel's section carries, holding its id, so `reveal`
- * can find the panel an element is in.
+ * The canvas's panels: the tool rail's one, Connect's hint, until the
+ * connect hint on the canvas replaces it (slice 7 of issue 246).
  */
-export const CANVAS_PANEL_ATTRIBUTE = "data-canvas-panel";
+export type CanvasPanelId = "connect";
 
-/** Which canvas panel is open, and what opens and closes them. */
+/** Which canvas panel is open, and what opens and closes it. */
 export interface CanvasPanels {
-  /** The open panel; undefined while all are closed. One opens at a time. */
+  /** The open panel; undefined while it's closed. */
   readonly open: CanvasPanelId | undefined;
-  /** Opens the panel, closing the other, or closes it if it's open. */
+  /** Opens the panel, or closes it if it's open. */
   readonly toggle: (id: CanvasPanelId) => void;
-  /** Opens the panel, closing the other, whatever was open. */
-  readonly show: (id: CanvasPanelId) => void;
   readonly close: () => void;
-  /**
-   * Opens the panel that holds the element, if it's in one, at once, so
-   * the element can take the focus straight after.
-   */
-  readonly reveal: (element: HTMLElement) => void;
 }
 
-/** The panel ids, so an attribute's value can be checked against them. */
-const PANEL_IDS: ReadonlySet<string> = new Set<CanvasPanelId>([
-  "connect",
-  "workflows",
-]);
-
-/**
- * The canvas panels' state, held by the screen rather than the panels, so
- * a change elsewhere can open one: a workflow's remove opens "Workflows",
- * where the focus goes next, and closing
- * Details opens the panel that holds the button that made the selection.
- * Both start closed.
- */
+/** The canvas panel's state, held by the screen. It starts closed. */
 export function useCanvasPanels(): CanvasPanels {
   const [open, setOpen] = useState<CanvasPanelId>();
   const toggle = useCallback((id: CanvasPanelId) => {
@@ -47,26 +24,5 @@ export function useCanvasPanels(): CanvasPanels {
   const close = useCallback(() => {
     setOpen(undefined);
   }, []);
-  const reveal = useCallback((element: HTMLElement) => {
-    const id = panelOf(element);
-    if (id === undefined) return;
-    flushSync(() => {
-      setOpen(id);
-    });
-  }, []);
-  return useMemo(
-    () => ({ open, toggle, show: setOpen, close, reveal }),
-    [open, toggle, close, reveal],
-  );
-}
-
-/** The id of the canvas panel the element is in, if it's in one. */
-function panelOf(element: HTMLElement): CanvasPanelId | undefined {
-  const value = element
-    .closest(`[${CANVAS_PANEL_ATTRIBUTE}]`)
-    ?.getAttribute(CANVAS_PANEL_ATTRIBUTE);
-  if (value === undefined || value === null || !PANEL_IDS.has(value)) {
-    return undefined;
-  }
-  return value as CanvasPanelId;
+  return useMemo(() => ({ open, toggle, close }), [open, toggle, close]);
 }

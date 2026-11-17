@@ -5,7 +5,7 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import type { Project, Workload } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { politeRegion, revealButton } from "./testing/canvas-panels";
+import { dockRegion, revealButton } from "./testing/canvas-panels";
 import {
   clickRun,
   detailsHeading,
@@ -74,7 +74,7 @@ function pickedName(): string | undefined {
  * which is there whichever tab shows.
  */
 function removedRegion(): HTMLElement {
-  return politeRegion("dock");
+  return dockRegion();
 }
 
 function addWorkloadButton(): HTMLElement {

@@ -78,24 +78,15 @@ export function SelectionDetails(props: SelectionDetailsProps) {
  */
 type ShownDetails = Exclude<Details, StepDetails>;
 
-/**
- * What Details describes for a selection: a step's workflow, which
- * outlines it, or the selection itself.
- */
-function describedOf(selection: Selection): Selection {
-  return selection.kind === "step"
-    ? { kind: "workflow", workflowId: selection.workflowId }
-    : selection;
-}
-
 /** The step the outline marks: the selected one, if a step is selected. */
 function currentStepOf(selection: Selection): string | undefined {
   return selection.kind === "step" ? selection.stepId : undefined;
 }
 
 /**
- * What Details shows for the selection, as `describeSelection` says it;
- * undefined if the project has no such item.
+ * What Details shows for the selection, as `describeSelection` says it: a
+ * step's workflow, which outlines it, or the selection itself; undefined if
+ * the project has no such item, a step its workflow doesn't have included.
  */
 function useShownDetails(
   project: Project,
@@ -103,12 +94,13 @@ function useShownDetails(
 ): ShownDetails | undefined {
   const { describeSelection } = useUseCases();
   return useMemo(() => {
-    const described = describedOf(selection);
-    const details = describeSelection.execute({
+    const details = describeSelection.execute({ project, selection });
+    if (details?.kind !== "step") return details;
+    const workflow = describeSelection.execute({
       project,
-      selection: described,
+      selection: { kind: "workflow", workflowId: details.workflowId },
     });
-    return details?.kind === "step" ? undefined : details;
+    return workflow?.kind === "step" ? undefined : workflow;
   }, [describeSelection, project, selection]);
 }
 

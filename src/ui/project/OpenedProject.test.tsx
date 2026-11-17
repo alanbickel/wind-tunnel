@@ -341,11 +341,11 @@ describe("OpenedProject in a wide window", () => {
 
     expect(within(inspector()).queryAllByRole("tab")).toEqual([]);
     expect(within(inspector()).getByText(/^Nothing selected./)).toBeTruthy();
-    const toggle = within(inspector()).getByRole("button", {
-      name: "Close the inspector",
+    const chevron = within(inspector()).getByRole("button", {
+      name: "Collapse the inspector",
     });
     const body = document.getElementById(
-      toggle.getAttribute("aria-controls") ?? "",
+      chevron.getAttribute("aria-controls") ?? "",
     );
     expect(body?.tabIndex).toBe(0);
   });

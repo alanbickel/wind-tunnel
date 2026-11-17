@@ -57,12 +57,6 @@ export interface DiagramProps {
    */
   readonly onMove?: ((move: DiagramMove) => void) | undefined;
   /**
-   * How wide, in pixels, what floats over the diagram's right edge is, such
-   * as an inspector: fitting the diagram keeps the boxes clear of it. None
-   * if not given.
-   */
-  readonly coveredRightPx?: number | undefined;
-  /**
    * Called with the actions that zoom out, zoom in, and fit the diagram
    * once it has loaded, and with undefined if it goes. The diagram draws no
    * zoom controls of its own; `ZoomButtons` draws them wherever the screen
@@ -87,7 +81,7 @@ export interface DiagramProps {
  * in a flex column: it's `--diagram-height` tall, or it fills the room a
  * fixed-height column leaves it, and refits when that room changes. While
  * React Flow loads, or if it can't, the box holds its place. It fits the
- * boxes in, at most at their own size, clear of a covered right edge.
+ * boxes in, at most at their own size.
  */
 export function Diagram(props: DiagramProps) {
   const { label, ...canvasProps } = props;

@@ -119,8 +119,10 @@ describe("OpenedProject's dock", () => {
 
     openSteady();
 
-    const toggle = screen.getByRole("button", { name: "Close the details" });
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    const chevron = screen.getByRole("button", {
+      name: "Collapse the inspector",
+    });
+    expect(chevron.getAttribute("aria-expanded")).toBe("true");
     expect(detailsHeading().textContent).toBe("Steady · Workload");
     expect(document.activeElement).toBe(detailsHeading());
     const details = screen.getByRole("region", { name: "Details" });

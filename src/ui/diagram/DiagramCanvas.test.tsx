@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DiagramCanvas } from "./DiagramCanvas";
 import type { DiagramContent } from "./diagram-model";
-import { fitOptions } from "./fit-options";
+import { FIT } from "./fit-options";
 import type { ZoomActions } from "./zoom-actions";
 import { dragNode, mouse } from "./testing/drag-node";
 import {
@@ -82,20 +82,16 @@ describe("DiagramCanvas's zoom actions", () => {
   });
 
   // Fails if `fit` stops using the canvas's own fit options, so a Fit
-  // press would put boxes under the inspector, or zoom them past their
-  // size; or if it fits for another width or covered edge than the canvas's.
-  it("fits as the canvas does, clear of the covered edge", () => {
+  // press would zoom the boxes past their size, or leave them other
+  // margins than the automatic fit does.
+  it("fits as the canvas does", () => {
     const onZoom = vi.fn<(zoom: ZoomActions | undefined) => void>();
-    render(
-      <DiagramCanvas content={content} coveredRightPx={300} onZoom={onZoom} />,
-    );
+    render(<DiagramCanvas content={content} onZoom={onZoom} />);
     fitView.mockClear();
 
     onZoom.mock.lastCall?.[0]?.fit();
 
-    expect(fitView).toHaveBeenCalledExactlyOnceWith(
-      fitOptions({ width: 800, coveredRightPx: 300 }),
-    );
+    expect(fitView).toHaveBeenCalledExactlyOnceWith(FIT);
   });
 
   // Fails if the zoom actions reach the wrong React Flow call, or the canvas

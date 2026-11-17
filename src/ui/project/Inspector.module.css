@@ -1,45 +1,37 @@
-/* Floats over the canvas's right, below the top bar and above the
-   canvas's bottom edge. */
+/* A full-height column on the right, beside the canvas and the dock,
+   from under the top bar to the window's bottom edge. */
 .inspector,
 .collapsed {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  bottom: var(--space-4);
-  z-index: 2;
+  flex: none;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   background: var(--color-surface);
-  border: var(--floating-border);
-  border-radius: var(--floating-radius);
-  box-shadow: var(--floating-shadow);
+  border-left: var(--floating-border);
 }
 
-/* About a quarter of the window, never under its least width, and never
-   wider than the canvas. */
+/* About a quarter of the window, never under its least width. */
 .inspector {
   width: max(var(--inspector-min-width), var(--inspector-width));
-  max-width: calc(100% - 2 * var(--space-4));
 }
 
-/* Collapsed: a narrow strip on the right edge, its button read top to
-   bottom. */
+/* Collapsed: a narrow strip on the right edge, holding its chevron. */
 .collapsed {
   padding: var(--space-2) var(--space-1);
 }
 
-.collapsed button {
-  writing-mode: vertical-rl;
-}
-
-/* Close, at the surface's top right, above the content. */
-.inspector .toggle {
+/* × and the chevron, at the column's top right, above the content. */
+.controls {
   display: flex;
   justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.inspector .controls {
   padding: var(--space-2) var(--space-3) 0;
 }
 
-/* Takes the height Close leaves, and scrolls. No display while hidden: it
+/* Takes the height the controls leave, and scrolls. No display while hidden: it
    would override display: none. */
 .body:not([hidden]) {
   flex: 1;

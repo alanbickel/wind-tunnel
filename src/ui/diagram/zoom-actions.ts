@@ -5,6 +5,6 @@
 export interface ZoomActions {
   readonly zoomIn: () => void;
   readonly zoomOut: () => void;
-  /** Fits the boxes in, clear of what covers the canvas's right edge. */
+  /** Fits the boxes in, with the same margin on every side. */
   readonly fit: () => void;
 }

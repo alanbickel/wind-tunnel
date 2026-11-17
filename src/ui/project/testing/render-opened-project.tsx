@@ -175,7 +175,7 @@ export function outlineStatus(): HTMLElement {
   return within(outline).getByRole("status");
 }
 
-/** A wide window's inspector, which floats over the canvas. */
+/** A wide window's inspector, the column beside the canvas and the dock. */
 export function inspector(): HTMLElement {
   return screen.getByRole("region", { name: "Inspector" });
 }

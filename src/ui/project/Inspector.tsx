@@ -1,15 +1,14 @@
-import {
-  useCallback,
-  useId,
-  type KeyboardEvent,
-  type ReactNode,
-  type Ref,
-} from "react";
+import { useCallback, useId, type KeyboardEvent, type ReactNode } from "react";
 import type { Selection } from "../../application/details/selection";
 import type { Project } from "../../domain/model/project";
 import { RunExplanation } from "../run/RunExplanation";
 import type { ProjectRun } from "../run/useProjectRun";
 import { Button } from "../shared/Button";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
+} from "../shared/PanelIcons";
 import { useFindingSelecting } from "./useFindingSelecting";
 import styles from "./Inspector.module.css";
 import { ProjectOverview } from "./ProjectOverview";
@@ -28,32 +27,32 @@ export interface InspectorProps {
   readonly onRemove: AddAndRemove["remove"];
   /** The outline's step lines, where a selected step's remove sends the focus. */
   readonly stepRows: FocusAfterRedraw;
-  /** The inspector's box, so the screen can measure what it covers. */
-  readonly ref?: Ref<HTMLElement> | undefined;
 }
 
 /**
- * A wide window's inspector, floating over the canvas's right: Close, then
- * one surface that shows what the selection alone decides (UX design §5,
- * rule 1): a thing's details, the run's explanation, or with nothing
- * selected the project's overview. With a selection shown, Close clears
- * it, as Escape does, so the overview comes back and the focus returns to
- * what made the selection. With none, Close collapses the inspector to a
- * narrow strip on the canvas's right edge, whose button, the same one, so
- * the focus stays on it, opens it again. Selecting anything, or Run, opens
- * it too. Collapsed, its content stays mounted, hidden, so a draft is
- * still there when it opens. The run's totals and charts are the dock's.
+ * A wide window's inspector, a full-height column on the right, beside the
+ * canvas and the dock: × and the chevron, then one surface that shows what
+ * the selection alone decides (UX design §5, rule 1): a thing's details,
+ * the run's explanation, or with nothing selected the project's overview.
+ * Each control does one thing (rule 7). × is there only while something
+ * is selected; it clears the selection, as Escape does, so the overview
+ * comes back and the focus returns to what made the selection. The
+ * chevron collapses the inspector to a narrow strip on the right edge,
+ * keeping the selection, and the strip's chevron, the same button, so the
+ * focus stays on it, opens it again on the same thing. Selecting anything,
+ * or Run, opens it too. Collapsed, its content stays mounted, hidden, so a
+ * draft is still there when it opens. The run's totals and charts are the
+ * dock's.
  */
-export function Inspector({ ref, ...props }: InspectorProps) {
+export function Inspector(props: InspectorProps) {
   const { inspectorOpen } = props.selecting;
   const bodyId = useId();
   return (
     <section
-      ref={ref}
       aria-label="Inspector"
       className={inspectorOpen ? styles.inspector : styles.collapsed}
     >
-      <InspectorToggle selecting={props.selecting} bodyId={bodyId} />
+      <InspectorControls selecting={props.selecting} bodyId={bodyId} />
       {/* A tab stop, so the keyboard can scroll it. */}
       <div
         id={bodyId}
@@ -67,53 +66,66 @@ export function Inspector({ ref, ...props }: InspectorProps) {
   );
 }
 
-interface InspectorToggleProps {
+interface InspectorControlsProps {
   readonly selecting: ProjectSelection;
-  /** The content the toggle shows and hides. */
+  /** The content the chevron shows and hides. */
   readonly bodyId: string;
 }
 
 /**
- * Close, or on the collapsed strip, Inspector: one button, so the focus
- * stays. With a selection shown, Close clears it, as Escape does, so the
- * overview comes back; with none, it collapses the inspector.
+ * × while the open inspector shows a selection, then the chevron: one
+ * clears, the other collapses or opens, whatever the inspector shows.
  */
-function InspectorToggle({ selecting, bodyId }: InspectorToggleProps) {
+function InspectorControls({ selecting, bodyId }: InspectorControlsProps) {
   const { inspectorOpen, showInspector, close } = selecting;
   const closing = CLOSE_LABELS[contentKindOf(selecting.selection)];
-  const closesSelection = inspectorOpen && closing !== undefined;
+  const open = inspectorOpen ? COLLAPSING : OPENING;
   return (
-    <div className={styles.toggle}>
+    <div className={styles.controls}>
+      {inspectorOpen && closing !== undefined && (
+        <Button variant="icon" label={closing} title={closing} onClick={close}>
+          <CloseIcon />
+        </Button>
+      )}
       <Button
-        label={toggleLabel(
-          inspectorOpen,
-          closesSelection ? closing : undefined,
-        )}
+        variant="icon"
+        label={open.label}
+        title={open.label}
         expanded={inspectorOpen}
         controls={bodyId}
         onClick={() => {
-          if (closesSelection) close();
-          else showInspector(!inspectorOpen);
+          showInspector(!inspectorOpen);
         }}
       >
-        {inspectorOpen ? "Close" : "Inspector"}
+        {open.icon}
       </Button>
     </div>
   );
 }
 
-/** What the toggle does, for a screen reader. */
-function toggleLabel(
-  inspectorOpen: boolean,
-  closing: string | undefined,
-): string {
-  if (closing !== undefined) return closing;
-  return inspectorOpen ? "Close the inspector" : "Open the inspector";
+/** What the chevron says and draws, by what it does. */
+interface ChevronLook {
+  readonly label: string;
+  readonly icon: ReactNode;
 }
+
+/** The open inspector's chevron, which collapses it to the right. */
+const COLLAPSING: ChevronLook = {
+  label: "Collapse the inspector",
+  icon: <ChevronRightIcon />,
+};
+
+/** The strip's chevron, which opens the inspector to the left. */
+const OPENING: ChevronLook = {
+  label: "Open the inspector",
+  icon: <ChevronLeftIcon />,
+};
 
 /**
  * A narrow window's inspector, under the canvas, full-width: the same one
  * surface as a wide window's, with a Close beside the selection's heading.
+ * It has no chevron: it's a section of a page that scrolls, with no edge
+ * to collapse to.
  */
 export function StackedInspector(props: InspectorContentProps) {
   return (
@@ -125,8 +137,8 @@ export function StackedInspector(props: InspectorContentProps) {
   );
 }
 
-/** What the inspector's content shows, without its box's ref. */
-interface InspectorContentProps extends Omit<InspectorProps, "ref"> {
+/** What the inspector's content shows. */
+interface InspectorContentProps extends InspectorProps {
   /** Shows a Close beside the selection's heading, as the narrow layout does. */
   readonly closable?: boolean;
 }
@@ -156,8 +168,8 @@ const CONTENTS: Record<
 };
 
 /**
- * What Close says while it clears a selection of each kind; undefined for
- * the kinds it doesn't clear, where it collapses the inspector instead.
+ * What × says while it clears a selection of each kind; undefined with
+ * nothing selected, where there's no ×.
  */
 const CLOSE_LABELS: Record<ContentKind, string | undefined> = {
   nothing: undefined,

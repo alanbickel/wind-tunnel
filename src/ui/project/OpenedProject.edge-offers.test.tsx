@@ -18,7 +18,7 @@ import {
   stubDiagramBrowserApis,
 } from "../diagram/testing/stub-diagram-browser-apis";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
-import { revealButton, railRegion } from "./testing/canvas-panels";
+import { revealButton, politeRegion } from "./testing/canvas-panels";
 import {
   renderOpenedProject as renderProject,
   savedRecord,
@@ -193,7 +193,7 @@ describe("OpenedProject's adding a call from an edge's offer", () => {
       "1.1.1 Table · read",
       "1.2 Function · invoke",
     ]);
-    expect(railRegion("component").textContent).toBe(
+    expect(politeRegion("dock").textContent).toBe(
       "Added a call from API to Function.",
     );
     expect(
@@ -364,7 +364,7 @@ describe("OpenedProject's adding a call from an edge's offer", () => {
         name: "Undo add async work from Queue to Writer",
       }),
     ).toBeTruthy();
-    expect(railRegion("component").textContent).toBe(
+    expect(politeRegion("dock").textContent).toBe(
       "Added async work from Queue to Writer.",
     );
   });

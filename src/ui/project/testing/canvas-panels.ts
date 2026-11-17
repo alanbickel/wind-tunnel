@@ -29,13 +29,13 @@ export function openPanel(button: CanvasPanelButton): HTMLElement {
 
 /**
  * The polite regions: the dock's, which says what a component's, an
- * edge's, or a workload's remove or a move did ("component"), and the tool
+ * edge's, or a workload's remove or a move did ("dock"), and the tool
  * rail's, beside its toolbar, which says what a workflow's remove did
- * ("list").
+ * ("rail").
  */
-export function railRegion(which: "component" | "list"): HTMLElement {
+export function politeRegion(which: "dock" | "rail"): HTMLElement {
   const parent =
-    which === "component"
+    which === "dock"
       ? screen.getByRole("region", { name: "Dock" })
       : screen.getByRole("toolbar", { name: "Tools" }).parentElement;
   const region = parent?.querySelector<HTMLElement>('[role="status"]');

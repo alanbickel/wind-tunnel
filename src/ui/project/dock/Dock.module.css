@@ -1,7 +1,8 @@
 /* A narrow window: a full-width section after the inspector's content, in
-   page order, its content at most --dock-stacked-max-height tall. The tabs stay in
-   view, and the shown overlay scrolls inside its panel, so a long overlay
-   (the run's charts) doesn't make the page many windows tall. */
+   page order, its content at most --dock-stacked-max-height tall. The
+   tabs stay in view, and the shown overlay scrolls inside its panel, so a
+   long overlay (the run's charts) doesn't make the page many windows
+   tall. */
 .dock {
   position: relative;
   display: flex;

@@ -18,15 +18,15 @@ export interface DockProps extends OverlayProps {
  * The dock along the bottom of the canvas, as wide as the window (UX
  * design §2, "The dock"). It holds the overlays that have something to
  * show, each in a tab, Library first, and the run group at the end of
- * their strip, after Fold. Library, Components, and Workloads are always there, so the
- * dock never is nothing. Which tab shows and whether it's folded are the
- * screen's view state (`selecting.dock`), which the dock reads and the
- * user's changes go to. When the shown overlay's tab isn't there, the
- * first one left shows. Fold shrinks it to one line, Unfold and the run
- * group, and keeps every overlay mounted, hidden, so a draft and the
- * charts survive. A polite region always in it says what a remove of a
- * component, a connection, or a workload removed, since the focus has left
- * what changed and its tab may be hidden.
+ * their strip, after Fold. Library, Components, Workloads, and Workflows
+ * are always there, so the dock never is nothing. Which tab shows and
+ * whether it's folded are the screen's view state (`selecting.dock`),
+ * which the dock reads and the user's changes go to. When the shown
+ * overlay's tab isn't there, the first one left shows. Fold shrinks it to
+ * one line, Unfold and the run group, and keeps every overlay mounted,
+ * hidden, so a draft and the charts survive. A polite region always in it
+ * says what a remove of a component, a connection, or a workload removed,
+ * since the focus has left what changed and its tab may be hidden.
  */
 export function Dock(props: DockProps) {
   const { runGroup, ...overlay } = props;
@@ -61,9 +61,9 @@ interface OverlayTabsProps {
  * The overlays' tabs, Fold right after them, then the run group at their
  * strip's end, or whole on a row of its own when it doesn't fit beside
  * them (UX design §2, "Window sizes"). Fold is there only while there's a
- * tab, so something to fold. The run group keeps
- * its place in the tree as tabs come and go, so it isn't mounted afresh
- * and the focus stays on Run when a run's tab appears.
+ * tab, so something to fold. The run group keeps its place in the tree as
+ * tabs come and go, so it isn't mounted afresh and the focus stays on Run
+ * when a run's tab appears.
  */
 function OverlayTabs({ overlay, tabs, selected, runGroup }: OverlayTabsProps) {
   const { show, folded, fold } = overlay.selecting.dock;

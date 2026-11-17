@@ -1,0 +1,33 @@
+/* A component's part of the run, under a rule, after its settings and
+   callers: the run's words, set apart from what the user edits. */
+.section {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: var(--line-width) solid var(--color-border);
+}
+
+.heading {
+  margin: 0 0 var(--space-3);
+}
+
+/* The status, the findings, and "See the run", closer together than the
+   out-of-date line above them. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.line {
+  max-width: var(--prose-max-width);
+  margin: 0;
+}
+
+.findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: var(--prose-max-width);
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}

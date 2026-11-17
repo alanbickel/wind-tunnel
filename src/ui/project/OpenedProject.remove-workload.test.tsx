@@ -5,7 +5,7 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import type { Project, Workload } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { railRegion, revealButton } from "./testing/canvas-panels";
+import { politeRegion, revealButton } from "./testing/canvas-panels";
 import {
   clickRun,
   detailsHeading,
@@ -37,7 +37,7 @@ const threeWorkloads: Project = {
   workloads: [first, middle, last],
 };
 
-/** Selects a workload from the Workflows panel's list. */
+/** Selects a workload from the Workloads tab's list. */
 function select(name: string): void {
   const button = revealButton(name);
   button.focus();
@@ -70,11 +70,11 @@ function pickedName(): string | undefined {
 }
 
 /**
- * The polite region that says what a workload's remove took: beside the
- * canvas's panel buttons, which always show.
+ * The polite region that says what a workload's remove took: the dock's,
+ * which is there whichever tab shows.
  */
 function removedRegion(): HTMLElement {
-  return railRegion("list");
+  return politeRegion("dock");
 }
 
 function addWorkloadButton(): HTMLElement {
@@ -151,6 +151,32 @@ describe("OpenedProject's removing a workload", () => {
     expect(document.activeElement).toBe(addWorkloadButton());
     expect(removedRegion()).toBe(region);
     expect(region.textContent).toBe("Removed Lunch rush.");
+  });
+
+  // Fails if a remove with another tab showing sends the focus to the
+  // hidden "Add workload", where it's lost, rather than to the Workloads
+  // tab, or shows the tab, which only a selection does (rule 3); or the
+  // tab keeps the removed workload's editor.
+  it("focuses the Workloads tab when another tab shows, and leaves it showing none", () => {
+    renderProject({ project: threeWorkloads });
+    select("Lunch rush");
+    fireEvent.click(screen.getByRole("tab", { name: "Library" }));
+
+    fireEvent.click(removeButton());
+    fireEvent.click(
+      within(asking("Remove Lunch rush?")).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+
+    const tab = screen.getByRole("tab", { name: "Workloads" });
+    expect(document.activeElement).toBe(tab);
+    expect(tab.getAttribute("aria-selected")).toBe("false");
+    expect(removedRegion().textContent).toBe("Removed Lunch rush.");
+    fireEvent.click(tab);
+    const panel = screen.getByRole("tabpanel", { name: "Workloads" });
+    expect(within(panel).queryByRole("textbox")).toBeNull();
+    expect(within(panel).getByText(/^A workload says how much/)).toBeTruthy();
   });
 
   // Fails if the run group keeps the removed workload, or picks the first

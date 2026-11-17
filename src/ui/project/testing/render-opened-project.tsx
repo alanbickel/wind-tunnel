@@ -129,25 +129,11 @@ function buildUseCases({
 
 /**
  * The Details heading, the selected item's name and what kind it is: in
- * the inspector's Details, wide or narrow, or the dock's workload. Null
- * while nothing is selected.
+ * the inspector's Details, wide or narrow. Null while nothing is selected.
  */
 export function queryDetailsHeading(): HTMLElement | null {
-  const details =
-    screen.queryByRole("region", { name: "Details" }) ?? queryWorkloadPanel();
+  const details = screen.queryByRole("region", { name: "Details" });
   return details && within(details).queryByRole("heading", { level: 4 });
-}
-
-/**
- * The dock's shown overlay, unless it's the run's, whose headings are the
- * evidence's, not a selection's.
- */
-function queryWorkloadPanel(): HTMLElement | null {
-  const shown = queryDock() && within(dock()).queryAllByRole("tabpanel");
-  const isRun = (panel: HTMLElement) =>
-    document.getElementById(panel.getAttribute("aria-labelledby") ?? "")
-      ?.textContent === "Run";
-  return shown?.find((panel) => !isRun(panel)) ?? null;
 }
 
 /** The dock under the canvas; null while it has nothing to show. */

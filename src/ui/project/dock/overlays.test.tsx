@@ -1,20 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Selection } from "../../../application/details/selection";
 import type { RunSoFar } from "../../../application/run-analysis/run-so-far";
-import { awsDescribeSelection } from "../../../application/testing/aws-describe-selection";
 import { sampleRecord } from "../../../application/testing/sample-record";
 import { sampleSnapshot } from "../../../application/testing/sample-snapshots";
-import { fakeUseCases } from "../../app/testing/fake-use-cases";
-import { UseCasesProvider } from "../../app/UseCasesProvider";
 import type { RunMeaning } from "../../run/useRunFindings";
 import type { ProjectRun } from "../../run/useProjectRun";
 import type { ProjectSelection } from "../useSelection";
 import type { OverlayProps } from "./overlay";
 import { OVERLAY_KEYS, OVERLAYS } from "./overlays";
 import { RunOverlay } from "./RunOverlay";
-import { WorkloadOverlay } from "./WorkloadOverlay";
 
 const { project } = sampleRecord;
 const [steady] = project.workloads;
@@ -63,6 +59,7 @@ function propsOf(
     onRemove: vi.fn(),
     onAdd: vi.fn(),
     listRef: { current: null },
+    addingWorkload: { onAdd: vi.fn(), buttonRef: { current: null } },
     announcement: "",
   };
 }
@@ -72,79 +69,49 @@ const steadySelected: Selection = { kind: "workload", workloadId: "steady" };
 describe("the dock's overlays", () => {
   afterEach(cleanup);
 
-  // Fails if the tabs' order stops putting Library first, then Components, then Run.
-  it("lists Library first, then Components, Run, and the workload", () => {
-    expect(OVERLAY_KEYS).toEqual(["library", "components", "run", "workload"]);
+  // Fails if the tabs' order stops being the modeling loop's: Library,
+  // Components, Workloads, then Run.
+  it("lists Library first, then Components, Workloads, and Run", () => {
+    expect(OVERLAY_KEYS).toEqual(["library", "components", "workloads", "run"]);
   });
 
-  // Fails if Library's tab is left out for want of a run, a selection, or
-  // components, so there'd be no place to add the first one.
-  it("always shows the Library tab", () => {
-    const run = { project, workloadId: "steady", snapshots: [] };
-    const empty = {
-      ...project,
-      architecture: { components: [], edges: [] },
-    };
-    expect(OVERLAYS.library.shows(propsOf(undefined))).toBe(true);
-    expect(OVERLAYS.library.shows(propsOf(steadySelected))).toBe(true);
-    expect(
-      OVERLAYS.library.shows(propsOf(undefined, projectRunOf({ run }))),
-    ).toBe(true);
-    expect(
-      OVERLAYS.library.shows({ ...propsOf(undefined), project: empty }),
-    ).toBe(true);
+  // Fails if the tab's label isn't its name, or depends on the selection.
+  it.each([
+    ["library", "Library"],
+    ["components", "Components"],
+    ["workloads", "Workloads"],
+    ["run", "Run"],
+  ] as const)("labels the %s tab %s", (key, label) => {
+    expect(OVERLAYS[key].label(propsOf(undefined))).toBe(label);
+    expect(OVERLAYS[key].label(propsOf(steadySelected))).toBe(label);
   });
 
-  // Fails if Components' tab is left out for want of a run or a selection,
-  // or for no components in the project.
-  it("always shows the Components tab", () => {
-    const run = { project, workloadId: "steady", snapshots: [] };
-    const empty = {
-      ...project,
-      architecture: { components: [], edges: [] },
-    };
-    expect(OVERLAYS.components.shows(propsOf(undefined))).toBe(true);
-    expect(OVERLAYS.components.shows(propsOf(steadySelected))).toBe(true);
-    expect(
-      OVERLAYS.components.shows(propsOf(undefined, projectRunOf({ run }))),
-    ).toBe(true);
-    expect(
-      OVERLAYS.components.shows({ ...propsOf(undefined), project: empty }),
-    ).toBe(true);
-  });
+  // Fails if one of the always-there tabs is left out for want of a run, a
+  // selection, components, or workloads, so there'd be no place to add the
+  // first one.
+  it.each(["library", "components", "workloads"] as const)(
+    "always shows the %s tab",
+    (key) => {
+      const run = { project, workloadId: "steady", snapshots: [] };
+      const empty = {
+        ...project,
+        architecture: { components: [], edges: [] },
+        workloads: [],
+      };
+      const { shows } = OVERLAYS[key];
+      expect(shows(propsOf(undefined))).toBe(true);
+      expect(shows(propsOf(steadySelected))).toBe(true);
+      expect(shows(propsOf(undefined, projectRunOf({ run })))).toBe(true);
+      expect(shows({ ...propsOf(undefined), project: empty })).toBe(true);
+    },
+  );
 
-  // Fails if Run's tab shows before a run starts, or the workload's shows
-  // for another kind of selection or a workload the project no longer has.
-  it("says which have something to show, by the run and the selection", () => {
+  // Fails if Run's tab shows before a run starts, or not once one has.
+  it("shows the Run tab once a run has started", () => {
     const run = { project, workloadId: "steady", snapshots: [] };
     expect(OVERLAYS.run.shows(propsOf(undefined))).toBe(false);
     expect(OVERLAYS.run.shows(propsOf(undefined, projectRunOf({ run })))).toBe(
       true,
-    );
-    expect(OVERLAYS.workload.shows(propsOf(steadySelected))).toBe(true);
-    expect(
-      OVERLAYS.workload.shows(
-        propsOf({ kind: "component", componentId: "fn" }),
-      ),
-    ).toBe(false);
-    expect(
-      OVERLAYS.workload.shows(
-        propsOf({ kind: "workload", workloadId: "gone" }),
-      ),
-    ).toBe(false);
-  });
-
-  // Fails if the workload's label isn't its name as the project has it now.
-  it("labels the workload's tab with its name, read from the project", () => {
-    const props = propsOf(steadySelected);
-    const renamed = {
-      ...project,
-      workloads: [{ ...steady, name: "Dinner" }],
-    };
-
-    expect(OVERLAYS.workload.label(props)).toBe("Workload: Steady");
-    expect(OVERLAYS.workload.label({ ...props, project: renamed })).toBe(
-      "Workload: Dinner",
     );
   });
 });
@@ -192,40 +159,5 @@ describe("RunOverlay", () => {
     );
 
     expect(screen.getByText(EARLIER_VERSION)).toBeTruthy();
-  });
-});
-
-describe("WorkloadOverlay", () => {
-  afterEach(cleanup);
-
-  // Fails if the overlay doesn't draw the selected workload's editor, with
-  // its heading and Close.
-  it("draws the selected workload's editor", () => {
-    render(
-      <UseCasesProvider
-        useCases={fakeUseCases({ describeSelection: awsDescribeSelection() })}
-      >
-        <WorkloadOverlay {...propsOf(steadySelected)} />
-      </UseCasesProvider>,
-    );
-
-    const heading = screen.getByRole("heading", { level: 4 });
-    expect(heading.textContent).toBe("Steady · Workload");
-    expect(screen.getByRole("textbox", { name: "Duration" })).toBeTruthy();
-    expect(
-      within(document.body).getByRole("button", { name: "Close" }),
-    ).toBeTruthy();
-  });
-
-  // Fails if the overlay draws something for a selection that isn't a
-  // workload.
-  it("draws nothing for another kind of selection", () => {
-    const { container } = render(
-      <WorkloadOverlay
-        {...propsOf({ kind: "component", componentId: "fn" })}
-      />,
-    );
-
-    expect(container.childElementCount).toBe(0);
   });
 });

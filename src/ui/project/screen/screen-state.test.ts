@@ -9,9 +9,8 @@ import {
 } from "./screen-state";
 
 // The map of UX design §5, as far as the screen's state holds it today:
-// the selection, the inspector, the dock, and the run group's pick.
-// Each rule and limit about
-// them has a test where today's screen follows it, and an `it.todo` naming
+// the selection, the inspector, the dock (with the Workloads tab's open
+// workload), and the run group's pick. Each rule and limit about them has a test where today's screen follows it, and an `it.todo` naming
 // the #246 slice that makes it hold where it doesn't.
 
 const COMPONENT: Selection = { kind: "component", componentId: "api" };
@@ -68,8 +67,8 @@ const PICK = (workloadId: string): ScreenTransition => ({
 const EVERY_TAB: readonly OverlayKey[] = [
   "library",
   "components",
+  "workloads",
   "run",
-  "workload",
 ];
 
 /** The state the screen reaches by `transitions`, from when it opens. */
@@ -224,9 +223,9 @@ describe("the map: the dock", () => {
 
   // Fails if a folded dock loses its tab, so unfolding it shows another.
   it("unfolds on the tab it held", () => {
-    const folded = after(SHOW("workload"), FOLD);
+    const folded = after(SHOW("workloads"), FOLD);
     expect(nextScreenState(folded, UNFOLD).dock).toEqual({
-      shown: "workload",
+      shown: "workloads",
       folded: false,
     });
   });
@@ -241,10 +240,10 @@ describe("the map: the dock", () => {
     expect(nextScreenState(state, transition)).toBe(state);
   });
 
-  // Which tabs are there isn't held here: the dock reads it from the run
-  // and the selection, so "no run: the Run tab isn't there" and "Library and
-  // Components are always there" are tested in `dock/overlays.test.tsx`.
-  it.todo("Workflows and Workloads are always there (slice 5 of #246)");
+  // Which tabs are there isn't held here: the dock reads it from the run,
+  // so "no run: the Run tab isn't there" and "Library, Components, and
+  // Workloads are always there" are tested in `dock/overlays.test.tsx`.
+  it.todo("Workflows is always there (slice 5 of #246, part 2)");
 });
 
 describe("rule 1: the selection alone decides what the inspector shows", () => {
@@ -331,8 +330,9 @@ describe("rule 5: the run group picks the workload you select", () => {
 });
 
 describe("rule 2: only the user collapses the inspector", () => {
-  // Fails if selecting anything but a workload collapses the inspector.
-  it.each(ALL_BUT_WORKLOAD)(
+  // Fails if selecting anything, a workload included, collapses the
+  // inspector.
+  it.each(EVERY_SELECTION)(
     "leaves it open on selecting a $kind",
     (selection) => {
       expect(after(SELECT(selection)).inspector).toBe("open");
@@ -362,9 +362,13 @@ describe("rule 2: only the user collapses the inspector", () => {
     expect(after(SELECT(COMPONENT), COLLAPSE, CLEAR).inspector).toBe("open");
   });
 
-  it.todo(
-    "selecting a workload leaves the inspector open: today it collapses (slice 5 of #246)",
-  );
+  // Fails if selecting a workload leaves a collapsed inspector collapsed,
+  // so its name, problems, and Remove aren't shown, or collapses it as the
+  // dock's editor opens, as it did before the Workloads tab.
+  it("opens a collapsed inspector on selecting a workload", () => {
+    expect(after(COLLAPSE, SELECT(WORKLOAD)).inspector).toBe("open");
+  });
+
   // Fails if Run leaves a collapsed inspector collapsed: today the screen
   // opens it, where the run's verdict and findings are.
   it("opens a collapsed inspector on Run", () => {
@@ -427,7 +431,7 @@ describe("rule 3: a selection may show a tab; switching tabs changes nothing els
   // again over another tab doesn't.
   it("shows the workload's tab on selecting a workload, the same one again included", () => {
     const again = after(SELECT(WORKLOAD), SHOW("run"), SELECT(WORKLOAD));
-    expect(again.dock.shown).toBe("workload");
+    expect(again.dock.shown).toBe("workloads");
   });
 
   // Fails if Run, or selecting the run again, doesn't show the Run tab, or
@@ -448,8 +452,8 @@ describe("rule 3: a selection may show a tab; switching tabs changes nothing els
   // `OpenedProject.dock.test.tsx`.
   it.each([true, false])("leaves the folding as it is, folded %s", (folded) => {
     const before = after(...(folded ? [FOLD] : []));
-    expect(nextScreenState(before, SHOW("workload")).dock).toEqual({
-      shown: "workload",
+    expect(nextScreenState(before, SHOW("workloads")).dock).toEqual({
+      shown: "workloads",
       folded,
     });
   });
@@ -468,9 +472,47 @@ describe("rule 3: a selection may show a tab; switching tabs changes nothing els
     }
   });
 
-  it.todo(
-    "a workload shows the Workloads tab, with its editor open (slice 5 of #246)",
+  // Fails if selecting a workload doesn't show the Workloads tab, unfolded,
+  // or doesn't open the workload there, from any tab.
+  it.each(EVERY_TAB)(
+    "a workload shows the Workloads tab, with its editor open, from %s",
+    (tab) => {
+      expect(after(SHOW(tab), FOLD, SELECT(WORKLOAD))).toMatchObject({
+        dock: { shown: "workloads", folded: false },
+        openWorkloadId: "rush",
+      });
+    },
   );
+
+  // Fails if a screen opens with a workload open in the tab: one opens
+  // only as it's selected.
+  it("opens with no workload open in the tab", () => {
+    expect(INITIAL_SCREEN_STATE.openWorkloadId).toBeUndefined();
+  });
+
+  // Fails if anything but selecting a workload changes the one open in the
+  // Workloads tab: selecting a component, or any other kind, clearing,
+  // Run, a pick, or the dock's own changes (rule 3: each tab keeps what
+  // it has open while another shows).
+  it.each([
+    ...ALL_BUT_WORKLOAD.map(
+      (s) => [`selecting a ${s.kind}`, SELECT(s)] as const,
+    ),
+    ["clearing the selection", CLEAR] as const,
+    ["Run", RUN] as const,
+    ["picking another workload", PICK("lunch")] as const,
+    ["showing another tab", SHOW("library")] as const,
+    ["folding the dock", FOLD] as const,
+  ])("keeps the tab's workload open on %s", (_, transition) => {
+    expect(after(SELECT(WORKLOAD), transition).openWorkloadId).toBe("rush");
+  });
+
+  // Fails if selecting another workload leaves the first open in the tab.
+  it("selecting another workload opens it in the tab instead", () => {
+    const other: Selection = { kind: "workload", workloadId: "lunch" };
+    expect(after(SELECT(WORKLOAD), SELECT(other)).openWorkloadId).toBe("lunch");
+  });
+
   it.todo("a workflow or a step shows the Workflows tab (slice 5 of #246)");
 });
 
@@ -479,15 +521,15 @@ describe("the limit: a selection shows a tab only as it's made", () => {
   it.each(SHOWING_NO_TAB)(
     "leaves the tab on selecting a $kind",
     (selection) => {
-      expect(after(SHOW("workload"), SELECT(selection)).dock.shown).toBe(
-        "workload",
+      expect(after(SHOW("workloads"), SELECT(selection)).dock.shown).toBe(
+        "workloads",
       );
     },
   );
 
   // Fails if clearing the selection moves the dock off its tab.
   it("leaves the tab on clearing the selection", () => {
-    expect(after(SELECT(WORKLOAD), CLEAR).dock.shown).toBe("workload");
+    expect(after(SELECT(WORKLOAD), CLEAR).dock.shown).toBe("workloads");
   });
 
   // Fails if picking in the run group moves the dock off its tab.

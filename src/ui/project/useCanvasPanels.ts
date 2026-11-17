@@ -1,11 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 
-/**
- * The canvas's panels: the tool rail's three ("connect"'s hint, the
- * "workflows" and the "workloads").
- */
-export type CanvasPanelId = "connect" | "workflows" | "workloads";
+/** The canvas's panels: the tool rail's two ("connect"'s hint and the "workflows"). */
+export type CanvasPanelId = "connect" | "workflows";
 
 /**
  * The attribute each panel's section carries, holding its id, so `reveal`
@@ -33,13 +30,12 @@ export interface CanvasPanels {
 const PANEL_IDS: ReadonlySet<string> = new Set<CanvasPanelId>([
   "connect",
   "workflows",
-  "workloads",
 ]);
 
 /**
  * The canvas panels' state, held by the screen rather than the panels, so
- * a change elsewhere can open one: a workflow's remove opens "Workflows"
- * (a workload's, "Workloads"), where the focus goes next, and closing
+ * a change elsewhere can open one: a workflow's remove opens "Workflows",
+ * where the focus goes next, and closing
  * Details opens the panel that holds the button that made the selection.
  * Both start closed.
  */

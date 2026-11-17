@@ -44,6 +44,12 @@ export interface ProjectSelection {
   /** Picks a workload in the run group, changing only the pick. */
   readonly pick: (workloadId: string) => void;
   /**
+   * The id of the workload open in the dock's Workloads tab, which a
+   * selected workload sets and nothing else changes; undefined until one
+   * is selected. It may name a workload that has gone since.
+   */
+  readonly openWorkloadId: string | undefined;
+  /**
    * Selects, and shows its details in an open inspector, whose `focus` takes the focus: its heading
    * unless given. Remembers the element that had the focus, such as the
    * button that made the selection, so `close` can return it.
@@ -117,7 +123,8 @@ export function useSelection(reveal: RevealElement): ProjectSelection {
 
   const changes = { ...opened, selectWithin, selectFinding, clear };
   const regions = { ...inspector, ...dock, ...picking };
-  return { selection: screen.selection, ...regions, ...changes, takeFocus };
+  const { selection, openWorkloadId } = screen;
+  return { selection, openWorkloadId, ...regions, ...changes, takeFocus };
 }
 
 /** How to change the view state, and to ask for the focus. */

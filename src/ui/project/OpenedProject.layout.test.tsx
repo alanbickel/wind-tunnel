@@ -7,7 +7,7 @@ import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-
 import {
   openPanel,
   panelButton,
-  railRegion,
+  politeRegion,
   revealButton,
 } from "./testing/canvas-panels";
 import {
@@ -260,7 +260,7 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
   it("opens Workflows to put the focus on Add workflow", () => {
     renderProject();
     const workflows = openPanel("Workflows");
-    const region = railRegion("list");
+    const region = politeRegion("rail");
     fireEvent.click(revealButton("Read item"));
     fireEvent.click(workflows);
     expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
@@ -285,7 +285,7 @@ describe("OpenedProject's Workflows panel and a workflow's remove", () => {
     const button = revealButton("Read item");
     button.focus();
     fireEvent.click(button);
-    openPanel("Workloads");
+    fireEvent.click(openPanel("Workflows"));
     expect(button.closest("[hidden]")).not.toBeNull();
 
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });

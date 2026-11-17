@@ -146,10 +146,7 @@ const CONTENTS: Record<
   workflow: Details,
   step: Details,
   "new-workflow": Details,
-  // Today a workload opens in the dock and collapses the inspector, which
-  // shows the overview if it's opened; slice 5 of issue 246 gives it its
-  // details here.
-  workload: OverviewBesideWorkload,
+  workload: Details,
   run: TheRun,
   // The finding is marked in the run's explanation.
   finding: TheRun,
@@ -166,7 +163,7 @@ const CLOSE_LABELS: Record<ContentKind, string | undefined> = {
   workflow: "Close the details",
   step: "Close the details",
   "new-workflow": "Close the details",
-  workload: undefined,
+  workload: "Close the details",
   run: "Close the run",
   finding: "Close the run",
 };
@@ -178,30 +175,8 @@ function InspectorContent(props: InspectorContentProps) {
 }
 
 /** With nothing selected: the project's overview, whose verdict selects the run. */
-function Overview(props: InspectorContentProps) {
-  const takeFocus = useHeadingFocus(props.selecting);
-  return <OverviewTaking {...props} takeFocus={takeFocus} />;
-}
-
-/**
- * With a workload selected, in the dock: the overview, whose heading
- * never takes the focus, since the workload's heading in the dock does.
- */
-function OverviewBesideWorkload(props: InspectorContentProps) {
-  return <OverviewTaking {...props} takeFocus={neverTakesFocus} />;
-}
-
-function neverTakesFocus(): boolean {
-  return false;
-}
-
-interface OverviewTakingProps extends InspectorContentProps {
-  readonly takeFocus: () => boolean;
-}
-
-/** The overview, its heading taking the focus as `takeFocus` says. */
-function OverviewTaking(props: OverviewTakingProps) {
-  const { project, projectRun, selecting, takeFocus } = props;
+function Overview({ project, projectRun, selecting }: InspectorContentProps) {
+  const takeFocus = useHeadingFocus(selecting);
   return (
     <ProjectOverview
       project={project}

@@ -10,7 +10,7 @@ import { dispatchKind } from "../../shared/kind-dispatch";
 export type InspectorState = "open" | "collapsed";
 
 /** The dock's tabs, by key: the keys of its overlays (`dock/overlays.ts`). */
-export type OverlayKey = "library" | "components" | "run" | "workload";
+export type OverlayKey = "library" | "components" | "workloads" | "run";
 
 /**
  * The dock in UX design §5's map: which tab shows, and whether it's
@@ -39,6 +39,14 @@ export interface ScreenState {
    * the state holds no project data.
    */
   readonly pickedWorkloadId: string | undefined;
+  /**
+   * The id of the workload open in the dock's Workloads tab; undefined
+   * until one is selected (adding one selects it). It stays as other
+   * things are selected and cleared (rule 3). Like the pick, it's read
+   * against the project each time, so once its workload goes, by a remove
+   * or an undo, it opens nothing, and the state holds no project data.
+   */
+  readonly openWorkloadId: string | undefined;
 }
 
 /**
@@ -120,6 +128,7 @@ export const INITIAL_SCREEN_STATE: ScreenState = {
   inspector: "open",
   dock: { shown: "library", folded: false },
   pickedWorkloadId: undefined,
+  openWorkloadId: undefined,
 };
 
 /** Each transition, as a pure function from one state to the next. */
@@ -180,21 +189,22 @@ function selected(state: ScreenState, selection: Selection): ScreenState {
 }
 
 /**
- * `state` with the workload `selection` selected, open in the dock, and
- * picked in the run group, in the same dispatch (rule 5). Today a workload
- * opens in the dock, so the inspector collapses, which §5's rule 2
- * forbids; slice 5 of issue 246 stops it.
+ * `state` with the workload `selection` selected, the inspector open on
+ * it, and the workload open in the Workloads tab, shown and unfolded, and
+ * picked in the run group, in the same dispatch (rules 2, 3, and 5).
  */
 function selectedWorkload(
   state: ScreenState,
   selection: WorkloadSelection,
 ): ScreenState {
+  const { workloadId } = selection;
   return {
     ...state,
     selection,
-    inspector: "collapsed",
-    dock: unfoldedOn("workload"),
-    pickedWorkloadId: selection.workloadId,
+    inspector: "open",
+    dock: unfoldedOn("workloads"),
+    pickedWorkloadId: workloadId,
+    openWorkloadId: workloadId,
   };
 }
 

@@ -7,7 +7,7 @@ import {
   type RefObject,
 } from "react";
 import { Button } from "../shared/Button";
-import { ConnectIcon, WorkflowsIcon, WorkloadsIcon } from "../shared/RailIcons";
+import { ConnectIcon, WorkflowsIcon } from "../shared/RailIcons";
 import styles from "./ToolRail.module.css";
 import {
   CANVAS_PANEL_ATTRIBUTE,
@@ -19,9 +19,7 @@ export interface ToolRailProps {
   readonly panels: CanvasPanels;
   /** The workflows list, which "Workflows" opens. */
   readonly workflows: ReactNode;
-  /** The workloads list, which "Workloads" opens. */
-  readonly workloads: ReactNode;
-  /** What a workflow's or a workload's remove announces: "Removed Get order." */
+  /** What a workflow's remove announces: "Removed Get order." */
   readonly workflowAnnouncement: string;
 }
 
@@ -41,7 +39,6 @@ type PanelIds = (id: CanvasPanelId) => string;
 const RAIL_PANELS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
   "connect",
   "workflows",
-  "workloads",
 ]);
 
 /** The popovers, which close on a click outside; a list stays open. */
@@ -50,17 +47,17 @@ const POPOVERS: ReadonlySet<CanvasPanelId> = new Set<CanvasPanelId>([
 ]);
 
 /**
- * The tool rail down the canvas's left edge (UX design §2): Connect,
- * Workflows, and Workloads, as a toolbar of icon buttons. (Adding a
- * component is the dock's Library tab.) Each
+ * The tool rail down the canvas's left edge (UX design §2): Connect and
+ * Workflows, as a toolbar of icon buttons. (Adding a component is the
+ * dock's Library tab, and the workloads are its Workloads tab.) Each
  * opens its panel beside the rail, over the canvas, one at a time (the
  * canvas's panel state holds which). Escape closes the open one and puts the
- * focus back on its button. A click outside closes Connect's hint; the two
- * lists stay open while you pick through their
+ * focus back on its button. A click outside closes Connect's hint; the
+ * list stays open while you pick through its
  * rows. A closed panel stays mounted, hidden, so its scroll is still there
- * when it opens. A polite region says what a workflow's or a workload's
- * remove took: it's on the rail, which always shows, since a list may be
- * closed. (A component's or an edge's is the dock's.)
+ * when it opens. A polite region says what a workflow's remove took: it's
+ * on the rail, which always shows, since the list may be closed. (A
+ * component's, an edge's, or a workload's is the dock's.)
  */
 export function ToolRail(props: ToolRailProps) {
   const { panels, workflowAnnouncement } = props;
@@ -116,7 +113,7 @@ function RailButtons({ entries, ids, panels }: RailButtonsProps) {
 
 /** The rail's buttons, in order, each with what its panel holds. */
 function railEntries(props: ToolRailProps): RailEntry[] {
-  const { workflows, workloads } = props;
+  const { workflows } = props;
   return [
     {
       id: "connect",
@@ -129,12 +126,6 @@ function railEntries(props: ToolRailProps): RailEntry[] {
       name: "Workflows",
       icon: <WorkflowsIcon />,
       content: workflows,
-    },
-    {
-      id: "workloads",
-      name: "Workloads",
-      icon: <WorkloadsIcon />,
-      content: workloads,
     },
   ];
 }

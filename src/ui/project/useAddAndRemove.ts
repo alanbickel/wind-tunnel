@@ -17,7 +17,7 @@ import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import { useUseCases } from "../app/useUseCases";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { useAnnouncement } from "../shared/useAnnouncement";
-import { focusComponentsList } from "./dock/focus-components-list";
+import { focusInDock } from "./dock/focus-in-dock";
 import { useConnect } from "./useConnect";
 import type { Edit, ProjectEdits } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
@@ -44,27 +44,26 @@ export interface AddAndRemove {
   /**
    * Removes the component, edge, workflow, or workload and saves, clears
    * the selection, moves the focus to the Components tab's list ("Add
-   * workflow" for a workflow, "Add workload" for a workload), since what
-   * made the selection may be gone, and announces it in the region beside
-   * it, since the focus has left what changed. A component's or an
-   * edge's remove doesn't change the dock's tab or unfold it, so when the
-   * list is hidden the focus goes to the Components tab, or to Unfold.
+   * workflow" for a workflow, the Workloads tab's "Add workload" for a
+   * workload), since what made the selection may be gone, and announces it
+   * in the region beside it, since the focus has left what changed. A
+   * remove doesn't change the dock's tab or unfold it, so when the list or
+   * "Add workload" is hidden the focus goes to its tab, or to Unfold.
    */
   readonly remove: (target: Selection) => void;
   /** The Components tab's list, where a component's or an edge's remove sends the focus. */
   readonly componentsListRef: RefObject<HTMLDivElement | null>;
-  /** "Removed Table.", for the polite region in the dock. */
+  /** "Removed Table." or "Removed Lunch rush.", for the polite region in the dock. */
   readonly announcement: string;
   /** Says a message in that region, without moving the focus. */
   readonly announce: (message: string) => void;
   /** The "Add workflow" button, where the focus goes after a workflow's remove. */
   readonly addWorkflowButtonRef: RefObject<HTMLButtonElement | null>;
-  /** The "Add workload" button, where the focus goes after a workload's remove. */
+  /** The Workloads tab's "Add workload", where the focus goes after a workload's remove. */
   readonly addWorkloadButtonRef: RefObject<HTMLButtonElement | null>;
   /**
-   * "Removed Get order.", or "Removed Lunch rush." for a workload, for the
-   * polite region on the rail, which always shows, unlike the rail's
-   * Workflows and Workloads lists that hold the Add buttons.
+   * "Removed Get order.", for the polite region on the rail, which always
+   * shows, unlike the rail's Workflows list that holds "Add workflow".
    */
   readonly workflowAnnouncement: string;
 }
@@ -128,34 +127,34 @@ interface RemovalPlacesResult {
   readonly componentsListRef: RefObject<HTMLDivElement | null>;
   readonly addWorkflowButtonRef: RefObject<HTMLButtonElement | null>;
   readonly addWorkloadButtonRef: RefObject<HTMLButtonElement | null>;
-  /** What the Workflows and Workloads lists' removes announced. */
+  /** What a workflow's remove announced, on the rail. */
   readonly announcement: string;
 }
 
 /**
  * The places for each kind of remove. A component's and an edge's is the
- * Components tab's list, which announces from the dock's region
- * (`announceComponent`). A workflow's and a workload's buttons are in
- * lists that may be closed, so both announce from the one region on the
- * rail.
+ * Components tab's list, and a workload's the Workloads tab's "Add
+ * workload"; both announce from the dock's region (`announceInDock`). A
+ * workflow's button is in a rail list that may be closed, so it announces
+ * from the region on the rail.
  */
 function useRemovalPlaces(
-  announceComponent: RemovalPlace["announce"],
+  announceInDock: RemovalPlace["announce"],
 ): RemovalPlacesResult {
   const componentsListRef = useRef<HTMLDivElement>(null);
   const addWorkflowButtonRef = useRef<HTMLButtonElement>(null);
   const addWorkloadButtonRef = useRef<HTMLButtonElement>(null);
   const [announcement, announce] = useAnnouncement();
-  const button = { focus: focusButton, announce };
+  const inDock = { focus: focusInDock, announce: announceInDock };
   return {
     places: {
-      component: {
-        elementRef: componentsListRef,
-        focus: focusComponentsList,
-        announce: announceComponent,
+      component: { elementRef: componentsListRef, ...inDock },
+      workflow: {
+        elementRef: addWorkflowButtonRef,
+        focus: focusButton,
+        announce,
       },
-      workflow: { elementRef: addWorkflowButtonRef, ...button },
-      workload: { elementRef: addWorkloadButtonRef, ...button },
+      workload: { elementRef: addWorkloadButtonRef, ...inDock },
     },
     componentsListRef,
     addWorkflowButtonRef,

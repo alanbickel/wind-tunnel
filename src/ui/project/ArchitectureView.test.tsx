@@ -86,7 +86,6 @@ function renderView({
         onClear={onClear}
         onConnect={vi.fn()}
         addingWorkflow={{ onAdd: vi.fn(), buttonRef: { current: null } }}
-        addingWorkload={{ onAdd: vi.fn(), buttonRef: { current: null } }}
         workflowAnnouncement=""
         offering={{ onEdit: vi.fn(), onSelect: vi.fn(), announce: vi.fn() }}
         onMove={onMove}
@@ -265,17 +264,16 @@ describe("ArchitectureView's canvas panels", () => {
   it("opens one panel at a time over the canvas, each from its button", () => {
     renderView();
     const workflows = railButton("Workflows");
-    const workloads = railButton("Workloads");
     expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
 
     fireEvent.click(workflows);
     expect(workflows.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("list", { name: "Workflows" })).toBeTruthy();
 
-    fireEvent.click(workloads);
+    fireEvent.click(railButton("Connect"));
     expect(workflows.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByRole("region", { name: "Workflows" })).toBeNull();
-    expect(screen.getByRole("list", { name: "Workloads" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Connect" })).toBeTruthy();
   });
 
   // Fails if the canvas draws the text version again, or the project's

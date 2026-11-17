@@ -17,7 +17,7 @@ import type { RunBadges } from "../../run/run-badges";
 import type { ProjectRun } from "../../run/useProjectRun";
 import type { ProjectSelection } from "../useSelection";
 import { ComponentsOverlay } from "./ComponentsOverlay";
-import { focusComponentsList } from "./focus-components-list";
+import { focusInDock } from "./focus-in-dock";
 import type { OverlayProps } from "./overlay";
 
 /** What a test sets of what the tab reads. */
@@ -44,6 +44,7 @@ function renderTab({
     onRemove: vi.fn(),
     onAdd: vi.fn(),
     listRef: { current: null },
+    addingWorkload: { onAdd: vi.fn(), buttonRef: { current: null } },
     announcement: "",
   };
   render(
@@ -224,13 +225,13 @@ function renderDockParts(hidden: { tab: boolean; panel: boolean }) {
   return document.getElementById("list");
 }
 
-describe("focusComponentsList", () => {
+describe("focusInDock", () => {
   afterEach(cleanup);
 
   // Fails if a remove with the Components tab showing doesn't put the
   // focus on its list.
   it("focuses the list while it shows", () => {
-    focusComponentsList(renderDockParts({ tab: false, panel: false }));
+    focusInDock(renderDockParts({ tab: false, panel: false }));
 
     expect(document.activeElement?.id).toBe("list");
   });
@@ -238,7 +239,7 @@ describe("focusComponentsList", () => {
   // Fails if the focus goes to a hidden list (and is lost), or the tab is
   // changed, instead of the Components tab taking it.
   it("focuses the Components tab when another tab shows", () => {
-    focusComponentsList(renderDockParts({ tab: false, panel: true }));
+    focusInDock(renderDockParts({ tab: false, panel: true }));
 
     expect(document.activeElement?.id).toBe("tab");
   });
@@ -246,7 +247,7 @@ describe("focusComponentsList", () => {
   // Fails if a folded dock, whose tabs are hidden, loses the focus instead
   // of Unfold taking it.
   it("focuses Unfold when the dock is folded", () => {
-    focusComponentsList(renderDockParts({ tab: true, panel: true }));
+    focusInDock(renderDockParts({ tab: true, panel: true }));
 
     expect(document.activeElement?.textContent).toBe("Unfold");
   });

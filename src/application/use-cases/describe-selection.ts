@@ -1,15 +1,15 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
 import type { Project } from "../../domain/model/project";
-import { stepsOfWorkflow } from "../../domain/model/step-tree";
 import {
   handleKind,
   type KindHandlers,
 } from "../../domain/shared/kind-handlers";
 import { componentDetails } from "../details/component-details";
-import type { Details } from "../details/details";
+import type { Details, WorkflowDetails } from "../details/details";
 import { edgeDetails } from "../details/edge-details";
 import type { FieldCatalog } from "../details/field-descriptor";
 import type { Selection } from "../details/selection";
+import { stepDetails } from "../details/step-details";
 import { workflowDetails } from "../details/workflow-details";
 import { workflowRunChecks } from "../run-checks/workflow-run-checks";
 import { workloadRunCheck } from "../run-checks/workload-run-checks";
@@ -32,8 +32,9 @@ export interface DescribeSelectionInput {
  * What the Details tab shows for a selection (UX design §4.1): for a
  * component or an edge, its settings, with their labels, units, help, and
  * defaults, what an editor needs, and what calls it; an edge's defaults are
- * its caller type's. For a workflow, or a step in one, the workflow's
- * outline, each step with its run issues, and the workloads that use it.
+ * its caller type's. For a workflow, its outline, each step with its run
+ * issues, and the workloads that use it, with its share of each. For a
+ * step, its line of that outline, and how a request reaches it.
  * For a workload, its values, its mix with shares, and its profile, each
  * issue on its row. Undefined if the project has no such item, or for a new workflow, which
  * isn't an item yet, or for a finding, which has no Details.
@@ -58,14 +59,9 @@ export class DescribeSelection {
         this.describeComponent({ project, id: componentId }),
       edge: ({ edgeId }) => this.describeEdge({ project, id: edgeId }),
       workflow: ({ workflowId }) =>
-        describeWorkflow({
-          project,
-          registry,
-          id: workflowId,
-          stepId: undefined,
-        }),
+        describeWorkflow({ project, registry, id: workflowId }),
       step: ({ workflowId, stepId }) =>
-        describeWorkflow({ project, registry, id: workflowId, stepId }),
+        describeStep({ project, registry, id: workflowId, stepId }),
       workload: ({ workloadId }) =>
         this.describeWorkload({ project, id: workloadId }),
       // A draft has no details to describe: the UI shows it.
@@ -122,28 +118,40 @@ interface ItemInput {
   readonly id: string;
 }
 
-/** A selected workflow, or the step selected in it. */
+/** A selected workflow, by its id. */
 interface WorkflowItemInput extends ItemInput {
-  /** The selected step's id; undefined for the workflow itself. */
-  readonly stepId: string | undefined;
   /** What the steps' issues are checked against. */
   readonly registry: ComponentRegistry;
 }
 
+/** A selected step, by its id, and its workflow's. */
+interface StepItemInput extends WorkflowItemInput {
+  readonly stepId: string;
+}
+
 /**
- * The workflow's outline, with each step's run issues, and the step marked
- * if one is selected; undefined if the project has no such workflow, or it
- * has no such step.
+ * The workflow's outline, with each step's run issues; undefined if the
+ * project has no such workflow.
  */
-function describeWorkflow(input: WorkflowItemInput): Details | undefined {
-  const { project, registry, id, stepId } = input;
+function describeWorkflow(
+  input: WorkflowItemInput,
+): WorkflowDetails | undefined {
+  const { project, registry, id } = input;
   const workflow = project.workflows.find((w) => w.id === id);
   if (workflow === undefined) return undefined;
-  const steps = stepsOfWorkflow(workflow);
-  if (stepId !== undefined && !steps.some((s) => s.id === stepId)) {
-    return undefined;
-  }
   const check = workflowRunChecks({ project, registry }).get(id);
   const onSteps = check?.onSteps ?? new Map<string, readonly string[]>();
-  return workflowDetails({ project, workflow, onSteps, currentStepId: stepId });
+  return workflowDetails({ project, workflow, onSteps });
+}
+
+/**
+ * The step's line of its workflow's outline, and how a request reaches it;
+ * undefined if the project has no such workflow, or it has no such step.
+ */
+function describeStep(input: StepItemInput): Details | undefined {
+  const { project, id, stepId } = input;
+  const workflow = project.workflows.find((w) => w.id === id);
+  const details = describeWorkflow(input);
+  if (workflow === undefined || details === undefined) return undefined;
+  return stepDetails({ project, workflow, details, stepId });
 }

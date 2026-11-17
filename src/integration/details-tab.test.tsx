@@ -331,11 +331,12 @@ describe("the Details tab, for the templates' workflows", () => {
   }
 
   // Fails if Template A's outlines lose a step, number one wrongly, name a
-  // step by an id, or "Used by" misses a workload or loses their order.
+  // step by an id, or "Used by" misses a workload, loses their order, or
+  // drops the workflow's share of each.
   it("outlines Template A's workflows, numbered, with the workloads that use them", () => {
     renderProject(projectA);
     const usedBy =
-      "Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s";
+      "Used by: Lunch rush, 20 s at 2,000 requests/s (80.0%); Steady day, 200 requests/s (80.0%); Long rush, 2 min at 2,000 requests/s (80.0%)";
 
     selectFromText("Get order");
     expect(detailsHeading().textContent).toBe("Get order · Workflow");

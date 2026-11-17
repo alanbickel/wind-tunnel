@@ -64,7 +64,7 @@ flowchart TB
     subgraph app["application/"]
         describeUc["<b>DescribeSelection</b><br/>[Component: use-cases/]<br/>Finds the workflow and the step"]:::component
         checkUc["<b>CheckWorkflows</b><br/>[Component: use-cases/]<br/>Each workflow's check, for the list"]:::component
-        outline["<b>workflowDetails, usedByLine</b><br/>[Component: details/]<br/>The numbered outline, and its words"]:::component
+        outline["<b>workflowDetails, stepDetails, usedByLine</b><br/>[Component: details/]<br/>The numbered outline, a step on its own, and their words"]:::component
         checks["<b>workflowRunChecks</b><br/>[Component: run-checks/]<br/>Each issue on its step; the count"]:::component
         phrases["<b>run-issue-phrases</b><br/>[Component: run-checks/]<br/>An issue's words, with the step as the subject"]:::component
         pathText["<b>workflowPathText</b><br/>[Component: details/]<br/>A workflow's path line (no screen shows it yet)"]:::component
@@ -106,7 +106,7 @@ flowchart TB
 ## Selecting a workflow or a step
 
 - **The list.** The tool rail's "Workflows" list, opened from the rail's Workflows button, lists the project's workflows in project order, each a button that selects it. A workflow with run issues says how many after its name, one per issue: "Get order · 1 problem". Its row is marked `aria-current` while the workflow, or one of its steps, is selected. With no workflows, it says "No workflows yet. A workflow is the path one kind of request takes through your architecture."
-- **Details.** (A workload's Details is [its own guide's](workload-editor.md); "Used by" names its workloads.) `DescribeSelection` answers both kinds with one `WorkflowDetails`: the name, the names of the workloads whose mix has it (`usedBy`), the outline, and `currentStepId`, the selected step's or undefined. It describes nothing for a workflow the project doesn't have, or a step that isn't in that workflow. The heading is the workflow's name, "· Workflow"; then "Used by: Lunch rush, Steady day", or "Used by: no workload yet", joined with semicolons when a name has a comma of its own, as the templates' do; then the outline, the selected step marked `aria-current`. A step whose component is gone reads "a removed component · read", since a component's ID is never shown. Remove, in the header, asks first ([Removing a workflow](#removing-a-workflow)); `removal` in `WorkflowDetails` holds its words.
+- **Details.** (A workload's Details is [its own guide's](workload-editor.md); "Used by" names its workloads.) `DescribeSelection` answers a workflow with a `WorkflowDetails`: the name, the workloads whose mix has it, each with the workflow's share of that mix (`usedBy`, rounded by `mixShares` as the mix's rows are, so the two always agree), and the outline. It answers a step with a `StepDetails`: the step's line of that outline (`step`), its workflow, and how a request reaches it (`arrival`): "The first step: each request of Get order starts here.", "Called by fn-orders · invoke, along fn-orders → orders-db.", "Delivered by orders-queue · enqueue, along …" for async work, or "…, but fn-orders has no edge to orders-db.", with the edge's id (`edgeId`) when there is one. It describes nothing for a workflow the project doesn't have, or a step that isn't in that workflow. Until the dock's Workflows tab ([#265](https://github.com/alanbickel/wind-tunnel/issues/265)), the inspector shows a selected step as its workflow, describing that, and the outline marks the step the selection names. The heading is the workflow's name, "· Workflow"; then "Used by: Lunch rush (80.0%), Steady day (100.0%)", or "Used by: no workload yet", joined with semicolons when a name has a comma of its own, as the templates' do; then the outline, the selected step marked `aria-current`. A step whose component is gone reads "a removed component · read", since a component's ID is never shown. Remove, in the header, asks first ([Removing a workflow](#removing-a-workflow)); `removal` in `WorkflowDetails` holds its words.
 - **Focus.** As for a component: selecting a workflow or a step moves the focus to the Details heading, and Escape, or Close in a narrow window, clears the selection and returns the focus to whatever made it. A step is selected from inside Details, so the outline selects it with `selectWithin`, which keeps the element remembered before, the workflow's row; the step's own button goes when Details closes.
 - **Undo and redo.** `selectionAfterUndo` keeps a selected workflow while the project still has it, and a selected step while its workflow still has a step with its ID, async work included; otherwise it clears the selection. Either stays even through an undo that brings a component or an edge back, which would otherwise select what came back: undoing a component's removal while one of its steps is selected leaves the step selected, and its issue goes from the outline. Undoing a workflow's remove while it's selected can't happen, since the remove cleared the selection; an undo that takes a selected workflow away (undoing its add) clears it. Undoing a step's remove puts its step and everything under it back, and the selection, which the remove moved to the step's caller, stays there, since the caller is still in the workflow. An undo of a move leaves the selection on its step, whose id didn't change. Otherwise an undo only redraws the outline, with any renamed component's new name and the issues as they now are.
 
@@ -437,14 +437,14 @@ stateDiagram-v2
 Template A: Serverless API with RDS
 
 Get order
-Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s
+Used by: Lunch rush, 20 s at 2,000 requests/s (80.0%); Steady day, 200 requests/s (80.0%); Long rush, 2 min at 2,000 requests/s (80.0%)
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · read
 Text version: Get order: API Gateway → fn-orders → orders-db (read).
 
 Create order
-Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s
+Used by: Lunch rush, 20 s at 2,000 requests/s (20.0%); Steady day, 200 requests/s (20.0%); Long rush, 2 min at 2,000 requests/s (20.0%)
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write

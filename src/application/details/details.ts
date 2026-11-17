@@ -8,7 +8,11 @@ import type { ProfileLine } from "./profile-line";
  * that shows it says the same thing.
  */
 export type Details =
-  ComponentDetails | EdgeDetails | WorkflowDetails | WorkloadDetails;
+  | ComponentDetails
+  | EdgeDetails
+  | WorkflowDetails
+  | StepDetails
+  | WorkloadDetails;
 
 /** One setting, read-only. */
 export interface SettingDetails {
@@ -103,22 +107,60 @@ export interface EdgeDetails {
 }
 
 /**
- * A workflow, or a step in it: its name, the workloads that use it, and
- * its steps as a numbered outline (UX design §2.5 step 3). A selected step
- * shows its workflow's details, with the step named by `currentStepId`.
+ * A workflow: its name, the workloads that use it, and its steps as a
+ * numbered outline (UX design §2.5 step 3). Which step is selected isn't
+ * here: the outline marks the one the screen's selection names.
  */
 export interface WorkflowDetails {
   readonly kind: "workflow";
   readonly workflowId: string;
   readonly name: string;
-  /** The names of the workloads whose mix has it, in project order. */
-  readonly usedBy: readonly string[];
+  /** The workloads whose mix has it, in project order, each with its share. */
+  readonly usedBy: readonly WorkflowUse[];
   /** What Remove's confirmation says. */
   readonly removal: RemovalText;
   /** The workflow's first step, with every step under it. */
   readonly outline: OutlineStep;
-  /** The selected step's id; undefined when the workflow itself is selected. */
-  readonly currentStepId: string | undefined;
+}
+
+/** A workload whose mix has a workflow, and how much of its traffic it gets. */
+export interface WorkflowUse {
+  readonly workloadName: string;
+  /**
+   * The workflow's share of the workload's mix, as its mix row shows it:
+   * "80.0%". Undefined when the mix has no positive weights to divide.
+   */
+  readonly shareText: string | undefined;
+}
+
+/**
+ * A step on its own (UX design §5): what it calls, how a request reaches
+ * it, and the workflow it's in. Its outline line carries its issues and
+ * what its Remove needs.
+ */
+export interface StepDetails {
+  readonly kind: "step";
+  readonly workflowId: string;
+  readonly workflowName: string;
+  /**
+   * The step as its workflow's outline has it: its label ("orders-db ·
+   * read"), its number, its issues, and its `editing`, which is undefined
+   * for the first step, whose Remove is the workflow's.
+   */
+  readonly step: OutlineStep;
+  /**
+   * How a request reaches it: "The first step: each request of Get order
+   * starts here.", "Called by fn-orders · invoke, along fn-orders →
+   * orders-db.", "Delivered by orders-queue · enqueue, along orders-queue →
+   * fn-worker.", or, with no edge to arrive on, "…, but fn-orders has no
+   * edge to orders-db."
+   */
+  readonly arrival: string;
+  /**
+   * The edge its call arrives on; undefined for the first step, which the
+   * user calls, and for a call the architecture has no edge for.
+   */
+  readonly edgeId: string | undefined;
 }
 
 /**

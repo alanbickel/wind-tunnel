@@ -1,14 +1,14 @@
 Template A: Serverless API with RDS
 
 Get order
-Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s
+Used by: Lunch rush, 20 s at 2,000 requests/s (80.0%); Steady day, 200 requests/s (80.0%); Long rush, 2 min at 2,000 requests/s (80.0%)
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · read
 Text version: Get order: API Gateway → fn-orders → orders-db (read).
 
 Create order
-Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s
+Used by: Lunch rush, 20 s at 2,000 requests/s (20.0%); Steady day, 200 requests/s (20.0%); Long rush, 2 min at 2,000 requests/s (20.0%)
 1  API Gateway · invoke
    1.1  fn-orders · invoke
         1.1.1  orders-db · write
@@ -17,14 +17,14 @@ Text version: Create order: API Gateway → fn-orders → orders-db (write).
 Template B: Serverless API with DynamoDB + SQS
 
 Get order
-Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s
+Used by: Lunch rush, 20 s at 2,000 requests/s (80.0%); Steady day, 200 requests/s (80.0%); Long rush, 2 min at 2,000 requests/s (80.0%)
 1  API Gateway · invoke
    1.1  fn-api · invoke
         1.1.1  orders-read · read
 Text version: Get order: API Gateway → fn-api → orders-read (read).
 
 Create order
-Used by: Lunch rush, 20 s at 2,000 requests/s; Steady day, 200 requests/s; Long rush, 2 min at 2,000 requests/s
+Used by: Lunch rush, 20 s at 2,000 requests/s (20.0%); Steady day, 200 requests/s (20.0%); Long rush, 2 min at 2,000 requests/s (20.0%)
 1  API Gateway · invoke
    1.1  fn-api · invoke
         1.1.1  orders-queue · enqueue

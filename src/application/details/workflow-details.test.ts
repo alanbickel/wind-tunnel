@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { Step, Workflow } from "../../domain/model/project";
-import type { OutlineStep } from "./details";
+import type { OutlineStep, WorkflowUse } from "./details";
 import { sampleRecord } from "../testing/sample-record";
 import { usedByLine, workflowDetails } from "./workflow-details";
 
+/** A workload that uses a workflow, with its share, or none to give. */
+function use(workloadName: string, shareText?: string): WorkflowUse {
+  return { workloadName, shareText };
+}
+
 describe("usedByLine", () => {
-  // Fails if a workflow no workload uses gets an empty "Used by:", or the
-  // names lose their order or their commas.
-  it("names the workloads with commas, or says there are none", () => {
-    expect(usedByLine(["Lunch rush", "Steady day"])).toBe(
-      "Used by: Lunch rush, Steady day",
+  // Fails if a workflow no workload uses gets an empty "Used by:", the
+  // names lose their order or their commas, or a share is left out.
+  it("names the workloads with their shares, or says there are none", () => {
+    expect(usedByLine([use("Lunch rush", "80.0%"), use("Steady day")])).toBe(
+      "Used by: Lunch rush (80.0%), Steady day",
     );
     expect(usedByLine([])).toBe("Used by: no workload yet");
   });
@@ -17,9 +22,9 @@ describe("usedByLine", () => {
   // Fails if names that have commas of their own are joined with commas,
   // so "Lunch rush, 20 s at 2,000 requests/s" reads as two workloads.
   it("joins names that have commas with semicolons", () => {
-    expect(usedByLine(["Lunch rush, 20 s", "Steady day"])).toBe(
-      "Used by: Lunch rush, 20 s; Steady day",
-    );
+    expect(
+      usedByLine([use("Lunch rush, 20 s", "33.4%"), use("Steady day")]),
+    ).toBe("Used by: Lunch rush, 20 s (33.4%); Steady day");
   });
 });
 
@@ -43,7 +48,6 @@ describe("workflowDetails' editing", () => {
     project: sampleRecord.project,
     workflow,
     onSteps: new Map(),
-    currentStepId: undefined,
   });
   const [a, b, c] = outline.calls;
 
@@ -63,7 +67,6 @@ describe("workflowDetails' editing", () => {
       project: sampleRecord.project,
       workflow: read,
       onSteps: new Map(),
-      currentStepId: undefined,
     }).outline;
 
     expect(outline.editing).toBeUndefined();
@@ -97,7 +100,6 @@ describe("workflowDetails' editing", () => {
       project: sampleRecord.project,
       workflow,
       onSteps: new Map(),
-      currentStepId: undefined,
     });
     const queue = outline.calls[1];
     if (queue === undefined) throw new Error("no queue");
@@ -152,7 +154,6 @@ describe("workflowDetails' editing", () => {
         project: sampleRecord.project,
         workflow: { ...read, root: { ...read.root, calls } },
         onSteps: new Map(),
-        currentStepId: undefined,
       }).outline.calls.map((c) => c.asyncSlot);
 
     expect(outline([enqueue, leaf("plain")])).toEqual([

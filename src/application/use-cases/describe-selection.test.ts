@@ -407,26 +407,6 @@ describe("DescribeSelection", () => {
     });
   });
 
-  // Fails if "Used by" misses a workload whose mix has the workflow, lists
-  // one whose mix doesn't, or loses the project's order.
-  it("names the workloads that use a workflow, in project order", () => {
-    const [steady] = sample.workloads;
-    if (steady === undefined) throw new Error("sample has no workload");
-    const project: Project = {
-      ...sample,
-      workloads: [
-        { ...steady, id: "spike", name: "Spike" },
-        { ...steady, id: "other", name: "Other", mix: [] },
-        steady,
-      ],
-    };
-
-    expect(workflowIn(project, "read").usedBy).toEqual(["Spike", "Steady"]);
-    expect(workflowIn({ ...project, workloads: [] }, "read").usedBy).toEqual(
-      [],
-    );
-  });
-
   // Fails if Remove's confirmation for a workflow doesn't name the workloads
   // whose mix has it (one or several, in project order), or says more than
   // the question when none does.
@@ -447,19 +427,6 @@ describe("DescribeSelection", () => {
       question: "Remove Read item?",
       warning: undefined,
     });
-  });
-
-  // Fails if a selected step doesn't show its workflow's outline, or isn't
-  // the one marked, or a workflow selected on its own marks a step.
-  it("marks the selected step in its workflow's outline", () => {
-    const step = describeSelection.execute({
-      project: sample,
-      selection: { kind: "step", workflowId: "read", stepId: "fn-invoke" },
-    });
-
-    expect(step?.kind === "workflow" && step.name).toBe("Read item");
-    expect(step?.kind === "workflow" && step.currentStepId).toBe("fn-invoke");
-    expect(workflowIn(sample, "read").currentStepId).toBeUndefined();
   });
 
   // Fails if a step whose component is gone is named by the component's

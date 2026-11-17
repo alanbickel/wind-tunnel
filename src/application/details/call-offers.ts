@@ -1,7 +1,11 @@
 import type { Project, Workflow } from "../../domain/model/project";
 import { findStep } from "../edits/step-search";
 import type { OutlineStep } from "./details";
-import { componentName, workflowDetails } from "./workflow-details";
+import {
+  componentName,
+  outlineSteps,
+  workflowDetails,
+} from "./workflow-details";
 import {
   handleKind,
   type KindHandlers,
@@ -119,17 +123,10 @@ function takingStepsOn({
     project,
     workflow,
     onSteps: new Map(),
-    currentStepId: undefined,
   });
   return outlineSteps(outline)
     .flatMap((outlined) => takingStep(workflow, outlined))
     .filter((taking) => taking.componentId === componentId);
-}
-
-/** The step and every step under it, in outline order: calls, then async work. */
-function outlineSteps(step: OutlineStep): OutlineStep[] {
-  const under = [...step.calls, ...(step.async ? [step.async] : [])];
-  return [step, ...under.flatMap(outlineSteps)];
 }
 
 /** The step as an offered one, or nothing if it can't take a call. */

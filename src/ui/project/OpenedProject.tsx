@@ -50,11 +50,11 @@ export interface OpenedProjectProps {
  * name, Rename, and its controls, and under it the canvas. In a wide
  * window the canvas, over the dock, fills the rest of it beside the
  * inspector, a full-height column on the right; in a narrow one it keeps a
- * fixed height, and the inspector's content follows it, full-width. The run group is at the end of the
- * dock's tab strip in a wide window, and in the top bar in a narrow one:
- * one of it at a time. The record with its edits, the run, and
- * the selection are held here, so every part of the screen reads the same
- * ones, and a tab or layout change doesn't stop the run.
+ * fixed height, and the inspector's content follows it, full-width. The run
+ * group is at the end of the dock's tab strip in a wide window, and in the
+ * top bar in a narrow one: one of it at a time. The record with its edits,
+ * the run, and the selection are held here, so every part of the screen
+ * reads the same ones, and a tab or layout change doesn't stop the run.
  */
 export function OpenedProject(props: OpenedProjectProps) {
   const { record: loaded, shell, onProjectNameChange } = props;

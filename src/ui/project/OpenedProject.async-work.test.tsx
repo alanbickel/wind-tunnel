@@ -9,6 +9,7 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import type { Project, Step } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
+  outlineStatus,
   renderOpenedProject as renderProject,
   savedRecord,
 } from "./testing/render-opened-project";
@@ -101,11 +102,6 @@ function outlineText(): string[] {
     .getAllByRole("button")
     .map((button) => button.textContent)
     .filter((text) => /^[0-9]/.test(text));
-}
-
-function detailsStatus(): HTMLElement {
-  const details = screen.getByRole("region", { name: "Details" });
-  return within(details).getByRole("status");
 }
 
 function pick(label: string, value: string): void {
@@ -257,7 +253,7 @@ describe("OpenedProject's async work under an enqueue", () => {
     const added = screen.getByRole("button", { name: /^1\.1\.1\.1 Writer/ });
     expect(added.getAttribute("aria-current")).toBe("true");
     expect(document.activeElement).toBe(added);
-    expect(detailsStatus().textContent).toBe(
+    expect(outlineStatus().textContent).toBe(
       "Added async work from Queue to Writer.",
     );
     const saved = await savedRecord(
@@ -349,7 +345,7 @@ describe("OpenedProject's editing the async tree", () => {
     const queue = screen.getByRole("button", { name: /^1\.1\.1 Queue/ });
     expect(queue.getAttribute("aria-current")).toBe("true");
     expect(document.activeElement).toBe(queue);
-    expect(detailsStatus().textContent).toBe(
+    expect(outlineStatus().textContent).toBe(
       "Removed Writer · invoke. Queue · enqueue has no async work now.",
     );
     expect(screen.getByText(/^No async work yet/)).toBeTruthy();

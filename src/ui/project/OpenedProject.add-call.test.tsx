@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
   detailsHeading,
+  outlineStatus,
+  queryDetailsHeading,
   renderOpenedProject as renderProject,
   savedRecord,
 } from "./testing/render-opened-project";
@@ -26,12 +28,6 @@ function outlineText(): string[] {
     .getAllByRole("button")
     .map((button) => button.textContent)
     .filter((text) => /^[0-9]/.test(text));
-}
-
-/** The status region in Details. */
-function detailsStatus(): HTMLElement {
-  const details = screen.getByRole("region", { name: "Details" });
-  return within(details).getByRole("status");
 }
 
 /** Opens a step's draft call. */
@@ -128,7 +124,7 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
     const added = screen.getByRole("button", { name: /^1\.2 Function/ });
     expect(added.getAttribute("aria-current")).toBe("true");
     expect(document.activeElement).toBe(added);
-    expect(detailsStatus().textContent).toBe(
+    expect(outlineStatus().textContent).toBe(
       "Added a call from API to Function.",
     );
     expect(
@@ -180,7 +176,7 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
     pick("Component", "table");
     pick("Action", "write");
 
-    expect(detailsStatus().textContent).toBe(
+    expect(outlineStatus().textContent).toBe(
       "Added a call from Function to Table.",
     );
     expect(
@@ -233,8 +229,8 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
   });
 
   // Fails if undoing an add leaves the new step selected (it's gone, so
-  // Details would describe a step the workflow doesn't have), or the
-  // outline keeps the step.
+  // Details would describe a step the workflow doesn't have), the
+  // outline keeps the step, or the Workflows tab drops its workflow.
   it("undoes a call that adds no edge, and clears the selection that was on it", () => {
     renderProject();
     openOutline();
@@ -243,8 +239,7 @@ describe("OpenedProject's adding a call to a workflow's step", () => {
 
     undo();
 
-    expect(screen.queryByRole("list", { name: "Steps" })).toBeNull();
-    openOutline();
+    expect(queryDetailsHeading()).toBeNull();
     expect(outlineText()).toHaveLength(3);
   });
 });

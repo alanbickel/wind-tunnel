@@ -13,11 +13,13 @@ function candidatesOf(element: HTMLElement): (HTMLElement | null)[] {
 }
 
 /**
- * Moves the focus to where a remove sends it in the dock (UX design §5):
- * the Components tab's list, or the Workloads tab's "Add workload". A
- * remove never changes the dock's tab or unfolds it, so the element may be
- * hidden: then its tab takes the focus, and when the dock is folded and
- * the tabs are hidden too, the button that unfolds it.
+ * Moves the focus to an element that may be in the dock: where a remove
+ * sends it (UX design §5), the Components tab's list, or the Workflows or
+ * Workloads tab's Add button; or the row that made a selection, as ×
+ * returns to it. Neither a remove nor × changes the dock's tab or unfolds
+ * it, so the element may be hidden: then its tab takes the focus, and when
+ * the dock is folded and the tabs are hidden too, the button that unfolds
+ * it. An element outside the dock takes the focus itself.
  */
 export function focusInDock(element: HTMLElement | null): void {
   if (element === null) return;

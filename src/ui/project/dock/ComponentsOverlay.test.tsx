@@ -44,7 +44,9 @@ function renderTab({
     onRemove: vi.fn(),
     onAdd: vi.fn(),
     listRef: { current: null },
+    addingWorkflow: { onAdd: vi.fn(), buttonRef: { current: null } },
     addingWorkload: { onAdd: vi.fn(), buttonRef: { current: null } },
+    stepRows: { buttons: () => () => undefined, after: vi.fn() },
     announcement: "",
   };
   render(

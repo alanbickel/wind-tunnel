@@ -6,10 +6,7 @@ import type {
   WorkflowDetails,
 } from "../../application/details/details";
 import type { StepDirection } from "../../application/edits/workflow-edits";
-import {
-  ASYNC_WORK_HEADING,
-  usedByLine,
-} from "../../application/details/workflow-details";
+import { ASYNC_WORK_HEADING } from "../../application/details/workflow-details";
 import type { Project } from "../../domain/model/project";
 import { Button } from "../shared/Button";
 import { AddCall } from "./AddCall";
@@ -18,11 +15,13 @@ import { RemoveConfirmation } from "./RemoveConfirmation";
 import { useConfirming } from "./useConfirming";
 import type { Edit } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
-import { useStepEdits, type AddedCall, type ChangedStep } from "./useStepEdits";
 import {
-  useFocusAfterRedraw,
-  type StepButtonRefs,
-} from "./useFocusAfterRedraw";
+  useStepEdits,
+  type AddedCall,
+  type ChangedStep,
+  type StepEdits,
+} from "./useStepEdits";
+import type { FocusAfterRedraw, StepButtonRefs } from "./useFocusAfterRedraw";
 import styles from "./WorkflowOutline.module.css";
 
 export interface WorkflowOutlineProps {
@@ -30,18 +29,28 @@ export interface WorkflowOutlineProps {
   readonly details: WorkflowDetails;
   /** The selected step, which the outline marks; undefined for none. */
   readonly currentStepId: string | undefined;
-  /** Selects a step of the outline. */
-  readonly onSelect: ProjectSelection["selectWithin"];
+  /**
+   * Selects a step from its line, leaving the focus there; the line is
+   * what the inspector's × returns the focus to.
+   */
+  readonly onSelect: ProjectSelection["select"];
+  /**
+   * Selects the step an edit made or left, keeping what × returns the
+   * focus to: the button that had it goes with the edit.
+   */
+  readonly onSelectWithin: ProjectSelection["selectWithin"];
   /** Saves a step's move or remove. */
   readonly onEdit: (edit: Edit) => void;
-  /** Says a message in Details' polite region. */
+  /** Says a message in the outline's polite region. */
   readonly announce: (message: string) => void;
+  /** The steps' lines, held by the screen, which a remove or an add focuses. */
+  readonly stepRows: FocusAfterRedraw;
 }
 
 /**
- * A workflow's Details: the workloads that use it, then its steps as a
- * numbered outline, each a button that selects it, marked current while
- * it's the selection (UX design §2.5 step 3), with its run issues under
+ * A workflow's steps as a numbered outline, in the dock's Workflows tab,
+ * each a button that selects it and leaves the focus on it, marked current
+ * while it's the selection (UX design §7), with its run issues under
  * it. A step that's one of a step's calls has Move up, Move down, and
  * Remove (§2.5 steps 5 and 6), and each step that can take one has "Add a
  * call from …" under its calls (§2.5 step 3). An `enqueue` step's async
@@ -49,15 +58,12 @@ export interface WorkflowOutlineProps {
  * "Add async work …", and the async root has Remove but no Move.
  */
 export function WorkflowOutline(props: WorkflowOutlineProps) {
-  const { usedBy, outline } = props.details;
+  const { outline } = props.details;
   const item = useOutlineItem(props);
   return (
-    <>
-      <p className={styles.usedBy}>{usedByLine(usedBy)}</p>
-      <ol aria-label="Steps" className={styles.outline}>
-        <OutlineItem step={outline} {...item} />
-      </ol>
-    </>
+    <ol aria-label="Steps" className={styles.outline}>
+      <OutlineItem step={outline} {...item} />
+    </ol>
   );
 }
 
@@ -70,15 +76,15 @@ export function WorkflowOutline(props: WorkflowOutlineProps) {
 function useOutlineItem(props: WorkflowOutlineProps): OutlineItemContext {
   const { project, details, onSelect, currentStepId } = props;
   const { workflowId } = details;
-  const edits = useStepEdits({ workflowId, ...props });
-  const focus = useFocusAfterRedraw();
+  const edits = useOutlineEdits(props);
+  const focus = props.stepRows;
   return {
     currentStepId,
     project,
     workflowId,
     buttons: focus.buttons,
     onSelect: (stepId: string) => {
-      onSelect({ kind: "step", workflowId, stepId });
+      onSelect({ kind: "step", workflowId, stepId }, "none");
     },
     onMove: edits.move,
     onChange: edits.change,
@@ -96,6 +102,21 @@ function useOutlineItem(props: WorkflowOutlineProps): OutlineItemContext {
       edits.remove(step);
     },
   };
+}
+
+/**
+ * The workflow's step edits, which select the step an edit made or left
+ * without moving what × returns the focus to.
+ */
+function useOutlineEdits(props: WorkflowOutlineProps): StepEdits {
+  const { details, onEdit, onSelectWithin, announce } = props;
+  const { workflowId } = details;
+  return useStepEdits({
+    workflowId,
+    onEdit,
+    onSelect: onSelectWithin,
+    announce,
+  });
 }
 
 /** What every line of the outline is drawn from, and what it does. */

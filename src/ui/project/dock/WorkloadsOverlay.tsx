@@ -6,7 +6,7 @@ import { useAnnouncement } from "../../shared/useAnnouncement";
 import { WorkloadList } from "../WorkloadList";
 import { WorkloadView } from "../WorkloadView";
 import type { OverlayProps } from "./overlay";
-import styles from "./WorkloadsOverlay.module.css";
+import styles from "./ListBesideEditor.module.css";
 
 /**
  * The dock's Workloads tab, always there (UX design §8): the workloads on

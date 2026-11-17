@@ -7,7 +7,7 @@ import type { ProjectRecord } from "../../application/ports/project-record";
 import { dragNode, mouse } from "../diagram/testing/drag-node";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
-import { politeRegion } from "./testing/canvas-panels";
+import { dockRegion } from "./testing/canvas-panels";
 import {
   clickRun,
   renderOpenedProject,
@@ -41,7 +41,7 @@ function clickNode(box: HTMLElement): void {
 
 /** The polite region in the dock, which says what a move did. */
 function movedRegion(): HTMLElement {
-  return politeRegion("dock");
+  return dockRegion();
 }
 
 const fnAt = (x: number, y: number) => (record: ProjectRecord) =>

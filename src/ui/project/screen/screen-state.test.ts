@@ -1,80 +1,35 @@
 import { describe, expect, it } from "vitest";
-import type { Selection } from "../../../application/details/selection";
+import { INITIAL_SCREEN_STATE, nextScreenState } from "./screen-state";
 import {
-  INITIAL_SCREEN_STATE,
-  nextScreenState,
-  type OverlayKey,
-  type ScreenState,
-  type ScreenTransition,
-} from "./screen-state";
-
-// The map of UX design §5, as far as the screen's state holds it today:
-// the selection, the inspector, the dock (with the Workloads tab's open
-// workload), and the run group's pick. Each rule and limit about them has a test where today's screen follows it, and an `it.todo` naming
-// the #246 slice that makes it hold where it doesn't.
-
-const COMPONENT: Selection = { kind: "component", componentId: "api" };
-const EDGE: Selection = { kind: "edge", edgeId: "api-db" };
-const WORKFLOW: Selection = { kind: "workflow", workflowId: "order" };
-const STEP: Selection = { kind: "step", workflowId: "order", stepId: "s1" };
-const WORKLOAD: Selection = { kind: "workload", workloadId: "rush" };
-const NEW_WORKFLOW: Selection = { kind: "new-workflow" };
-const THE_RUN: Selection = { kind: "run" };
-const FINDING: Selection = {
-  kind: "finding",
-  key: {
-    kind: "waiting-holds-limit",
-    componentId: "api",
-    reason: undefined,
-    limitName: undefined,
-  },
-};
-
-const EVERY_SELECTION = [
   COMPONENT,
   EDGE,
-  WORKFLOW,
-  STEP,
   WORKLOAD,
-  NEW_WORKFLOW,
   THE_RUN,
   FINDING,
-];
-const ALL_BUT_WORKLOAD = EVERY_SELECTION.filter((s) => s !== WORKLOAD);
-/** The selections that show no dock tab as they're made (rule 3). */
-const SHOWING_NO_TAB = ALL_BUT_WORKLOAD.filter((s) => s !== THE_RUN);
-/** The selections a run can be replaced under: the run, and its finding. */
-const OF_THE_RUN = [THE_RUN, FINDING];
-/** Every selection but the run, so each can move to it. */
-const ALL_BUT_THE_RUN = EVERY_SELECTION.filter((s) => s !== THE_RUN);
+  EVERY_SELECTION,
+  ALL_BUT_WORKLOAD,
+  SHOWING_NO_TAB,
+  OF_THE_RUN,
+  ALL_BUT_THE_RUN,
+  SELECT,
+  CLEAR,
+  COLLAPSE,
+  OPEN,
+  SHOW,
+  FOLD,
+  UNFOLD,
+  RUN,
+  PICK,
+  EVERY_TAB,
+  after,
+} from "./testing/screen-map";
 
-const SELECT = (selection: Selection): ScreenTransition => ({
-  kind: "select",
-  selection,
-});
-const CLEAR: ScreenTransition = { kind: "clear" };
-const COLLAPSE: ScreenTransition = { kind: "collapse-inspector" };
-const OPEN: ScreenTransition = { kind: "open-inspector" };
-const SHOW = (tab: OverlayKey): ScreenTransition => ({ kind: "show-tab", tab });
-const FOLD: ScreenTransition = { kind: "fold-dock" };
-const UNFOLD: ScreenTransition = { kind: "unfold-dock" };
-const RUN: ScreenTransition = { kind: "run" };
-const PICK = (workloadId: string): ScreenTransition => ({
-  kind: "pick",
-  workloadId,
-});
-
-const EVERY_TAB: readonly OverlayKey[] = [
-  "library",
-  "components",
-  "workloads",
-  "run",
-];
-
-/** The state the screen reaches by `transitions`, from when it opens. */
-function after(...transitions: ScreenTransition[]): ScreenState {
-  return transitions.reduce(nextScreenState, INITIAL_SCREEN_STATE);
-}
+// The map of UX design §5, as far as the screen's state holds it today:
+// the selection, the inspector, the dock (with the Workflows tab's open
+// workflow and the Workloads tab's open workload), and the run group's pick.
+// Each rule and limit about them has a test where today's screen follows
+// it, and an `it.todo` naming the #246 slice that makes it hold where it
+// doesn't. What each tab keeps open is in `screen-state.open-items.test.ts`.
 
 describe("the map: the selection and the inspector", () => {
   // Fails if a screen opens with something selected or the inspector collapsed.
@@ -241,9 +196,9 @@ describe("the map: the dock", () => {
   });
 
   // Which tabs are there isn't held here: the dock reads it from the run,
-  // so "no run: the Run tab isn't there" and "Library, Components, and
-  // Workloads are always there" are tested in `dock/overlays.test.tsx`.
-  it.todo("Workflows is always there (slice 5 of #246, part 2)");
+  // so "no run: the Run tab isn't there" and "Library, Components,
+  // Workflows, and Workloads are always there" are tested in
+  // `dock/overlays.test.tsx`.
 });
 
 describe("rule 1: the selection alone decides what the inspector shows", () => {
@@ -420,10 +375,6 @@ describe("rule 2: only the user folds the dock", () => {
   ] as const)("unfolds it on %s", (_, transition) => {
     expect(after(FOLD, transition).dock.folded).toBe(false);
   });
-
-  it.todo(
-    "selecting a workflow or a step unfolds it on Workflows (slice 5 of #246)",
-  );
 });
 
 describe("rule 3: a selection may show a tab; switching tabs changes nothing else", () => {
@@ -471,49 +422,6 @@ describe("rule 3: a selection may show a tab; switching tabs changes nothing els
       }
     }
   });
-
-  // Fails if selecting a workload doesn't show the Workloads tab, unfolded,
-  // or doesn't open the workload there, from any tab.
-  it.each(EVERY_TAB)(
-    "a workload shows the Workloads tab, with its editor open, from %s",
-    (tab) => {
-      expect(after(SHOW(tab), FOLD, SELECT(WORKLOAD))).toMatchObject({
-        dock: { shown: "workloads", folded: false },
-        openWorkloadId: "rush",
-      });
-    },
-  );
-
-  // Fails if a screen opens with a workload open in the tab: one opens
-  // only as it's selected.
-  it("opens with no workload open in the tab", () => {
-    expect(INITIAL_SCREEN_STATE.openWorkloadId).toBeUndefined();
-  });
-
-  // Fails if anything but selecting a workload changes the one open in the
-  // Workloads tab: selecting a component, or any other kind, clearing,
-  // Run, a pick, or the dock's own changes (rule 3: each tab keeps what
-  // it has open while another shows).
-  it.each([
-    ...ALL_BUT_WORKLOAD.map(
-      (s) => [`selecting a ${s.kind}`, SELECT(s)] as const,
-    ),
-    ["clearing the selection", CLEAR] as const,
-    ["Run", RUN] as const,
-    ["picking another workload", PICK("lunch")] as const,
-    ["showing another tab", SHOW("library")] as const,
-    ["folding the dock", FOLD] as const,
-  ])("keeps the tab's workload open on %s", (_, transition) => {
-    expect(after(SELECT(WORKLOAD), transition).openWorkloadId).toBe("rush");
-  });
-
-  // Fails if selecting another workload leaves the first open in the tab.
-  it("selecting another workload opens it in the tab instead", () => {
-    const other: Selection = { kind: "workload", workloadId: "lunch" };
-    expect(after(SELECT(WORKLOAD), SELECT(other)).openWorkloadId).toBe("lunch");
-  });
-
-  it.todo("a workflow or a step shows the Workflows tab (slice 5 of #246)");
 });
 
 describe("the limit: a selection shows a tab only as it's made", () => {

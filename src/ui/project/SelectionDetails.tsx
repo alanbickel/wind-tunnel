@@ -1,10 +1,4 @@
-import {
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 import type {
   ComponentDetails,
   Details,
@@ -15,6 +9,7 @@ import type {
   WorkloadDetails,
 } from "../../application/details/details";
 import type { Selection } from "../../application/details/selection";
+import { usedByLine } from "../../application/details/workflow-details";
 import type { KindHandlers } from "../../domain/shared/kind-handlers";
 import type { Project } from "../../domain/model/project";
 import { useUseCases } from "../app/useUseCases";
@@ -22,18 +17,20 @@ import { Button } from "../shared/Button";
 import { dispatchKind } from "../shared/kind-dispatch";
 import { useAnnouncement } from "../shared/useAnnouncement";
 import { ConnectTo } from "./ConnectTo";
+import { DetailsHeading } from "./DetailsHeading";
 import { ComponentSettings } from "./fields/ComponentSettings";
 import { EdgeSettings } from "./fields/EdgeSettings";
 import { WorkflowNameField } from "./fields/WorkflowNameField";
 import { WorkloadNameField } from "./fields/WorkloadNameField";
 import { NewWorkflowDetails } from "./NewWorkflowDetails";
 import { RemoveConfirmation } from "./RemoveConfirmation";
+import { SelectedStep } from "./SelectedStep";
 import { useConfirming } from "./useConfirming";
 import styles from "./SelectionDetails.module.css";
 import { useConnect, type Connect } from "./useConnect";
+import type { FocusAfterRedraw } from "./useFocusAfterRedraw";
 import type { Edit } from "./useProjectEdits";
 import type { ProjectSelection } from "./useSelection";
-import { WorkflowOutline } from "./WorkflowOutline";
 import { WorkloadProblems } from "./WorkloadProblems";
 
 export interface SelectionDetailsProps {
@@ -43,10 +40,15 @@ export interface SelectionDetailsProps {
   readonly onEdit: (edit: Edit) => void;
   /** Clears the selection and returns the focus: on Escape, and on Close. */
   readonly onClose: () => void;
-  /** Removes the selected component, edge, or workflow, once the user confirms it. */
+  /** Removes the selected component, edge, workflow, or workload, once the user confirms it. */
   readonly onRemove: (target: Selection) => void;
-  /** Selects something Details shows: a step in a workflow's outline. */
+  /**
+   * Selects without moving the opener: a new workflow once it's saved, or
+   * a removed step's caller.
+   */
   readonly onSelect: ProjectSelection["selectWithin"];
+  /** The outline's step lines, where a step's remove sends the focus. */
+  readonly stepRows: FocusAfterRedraw;
   /** Whether a part of Details should take the focus: just after a selection. */
   readonly takeFocus: ProjectSelection["takeFocus"];
   /** Shows a Close button beside the heading, as the narrow layout does. */
@@ -57,7 +59,8 @@ export interface SelectionDetailsProps {
  * The selected component's or edge's settings, each a field that saves a
  * change once it passes its checks, and a component's "Connect to…"; then
  * what calls it (UX design §4.1, §4.3). Or the selected workflow's name field
- * and outline, with the selected step marked in it; or the selected
+ * and the workloads that run it, whose steps the dock's Workflows tab
+ * outlines; or the selected step (`SelectedStep`); or the selected
  * workload's name field and problems, whose traffic the dock's Workloads
  * tab edits. Takes the focus to its
  * heading when `takeFocus` says a selection was just made, so the keyboard and
@@ -72,46 +75,18 @@ export function SelectionDetails(props: SelectionDetailsProps) {
 }
 
 /**
- * What Details shows of `describeSelection`'s answers: a step shows its
- * workflow's, with the step marked in the outline, until the dock's
- * Workflows tab holds the outline (issue 265).
+ * What `describeSelection` says of a selection the generic header and body
+ * show: a step's is `SelectedStep`'s.
  */
-type ShownDetails = Exclude<Details, StepDetails>;
-
-/** The step the outline marks: the selected one, if a step is selected. */
-function currentStepOf(selection: Selection): string | undefined {
-  return selection.kind === "step" ? selection.stepId : undefined;
-}
-
-/**
- * What Details shows for the selection, as `describeSelection` says it: a
- * step's workflow, which outlines it, or the selection itself; undefined if
- * the project has no such item, a step its workflow doesn't have included.
- */
-function useShownDetails(
-  project: Project,
-  selection: Selection,
-): ShownDetails | undefined {
-  const { describeSelection } = useUseCases();
-  return useMemo(() => {
-    const details = describeSelection.execute({ project, selection });
-    if (details?.kind !== "step") return details;
-    const workflow = describeSelection.execute({
-      project,
-      selection: { kind: "workflow", workflowId: details.workflowId },
-    });
-    return workflow?.kind === "step" ? undefined : workflow;
-  }, [describeSelection, project, selection]);
-}
+type ThingDetails = Exclude<Details, StepDetails>;
 
 /** A component, an edge, a workflow, a step, or a workload: what `describeSelection` says. */
 function DescribedSelection(props: SelectionDetailsProps) {
   const { project, selection, onClose } = props;
-  const details = useShownDetails(project, selection);
+  const details = useDetails(project, selection);
   const [announcement, announce] = useAnnouncement();
 
   if (details === undefined) return <NothingSelected />;
-  const callers = dispatchKind(CALLERS, details);
   return (
     <div
       className={styles.details}
@@ -119,16 +94,50 @@ function DescribedSelection(props: SelectionDetailsProps) {
         closeOnEscape(event, onClose);
       }}
     >
-      {/* Keyed by the selection, so a confirmation doesn't carry over. */}
-      <DetailsHeader key={keyOf(selection)} {...props} details={details} />
-      <DetailsBody {...props} details={details} announce={announce} />
-      {callers !== undefined && <p className={styles.callers}>{callers}</p>}
+      {details.kind === "step" ? (
+        <SelectedStep
+          {...props}
+          details={details}
+          announce={announce}
+          closable={props.closable ?? false}
+        />
+      ) : (
+        <SelectedThing {...props} details={details} announce={announce} />
+      )}
       {/* On the page from the start, empty, so a screen reader announces
           a message put in it (UX design §4.4). */}
       <p role="status" className={styles.announcement}>
         {announcement}
       </p>
     </div>
+  );
+}
+
+/** What `describeSelection` says of the selection, while they're the same. */
+function useDetails(project: Project, selection: Selection) {
+  const { describeSelection } = useUseCases();
+  return useMemo(
+    () => describeSelection.execute({ project, selection }),
+    [describeSelection, project, selection],
+  );
+}
+
+interface SelectedThingProps extends SelectionDetailsProps {
+  readonly details: ThingDetails;
+  readonly announce: (message: string) => void;
+}
+
+/** A component, an edge, a workflow, or a workload: heading, body, and callers. */
+function SelectedThing(props: SelectedThingProps) {
+  const { selection, details } = props;
+  const callers = dispatchKind(CALLERS, details);
+  return (
+    <>
+      {/* Keyed by the selection, so a confirmation doesn't carry over. */}
+      <DetailsHeader key={keyOf(selection)} {...props} />
+      <DetailsBody {...props} />
+      {callers !== undefined && <p className={styles.callers}>{callers}</p>}
+    </>
   );
 }
 
@@ -170,9 +179,7 @@ export function NothingSelected() {
   );
 }
 
-interface DetailsHeaderProps extends SelectionDetailsProps {
-  readonly details: ShownDetails;
-}
+type DetailsHeaderProps = SelectedThingProps;
 
 /**
  * The heading, Remove, and Close, if there is one. Remove opens a confirmation under them, and Cancel there
@@ -211,15 +218,10 @@ function DetailsHeader(props: DetailsHeaderProps) {
 
 /** What's selected, and what kind it is; takes the focus after a selection. */
 function Heading({ details, selection, takeFocus }: DetailsHeaderProps) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  // A layout effect, so the focus moves in the commit that shows Details.
-  useLayoutEffect(() => {
-    if (takeFocus("heading")) headingRef.current?.focus();
-  }, [selection, takeFocus]);
   return (
-    <h4 ref={headingRef} tabIndex={-1} className={styles.heading}>
+    <DetailsHeading selection={selection} takeFocus={takeFocus}>
       {dispatchKind(HEADINGS, details)}
-    </h4>
+    </DetailsHeading>
   );
 }
 
@@ -230,7 +232,7 @@ interface Removal {
 }
 
 /** Each kind's remove. */
-const REMOVALS: KindHandlers<ShownDetails, Removal | undefined> = {
+const REMOVALS: KindHandlers<ThingDetails, Removal | undefined> = {
   component: ({ componentId, removal }: ComponentDetails) => ({
     text: removal,
     target: { kind: "component", componentId },
@@ -259,7 +261,7 @@ function closeOnEscape(
 }
 
 /** The heading: what's selected, then what kind of thing it is. */
-const HEADINGS: KindHandlers<ShownDetails, ReactNode> = {
+const HEADINGS: KindHandlers<ThingDetails, ReactNode> = {
   component: ({ name, typeName }: ComponentDetails) => (
     <>
       {name}
@@ -288,12 +290,11 @@ const HEADINGS: KindHandlers<ShownDetails, ReactNode> = {
 
 /**
  * What a body needs beyond the details: the project, how to save,
- * connect, select, and announce, whether its name field takes the
- * focus, and the step the outline marks.
+ * connect, select, and announce, and whether its name field takes the
+ * focus.
  */
 interface BodyContext {
   readonly project: Project;
-  readonly currentStepId: string | undefined;
   readonly onEdit: (edit: Edit) => void;
   readonly onSelect: ProjectSelection["selectWithin"];
   readonly announce: (message: string) => void;
@@ -304,13 +305,8 @@ interface BodyContext {
 /** What draws a kind's body, from what it needs beyond the details. */
 type Body = (context: BodyContext) => ReactNode;
 
-interface DetailsBodyProps extends SelectionDetailsProps {
-  readonly details: ShownDetails;
-  readonly announce: (message: string) => void;
-}
-
 /** What's selected, as its kind's body shows it; connects through `onEdit`. */
-function DetailsBody(props: DetailsBodyProps) {
+function DetailsBody(props: SelectedThingProps) {
   const { details, project, onEdit, onSelect, announce, takeFocus } = props;
   const connect = useConnect(onEdit);
   const context = {
@@ -320,18 +316,17 @@ function DetailsBody(props: DetailsBodyProps) {
     announce,
     takeFocus,
     connect,
-    currentStepId: currentStepOf(props.selection),
   };
   return dispatchKind(BODIES, details)(context);
 }
 
 /**
  * A component's settings, then "Connect to…"; an edge's settings; a
- * workflow's name, then its outline; a workload's name, then its problems.
+ * workflow's name; a workload's name, then its problems.
  * Each is keyed by what's selected, so no draft carries over to the next
  * one.
  */
-const BODIES: KindHandlers<ShownDetails, Body> = {
+const BODIES: KindHandlers<ThingDetails, Body> = {
   component: (details: ComponentDetails) => (context) => (
     <div key={details.componentId}>
       <ComponentSettings details={details} {...context} />
@@ -342,10 +337,11 @@ const BODIES: KindHandlers<ShownDetails, Body> = {
     <EdgeSettings key={details.edgeId} details={details} {...context} />
   ),
   workflow: (details: WorkflowDetails) => (context) => (
-    <div key={details.workflowId}>
-      <WorkflowNameField details={details} {...context} />
-      <WorkflowOutline details={details} {...context} />
-    </div>
+    <WorkflowNameField
+      key={details.workflowId}
+      details={details}
+      {...context}
+    />
   ),
   workload: (details: WorkloadDetails) => (context) => (
     <div key={details.workloadId}>
@@ -360,10 +356,10 @@ const BODIES: KindHandlers<ShownDetails, Body> = {
 
 /**
  * What calls the component, or along the edge, or that nothing does yet;
- * undefined for a workflow, whose outline says what uses it, and a
- * workload, which nothing calls.
+ * the workloads that run a workflow, with each one's share of its mix; and
+ * undefined for a workload, which nothing calls.
  */
-const CALLERS: KindHandlers<ShownDetails, string | undefined> = {
+const CALLERS: KindHandlers<ThingDetails, string | undefined> = {
   component: ({ calledBy }: ComponentDetails) =>
     `Called by: ${listOr(
       calledBy,
@@ -374,7 +370,7 @@ const CALLERS: KindHandlers<ShownDetails, string | undefined> = {
       calledAlongBy.map((call) => `${call.workflowName} (${call.action})`),
       "nothing yet. A connection carries nothing until a workflow step calls along it.",
     )}`,
-  workflow: () => undefined,
+  workflow: ({ usedBy }: WorkflowDetails) => usedByLine(usedBy),
   workload: () => undefined,
 };
 

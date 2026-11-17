@@ -1,6 +1,6 @@
 # The Workflow Editor
 
-How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §7](../design/user-experience.md#7-workflows)). Today the screen lists a project's workflows, each with a count of its problems, and shows a selected one's steps as an outline in Details, each step with its run issues under it; it draws a selected workflow's path on the diagram. Details has a name field that renames the workflow, and Remove takes it away; each step that's one of another's calls has Move up, Move down, and Remove, and each step that can take a call has "Add a call from …", and the selected step has pickers for its component and action; an `enqueue` step with no async work has "Add async work …", and async work takes the same edits as the main tree ([the commands](#the-commands), [async work](#async-work)). On the canvas, with a workflow selected, each arrow leaving a box in its path has a "+" that adds a call along it ([from the canvas](#adding-a-call-from-the-canvas)). [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
+How a workflow gets from the call tree in a project to what the screen shows, for maintainers new to the code. A workflow is the path one kind of request takes through the architecture ([UX design §7](../design/user-experience.md#7-workflows)). Today the dock's Workflows tab lists a project's workflows, each with a count of its problems, and beside them shows the open one's steps as an outline, each step with its run issues under it; the canvas draws a selected workflow's path. The inspector shows the one thing selected: a workflow's name field, which renames it, the workloads that run it, and Remove, which takes it away; or a step on its own, with its Remove; each step that's one of another's calls has Move up, Move down, and Remove, and each step that can take a call has "Add a call from …", and the selected step has pickers for its component and action; an `enqueue` step with no async work has "Add async work …", and async work takes the same edits as the main tree ([the commands](#the-commands), [async work](#async-work)). On the canvas, with a workflow selected, each arrow leaving a box in its path has a "+" that adds a call along it ([from the canvas](#adding-a-call-from-the-canvas)). [Changing it](#changing-it) says how to add a command. Read [the domain model](domain-model.md) and [the user interface](user-interface.md) first.
 
 ## A workflow, three ways
 
@@ -21,7 +21,7 @@ flowchart TB
     writerStep -->|calls| dbStep
 ```
 
-**2. The outline in Details.** Selecting the workflow shows its steps numbered, as `workflowDetails` builds them: each step named by its component's name and its action, never by an ID; its calls numbered under its own number; and an `enqueue`'s async work after its calls, under "Async work, done when a consumer takes the message". Each line is a button that selects the step.
+**2. The outline in the Workflows tab.** Selecting the workflow opens its steps there, numbered, as `workflowDetails` builds them: each step named by its component's name and its action, never by an ID; its calls numbered under its own number; and an `enqueue`'s async work after its calls, under "Async work, done when a consumer takes the message". Each line is a button that selects the step.
 
 ```text
 1  API Gateway · invoke
@@ -56,8 +56,9 @@ How the pieces connect (the [legend](architecture-overview.md#the-system-at-a-gl
 %%{init: {"flowchart": {"wrappingWidth": 320}}}%%
 flowchart TB
     subgraph ui["ui/project/"]
-        list["<b>ArchitectureView</b><br/>[Component]<br/>The Workflows list, a row per workflow, with its problems; the diagram's marks"]:::component
-        details["<b>SelectionDetails, WorkflowOutline</b><br/>[Component]<br/>The heading, Used by, and the outline with its issues"]:::component
+        tab["<b>WorkflowsOverlay, WorkflowList, WorkflowOutline</b><br/>[Component: dock/]<br/>The Workflows tab: a row per workflow, with its problems, beside the open one's outline with its issues and edits"]:::component
+        details["<b>SelectionDetails, SelectedStep</b><br/>[Component]<br/>The inspector: a workflow's name, Used by, and Remove; a step on its own, and its Remove"]:::component
+        list["<b>ArchitectureView</b><br/>[Component]<br/>The diagram's marks, and the arrows' offers"]:::component
         selecting["<b>useSelection</b><br/>[Component]<br/>The selection, the tab, and where the focus returns"]:::component
         undo["<b>useUndoRedo</b><br/>[Component]<br/>Moves the selection after an undo"]:::component
     end
@@ -76,17 +77,17 @@ flowchart TB
     diagram["<b>Diagram</b><br/>[ui/diagram/]"]:::external
     stepTree["<b>stepsOfWorkflow, stepAt, stepLinksOf</b><br/>[domain/model/step-tree.ts]"]:::external
     findIssues["<b>findRunIssues</b><br/>[domain/components/]"]:::external
-    list -->|"select(workflow)"| selecting
-    list -->|"execute({ project })"| checkUc
-    details -->|"selectWithin(step)"| selecting
-    details -->|"execute({ project, selection })"| describeUc
+    tab -->|"select(workflow), select(step)"| selecting
+    tab -->|"execute({ project })"| checkUc
+    tab & details -->|"execute({ project, selection })"| describeUc
+    details -->|"selectWithin(caller)"| selecting
     describeUc --> outline
     describeUc & checkUc --> checks
     checks --> findIssues
     checks --> phrases
     describeUc & afterUndo & checks & onDiagram --> stepTree
     undo --> afterUndo
-    details -->|"edit(command)"| edits
+    tab & details -->|"edit(command)"| edits
     edits --> stepTree
     list --> onDiagram
     list -->|"useEdgeOffers"| offers
@@ -105,9 +106,9 @@ flowchart TB
 
 ## Selecting a workflow or a step
 
-- **The list.** The tool rail's "Workflows" list, opened from the rail's Workflows button, lists the project's workflows in project order, each a button that selects it. A workflow with run issues says how many after its name, one per issue: "Get order · 1 problem". Its row is marked `aria-current` while the workflow, or one of its steps, is selected. With no workflows, it says "No workflows yet. A workflow is the path one kind of request takes through your architecture."
-- **Details.** (A workload's Details is [its own guide's](workload-editor.md); "Used by" names its workloads.) `DescribeSelection` answers a workflow with a `WorkflowDetails`: the name, the workloads whose mix has it, each with the workflow's share of that mix (`usedBy`, rounded by `mixShares` as the mix's rows are, so the two always agree), and the outline. It answers a step with a `StepDetails`: the step's line of that outline (`step`), its workflow, and how a request reaches it (`arrival`): "The first step: each request of Get order starts here.", "Called by fn-orders · invoke, along fn-orders → orders-db.", "Delivered by orders-queue · enqueue, along …" for async work, or "…, but fn-orders has no edge to orders-db.", with the edge's id (`edgeId`) when there is one. It describes nothing for a workflow the project doesn't have, or a step that isn't in that workflow. Until the dock's Workflows tab ([#265](https://github.com/alanbickel/wind-tunnel/issues/265)), the inspector shows a selected step as its workflow, describing that, and the outline marks the step the selection names. The heading is the workflow's name, "· Workflow"; then "Used by: Lunch rush (80.0%), Steady day (100.0%)", or "Used by: no workload yet", joined with semicolons when a name has a comma of its own, as the templates' do; then the outline, the selected step marked `aria-current`. A step whose component is gone reads "a removed component · read", since a component's ID is never shown. Remove, in the header, asks first ([Removing a workflow](#removing-a-workflow)); `removal` in `WorkflowDetails` holds its words.
-- **Focus.** As for a component: selecting a workflow or a step moves the focus to the Details heading, and Escape, or Close in a narrow window, clears the selection and returns the focus to whatever made it. A step is selected from inside Details, so the outline selects it with `selectWithin`, which keeps the element remembered before, the workflow's row; the step's own button goes when Details closes.
+- **The Workflows tab.** The dock's Workflows tab, always there, lists the project's workflows on its left in project order, each a button that selects it, with "Add workflow" beside its heading. A workflow with run issues says how many after its name, one per issue: "Get order · 1 problem". With no workflows, it says "No workflows yet. A workflow is the path one kind of request takes through your architecture." On its right it shows the open workflow's outline (`WorkflowsOverlay`), a region named by the workflow's name. Selecting a workflow, or one of its steps, opens it there and shows the tab, unfolded (`ScreenState.openWorkflowId`, [the UI guide](user-interface.md#how-the-dock-shows-a-tab)); the tab keeps it while anything else is selected, so the outline stays while you click its boxes, and its row stays marked `aria-current`. With none open, or once the open one goes, it says what a workflow is: "Select one to see its steps."
+- **Details.** (A workload's Details is [its own guide's](workload-editor.md); "Used by" names its workloads.) `DescribeSelection` answers a workflow with a `WorkflowDetails`: the name, the workloads whose mix has it, each with the workflow's share of that mix (`usedBy`, rounded by `mixShares` as the mix's rows are, so the two always agree), and the outline, which the Workflows tab draws. It answers a step with a `StepDetails`: the step's line of that outline (`step`), its workflow, and how a request reaches it (`arrival`): "The first step: each request of Get order starts here.", "Called by fn-orders · invoke, along fn-orders → orders-db.", "Delivered by orders-queue · enqueue, along …" for async work, or "…, but fn-orders has no edge to orders-db.", with the edge's id (`edgeId`) when there is one. It describes nothing for a workflow the project doesn't have, or a step that isn't in that workflow. For a workflow, the inspector's heading is its name, "· Workflow"; then its name field; then "Used by: Lunch rush (80.0%), Steady day (100.0%)", or "Used by: no workload yet", joined with semicolons when a name has a comma of its own, as the templates' do. Remove, in the header, asks first ([Removing a workflow](#removing-a-workflow)); `removal` in `WorkflowDetails` holds its words. For a step (`SelectedStep`), the heading is its label and where it is, "orders-db · read · Step 1.1.1 of Get order"; then its `arrival`, and its issues. Its Remove, which the first step doesn't have, is the outline's ([moving and removing a step](#moving-and-removing-a-step)). The outline marks the step the selection names `aria-current`, and shows its pickers ([changing a step](#changing-a-step)). A step whose component is gone reads "a removed component · read", since a component's ID is never shown.
+- **Focus.** Selecting a workflow from its row moves the focus to the Details heading, as for a component. Selecting a step from its line in the outline leaves the focus on the line (`select(…, "none")`), since the outline is where you're working (UX design §5). Escape in the inspector, or Close in a narrow window, clears the selection and returns the focus to whatever made it, the row or the line, or to the Workflows tab if another tab shows now. The tab keeps the outline either way.
 - **Undo and redo.** `selectionAfterUndo` keeps a selected workflow while the project still has it, and a selected step while its workflow still has a step with its ID, async work included; otherwise it clears the selection. Either stays even through an undo that brings a component or an edge back, which would otherwise select what came back: undoing a component's removal while one of its steps is selected leaves the step selected, and its issue goes from the outline. Undoing a workflow's remove while it's selected can't happen, since the remove cleared the selection; an undo that takes a selected workflow away (undoing its add) clears it. Undoing a step's remove puts its step and everything under it back, and the selection, which the remove moved to the step's caller, stays there, since the caller is still in the workflow. An undo of a move leaves the selection on its step, whose id didn't change. Otherwise an undo only redraws the outline, with any renamed component's new name and the issues as they now are.
 
 ## The path on the diagram
@@ -228,15 +229,15 @@ sequenceDiagram
     S->>E: edit(removeStep), described "Remove fn-orders · invoke"
     S->>O: select the caller, "api · invoke", asking the heading for no focus
     O->>O: focus the caller's line
-    S->>S: announce "Removed fn-orders · invoke." in Details' polite region
+    S->>S: announce "Removed fn-orders · invoke." in the Workflows tab's polite region
 ```
 
-- **The focus.** A move leaves it on the button pressed: React puts the focus back on an element it moved, as long as the step's key is its id, so a step keyed by its place would leave it on its neighbour's. A move that can't go that way, at either end of the siblings, is `aria-disabled`, not `disabled`, so the focus can stay. A remove takes the step's buttons away, so `useFocusAfterRedraw` puts the focus on the caller's step button once the outline has drawn again; the selection moved to the caller with `selectWithin(…, "none")`, which asks Details' heading for nothing.
-- **The announcements.** "Moved orders-db · read up." and "Removed fn-orders · invoke." come from the polite region in Details, which is on the page before its text changes, as for a connection made there. They name the step as the outline does, by its component and action, never by an id. Each button's name says which step it's for ("Move up 1.1.2 orders-db · write"), since a screen reader lists many.
+- **The focus.** A move leaves it on the button pressed: React puts the focus back on an element it moved, as long as the step's key is its id, so a step keyed by its place would leave it on its neighbour's. A move that can't go that way, at either end of the siblings, is `aria-disabled`, not `disabled`, so the focus can stay. A remove takes the step's buttons away, so `useFocusAfterRedraw` puts the focus on the caller's step button once the outline has drawn again; the selection moved to the caller with `selectWithin(…, "none")`, which asks the inspector's heading for nothing. The screen holds `useFocusAfterRedraw` (`OverlayProps.stepRows`), so the inspector's Remove on a selected step can ask for the caller's line too: it removes as the outline's does, asking first if the step has calls under it, and the caller's selection shows the Workflows tab, unfolded, so the line is there to take the focus.
+- **The announcements.** "Moved orders-db · read up." and "Removed fn-orders · invoke." come from the Workflows tab's polite region, beside the outline, which is on the page before its text changes (a remove from the inspector says it from Details' region). They name the step as the outline does, by its component and action, never by an id. Each button's name says which step it's for ("Move up 1.1.2 orders-db · write"), since a screen reader lists many.
 
 ## Adding a call
 
-Under each step's calls, a button "Add a call from api" opens a draft call and moves the focus to its component picker (the button is gone, and the focus would otherwise fall to the page's body): a component picker, and once a component is chosen, an action picker. Like a new workflow's first step, the draft lives only in the UI (`AddCall`, local state), so nothing is stored until both are chosen, and Escape drops it, returns the focus to the button, and saves nothing. Escape stops there: Details' own Escape, which would close the outline, doesn't see it. A component whose type accepts one action has it chosen already, so choosing the component saves the call.
+Under each step's calls, a button "Add a call from api" opens a draft call and moves the focus to its component picker (the button is gone, and the focus would otherwise fall to the page's body): a component picker, and once a component is chosen, an action picker. Like a new workflow's first step, the draft lives only in the UI (`AddCall`, local state), so nothing is stored until both are chosen, and Escape drops it, returns the focus to the button, and saves nothing. Escape stops there, so nothing around the outline answers it too. A component whose type accepts one action has it chosen already, so choosing the component saves the call.
 
 `NewCall` (a use case, since the id comes from the `IdGenerator` port) says what the draft needs: an id for the call, and the components to offer: only those the caller has an edge to, in edge order (`callChoices`), since a call never adds an edge. A caller with none to offer shows no pickers, and says to connect it first: "api has no edges to call along. Connect it first: drag from its handle on the diagram, or choose "Connect to…" in its Details." (`noEdgesNote`). The draft reads it again whenever the project changes, so an Undo that takes a component or an edge away takes it from the picker.
 
@@ -294,7 +295,7 @@ sequenceDiagram
 - **How it looks.** A "+" button in React Flow's label layer ([`OfferEdge`](../../src/ui/diagram/OfferEdge.tsx)), named and given a tooltip for what it does, and always drawn, so it's never shown by color alone and never needs hover to be found. A click on it doesn't reach the canvas, which would clear the selection; a click on the arrow itself still selects the arrow. The arrow's call numbers sit above the button.
 - **Which step gets the call.** The selected step, if it's on the arrow's source box; otherwise the only step there. If the box is in the path more than once and none of its steps is selected, the popover asks "Under step", naming each by its outline number and label.
 - **Which action.** Asked, as "Action", only when the target accepts several (RDS takes `read` and `write`); with one, the call is added at once with no popover. The popover is [`OfferQuestionForm`](../../src/ui/project/OfferQuestionForm.tsx), which takes the focus; Escape, from the form or from the "+", closes it, adds nothing, and returns the focus to the "+". A change to the selection or the project while it's open closes it too, since its answer would save under the old offer.
-- **The focus and the selection** are the outline's: the new step is selected, and the announcement comes from the polite region in the dock (a move on the canvas says its words there too), since Details may be closed.
+- **The focus and the selection** are the outline's: the new step is selected, and the announcement comes from the dock's polite region (a move on the canvas says its words there too), since the Workflows tab may not be showing.
 
 ## Changing a step
 
@@ -389,15 +390,15 @@ sequenceDiagram
     User->>D: Remove, on Get order
     D->>D: asks "Remove Get order?" and "Lunch rush and Steady day run it#59; it leaves their mixes." Focus on Cancel
     User->>D: confirms
-    D->>R: remove(workflow), after opening the rail's Workflows list
+    D->>R: remove(workflow)
     R->>E: edit(removeWorkflow), described "Remove workflow Get order"
     E->>E: the workflow and its mix entries go, and the run goes out of date
-    R->>R: clear the selection, focus "Add workflow", announce "Removed Get order."
+    R->>R: clear the selection, focus "Add workflow" (focusInDock), announce "Removed Get order."
     E-->>P: a workload left with an empty mix can't run: "The mix has no workflows."
 ```
 
 - **The words** come from `describeSelection` (`workflowRemovalText`): the question, and a warning naming the workloads whose mix has the workflow, which is absent when none does. A single workload reads "Steady day runs it; it leaves its mix."
-- **The focus** goes to "Add workflow", in the rail's "Workflows" list, which the remove opens first if it was closed, with "Removed Get order." said from a polite region on the rail, on the page from the start: a region inside the panel, hidden while it was closed, might not be announced.
+- **The focus** goes to "Add workflow", in the Workflows tab, or to its tab, or Unfold, if it's hidden: a remove never changes the tab or unfolds the dock. "Removed Get order." is said from the dock's polite region, on the page from the start: a region inside a hidden tab might not be announced. The tab's outline goes with the workflow, and the tab says what a workflow is until another opens.
 - **Undo** puts back the workflow at its place and the mix entries in one step, because the history keeps the record from before.
 - **A workload's mix** loses the entry, which [the workload editor](workload-editor.md#a-workload-three-ways) shows as the mix without it; a workload left with no entry has an empty mix.
 
@@ -431,7 +432,7 @@ stateDiagram-v2
 
 ## Worked example
 
-[`workflow-outlines.test.ts`](../../src/adapters/templates/details/workflow-outlines.test.ts) describes each template's workflows with `DescribeSelection` and lays them out as Details does, each followed by its `workflowPathText` line, in [`workflow-outlines.txt`](../../src/adapters/templates/details/workflow-outlines.txt). It lives beside the templates, since `application/` can't import them. Template A's:
+[`workflow-outlines.test.ts`](../../src/adapters/templates/details/workflow-outlines.test.ts) describes each template's workflows with `DescribeSelection` and lays them out as the screen does (the inspector's "Used by" line, then the Workflows tab's outline), each followed by its `workflowPathText` line, in [`workflow-outlines.txt`](../../src/adapters/templates/details/workflow-outlines.txt). It lives beside the templates, since `application/` can't import them. Template A's:
 
 ```text
 Template A: Serverless API with RDS

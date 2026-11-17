@@ -3,12 +3,12 @@ import type { Selection } from "../../application/details/selection";
 import type { Project } from "../../domain/model/project";
 import { useUseCases } from "../app/useUseCases";
 import { Button } from "../shared/Button";
-import styles from "./ArchitectureView.module.css";
-import { shownWorkflowId } from "./shown-workflow-id";
+import styles from "./DockList.module.css";
 
 export interface WorkflowListProps {
   readonly project: Project;
-  readonly selection: Selection | undefined;
+  /** The workflow open in the dock's Workflows tab, which the list marks. */
+  readonly openWorkflowId: string | undefined;
   readonly onSelect: (selection: Selection) => void;
   /** "Add workflow". */
   readonly adding: AddWorkflowProps;
@@ -23,7 +23,7 @@ export interface AddWorkflowProps {
 
 /**
  * "Workflows", and a button for each, in project order, marked current
- * while its workflow, or a step in it, is selected, and saying how many
+ * while its workflow is the one open in the Workflows tab, and saying how many
  * problems it has, if any; or a line on what a workflow is, while there
  * are none (UX design §2.5 step 1).
  */
@@ -47,13 +47,16 @@ export function WorkflowList(props: WorkflowListProps) {
 }
 
 /** The list's rows, one per workflow. */
-function WorkflowRows({ project, selection, onSelect }: WorkflowListProps) {
+function WorkflowRows({
+  project,
+  openWorkflowId,
+  onSelect,
+}: WorkflowListProps) {
   const { checkWorkflows } = useUseCases();
   const checks = useMemo(
     () => checkWorkflows.execute({ project }),
     [checkWorkflows, project],
   );
-  const shown = shownWorkflowId(selection);
   return (
     <ul aria-label="Workflows" className={styles.items}>
       {project.workflows.map(({ id, name }) => (
@@ -61,7 +64,7 @@ function WorkflowRows({ project, selection, onSelect }: WorkflowListProps) {
           <WorkflowRow
             name={name}
             problems={checks.get(id)?.problems}
-            current={id === shown}
+            current={id === openWorkflowId}
             onSelect={() => {
               onSelect({ kind: "workflow", workflowId: id });
             }}
@@ -107,7 +110,7 @@ function WorkflowRow({ name, problems, current, onSelect }: WorkflowRowProps) {
 const ADD_A_COMPONENT_FIRST = "Add a component first.";
 
 /**
- * "Add workflow", which opens a new workflow in Details as a draft. A
+ * "Add workflow", which opens a new workflow in the inspector as a draft. A
  * workflow's first step calls a component, so with none the button is
  * unusable, and says why in words its description points at.
  */

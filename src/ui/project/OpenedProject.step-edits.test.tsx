@@ -6,6 +6,8 @@ import type { Project, Step } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import {
   detailsHeading,
+  inspector,
+  outlineStatus,
   renderOpenedProject as renderProject,
   savedRecord,
 } from "./testing/render-opened-project";
@@ -68,12 +70,6 @@ function button(name: string): HTMLElement {
   return screen.getByRole("button", { name });
 }
 
-/** The status region in Details. */
-function detailsStatus(): HTMLElement {
-  const details = screen.getByRole("region", { name: "Details" });
-  return within(details).getByRole("status");
-}
-
 function undo(): void {
   fireEvent.click(screen.getByRole("button", { name: /^Undo\b/ }));
 }
@@ -96,7 +92,7 @@ describe("OpenedProject's moving and removing a workflow's steps", () => {
   it("moves a step down, keeps the focus on its button, announces, and saves", async () => {
     const { projects } = renderProject({ project: twoCalls });
     openOutline();
-    const status = detailsStatus();
+    const status = outlineStatus();
 
     const down = button("Move down 1.1.1 Table · read");
     down.focus();
@@ -111,7 +107,7 @@ describe("OpenedProject's moving and removing a workflow's steps", () => {
     expect(document.activeElement?.getAttribute("aria-label")).toBe(
       "Move down 1.1.2 Table · read",
     );
-    expect(detailsStatus()).toBe(status);
+    expect(outlineStatus()).toBe(status);
     expect(status.textContent).toBe("Moved Table · read down.");
     expect(button("Undo move Table · read down")).toBeTruthy();
     const saved = await savedRecord(
@@ -141,7 +137,7 @@ describe("OpenedProject's moving and removing a workflow's steps", () => {
     fireEvent.click(down);
 
     expect(outlineText()[2]).toBe("1.1.1 Table · read");
-    expect(detailsStatus().textContent).toBe("");
+    expect(outlineStatus().textContent).toBe("");
     expect(screen.queryByRole("button", { name: /^Move .* 1\.1 / })).toBeNull();
   });
 
@@ -163,8 +159,10 @@ describe("OpenedProject's moving and removing a workflow's steps", () => {
     const caller = screen.getByRole("button", { name: /^1\.1 Function/ });
     expect(caller.getAttribute("aria-current")).toBe("true");
     expect(document.activeElement).toBe(caller);
-    expect(detailsHeading().textContent).toBe("Read item · Workflow");
-    expect(detailsStatus().textContent).toBe("Removed Table · write.");
+    expect(detailsHeading().textContent).toBe(
+      "Function · invoke · Step 1.1 of Read item",
+    );
+    expect(outlineStatus().textContent).toBe("Removed Table · write.");
     await savedRecord(
       projects,
       (r) => r.project.workflows[0]?.root.calls?.[0]?.calls?.length === 1,
@@ -212,7 +210,7 @@ describe("OpenedProject's moving and removing a workflow's steps", () => {
     expect(outlineText()).toEqual(["1 API · invoke"]);
     const caller = screen.getByRole("button", { name: /^1 API/ });
     expect(document.activeElement).toBe(caller);
-    expect(detailsStatus().textContent).toBe("Removed Function · invoke.");
+    expect(outlineStatus().textContent).toBe("Removed Function · invoke.");
     undo();
     expect(outlineText()).toEqual([
       "1 API · invoke",
@@ -271,5 +269,49 @@ describe("OpenedProject's moving and removing a workflow's steps", () => {
 
     expect(outline().queryByText(/has no edge to it/)).toBeNull();
     expect(revealButton("Read item")).toBeTruthy();
+  });
+
+  // Fails if the inspector's Remove on a selected step doesn't remove it,
+  // asks first when nothing is under it, doesn't select its caller, or
+  // leaves the focus on the page instead of the caller's line in the
+  // outline (UX design §5, "When the selected thing goes").
+  it("removes a selected step from the inspector, and sends the focus to its caller's line", () => {
+    renderProject({ project: twoCalls });
+    openOutline();
+    fireEvent.click(button("1.1.2 Table · write"));
+
+    fireEvent.click(
+      within(inspector()).getByRole("button", { name: "Remove" }),
+    );
+
+    expect(outlineText()).toEqual([
+      "1 API · invoke",
+      "1.1 Function · invoke",
+      "1.1.1 Table · read",
+    ]);
+    const caller = button("1.1 Function · invoke");
+    expect(caller.getAttribute("aria-current")).toBe("true");
+    expect(document.activeElement).toBe(caller);
+    expect(detailsHeading().textContent).toBe(
+      "Function · invoke · Step 1.1 of Read item",
+    );
+  });
+
+  // Fails if the inspector's Remove, with another tab showing, leaves the
+  // caller's line hidden, so the focus can't reach it: selecting the
+  // caller shows the Workflows tab, as any step's selection does (rule 3).
+  it("shows the Workflows tab as the inspector's step remove selects the caller", () => {
+    renderProject({ project: twoCalls });
+    openOutline();
+    fireEvent.click(button("1.1.2 Table · write"));
+    fireEvent.click(screen.getByRole("tab", { name: "Library" }));
+
+    fireEvent.click(
+      within(inspector()).getByRole("button", { name: "Remove" }),
+    );
+
+    const workflows = screen.getByRole("tab", { name: "Workflows" });
+    expect(workflows.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(button("1.1 Function · invoke"));
   });
 });

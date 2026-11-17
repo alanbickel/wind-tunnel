@@ -32,15 +32,3 @@ export function ConnectIcon() {
     </RailIcon>
   );
 }
-
-/** Three steps along a path: a workflow. */
-export function WorkflowsIcon() {
-  return (
-    <RailIcon>
-      <circle cx="5" cy="6" r="2" />
-      <circle cx="12" cy="18" r="2" />
-      <circle cx="19" cy="6" r="2" />
-      <path d="M6.5 7.5 10.5 16.5M13.5 16.5l4-9" />
-    </RailIcon>
-  );
-}

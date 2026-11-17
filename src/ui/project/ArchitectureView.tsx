@@ -18,12 +18,10 @@ import type {
   DiagramMarks,
 } from "../diagram/diagram-model";
 import type { ZoomActions } from "../diagram/zoom-actions";
-import { CanvasPanels, type CanvasPanelsProps } from "./CanvasPanels";
 import { selectionOf } from "./diagram-items";
 import { useDisplayNames } from "./useDisplayNames";
 import { ToolRail } from "./ToolRail";
 import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
-import { WorkflowList, type AddWorkflowProps } from "./WorkflowList";
 import { useEdgeOffers, type OfferingProps } from "./useEdgeOffers";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
@@ -38,14 +36,7 @@ export interface ArchitectureViewProps {
   readonly onConnect: (from: string, to: string) => void;
   /** Moves a component to where it was put on the diagram. */
   readonly onMove: (componentId: string, position: Point) => void;
-  /** "Add workflow", in the workflows list. */
-  readonly addingWorkflow: AddWorkflowProps;
-  /**
-   * What a workflow's remove announces: "Removed Get order." Said on the
-   * tool rail, not in the list, whose panel may be hidden.
-   */
-  readonly workflowAnnouncement: string;
-  /** Which panel of the tool rail is open. */
+  /** Whether the tool rail's Connect hint is open. */
   readonly panels: CanvasPanelState;
   /** The run on screen's status badges, drawn on the boxes; none before the first run. */
   readonly badges?: RunBadges | undefined;
@@ -60,9 +51,8 @@ export interface ArchitectureViewProps {
 
 /**
  * The canvas: the project's components and connections as a diagram that
- * fills the room it's given, with a tool rail down its left edge (Connect
- * and Workflows), and at its bottom left the workflow picker and
- * zoom, in one row. A click on the diagram selects a
+ * fills the room it's given, with a tool rail down its left edge (zoom
+ * in, zoom out, fit, and Connect). A click on the diagram selects a
  * component or a connection; the dock's Components tab has the same facts
  * as lists, which every user can rely on. The diagram marks
  * the selection, and a selected workflow's path, or a selected step's and
@@ -73,9 +63,8 @@ export interface ArchitectureViewProps {
  * box moves by dragging it, or with the arrow keys once it has the focus;
  * its place is only visual, so the lists don't change. With no
  * components, a line on the canvas says what to do instead (UX design
- * §2.1 step 1). "Workflows" lists them, each
- * a button that selects it, and "Add workflow". The rail comes first in
- * the tab order.
+ * §2.1 step 1), and zoom is unusable. The workflows are the dock's
+ * Workflows tab. The rail comes first in the tab order.
  */
 export function ArchitectureView(props: ArchitectureViewProps) {
   const displayNameOf = useDisplayNames();
@@ -94,21 +83,10 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       <h3 id={headingId} className={styles.heading}>
         Architecture
       </h3>
-      <Rail {...props} />
+      <ToolRail panels={props.panels} zoom={empty ? undefined : zoom} />
       {empty ? <EmptyCanvas /> : <Drawing {...drawn} />}
-      <CanvasPanels
-        panels={props.panels}
-        picker={pickerOf(props)}
-        zoom={empty ? undefined : zoom}
-      />
     </section>
   );
-}
-
-/** What the workflow picker shows and reports. */
-function pickerOf(props: ArchitectureViewProps): CanvasPanelsProps["picker"] {
-  const { record, selection, onSelect, onClear } = props;
-  return { project: record.project, selection, onSelect, onClear };
 }
 
 /** What the canvas says while there are no components to draw. */
@@ -117,30 +95,6 @@ function EmptyCanvas() {
     <p className={styles.empty}>
       No components yet. Add one to start describing your system.
     </p>
-  );
-}
-
-/** The tool rail, with the list it opens. */
-function Rail(props: ArchitectureViewProps) {
-  return (
-    <ToolRail
-      panels={props.panels}
-      workflows={<Workflows {...props} />}
-      workflowAnnouncement={props.workflowAnnouncement}
-    />
-  );
-}
-
-/** The workflows list, for the "Workflows" panel. */
-function Workflows(props: ArchitectureViewProps) {
-  const { selection, onSelect } = props;
-  return (
-    <WorkflowList
-      project={props.record.project}
-      selection={selection}
-      onSelect={onSelect}
-      adding={props.addingWorkflow}
-    />
   );
 }
 

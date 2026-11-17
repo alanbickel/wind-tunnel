@@ -15,7 +15,7 @@ import {
   statusRegions,
 } from "./testing/render-opened-project";
 
-import { politeRegion, revealButton } from "./testing/canvas-panels";
+import { dockRegion, revealButton } from "./testing/canvas-panels";
 
 const [read] = sampleRecord.project.workflows;
 const [steady] = sampleRecord.project.workloads;
@@ -64,12 +64,9 @@ function addWorkflowButton(): HTMLElement {
   return revealButton("Add workflow");
 }
 
-/**
- * The polite region that says what a workflow's remove took: beside the
- * canvas's panel buttons, which always show.
- */
+/** The polite region that says what a workflow's remove took: the dock's. */
 function removedRegion(): HTMLElement {
-  return politeRegion("rail");
+  return dockRegion();
 }
 
 function asking(question: string): HTMLElement {

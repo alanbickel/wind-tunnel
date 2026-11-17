@@ -315,16 +315,21 @@ describe("the Details tab, for the templates", () => {
   );
 });
 
-describe("the Details tab, for the templates' workflows", () => {
+describe("the Details tab and the Workflows tab, for the templates' workflows", () => {
   beforeEach(stubDiagramBrowserApis);
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
   });
 
+  /** The dock's Workflows tab, where the open workflow's outline is. */
+  function workflowsTab(): HTMLElement {
+    return screen.getByRole("tabpanel", { name: "Workflows" });
+  }
+
   /** The outline's steps, as their buttons read: the ones that start with a step's number. */
   function outlineSteps(): HTMLElement[] {
-    const outline = within(detailsTab()).getByRole("list", { name: "Steps" });
+    const outline = within(workflowsTab()).getByRole("list", { name: "Steps" });
     return within(outline)
       .getAllByRole("button")
       .filter((button) => /^[0-9]/.test(button.textContent));
@@ -352,7 +357,7 @@ describe("the Details tab, for the templates' workflows", () => {
 
   // Fails if any workflow of either template can't be selected from the
   // list, or any of its steps, async work included, can't be selected
-  // from the outline and marked current.
+  // from the outline, marked current, and shown on its own in Details.
   it.each([
     ["Template A", projectA],
     ["Template B", projectB],
@@ -366,13 +371,19 @@ describe("the Details tab, for the templates' workflows", () => {
     }
   });
 
-  /** Selects each step of the outline in turn, checking it's marked. */
+  /** Selects each step of the outline in turn, checking it's marked and shown. */
   function selectEachStep(): void {
     const names = outlineSteps().map((step) => step.textContent);
     expect(names.length).toBeGreaterThan(0);
     for (const name of names) {
       const step = selectFromText(name);
       expect(step.getAttribute("aria-current"), name).toBe("true");
+      const space = name.indexOf(" ");
+      const number = name.slice(0, space);
+      const label = name.slice(space + 1);
+      expect(detailsHeading().textContent, name).toContain(
+        `${label} · Step ${number} of `,
+      );
     }
   }
 
@@ -391,7 +402,7 @@ describe("the Details tab, for the templates' workflows", () => {
       "1.1.1.1 fn-writer · invoke",
       "1.1.1.1.1 orders-db · write",
     ]);
-    const asyncWork = within(detailsTab()).getByRole("list", {
+    const asyncWork = within(workflowsTab()).getByRole("list", {
       name: "Async work, done when a consumer takes the message",
     });
     expect(

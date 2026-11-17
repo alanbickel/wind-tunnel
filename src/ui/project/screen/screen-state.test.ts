@@ -27,9 +27,9 @@ import {
 // The map of UX design §5, as far as the screen's state holds it today:
 // the selection, the inspector, the dock (with the Workflows tab's open
 // workflow and the Workloads tab's open workload), and the run group's pick.
-// Each rule and limit about them has a test where today's screen follows
-// it, and an `it.todo` naming the #246 slice that makes it hold where it
-// doesn't. What each tab keeps open is in `screen-state.open-items.test.ts`.
+// Each rule and limit about them has a test; a rule the screen doesn't
+// follow yet would have an `it.todo` naming the issue that makes it hold.
+// What each tab keeps open is in `screen-state.open-items.test.ts`.
 
 describe("the map: the selection and the inspector", () => {
   // Fails if a screen opens with something selected or the inspector collapsed.
@@ -324,13 +324,12 @@ describe("rule 2: only the user collapses the inspector", () => {
     expect(after(COLLAPSE, SELECT(WORKLOAD)).inspector).toBe("open");
   });
 
-  // Fails if Run leaves a collapsed inspector collapsed: today the screen
-  // opens it, where the run's verdict and findings are.
+  // Fails if Run leaves a collapsed inspector collapsed: the screen opens
+  // it, where the run's verdict and findings are, as a selection that shows
+  // a dock tab unfolds the dock.
   it("opens a collapsed inspector on Run", () => {
     expect(after(COLLAPSE, RUN).inspector).toBe("open");
   });
-
-  it.todo("Run leaves the inspector as it is (slice 3 of #246)");
 });
 
 describe("rule 2: only the user folds the dock", () => {
@@ -472,7 +471,32 @@ describe("rule 7: × clears the selection; the chevron collapses", () => {
     expect(after(SELECT(EDGE), COLLAPSE).selection).toBe(EDGE);
   });
 
-  it.todo(
-    "no control does both: today the inspector's one Close clears or collapses by what it shows (slice 6 of #246)",
+  // Fails if × (`clear`) collapses the inspector, or leaves anything
+  // selected, for any kind of selection.
+  it.each(EVERY_SELECTION)(
+    "× clears the selected $kind, leaving the inspector open",
+    (selection) => {
+      expect(after(SELECT(selection), CLEAR)).toMatchObject({
+        selection: undefined,
+        inspector: "open",
+      });
+    },
   );
+
+  // Fails if the chevron (`collapse-inspector`, then `open-inspector`)
+  // clears or changes the selection, for any kind or for none.
+  it.each([
+    ["nothing", INITIAL_SCREEN_STATE],
+    ...EVERY_SELECTION.map((s) => [`the ${s.kind}`, after(SELECT(s))] as const),
+  ] as const)("the chevron keeps %s selected", (_, state) => {
+    const collapsed = nextScreenState(state, COLLAPSE);
+    expect(collapsed).toMatchObject({
+      selection: state.selection,
+      inspector: "collapsed",
+    });
+    expect(nextScreenState(collapsed, OPEN)).toMatchObject({
+      selection: state.selection,
+      inspector: "open",
+    });
+  });
 });

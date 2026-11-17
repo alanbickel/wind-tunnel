@@ -29,7 +29,6 @@ import { ProjectName } from "./ProjectName";
 import { SaveFailure } from "./SaveFailure";
 import { useAddAndRemove, type AddAndRemove } from "./useAddAndRemove";
 import { useCanvasPanels, type CanvasPanels } from "./useCanvasPanels";
-import { useCoveredWidth, type CoveredWidth } from "./useCoveredWidth";
 import {
   useFocusAfterRedraw,
   type FocusAfterRedraw,
@@ -49,9 +48,9 @@ export interface OpenedProjectProps {
 /**
  * A project that opened, canvas first: one top bar, with the project's
  * name, Rename, and its controls, and under it the canvas. In a wide
- * window the canvas fills the rest of it, with the inspector over its
- * right; in a narrow one it keeps a fixed height, and the inspector's
- * content follows it, full-width. The run group is at the end of the
+ * window the canvas, over the dock, fills the rest of it beside the
+ * inspector, a full-height column on the right; in a narrow one it keeps a
+ * fixed height, and the inspector's content follows it, full-width. The run group is at the end of the
  * dock's tab strip in a wide window, and in the top bar in a narrow one:
  * one of it at a time. The record with its edits, the run, and
  * the selection are held here, so every part of the screen reads the same
@@ -128,23 +127,23 @@ interface ProjectCanvasProps {
 }
 
 /**
- * The canvas, and the inspector over it or under it, by the window's
- * width; then the dock.
+ * The canvas, then the dock; and the inspector, by the window's width:
+ * under the canvas, or a column beside the canvas and the dock. The
+ * canvas and the dock keep their places either way, so crossing the
+ * breakpoint doesn't mount them afresh.
  */
 function ProjectCanvas({ screen, wide, runGroup }: ProjectCanvasProps) {
-  const { screenRef, inspectorRef } = screen.covered;
   const inspector = overlayPropsOf(screen);
   return (
     <div className={styles.screen}>
-      <div ref={screenRef} className={styles.canvas}>
-        {screen.architecture}
-        {wide ? (
-          <Inspector ref={inspectorRef} {...inspector} />
-        ) : (
-          <StackedInspector {...inspector} />
-        )}
+      <div className={styles.main}>
+        <div className={styles.canvas}>
+          {screen.architecture}
+          {!wide && <StackedInspector {...inspector} />}
+        </div>
+        <Dock {...inspector} runGroup={runGroup} />
       </div>
-      <Dock {...inspector} runGroup={runGroup} />
+      {wide && <Inspector {...inspector} />}
     </div>
   );
 }
@@ -195,8 +194,6 @@ interface ProjectScreen {
   readonly changes: DockChanges;
   /** The outline's step lines, which a step's remove or add focuses. */
   readonly stepRows: FocusAfterRedraw;
-  /** How much of the canvas the inspector covers, which the diagram fits around. */
-  readonly covered: CoveredWidth;
   readonly architecture: ReactNode;
 }
 
@@ -228,7 +225,6 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   const dockChanges = useDockChanges(changes);
   // The screen's, so its layout effect runs after the outline's has drawn.
   const stepRows = useFocusAfterRedraw();
-  const covered = useCoveredWidth();
   const architecture = useArchitecture({
     edits,
     selecting,
@@ -236,10 +232,9 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     move,
     panels,
     badges: projectRun.badges,
-    coveredRightPx: covered.coveredRightPx,
   });
   const held = { edits, projectRun, selecting, undoRedo, stepRows };
-  return { ...held, remove, changes: dockChanges, covered, architecture };
+  return { ...held, remove, changes: dockChanges, architecture };
 }
 
 /**
@@ -253,7 +248,6 @@ const MemoArchitectureView = memo(ArchitectureView);
 /** The architecture, from what the screen holds. */
 function useArchitecture(input: ArchitectureInput) {
   const { edits, selecting, changes, move, panels, badges } = input;
-  const { coveredRightPx } = input;
   const { selection, select, clear } = selecting;
   const offering = useOffering({ edits, selecting, changes });
   return (
@@ -267,7 +261,6 @@ function useArchitecture(input: ArchitectureInput) {
       panels={panels}
       badges={badges}
       offering={offering}
-      coveredRightPx={coveredRightPx}
     />
   );
 }
@@ -320,7 +313,6 @@ interface ArchitectureInput {
   readonly move: Move;
   readonly panels: CanvasPanels;
   readonly badges: ProjectRun["badges"];
-  readonly coveredRightPx: number;
 }
 
 /** Moves a component on the diagram. */

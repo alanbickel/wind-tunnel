@@ -1,22 +1,30 @@
 /* Narrow windows: the canvas at its fixed height, then the inspector's
    content, then the dock, and the page scrolls. */
 .screen,
+.main,
 .canvas {
   display: flex;
   flex-direction: column;
 }
 
-/* Wide windows: the screen fills the height the frame leaves. The canvas
-   fills what the dock leaves of it, and the inspector floats over the
-   canvas's right, so it's placed against the canvas's box. */
+/* Wide windows: the screen fills the height the frame leaves, in two
+   columns: the canvas over the dock, and the inspector, full-height, on
+   the right. The canvas fills what the dock leaves of its column, and the
+   dock is as wide as the canvas. */
 @media (min-width: 64rem) {
   .screen {
     flex: 1;
+    flex-direction: row;
+    min-height: 0;
+  }
+
+  .main {
+    flex: 1;
+    min-width: 0;
     min-height: 0;
   }
 
   .canvas {
-    position: relative;
     flex: 1;
     min-height: 0;
   }

@@ -94,8 +94,9 @@
   --radius-sm: 4px;
   --radius-md: 8px;
 
-  /* A surface floating over the canvas (the inspector, the canvas panels,
-     the rail): one radius, border, and shadow. The shadow is darker in the
+  /* A surface floating over the canvas (the canvas panels, the rail): one
+     radius, border, and shadow; the inspector's and the dock's edges
+     against the canvas take the border too. The shadow is darker in the
      dark theme, where a light one wouldn't show. */
   --floating-radius: var(--radius-md);
   --floating-border: var(--line-width) solid var(--color-floating-edge);

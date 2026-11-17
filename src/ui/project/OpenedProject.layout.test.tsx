@@ -14,6 +14,7 @@ import {
   queryDetailsHeading,
   queryRunExplanation,
   renderOpenedProject as renderProject,
+  runExplanation,
   status,
   statusRegions,
   undoneRegion,
@@ -27,19 +28,36 @@ function withWorkloadRenamed(): Project {
   return { ...sampleRecord.project, workloads };
 }
 
-/** The inspector's one button that closes and opens it. */
-function inspectorToggle(): HTMLElement {
+/** The inspector's chevron, which collapses it and opens it again. */
+function chevron(): HTMLElement {
   return within(inspector()).getByRole("button", {
-    name: /^(Close|Open) the (inspector|details|run)$/,
+    name: /^(Collapse|Open) the inspector$/,
   });
 }
 
-/** The inspector's content, which its toggle shows and hides. */
+/** The inspector's ×, while it has one, which clears the selection. */
+function queryCloseButton(): HTMLElement | null {
+  return within(inspector()).queryByRole("button", {
+    name: /^Close the (details|run)$/,
+  });
+}
+
+/** The inspector's content, which its chevron shows and hides. */
 function inspectorBody(): HTMLElement {
-  const id = inspectorToggle().getAttribute("aria-controls") ?? "";
+  const id = chevron().getAttribute("aria-controls") ?? "";
   const body = document.getElementById(id);
-  if (body === null) throw new Error("the toggle should control the body");
+  if (body === null) throw new Error("the chevron should control the body");
   return body;
+}
+
+/** The innermost element holding both `first` and `second`. */
+function columnHolding(first: HTMLElement, second: HTMLElement): HTMLElement {
+  let column: HTMLElement | null = first;
+  while (column !== null && !column.contains(second)) {
+    column = column.parentElement;
+  }
+  if (column === null) throw new Error("they should share a column");
+  return column;
 }
 
 /** Whether the inspector is open, its content shown. */
@@ -83,6 +101,24 @@ describe("OpenedProject's canvas-first layout", () => {
     }
     expect(
       canvas.compareDocumentPosition(inspector()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  // Fails if a wide window's inspector goes back inside the canvas's box,
+  // to float over it, or under the dock, rather than in a column of its
+  // own beside the two.
+  it("puts the inspector in a column beside the canvas and the dock", () => {
+    renderProject();
+    const canvas = screen.getByRole("region", { name: "Architecture" });
+    const dock = dockRegion();
+
+    const column = columnHolding(canvas, dock);
+
+    expect(column.contains(inspector())).toBe(false);
+    expect(column.parentElement?.contains(inspector())).toBe(true);
+    expect(
+      dock.compareDocumentPosition(inspector()) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
@@ -152,18 +188,21 @@ describe("OpenedProject's inspector", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if Close doesn't collapse the inspector, the strip has no way
-  // to open it again, or the focus leaves the button either way.
-  it("collapses on Close to a strip, and opens again from it", () => {
+  // Fails if the chevron doesn't collapse the inspector, the strip has no
+  // way to open it again, the focus leaves the chevron either way, or
+  // there's an × with nothing to clear.
+  it("collapses on the chevron to a strip, and opens again from it", () => {
     renderProject();
-    const toggle = inspectorToggle();
+    const toggle = chevron();
+    expect(toggle.getAttribute("aria-label")).toBe("Collapse the inspector");
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(queryCloseButton()).toBeNull();
     toggle.focus();
 
     fireEvent.click(toggle);
 
     expect(inspectorShown()).toBe(false);
-    expect(inspectorToggle()).toBe(toggle);
+    expect(chevron()).toBe(toggle);
     expect(toggle.getAttribute("aria-label")).toBe("Open the inspector");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(toggle);
@@ -171,40 +210,61 @@ describe("OpenedProject's inspector", () => {
     fireEvent.click(toggle);
 
     expect(inspectorShown()).toBe(true);
-    expect(toggle.getAttribute("aria-label")).toBe("Close the inspector");
+    expect(toggle.getAttribute("aria-label")).toBe("Collapse the inspector");
     expect(document.activeElement).toBe(toggle);
   });
 
-  // Fails if Close, with a selection shown, collapses the inspector or
-  // keeps the selection, so the overview doesn't come back, brings back
-  // the run's explanation instead, or doesn't return the focus to what
-  // made the selection.
-  it("clears a selection on Close, keeping the inspector open", async () => {
+  // Fails if ×, with a selection shown, collapses the inspector or keeps
+  // the selection, so the overview doesn't come back, brings back the
+  // run's explanation instead, stays once there's nothing to clear, or
+  // doesn't return the focus to what made the selection.
+  it("clears a selection on ×, keeping the inspector open", async () => {
     const { runner } = renderProject();
     clickRun();
     await runner.finish();
     const button = revealButton(/^Function \(Lambda\)/);
     button.focus();
     fireEvent.click(button);
-    const toggle = within(inspector()).getByRole("button", {
-      name: "Close the details",
-    });
+    const close = queryCloseButton();
+    expect(close?.getAttribute("aria-label")).toBe("Close the details");
 
-    fireEvent.click(toggle);
+    if (close !== null) fireEvent.click(close);
 
     expect(inspectorShown()).toBe(true);
     expect(queryDetailsHeading()).toBeNull();
     expect(overview().isConnected).toBe(true);
     expect(queryRunExplanation()).toBeNull();
-    expect(toggle.getAttribute("aria-label")).toBe("Close the inspector");
+    expect(queryCloseButton()).toBeNull();
     expect(document.activeElement).toBe(button);
+  });
+
+  // Fails if the chevron clears a selection (rule 7), or the strip shows
+  // an ×, or opening it again shows something else than it held.
+  it("collapses a selection on the chevron, keeping it, and opens on it again", () => {
+    renderProject();
+    fireEvent.click(revealButton("Function (Lambda)"));
+    const heading = detailsHeading();
+
+    fireEvent.click(chevron());
+
+    expect(inspectorShown()).toBe(false);
+    expect(heading.isConnected).toBe(true);
+    expect(queryCloseButton()).toBeNull();
+
+    fireEvent.click(chevron());
+
+    expect(inspectorShown()).toBe(true);
+    expect(detailsHeading()).toBe(heading);
+    expect(queryCloseButton()?.getAttribute("aria-label")).toBe(
+      "Close the details",
+    );
   });
 
   // Fails if selecting leaves a collapsed inspector closed, or opens it
   // without moving the focus to Details' heading.
   it("opens on a selection, with the focus on Details' heading", () => {
     renderProject();
-    fireEvent.click(inspectorToggle());
+    fireEvent.click(chevron());
 
     revealButton("Function (Lambda)").focus();
     fireEvent.click(revealButton("Function (Lambda)"));
@@ -216,7 +276,7 @@ describe("OpenedProject's inspector", () => {
   // Fails if Run leaves a collapsed inspector closed.
   it("opens on Run", () => {
     renderProject();
-    fireEvent.click(inspectorToggle());
+    fireEvent.click(chevron());
 
     clickRun();
 
@@ -224,17 +284,15 @@ describe("OpenedProject's inspector", () => {
   });
 
   // Fails if the inspector's content is unmounted while it's collapsed,
-  // which would drop what it has open. With the run selected, Close
-  // clears it, so only the overview can be collapsed for now (slice 6 of
-  // #246 gives the inspector a chevron of its own).
+  // which would drop what it has open, or the chevron clears the run, so
+  // the overview shows in its place.
   it("keeps its content mounted, hidden, while collapsed", async () => {
     const { runner } = renderProject();
     clickRun();
     await runner.finish();
-    fireEvent.click(inspectorToggle());
-    const shown = overview();
+    const shown = runExplanation();
 
-    fireEvent.click(inspectorToggle());
+    fireEvent.click(chevron());
 
     expect(shown.isConnected).toBe(true);
     expect(shown.closest("[hidden]")).not.toBeNull();

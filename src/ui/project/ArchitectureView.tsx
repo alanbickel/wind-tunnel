@@ -45,8 +45,6 @@ export interface ArchitectureViewProps {
    * call to the selected workflow along that arrow.
    */
   readonly offering: OfferingProps;
-  /** How much of the canvas's right edge the inspector covers, in pixels. */
-  readonly coveredRightPx?: number;
 }
 
 /**
@@ -127,7 +125,6 @@ function Drawing(props: DrawingProps) {
       onMove={({ id, position }) => {
         onMove(id, position);
       }}
-      coveredRightPx={props.coveredRightPx}
       onZoom={props.onZoom}
     />
   );

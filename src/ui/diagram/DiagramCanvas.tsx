@@ -20,7 +20,7 @@ import {
   type DiagramMove,
   type DiagramNode,
 } from "./diagram-model";
-import { fitOptions, OPENING_FIT } from "./fit-options";
+import { FIT } from "./fit-options";
 import { nodeIdOf } from "./node-id-of";
 import type { ZoomActions } from "./zoom-actions";
 import { toFlowEdge, toFlowNode, withOffer } from "./to-react-flow";
@@ -47,29 +47,25 @@ const CONNECT_SENTENCE =
 /** The canvas's dots, larger than React Flow's default of 1, so they show. */
 const GRID_DOT_SIZE = 2;
 
-interface FitViewOnResizeProps {
-  readonly coveredRightPx: number;
-}
-
 /**
- * Fits the diagram to its box again whenever the box changes size, or
- * what covers its right edge does. React Flow's `fitView` fits only once,
- * when the diagram opens, but the box grows and shrinks with the window,
- * and an inspector over it opens and closes. Render it inside `<ReactFlow>`.
+ * Fits the diagram to its box again whenever the box changes size. React
+ * Flow's `fitView` fits only once, when the diagram opens, but the box
+ * grows and shrinks with the window, and as the inspector beside it
+ * collapses and opens. Render it inside `<ReactFlow>`.
  */
-function FitViewOnResize({ coveredRightPx }: FitViewOnResizeProps) {
+function FitViewOnResize() {
   const { fitView } = useReactFlow();
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
 
   useEffect(() => {
-    void fitView(fitOptions({ width, coveredRightPx }));
-  }, [fitView, width, height, coveredRightPx]);
+    void fitView(FIT);
+  }, [fitView, width, height]);
 
   return null;
 }
 
-interface ReportZoomProps extends FitViewOnResizeProps {
+interface ReportZoomProps {
   readonly onZoom: DiagramCanvasProps["onZoom"];
 }
 
@@ -78,17 +74,16 @@ interface ReportZoomProps extends FitViewOnResizeProps {
  * Flow's hooks from outside it. Fit uses the same options as the automatic
  * fit. Render it inside `<ReactFlow>`.
  */
-function ReportZoom({ coveredRightPx, onZoom }: ReportZoomProps) {
+function ReportZoom({ onZoom }: ReportZoomProps) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
-  const width = useStore((state) => state.width);
 
   useEffect(() => {
     onZoom?.({
       zoomIn: () => void zoomIn(),
       zoomOut: () => void zoomOut(),
-      fit: () => void fitView(fitOptions({ width, coveredRightPx })),
+      fit: () => void fitView(FIT),
     });
-  }, [onZoom, zoomIn, zoomOut, fitView, width, coveredRightPx]);
+  }, [onZoom, zoomIn, zoomOut, fitView]);
 
   useEffect(
     () => () => {
@@ -110,7 +105,6 @@ export interface DiagramCanvasProps {
   readonly onSelect?: ((item: DiagramItem | undefined) => void) | undefined;
   readonly onConnect?: ((connection: DiagramConnection) => void) | undefined;
   readonly onMove?: ((move: DiagramMove) => void) | undefined;
-  readonly coveredRightPx?: number | undefined;
   /** Called with the zoom actions once they work, and with undefined when they go. */
   readonly onZoom?: ((zoom: ZoomActions | undefined) => void) | undefined;
 }
@@ -121,7 +115,7 @@ export interface DiagramCanvasProps {
  */
 export function DiagramCanvas(props: DiagramCanvasProps) {
   const { content, onSelect, onConnect, onMove, onZoom } = props;
-  const { marks = NO_MARKS, coveredRightPx = 0 } = props;
+  const { marks = NO_MARKS } = props;
   const items = useFlowItems({ content, marks, offers: props.offers, onMove });
   return (
     <ReactFlow
@@ -139,11 +133,11 @@ export function DiagramCanvas(props: DiagramCanvasProps) {
       {...items.nodeProps}
       ariaLabelConfig={descriptionsOf({ onSelect, onConnect, onMove })}
       fitView
-      fitViewOptions={OPENING_FIT}
+      fitViewOptions={FIT}
     >
       <Background size={GRID_DOT_SIZE} />
-      <FitViewOnResize coveredRightPx={coveredRightPx} />
-      <ReportZoom coveredRightPx={coveredRightPx} onZoom={onZoom} />
+      <FitViewOnResize />
+      <ReportZoom onZoom={onZoom} />
     </ReactFlow>
   );
 }

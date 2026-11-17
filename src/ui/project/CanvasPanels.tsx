@@ -16,7 +16,8 @@ export interface CanvasPanelsProps {
  * One row at the canvas's bottom left: the workflow picker, and zoom out,
  * zoom in, and fit. Opening the picker closes the tool rail's open panel.
  * (The components, connections, and their text version are the dock's
- * Components tab; the workflows and workloads lists are on the tool rail.)
+ * Components tab; the workflows list is on the tool rail, and the workloads
+ * are the dock's Workloads tab.)
  */
 export function CanvasPanels({ panels, picker, zoom }: CanvasPanelsProps) {
   return (

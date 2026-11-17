@@ -6,28 +6,28 @@ import type {
   OutlineStep,
   StepEditing,
   WorkflowDetails,
+  WorkflowUse,
 } from "./details";
+import { mixShares, shareText } from "./mix-shares";
 import { stepRemovalText, workflowRemovalText } from "./removal-text";
 
-/** A workflow, in its project, its run issues, and the step selected in it, if any. */
+/** A workflow, in its project, and its run issues. */
 export interface WorkflowDetailsInput {
   readonly project: Project;
   readonly workflow: Workflow;
   /** Each step's issues, by step ID. */
   readonly onSteps: WorkflowRunCheck["onSteps"];
-  readonly currentStepId: string | undefined;
 }
 
 /**
- * A workflow's details: its name, the workloads that use it, and its steps
- * as a numbered outline, each named by its component and its action, with
- * its run issues.
+ * A workflow's details: its name, the workloads that use it with its share
+ * of each, and its steps as a numbered outline, each named by its
+ * component and its action, with its run issues.
  */
 export function workflowDetails({
   project,
   workflow,
   onSteps,
-  currentStepId,
 }: WorkflowDetailsInput): WorkflowDetails {
   const context = { project, onSteps };
   const usedBy = workloadsUsing(project, workflow.id);
@@ -36,25 +36,42 @@ export function workflowDetails({
     workflowId: workflow.id,
     name: workflow.name,
     usedBy,
-    removal: workflowRemovalText({ workflow, usedBy }),
+    removal: workflowRemovalText({
+      workflow,
+      usedBy: usedBy.map((use) => use.workloadName),
+    }),
     outline: outlineOf(
       { step: workflow.root, number: "1", place: undefined },
       context,
     ),
-    currentStepId,
   };
 }
 
 /**
- * What Details says about a workflow's workloads: "Used by: Lunch rush,
- * Steady day", or "Used by: no workload yet". The names are joined with
- * semicolons if one has a comma of its own, as the templates' "Lunch rush,
- * 20 s at 2,000 requests/s" does, so each still reads as one name.
+ * What Details says about a workflow's workloads: "Used by: Lunch rush
+ * (80.0%), Steady day (100.0%)", or "Used by: no workload yet". Each share
+ * is the workflow's of that workload's mix. The workloads are joined with
+ * semicolons if a name has a comma of its own, as the templates' "Lunch
+ * rush, 20 s at 2,000 requests/s" does, so each still reads as one name.
  */
-export function usedByLine(usedBy: readonly string[]): string {
+export function usedByLine(usedBy: readonly WorkflowUse[]): string {
   if (usedBy.length === 0) return "Used by: no workload yet";
-  const separator = usedBy.some((name) => name.includes(",")) ? "; " : ", ";
-  return `Used by: ${usedBy.join(separator)}`;
+  const names = usedBy.map((use) => use.workloadName);
+  const separator = names.some((name) => name.includes(",")) ? "; " : ", ";
+  return `Used by: ${usedBy.map(useText).join(separator)}`;
+}
+
+/** "Lunch rush (80.0%)", or the name alone when there's no share to give. */
+function useText({ workloadName, shareText }: WorkflowUse): string {
+  return shareText === undefined
+    ? workloadName
+    : `${workloadName} (${shareText})`;
+}
+
+/** The step and every step under it, in outline order: calls, then async work. */
+export function outlineSteps(step: OutlineStep): OutlineStep[] {
+  const under = [...step.calls, ...(step.async ? [step.async] : [])];
+  return [step, ...under.flatMap(outlineSteps)];
 }
 
 /** What Details says above an `enqueue` step's async work. */
@@ -69,13 +86,26 @@ export const NO_ASYNC_WORK_TEXT =
 export const ADD_ASYNC_WORK_LABEL =
   "Add async work, done when a consumer takes the message";
 
-/** The names of the workloads whose mix has the workflow, in project order. */
-function workloadsUsing(project: Project, workflowId: string): string[] {
-  return project.workloads
-    .filter((workload) =>
-      workload.mix.some((entry) => entry.workflowId === workflowId),
-    )
-    .map((workload) => workload.name);
+/**
+ * The workloads whose mix has the workflow, in project order, each with
+ * the workflow's share, from the same rounding as the mix's rows
+ * (`mixShares`), so the two always agree.
+ */
+function workloadsUsing(project: Project, workflowId: string): WorkflowUse[] {
+  return project.workloads.flatMap((workload) => {
+    const index = workload.mix.findIndex(
+      (entry) => entry.workflowId === workflowId,
+    );
+    if (index < 0) return [];
+    const shares = mixShares(workload.mix.map((entry) => entry.weight));
+    const share = shares?.[index];
+    return [
+      {
+        workloadName: workload.name,
+        shareText: share === undefined ? undefined : shareText(share),
+      },
+    ];
+  });
 }
 
 /** A step, and its number in the outline. */

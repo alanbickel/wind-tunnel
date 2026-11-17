@@ -408,22 +408,61 @@ describe("DescribeSelection", () => {
   });
 
   // Fails if "Used by" misses a workload whose mix has the workflow, lists
-  // one whose mix doesn't, or loses the project's order.
-  it("names the workloads that use a workflow, in project order", () => {
+  // one whose mix doesn't, loses the project's order, or gives a share that
+  // isn't the workflow's of that workload's mix.
+  it("names the workloads that use a workflow, each with its share", () => {
     const [steady] = sample.workloads;
     if (steady === undefined) throw new Error("sample has no workload");
+    const spike = {
+      ...steady,
+      id: "spike",
+      name: "Spike",
+      mix: [
+        { workflowId: "other", weight: 2 },
+        { workflowId: "read", weight: 1 },
+      ],
+    };
     const project: Project = {
       ...sample,
       workloads: [
-        { ...steady, id: "spike", name: "Spike" },
-        { ...steady, id: "other", name: "Other", mix: [] },
+        spike,
+        { ...steady, id: "none", name: "None", mix: [] },
         steady,
       ],
     };
 
-    expect(workflowIn(project, "read").usedBy).toEqual(["Spike", "Steady"]);
+    expect(workflowIn(project, "read").usedBy).toEqual([
+      { workloadName: "Spike", shareText: "33.3%" },
+      { workloadName: "Steady", shareText: "100.0%" },
+    ]);
     expect(workflowIn({ ...project, workloads: [] }, "read").usedBy).toEqual(
       [],
+    );
+  });
+
+  // Fails if a workflow's share in "Used by" is rounded apart from its row
+  // in the workload's mix, which gives the last tenths to the largest
+  // remainders so the shares add up to 100.0%.
+  it("gives each workload's share as its mix row does", () => {
+    const [steady] = sample.workloads;
+    if (steady === undefined) throw new Error("sample has no workload");
+    const thirds = {
+      ...steady,
+      mix: ["read", "a", "b"].map((workflowId) => ({ workflowId, weight: 1 })),
+    };
+    const project: Project = { ...sample, workloads: [thirds] };
+    const workload = describeSelection.execute({
+      project,
+      selection: { kind: "workload", workloadId: thirds.id },
+    });
+    const row =
+      workload?.kind === "workload"
+        ? workload.mix.rows.find((r) => r.workflowId === "read")
+        : undefined;
+
+    expect(row?.shareText).toBe("33.4%");
+    expect(workflowIn(project, "read").usedBy[0]?.shareText).toBe(
+      row?.shareText,
     );
   });
 
@@ -447,19 +486,6 @@ describe("DescribeSelection", () => {
       question: "Remove Read item?",
       warning: undefined,
     });
-  });
-
-  // Fails if a selected step doesn't show its workflow's outline, or isn't
-  // the one marked, or a workflow selected on its own marks a step.
-  it("marks the selected step in its workflow's outline", () => {
-    const step = describeSelection.execute({
-      project: sample,
-      selection: { kind: "step", workflowId: "read", stepId: "fn-invoke" },
-    });
-
-    expect(step?.kind === "workflow" && step.name).toBe("Read item");
-    expect(step?.kind === "workflow" && step.currentStepId).toBe("fn-invoke");
-    expect(workflowIn(sample, "read").currentStepId).toBeUndefined();
   });
 
   // Fails if a step whose component is gone is named by the component's

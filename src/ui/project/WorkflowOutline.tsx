@@ -28,6 +28,8 @@ import styles from "./WorkflowOutline.module.css";
 export interface WorkflowOutlineProps {
   readonly project: Project;
   readonly details: WorkflowDetails;
+  /** The selected step, which the outline marks; undefined for none. */
+  readonly currentStepId: string | undefined;
   /** Selects a step of the outline. */
   readonly onSelect: ProjectSelection["selectWithin"];
   /** Saves a step's move or remove. */
@@ -66,8 +68,8 @@ export function WorkflowOutline(props: WorkflowOutlineProps) {
  * removed step's caller's.
  */
 function useOutlineItem(props: WorkflowOutlineProps): OutlineItemContext {
-  const { project, details, onSelect } = props;
-  const { workflowId, currentStepId } = details;
+  const { project, details, onSelect, currentStepId } = props;
+  const { workflowId } = details;
   const edits = useStepEdits({ workflowId, ...props });
   const focus = useFocusAfterRedraw();
   return {

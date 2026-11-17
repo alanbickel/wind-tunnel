@@ -72,7 +72,7 @@ describe("OpenedProject's workflows", () => {
       "1.1 Function · invoke",
       "1.1.1 Table · read",
     ]);
-    expect(screen.getByText("Used by: Steady")).toBeTruthy();
+    expect(screen.getByText("Used by: Steady (100.0%)")).toBeTruthy();
     fireEvent.keyDown(detailsHeading(), { key: "Escape" });
     expect(screen.getByText(/^Nothing selected\./)).toBeTruthy();
     expect(document.activeElement).toBe(row);

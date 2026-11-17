@@ -33,7 +33,7 @@ const twoWorkloads: Project = {
   workloads: [steady, broken],
 };
 
-/** Clicks a button, as the keyboard would: a row in the Workflows panel. */
+/** Clicks a button, as the keyboard would: a row in a dock tab's list. */
 function selectFromList(name: string): HTMLElement {
   const button = revealButton(name);
   button.focus();

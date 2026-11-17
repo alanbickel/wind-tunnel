@@ -6,7 +6,8 @@ import { sampleRecord } from "../testing/sample-record";
 
 // A selected step, as DescribeSelection describes it on its own: its line
 // of the outline, and how a request reaches it (UX design §5). Its
-// workflow's details are describe-selection.test.ts's.
+// workflow's details are describe-selection.test.ts's, and its "Used by"
+// describe-workflow-use.test.ts's.
 
 const describeSelection = awsDescribeSelection();
 const sample = sampleRecord.project;

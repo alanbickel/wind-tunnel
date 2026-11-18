@@ -15,7 +15,10 @@ export type DiagramStatusKind = "refused" | "waited" | "ok";
 /** A box's status badge: a shape and a word, never color alone. */
 export interface DiagramStatus {
   readonly kind: DiagramStatusKind;
-  /** The word on the badge, and its accessible name. */
+  /**
+   * The words on the badge (a status word, or with its count in In this
+   * run), and its accessible name.
+   */
   readonly word: string;
   /** Whether it's from a run of an earlier version of the project: drawn hollow. */
   readonly outOfDate: boolean;

@@ -94,8 +94,10 @@ describe("OpenedProject's In this run, in a component's details", () => {
   });
 
   // Fails if the section's status isn't the badge's (its kind, or the
-  // count it refused), the findings that name the table are missing, or
-  // a component no finding names lists any.
+  // count it refused), the findings that name the table are missing or
+  // aren't worded as the explanation words them (its severity, the long
+  // summary, the component's name), or a component no finding names
+  // lists any.
   it("ends a component's details with its status and the findings that name it", async () => {
     await renderThrottledRun();
 
@@ -106,7 +108,13 @@ describe("OpenedProject's In this run, in a component's details", () => {
     const findings = within(inThisRun()).getByRole("list", {
       name: "Findings that name it",
     });
-    expect(within(findings).getAllByRole("listitem").length).toBeGreaterThan(0);
+    expect(
+      within(findings)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Failure: 1 request failed with Table: throttled, from 0 s to 1 s.",
+    ]);
     expect(within(findings).queryByRole("button")).toBeNull();
 
     selectComponent("API");

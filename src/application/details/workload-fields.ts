@@ -3,7 +3,7 @@ import { checkNumberDraft, settingRule, type DraftCheck } from "./number-draft";
 
 // A workload's duration and seed, the two numbers Details edits (UX design
 // §2.7). They're the model's and the editor's, not an AWS service's, so
-// they have a range and help and no evidence for a default: fidelity.md has
+// they have a range and help and no evidence for a default: fidelity has
 // nothing to say about them. The stored document's schema stays the
 // authority for the ranges (`workload-field-ranges.test.ts`, in `adapters/persistence/`, checks that).
 

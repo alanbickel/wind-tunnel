@@ -126,7 +126,7 @@ export interface Fix {
   /** A fix can't be built without its evidence (findings.md §3.1). */
   readonly claim: Claim;
   /**
-   * Entries in `docs/design/fidelity.md` (e.g. `RDS-2`) where a known
+   * Entries in `docs/design/fidelity/` (e.g. `RDS-2`) where a known
    * difference from AWS could change the claim.
    */
   readonly fidelityIds: readonly string[];

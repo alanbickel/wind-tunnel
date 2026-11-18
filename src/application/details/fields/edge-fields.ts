@@ -68,7 +68,7 @@ export function withEvidence(
 
 /**
  * The evidence for `AWS_EDGE_DEFAULTS`: each is an assumption, as
- * fidelity's defaults table says. A type with a default of its own
+ * fidelity's engine page says. A type with a default of its own
  * overrides its entry.
  */
 export const ASSUMED_EDGE_EVIDENCE: EdgeEvidence = {

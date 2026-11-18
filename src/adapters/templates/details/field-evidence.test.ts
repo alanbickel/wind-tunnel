@@ -6,11 +6,11 @@ import type {
 } from "../../../application/details/field-descriptor";
 import { EDGE_FIELDS } from "../../../application/details/fields/edge-fields";
 import { createAwsComponentRegistry } from "../../../domain/components/aws";
-import fidelityDoc from "../../../../docs/design/fidelity.md?raw";
+import { FIDELITY_IDS, FIDELITY_PAGES } from "../testing/fidelity-pages";
 
 // The Details tab's help is right about AWS (#85): every setting has a
 // descriptor, every fidelity entry a descriptor cites exists, and every
-// default's evidence is what fidelity's defaults table says.
+// default's evidence is what its fidelity page's defaults table says.
 
 const registry = createAwsComponentRegistry();
 const catalog = createFieldCatalog();
@@ -45,28 +45,28 @@ const allFields: readonly FieldDescriptor[] = [
   ...EDGE_FIELDS,
 ];
 
-/** The IDs of fidelity.md's entries, from headings like `#### RDS-2: …`. */
-const FIDELITY_IDS = new Set(
-  [...fidelityDoc.matchAll(/^#### ([A-Z]+-\d+):/gm)].map((m) => m[1]),
-);
-
 /** A fidelity ID, wherever it's cited, e.g. "RDS-2". */
 const FIDELITY_ID = /\b[A-Z]+-\d+\b/g;
 
-/** One setting's row of fidelity's defaults table. */
+/** One setting's row of a fidelity page's defaults table. */
 interface DefaultRow {
   readonly level: string;
   readonly fidelityIds: readonly string[];
 }
 
-/** The defaults table's rows, keyed "Component key", e.g. "RDS queryWorkers". */
-function defaultRows(): ReadonlyMap<string, DefaultRow> {
-  const section = fidelityDoc.split("## Default values and their evidence")[1];
+/** A page's defaults table rows, each split into its cells. */
+function tableRowsOf(page: string): string[][] {
+  const section = page.split("## Default values and their evidence")[1];
   const table = (section ?? "").split("\n## ")[0] ?? "";
-  const rows = table
+  return table
     .split("\n")
     .filter((line) => line.startsWith("| ") && !line.startsWith("| Component"))
     .map((line) => line.split(" | "));
+}
+
+/** Every page's defaults rows, keyed "Component key", e.g. "RDS queryWorkers". */
+function defaultRows(): ReadonlyMap<string, DefaultRow> {
+  const rows = Object.values(FIDELITY_PAGES).flatMap(tableRowsOf);
   return new Map(
     rows.flatMap(([component = "", settings = "", , evidence = ""]) =>
       [...settings.matchAll(/`(\w+)`/g)].map((m) => [
@@ -99,7 +99,7 @@ describe("the setting descriptors", () => {
   });
 
   // Fails if a descriptor's help or evidence cites a fidelity entry that
-  // fidelity.md doesn't have, as after an entry is renumbered or deleted.
+  // no fidelity page has, as after an entry is renumbered or deleted.
   it("cite only fidelity entries that exist", () => {
     expect(FIDELITY_IDS.size).toBeGreaterThan(30);
     const cited = [
@@ -112,8 +112,8 @@ describe("the setting descriptors", () => {
     }
   });
 
-  // Fails if a descriptor's evidence level or entry differs from fidelity's
-  // defaults table, or a setting has no row there: the help would claim
+  // Fails if a descriptor's evidence level or entry differs from its fidelity
+  // page's defaults table, or a setting has no row there: the help would claim
   // more, or less, than the catalog of differences backs.
   it("give each default the evidence fidelity's defaults table gives it", () => {
     const rows = defaultRows();

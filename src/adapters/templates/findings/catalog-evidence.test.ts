@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createFindingsCatalog } from "../../../application/run-analysis/findings/catalog/create-findings-catalog";
 import type { Fix } from "../../../application/run-analysis/findings/finding";
-import fidelityDoc from "../../../../docs/design/fidelity.md?raw";
 import didYouKnowDoc from "../../../../docs/learning/aws-did-you-know.md?raw";
+import { anchorOf, FIDELITY_IDS } from "../testing/fidelity-pages";
 
 // Every fix in the catalog carries its evidence (findings.md §2.1). The
 // types make a claim required; these tests check that each one points at
@@ -28,22 +28,10 @@ const fixes = entries.flatMap(({ label, entry }) =>
   entry.fixes.map((fix: Fix, i) => ({ label: `${label} #${String(i)}`, fix })),
 );
 
-/** The IDs of fidelity.md's entries, from headings like `#### RDS-2: …`. */
-const FIDELITY_IDS = new Set(
-  [...fidelityDoc.matchAll(/^#### ([A-Z]+-\d+):/gm)].map((m) => m[1]),
-);
-
 /** The anchors of aws-did-you-know.md's headings, as GitHub makes them. */
 const LEARN_MORE_ANCHORS = new Set(
   [...didYouKnowDoc.matchAll(/^#+ (.+)$/gm)].map((m) => anchorOf(m[1] ?? "")),
 );
-
-function anchorOf(heading: string): string {
-  return heading
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N} -]/gu, "")
-    .replaceAll(" ", "-");
-}
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -98,7 +86,7 @@ describe("the findings catalog", () => {
     }
   });
 
-  // Fails if a fix cites a fidelity ID that fidelity.md doesn't have.
+  // Fails if a fix cites a fidelity ID that no fidelity page has.
   it("cites only fidelity entries that exist", () => {
     expect(FIDELITY_IDS.size).toBeGreaterThan(30);
     for (const { label, fix } of fixes) {

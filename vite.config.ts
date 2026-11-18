@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 // registry of its own, so it's named `*.isolated.test.ts(x)` and runs
 // isolated. The rest share their workers' modules, which saves each file the
 // worker's startup (see docs/contributing/testing.md).
-const ISOLATED_TESTS = "src/**/*.isolated.test.{ts,tsx}";
+const ISOLATED_TESTS = "{src,tests}/**/*.isolated.test.{ts,tsx}";
 
 export default defineConfig({
   plugins: [react()],

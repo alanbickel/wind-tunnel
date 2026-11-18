@@ -5,14 +5,33 @@ import { describe, expect, it } from "vitest";
 import { moduleMocksOutsideIsolatedTests } from "./isolated-tests";
 import { sourceFilesUnder } from "./stylesheets";
 
-const SRC = fileURLToPath(new URL("../../src/", import.meta.url));
+const ROOT = fileURLToPath(new URL("../../", import.meta.url));
+
+// This check's own files name `vi.mock(` in a comment and in the fixtures
+// below, without mocking anything.
+const THIS_CHECK = new Set([
+  "tests/architecture/isolated-tests.ts",
+  "tests/architecture/isolated-tests.test.ts",
+]);
+
+function filesUnder(folder: "src" | "tests") {
+  return sourceFilesUnder(`${ROOT}${folder}/`)
+    .map((file) => ({ ...file, path: `${folder}/${file.path}` }))
+    .filter(({ path }) => !THIS_CHECK.has(path));
+}
 
 describe("isolated tests", () => {
-  // Fails if a file under src/ calls vi.mock or vi.doMock and isn't named
-  // *.isolated.test.ts(x): renaming DiagramCanvas.isolated.test.tsx back to
-  // DiagramCanvas.test.tsx lists it.
+  // Fails if a file under src/ or tests/ calls vi.mock or vi.doMock and isn't
+  // named *.isolated.test.ts(x): renaming DiagramCanvas.isolated.test.tsx back
+  // to DiagramCanvas.test.tsx, or adding vi.mock("node:fs") to
+  // tests/architecture/layer-rules.test.ts, lists the file.
   it("hold every module mock", () => {
-    expect(moduleMocksOutsideIsolatedTests(sourceFilesUnder(SRC))).toEqual([]);
+    expect(
+      moduleMocksOutsideIsolatedTests([
+        ...filesUnder("src"),
+        ...filesUnder("tests"),
+      ]),
+    ).toEqual([]);
   });
 
   // Fails if the check misses either kind of mock, or stops letting an

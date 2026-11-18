@@ -206,10 +206,11 @@ function Overview({ project, projectRun, selecting }: InspectorContentProps) {
 }
 
 /**
- * With the run or one of its findings selected: the run's explanation.
- * Escape in it, once a finding or an open explanation has had its own,
- * closes the run, as × does. Nothing shows in the moment before a run
- * just started has its first snapshot.
+ * With the run or one of its findings selected: the run's explanation,
+ * with the selection's bar down its left edge, as Details has. Escape in
+ * it, once a finding or an open explanation has had its own, closes the
+ * run, as × does. Nothing shows in the moment before a run just started
+ * has its first snapshot.
  */
 function TheRun({ project, projectRun, selecting }: InspectorContentProps) {
   const finding = useFindingSelecting(project, selecting);
@@ -220,6 +221,7 @@ function TheRun({ project, projectRun, selecting }: InspectorContentProps) {
     // Escape bubbles here from the explanation's buttons, which have the
     // focus; the explanation itself is never focused but by its heading.
     <div
+      className={styles.run}
       onKeyDown={(event) => {
         closeOnEscape(event, selecting.close);
       }}

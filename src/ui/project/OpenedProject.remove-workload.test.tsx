@@ -5,7 +5,11 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import type { Project, Workload } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { dockRegion, revealButton } from "./testing/canvas-panels";
+import {
+  dockRegion,
+  removeWorkload,
+  revealButton,
+} from "./testing/canvas-panels";
 import {
   clickRun,
   detailsHeading,
@@ -50,15 +54,6 @@ function removeButton(): HTMLElement {
 
 function asking(question: string): HTMLElement {
   return screen.getByRole("group", { name: question });
-}
-
-/** Opens Details' Remove for the workload and confirms it. */
-function removeWorkload(name: string): void {
-  select(name);
-  fireEvent.click(removeButton());
-  fireEvent.click(
-    within(asking(`Remove ${name}?`)).getByRole("button", { name: "Remove" }),
-  );
 }
 
 function picker(): HTMLSelectElement {

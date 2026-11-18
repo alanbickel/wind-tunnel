@@ -32,8 +32,12 @@
 }
 
 /* Takes the height the controls leave, and scrolls. No display while hidden: it
-   would override display: none. */
+   would override display: none. Positioned, so it's the containing block of
+   every visually hidden region inside it, such as the Details' announcement;
+   with the page as theirs, one below the window's edge would make the page
+   scroll. */
 .body:not([hidden]) {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -42,6 +46,13 @@
 
 .body > :last-child {
   margin-bottom: 0;
+}
+
+/* The run's explanation, with the run or a finding selected: the bar that
+   marks Details, a selected box, and a selected row (UX design §5). */
+.run {
+  border-inline-start: var(--selection-bar-width) solid var(--color-text);
+  padding-inline-start: var(--space-3);
 }
 
 /* A narrow window: the inspector under the canvas, full-width. */

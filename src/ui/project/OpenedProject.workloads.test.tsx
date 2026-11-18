@@ -49,14 +49,6 @@ function pickedName(): string | undefined {
   return picker().selectedOptions[0]?.textContent ?? undefined;
 }
 
-/** Presses the run group's Edit, with the focus on it first. */
-function pressEdit(): HTMLElement {
-  const edit = screen.getByRole("button", { name: "Edit" });
-  edit.focus();
-  fireEvent.click(edit);
-  return edit;
-}
-
 /** A table's rows as the text of their cells. */
 function rowsOf(table: HTMLElement | undefined): (string | null)[][] {
   if (table === undefined) throw new Error("expected a table");
@@ -90,8 +82,8 @@ describe("OpenedProject's workloads", () => {
   });
 
   // Fails if a project without workloads shows an empty list, or loses
-  // the line on what a workload is, or still offers Edit.
-  it("says what a workload is when there are none, and offers no Edit", () => {
+  // the line on what a workload is.
+  it("says what a workload is when there are none", () => {
     renderProject({ project: { ...sampleRecord.project, workloads: [] } });
 
     revealButton("Add workflow");
@@ -102,7 +94,6 @@ describe("OpenedProject's workloads", () => {
         "No workloads yet. A workload says how much traffic your workflows get, and for how long.",
       ),
     ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
   });
 
   // Fails if a row doesn't open the workload in Details with the focus on
@@ -122,21 +113,6 @@ describe("OpenedProject's workloads", () => {
     expect(queryDetailsHeading()).toBeNull();
     expect(document.activeElement).toBe(row);
     expect(row.getAttribute("aria-current")).toBeNull();
-  });
-
-  // Fails if Edit selects a workload other than the picked one, or Escape
-  // returns the focus anywhere but Edit.
-  it("opens the picked workload from Edit; Escape returns to Edit", () => {
-    renderProject({ project: twoWorkloads });
-    fireEvent.change(picker(), { target: { value: "broken" } });
-    expect(queryDetailsHeading()).toBeNull();
-
-    const edit = pressEdit();
-
-    expect(detailsHeading().textContent).toBe("Broken · Workload");
-    expect(document.activeElement).toBe(detailsHeading());
-    fireEvent.keyDown(detailsHeading(), { key: "Escape" });
-    expect(document.activeElement).toBe(edit);
   });
 
   // Fails if picking in the run group selects the workload or changes what

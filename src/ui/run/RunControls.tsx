@@ -9,8 +9,6 @@ export interface RunControlsProps {
   readonly workloads: readonly Workload[];
   readonly workload: Workload;
   readonly onPick: (workload: Workload) => void;
-  /** Opens the picked workload in Details. */
-  readonly onEdit: () => void;
   /** Which workloads can run; one that can't is marked, and Run waits. */
   readonly checks: WorkloadRunChecks;
   /** The ID of the element that says why the picked workload can't run. */
@@ -27,8 +25,8 @@ export interface RunControlsProps {
  * is marked unusable (see `Button`) rather than disabled, so the keyboard
  * focus stays on it. A workload with run issues is marked in the picker,
  * and Run is unusable while it's picked; the run group says why, and
- * Run points to it, so a screen reader reads the reason on Run. Edit,
- * beside the picker, opens the picked workload in Details.
+ * Run points to it, so a screen reader reads the reason on Run. A
+ * workload is opened from its row in the Workloads tab, not from here.
  */
 export function RunControls(props: RunControlsProps) {
   const { workloads, workload, onPick, checks, running, onStart, onStop } =
@@ -44,7 +42,6 @@ export function RunControls(props: RunControlsProps) {
         checks={checks}
         running={running}
       />
-      <Button onClick={props.onEdit}>Edit</Button>
       <Button
         variant="primary"
         usable={!running && canRun}

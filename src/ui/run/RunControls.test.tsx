@@ -21,7 +21,6 @@ function renderControls(running: boolean): Clicks {
       workloads={workloads}
       workload={workload}
       onPick={() => undefined}
-      onEdit={() => undefined}
       checks={new Map()}
       cantRunReasonId="reason"
       running={running}
@@ -55,7 +54,6 @@ describe("RunControls", () => {
     const props = {
       workloads: [steady, spike],
       onPick: () => undefined,
-      onEdit: () => undefined,
       checks: new Map(),
       cantRunReasonId: "reason",
       running: false,
@@ -69,6 +67,18 @@ describe("RunControls", () => {
 
     expect(screen.getByText("20 s · 2k req/s")).toBeTruthy();
     expect(screen.queryByText("5 s · 20 req/s")).toBeNull();
+  });
+
+  // Fails if a control is added beside the picker, Run, and Stop, as Edit
+  // was: a workload is opened from the Workloads tab (#279).
+  it("holds only the workload picker, Run, and Stop", () => {
+    renderControls(false);
+
+    expect(screen.getAllByRole("combobox")).toEqual([
+      screen.getByRole("combobox", { name: "Workload" }),
+    ]);
+    const buttons = screen.getAllByRole("button").map((b) => b.textContent);
+    expect(buttons).toEqual(["Run", "Stop"]);
   });
 
   it("ignores Run while running, and passes Stop on", () => {

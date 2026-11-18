@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { Project, Workload } from "../../../domain/model/project";
+import type { Project } from "../../../domain/model/project";
 import { RunControls } from "../../run/RunControls";
 import { RunProgress } from "../../run/RunProgress";
 import { RunStatus } from "../../run/RunStatus";
@@ -14,8 +14,6 @@ export interface RunGroupProps {
   readonly onRunStart: () => void;
   /** Called when the verdict is pressed, to select the run again. */
   readonly onSelectRun: () => void;
-  /** Called when Edit is pressed, with the workload the picker shows. */
-  readonly onEditWorkload: (workload: Workload) => void;
 }
 
 /**
@@ -61,7 +59,6 @@ interface WorkloadControlsProps extends Omit<RunGroupProps, "onSelectRun"> {
 /** The run controls, on the picked workload; a line instead if there are none. */
 function WorkloadControls(props: WorkloadControlsProps) {
   const { project, projectRun, cantRunReasonId, onRunStart } = props;
-  const { onEditWorkload } = props;
   const { run, picked, pick } = projectRun;
   if (picked === undefined) {
     return <p>This project has no workloads to run.</p>;
@@ -71,9 +68,6 @@ function WorkloadControls(props: WorkloadControlsProps) {
       workloads={project.workloads}
       workload={picked}
       onPick={pick}
-      onEdit={() => {
-        onEditWorkload(picked);
-      }}
       checks={projectRun.checks}
       cantRunReasonId={cantRunReasonId}
       running={run.phase.status === "running"}

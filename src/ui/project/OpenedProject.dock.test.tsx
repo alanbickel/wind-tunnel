@@ -11,7 +11,11 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import type { Project } from "../../domain/model/project";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
-import { revealButton } from "./testing/canvas-panels";
+import {
+  pressUndo,
+  removeWorkload,
+  revealButton,
+} from "./testing/canvas-panels";
 import {
   bar,
   groupVerdict,
@@ -56,13 +60,6 @@ function editorHeading(name: string): HTMLElement {
     level: 4,
     name,
   });
-}
-
-/** Presses the run group's Edit, which selects the picked workload. */
-function pressEdit(): void {
-  const edit = screen.getByRole("button", { name: "Edit" });
-  edit.focus();
-  fireEvent.click(edit);
 }
 
 /** A tab of the dock's, by its label. */
@@ -244,17 +241,19 @@ describe("OpenedProject's dock", () => {
     expect((again as HTMLInputElement).value).toBe("abc");
   });
 
-  // Fails if selecting a workload while Run shows leaves Run showing.
+  // Fails if selecting a workload while Run shows leaves Run showing: here
+  // by undoing its remove, which selects it again with its row hidden.
   it("shows Workloads when a workload is selected over Run", async () => {
-    const shown = renderProject();
+    const shown = renderProject({ project: twoWorkloads });
     await runASecond(shown);
-    openSteady();
+    removeWorkload("Spike");
     fireEvent.click(dockTab("Run"));
 
-    pressEdit();
+    pressUndo();
 
     expect(shownTab()).toBe("Workloads");
-    expect(document.activeElement).toBe(detailsHeading());
+    expect(editorHeading("Spike")).toBeTruthy();
+    expect(detailsHeading().textContent).toBe("Spike · Workload");
   });
 
   // Fails if Run while Workloads shows leaves it showing, or keeps the
@@ -367,22 +366,22 @@ describe("OpenedProject's dock", () => {
     ).toBeNull();
   });
 
-  // Fails if selecting the already-selected workload leaves a folded dock
-  // folded, so its editor stays hidden.
-  it("unfolds when the same workload is selected again", () => {
-    renderProject();
-    openSteady();
+  // Fails if selecting a workload leaves a folded dock folded, so its
+  // editor stays hidden: here by undoing its remove with the dock folded.
+  it("unfolds when undoing a workload's remove selects it", () => {
+    renderProject({ project: twoWorkloads });
+    removeWorkload("Spike");
     const open = dock();
     fireEvent.click(
       within(open).getByRole("button", { name: "Fold the dock" }),
     );
 
-    pressEdit();
+    pressUndo();
 
     expect(
       within(open).getByRole("textbox", { name: "Duration" }),
     ).toBeTruthy();
-    expect(document.activeElement).toBe(detailsHeading());
+    expect(editorHeading("Spike")).toBeTruthy();
   });
 
   // Fails if a narrow window's dock leaves out a tab that's always there,

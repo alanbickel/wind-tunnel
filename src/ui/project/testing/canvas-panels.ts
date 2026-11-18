@@ -32,6 +32,24 @@ export function addComponent(typeName: string): void {
   fireEvent.click(card);
 }
 
+/**
+ * Removes a workload as a user does: selects it from the Workloads tab,
+ * presses Details' Remove, and confirms.
+ */
+export function removeWorkload(name: string): void {
+  const row = revealButton(name);
+  row.focus();
+  fireEvent.click(row);
+  fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+  const asking = screen.getByRole("group", { name: `Remove ${name}?` });
+  fireEvent.click(within(asking).getByRole("button", { name: "Remove" }));
+}
+
+/** Presses the top bar's Undo. */
+export function pressUndo(): void {
+  fireEvent.click(screen.getByRole("button", { name: /^Undo\b/ }));
+}
+
 /** The dock's tabs with lists, in the order `revealButton` tries them. */
 const LIST_TABS = ["Components", "Workflows", "Workloads"] as const;
 

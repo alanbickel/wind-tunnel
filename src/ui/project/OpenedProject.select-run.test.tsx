@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
+import inspectorStyles from "./Inspector.module.css";
 import { revealButton } from "./testing/canvas-panels";
 import {
   groupVerdict,
@@ -103,6 +104,21 @@ describe("OpenedProject's run, as a selection", () => {
 
     expect(runExplanation()).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Overview" })).toBeNull();
+  });
+
+  // Fails if the run's explanation loses the selection's bar, with the run
+  // or a finding selected, which Details has (§5, #279).
+  it("marks the run's explanation with the selection's bar", async () => {
+    await renderRun();
+    const barClass = inspectorStyles.run;
+    if (barClass === undefined) throw new Error("No .run in the stylesheet");
+    const marked = () =>
+      runExplanation().parentElement?.classList.contains(barClass);
+    expect(marked()).toBe(true);
+
+    fireEvent.click(firstFinding());
+
+    expect(marked()).toBe(true);
   });
 
   // Fails if Run, with a thing selected, keeps it rather than selecting

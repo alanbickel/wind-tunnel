@@ -77,7 +77,7 @@ export function OpenedProject(props: OpenedProjectProps) {
 /**
  * The run group, from what the screen holds. Run selects the run, so the
  * inspector explains it and the dock's Run tab shows its evidence; the
- * verdict selects it again; Edit selects the picked workload.
+ * verdict selects it again.
  */
 function runGroupOf({ edits, projectRun, selecting }: ProjectScreen) {
   return (
@@ -87,9 +87,6 @@ function runGroupOf({ edits, projectRun, selecting }: ProjectScreen) {
       onRunStart={selecting.showRun}
       onSelectRun={() => {
         selecting.select({ kind: "run" });
-      }}
-      onEditWorkload={({ id }) => {
-        selecting.select({ kind: "workload", workloadId: id });
       }}
     />
   );

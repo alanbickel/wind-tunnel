@@ -10,7 +10,13 @@ export default defineConfig({
     // and slows tests 6-10x (see docs/contributing/testing.md). CI keeps the default.
     maxWorkers: process.env.CI ? undefined : "50%",
     // Vitest replaces CSS with an empty string unless told otherwise; the
-    // contrast test reads the tokens with ?raw.
-    css: { include: [/\/src\/ui\/theme\/tokens\.css/] },
+    // contrast test reads the tokens with ?raw, and the inspector's test its
+    // stylesheet.
+    css: {
+      include: [
+        /\/src\/ui\/theme\/tokens\.css/,
+        /\/src\/ui\/project\/Inspector\.module\.css\?raw$/,
+      ],
+    },
   },
 });

@@ -1,0 +1,7 @@
+/* The folded charts, spaced as the run's column spaces what's above them. */
+.charts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}

@@ -150,7 +150,8 @@ describe("OpenedProject's project bar", () => {
 
     expect(requestsSoFar()).toEqual(["All workflows", "8", "2", "1", "5"]);
     expect(screen.getByText("2 of 5 simulated seconds")).toBeTruthy();
-    expect(within(dockPanel("Run")).getAllByRole("figure")).toHaveLength(4);
+    // The timeline and the four charts.
+    expect(within(dockPanel("Run")).getAllByRole("figure")).toHaveLength(5);
     await runner.finish();
     expect(status()).toBe("Finished Steady. Failing so far.");
   });

@@ -241,12 +241,16 @@ function breadcrumb(): string {
   return `breadcrumb "${crumbs.join(" › ")}"`;
 }
 
-/** Each chart's title and how many seconds its table holds. */
+/**
+ * Each chart's title, how many seconds its table holds, and whether it's
+ * folded away in a closed disclosure.
+ */
 function traceCharts(trace: Trace): void {
   for (const figure of screen.getAllByRole("figure")) {
     const title = figure.querySelector("h4")?.textContent ?? "";
     const rows = within(figure).getAllByRole("row").length - 1;
-    trace.screen(`chart "${title}": ${String(rows)} s of points`);
+    const folded = figure.closest("details:not([open])") ? ", folded" : "";
+    trace.screen(`chart "${title}": ${String(rows)} s of points${folded}`);
   }
 }
 

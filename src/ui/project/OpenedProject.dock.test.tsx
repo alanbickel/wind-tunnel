@@ -501,7 +501,8 @@ describe("OpenedProject's run evidence", () => {
 
     expect(inspector().querySelectorAll("table, figure")).toHaveLength(0);
     const figures = [...document.querySelectorAll("figure")];
-    expect(figures).toHaveLength(4);
+    // The timeline and the four charts.
+    expect(figures).toHaveLength(5);
     expect(figures.every((figure) => dock().contains(figure))).toBe(true);
     expect(
       within(dockPanel("Run")).getByRole("table", {
@@ -518,8 +519,8 @@ describe("OpenedProject's run evidence", () => {
 
     const runPanel = screen.getByRole("region", { name: "Inspector" });
     expect(runPanel.querySelectorAll("table, figure")).toHaveLength(0);
-    expect(document.querySelectorAll("figure")).toHaveLength(4);
-    expect(dock().querySelectorAll("figure")).toHaveLength(4);
+    expect(document.querySelectorAll("figure")).toHaveLength(5);
+    expect(dock().querySelectorAll("figure")).toHaveLength(5);
     expect(dockTabs()).toEqual([...ALWAYS_THERE, "Run"]);
     expect(
       runPanel.compareDocumentPosition(dock()) &

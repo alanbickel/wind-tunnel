@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { ChartPlot } from "./ChartPlot";
 import { chartRows } from "./chart-rows";
+import { SERIES_COLORS } from "./series-colors";
 import type { TimeSeriesContent } from "./time-series";
 
 const content: TimeSeriesContent = {
@@ -22,9 +23,43 @@ const content: TimeSeriesContent = {
   ],
 };
 
-function renderPlot() {
+const statusContent: TimeSeriesContent = {
+  title: "Requests that succeeded and failed",
+  unit: "requests",
+  series: [
+    {
+      id: "started",
+      label: "Started",
+      points: [{ timeSec: 1, value: 9 }],
+    },
+    {
+      id: "succeeded",
+      label: "Succeeded",
+      status: "ok",
+      points: [{ timeSec: 1, value: 8 }],
+    },
+    {
+      id: "failed",
+      label: "Failed",
+      status: "error",
+      points: [{ timeSec: 1, value: 1 }],
+    },
+  ],
+};
+
+function renderPlot(shown: TimeSeriesContent = content) {
   return render(
-    <ChartPlot content={content} rows={chartRows(content.series)} />,
+    <ChartPlot content={shown} rows={chartRows(shown.series)} size="full" />,
+  );
+}
+
+/** Each legend swatch's stroke and dash pattern, in legend order. */
+function legendSwatches(container: HTMLElement) {
+  return [...container.querySelectorAll(".recharts-legend-icon")].map(
+    (path) => [
+      path.getAttribute("stroke"),
+      path.getAttribute("stroke-dasharray"),
+    ],
   );
 }
 
@@ -58,6 +93,18 @@ describe("ChartPlot", () => {
     expect(labels.map((label) => label.getAttribute("style"))).toEqual([
       expect.stringContaining("color: var(--color-text)"),
       expect.stringContaining("color: var(--color-text)"),
+    ]);
+  });
+
+  // Fails if the Lines lose `legendType="plainline"`: Recharts draws its
+  // default icon, with no dash, so Failed's swatch shows no "6 3".
+  it("shows each line's color and dash in its legend swatch", () => {
+    const { container } = renderPlot(statusContent);
+
+    expect(legendSwatches(container)).toEqual([
+      [SERIES_COLORS[0], null],
+      ["var(--color-status-ok)", null],
+      ["var(--color-status-error)", "6 3"],
     ]);
   });
 });

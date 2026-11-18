@@ -8,6 +8,7 @@ import {
   type WorkflowSecond,
 } from "../../application/run-analysis/workflow-seconds";
 import type {
+  SeriesStatus,
   TimeSeries,
   TimeSeriesContent,
   TimeSeriesPoint,
@@ -18,18 +19,32 @@ export function secondsOf(timeMs: number): number {
   return timeMs / 1_000;
 }
 
+/** What the Run tab draws of a run over time. */
+export interface RunCharts {
+  /** The whole run at a glance: requests that succeeded and failed. */
+  readonly timeline: TimeSeriesContent;
+  /** The full set, in order: requests, latency, work in progress, work waiting. */
+  readonly charts: readonly TimeSeriesContent[];
+}
+
 /**
- * The run's charts: requests, workflow latency, and each component's work
- * in progress and queue. Every series is present from the first snapshot,
- * in a fixed order, so lines keep their colors as the run fills in.
+ * The run's timeline and charts: requests, workflow latency, and each
+ * component's work in progress and queue. The timeline's lines are the
+ * requests chart's own, so the two can't disagree. Every series is present
+ * from the first snapshot, in a fixed order, so lines keep their colors as
+ * the run fills in.
  */
-export function runCharts(run: RunSoFar): TimeSeriesContent[] {
-  return [
-    requestsChart(run.snapshots),
-    latencyChart(run),
-    componentChart(run, BUSY_CHART),
-    componentChart(run, QUEUE_CHART),
-  ];
+export function runCharts(run: RunSoFar): RunCharts {
+  const requests = requestsChart(run.snapshots);
+  return {
+    timeline: timelineOf(requests),
+    charts: [
+      requests,
+      latencyChart(run),
+      componentChart(run, BUSY_CHART),
+      componentChart(run, QUEUE_CHART),
+    ],
+  };
 }
 
 /** Picks a series' value at one moment; undefined leaves a gap. */
@@ -38,24 +53,25 @@ type ValueAt<T> = (item: T) => number | undefined;
 interface SeriesInput<T> {
   readonly id: string;
   readonly label: string;
+  readonly status?: SeriesStatus;
   readonly items: readonly T[];
   readonly timeSecOf: (item: T) => number;
   readonly valueAt: ValueAt<T>;
 }
 
 function seriesOf<T>(input: SeriesInput<T>): TimeSeries {
-  const { id, label, items, timeSecOf, valueAt } = input;
+  const { id, label, status, items, timeSecOf, valueAt } = input;
   const points = items.flatMap((item): TimeSeriesPoint[] => {
     const value = valueAt(item);
     return value === undefined ? [] : [{ timeSec: timeSecOf(item), value }];
   });
-  return { id, label, points };
+  return { id, label, status, points };
 }
 
 /** A line of the requests chart: one of the counts in a `WorkflowSecond`. */
 type RequestLine = Exclude<keyof WorkflowSecond, "snapshot">;
 
-/** In legend order, which also fixes each line's color. */
+/** In legend order, which also fixes the color of each line without a status. */
 const REQUEST_LINES: readonly RequestLine[] = [
   "started",
   "succeeded",
@@ -70,6 +86,15 @@ const REQUEST_LABELS: Record<RequestLine, string> = {
   inProgress: "In progress (at end of second)",
 };
 
+/** The lines that mean good or bad, drawn in their status's color. */
+const REQUEST_STATUSES: Partial<Record<RequestLine, SeriesStatus>> = {
+  succeeded: "ok",
+  failed: "error",
+};
+
+/** The requests chart's lines the timeline shows. */
+const TIMELINE_LINES: readonly RequestLine[] = ["succeeded", "failed"];
+
 function requestsChart(
   snapshots: readonly MetricsSnapshot[],
 ): TimeSeriesContent {
@@ -78,6 +103,7 @@ function requestsChart(
     seriesOf({
       id: line,
       label: REQUEST_LABELS[line],
+      status: REQUEST_STATUSES[line],
       items: seconds,
       timeSecOf: (second) => snapshotTimeSec(second.snapshot),
       valueAt: (second) => second[line],
@@ -87,6 +113,17 @@ function requestsChart(
     title: "Requests per second, all workflows",
     unit: "requests",
     series,
+  };
+}
+
+/** The requests chart's succeeded and failed lines, on a chart of their own. */
+function timelineOf(requests: TimeSeriesContent): TimeSeriesContent {
+  return {
+    title: "Requests that succeeded and failed, per second",
+    unit: requests.unit,
+    series: requests.series.filter((series) =>
+      TIMELINE_LINES.some((line) => line === series.id),
+    ),
   };
 }
 

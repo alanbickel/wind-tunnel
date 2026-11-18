@@ -6,7 +6,7 @@ import { sampleSnapshot } from "../../application/testing/sample-snapshots";
 
 const { project } = sampleRecord;
 
-function chartTitled(charts: TimeSeriesContent[], title: string) {
+function chartTitled(charts: readonly TimeSeriesContent[], title: string) {
   const chart = charts.find((c) => c.title.startsWith(title));
   if (chart === undefined) throw new Error(`No chart titled ${title}`);
   return chart;
@@ -33,7 +33,7 @@ describe("runCharts", () => {
   // count, or in progress isn't carried from second to second.
   it("counts requests per second, with the running total in progress", () => {
     const requests = chartTitled(
-      runCharts({ project, workloadId: "steady", snapshots }),
+      runCharts({ project, workloadId: "steady", snapshots }).charts,
       "Requests",
     );
 
@@ -58,7 +58,7 @@ describe("runCharts", () => {
 
   // Fails if a second without latency is plotted as 0 instead of left out.
   it("leaves a gap in latency for a second with no successful request", () => {
-    const charts = runCharts({ project, workloadId: "steady", snapshots });
+    const { charts } = runCharts({ project, workloadId: "steady", snapshots });
 
     const latencyChart = chartTitled(charts, "Latency");
 
@@ -73,7 +73,7 @@ describe("runCharts", () => {
       project,
       workloadId: "steady",
       snapshots: snapshots.slice(0, 1),
-    });
+    }).charts;
     const busy = chartTitled(first, "Work in progress");
 
     expect(busy.series.map((s) => s.label)).toEqual([
@@ -81,7 +81,7 @@ describe("runCharts", () => {
       "Function",
       "Table",
     ]);
-    const all = runCharts({ project, workloadId: "steady", snapshots });
+    const all = runCharts({ project, workloadId: "steady", snapshots }).charts;
     expect(valuesOf(chartTitled(all, "Work in progress"), "fn")).toEqual([
       [1, 0],
       [2, 7],
@@ -92,13 +92,57 @@ describe("runCharts", () => {
     ]);
   });
 
+  // Fails if the timeline reads anything but the requests chart's
+  // Succeeded and Failed lines, such as Started, or its own sums.
+  it("draws the timeline from the requests chart's succeeded and failed lines", () => {
+    const { timeline, charts } = runCharts({
+      project,
+      workloadId: "steady",
+      snapshots,
+    });
+    const requests = chartTitled(charts, "Requests");
+
+    expect(timeline.series.map((s) => s.label)).toEqual([
+      "Succeeded",
+      "Failed",
+    ]);
+    expect(timeline.unit).toBe(requests.unit);
+    expect(timeline.series).toEqual(
+      requests.series.filter((s) => ["succeeded", "failed"].includes(s.id)),
+    );
+    expect(valuesOf(timeline, "failed")).toEqual([
+      [1, 0],
+      [2, 1],
+    ]);
+  });
+
+  // Fails if Succeeded or Failed lose their status, so they take the
+  // colors of their places (orange and aqua), or another line gets one.
+  it("marks Succeeded ok and Failed error, and no other request line", () => {
+    const requests = chartTitled(
+      runCharts({ project, workloadId: "steady", snapshots }).charts,
+      "Requests",
+    );
+
+    expect(requests.series.map((s) => [s.id, s.status])).toEqual([
+      ["started", undefined],
+      ["succeeded", "ok"],
+      ["failed", "error"],
+      ["inProgress", undefined],
+    ]);
+  });
+
   // Fails if a chart, or a chart's series, is missing until the first
   // snapshot arrives.
   it("has every chart's series, with no points, before the first snapshot", () => {
-    const charts = runCharts({ project, workloadId: "steady", snapshots: [] });
+    const { timeline, charts } = runCharts({
+      project,
+      workloadId: "steady",
+      snapshots: [],
+    });
 
     expect(charts).toHaveLength(4);
-    for (const chart of charts) {
+    for (const chart of [timeline, ...charts]) {
       expect(chart.series.length).toBeGreaterThan(0);
       expect(chart.series.every((s) => s.points.length === 0)).toBe(true);
     }

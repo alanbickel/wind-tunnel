@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { ChartPlot } from "./ChartPlot";
 import { chartRows } from "./chart-rows";
+import { SERIES_COLORS } from "./series-colors";
 import type { TimeSeriesContent } from "./time-series";
 
 const content: TimeSeriesContent = {
@@ -95,14 +96,13 @@ describe("ChartPlot", () => {
     ]);
   });
 
-  // Fails if the legend draws its default icon, which ignores the dash, so
-  // the legend tells Succeeded and Failed apart by color alone, or a
-  // series' status doesn't reach its line, whose color the swatch takes.
+  // Fails if the Lines lose `legendType="plainline"`: Recharts draws its
+  // default icon, with no dash, so Failed's swatch shows no "6 3".
   it("shows each line's color and dash in its legend swatch", () => {
     const { container } = renderPlot(statusContent);
 
     expect(legendSwatches(container)).toEqual([
-      ["#2a78d6", null],
+      [SERIES_COLORS[0], null],
       ["var(--color-status-ok)", null],
       ["var(--color-status-error)", "6 3"],
     ]);

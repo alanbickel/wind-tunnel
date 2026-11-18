@@ -3,7 +3,7 @@ import type { Finding } from "./findings/finding";
 import { sameKey } from "./findings/finding-key";
 import { plural } from "./findings/message";
 import type { FindingNode } from "./findings/order-findings";
-import { componentStatuses } from "./component-status";
+import { componentsThatWaited, statusOf } from "./component-status";
 import { count } from "./number-format";
 import { componentTotals } from "./run-totals";
 import type { RunSoFar } from "./run-so-far";
@@ -48,19 +48,22 @@ export interface ComponentNotInRun {
 const NOT_IN_RUN: ComponentNotInRun = { kind: "not-in-run" };
 
 /**
- * A component's part of the run so far: its status, from the same
- * `componentStatuses` as its badge, and the findings that name it, by the
+ * A component's part of the run so far: its status, by the same
+ * `statusOf` rule as its badge, and the findings that name it, by the
  * rule that marks a box when a finding is selected (`key.componentId`).
  * A component the run's copy doesn't have wasn't in the run.
  */
 export function componentInRun(input: ComponentInRunInput): ComponentInRun {
   const { run, componentId } = input;
-  const status = componentStatuses(run).get(componentId);
-  if (status === undefined) return NOT_IN_RUN;
+  const totals = componentTotals(run).find(({ id }) => id === componentId);
+  if (totals === undefined) return NOT_IN_RUN;
+  const { rejected } = totals;
+  const waited = componentsThatWaited(run).has(componentId);
+  const status = statusOf({ rejected, waited });
   return {
     kind: "ran",
     status,
-    statusText: STATUS_TEXTS[status](rejectedBy(run, componentId)),
+    statusText: STATUS_TEXTS[status](rejected),
     findings: input.going ? [] : findingsNaming(input.findings, componentId),
   };
 }
@@ -75,12 +78,6 @@ const STATUS_TEXTS: Readonly<
   waited: () => STATUS_WORDS.waited,
   ok: () => STATUS_WORDS.ok,
 };
-
-/** How many attempts the component refused in the run so far. */
-function rejectedBy(run: RunSoFar, componentId: string): number {
-  const totals = componentTotals(run).find(({ id }) => id === componentId);
-  return totals?.rejected ?? 0;
-}
 
 /**
  * The findings at the component, each once, depth first: a cause that

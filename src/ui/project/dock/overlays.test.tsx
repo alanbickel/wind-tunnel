@@ -40,6 +40,16 @@ function chartsDisclosure(): HTMLDetailsElement {
   return details;
 }
 
+/**
+ * The height a chart's figure holds for its plot: the stand-in's, or the
+ * plot's once Recharts has loaded. Both take it from the chart's size.
+ */
+function plotHeight(figure: HTMLElement): number {
+  const plot = figure.querySelector<HTMLElement>("[style*='height']");
+  if (plot === null) throw new Error("The figure holds no plot");
+  return Number.parseFloat(plot.style.height);
+}
+
 /** What a run overlay reads of a run: whether it ran, its snapshots, whether it's current. */
 interface RunShownInput {
   readonly run?: RunSoFar;
@@ -212,6 +222,21 @@ describe("RunOverlay", () => {
     ]);
     fireEvent.click(screen.getByText("Charts"));
     expect(charts.open).toBe(true);
+  });
+
+  // Fails if the timeline loses `size="compact"`: it holds the same height
+  // as the charts under "Charts".
+  it("draws the timeline shorter than the charts under Charts", () => {
+    const snapshots = [sampleSnapshot({ second: 1, read: { started: 5 } })];
+    const run = { project, workloadId: "steady", snapshots };
+
+    render(<RunOverlay {...propsOf(undefined, projectRunOf({ run }))} />);
+
+    const timeline = screen.getByRole("figure", { name: TIMELINE });
+    const requests = screen.getByRole("figure", {
+      name: "Requests per second, all workflows",
+    });
+    expect(plotHeight(timeline)).toBeLessThan(plotHeight(requests));
   });
 
   // Fails if a run of an earlier version of the project shows its tables

@@ -65,6 +65,23 @@ describe("TimeSeriesChart", () => {
     ).toBeTruthy();
   });
 
+  // Fails if `size` doesn't reach the stand-in, or "compact" isn't shorter
+  // than the default: the two stand-ins come out the same height.
+  it("holds a shorter place for a compact chart than for a full one", async () => {
+    const FreshChart = await freshTimeSeriesChart();
+    render(
+      <>
+        <FreshChart content={content} />
+        <FreshChart content={content} size="compact" />
+      </>,
+    );
+
+    const [full, compact] = screen
+      .getAllByText("Loading the chart…")
+      .map((standIn) => Number.parseFloat(standIn.style.height));
+    expect(compact).toBeLessThan(full ?? 0);
+  });
+
   // Fails if TimeSeriesChart stops rendering ChartPlot: the stand-in stays.
   it("draws the lines once Recharts has loaded", async () => {
     stubDiagramBrowserApis();

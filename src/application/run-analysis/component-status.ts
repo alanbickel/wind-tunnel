@@ -14,11 +14,7 @@ export { STATUS_WORDS, type ComponentStatus } from "./status-words";
 export function componentStatuses(
   run: RunSoFar,
 ): ReadonlyMap<string, ComponentStatus> {
-  const waiting = new Set(
-    limitPeaks(run)
-      .filter((peak) => peak.whenFull.kind === "wait" && peak.exhausted)
-      .map((peak) => peak.componentId),
-  );
+  const waiting = componentsThatWaited(run);
   return new Map(
     componentTotals(run).map(({ id, rejected }) => [
       id,
@@ -27,14 +23,24 @@ export function componentStatuses(
   );
 }
 
+/** The IDs of the components a limit made work wait at, in the run so far. */
+export function componentsThatWaited(run: RunSoFar): ReadonlySet<string> {
+  return new Set(
+    limitPeaks(run)
+      .filter((peak) => peak.whenFull.kind === "wait" && peak.exhausted)
+      .map((peak) => peak.componentId),
+  );
+}
+
 /** What decides one component's status. */
-interface StatusInput {
+export interface StatusInput {
   readonly rejected: number;
   /** Whether a limit that makes work wait when full ran out. */
   readonly waited: boolean;
 }
 
-function statusOf({ rejected, waited }: StatusInput): ComponentStatus {
+/** One component's status, by the rule `componentStatuses` gives. */
+export function statusOf({ rejected, waited }: StatusInput): ComponentStatus {
   if (rejected > 0) return "refused";
   return waited ? "waited" : "ok";
 }

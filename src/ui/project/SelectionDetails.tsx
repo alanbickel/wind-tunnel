@@ -18,6 +18,7 @@ import { dispatchKind } from "../shared/kind-dispatch";
 import { useAnnouncement } from "../shared/useAnnouncement";
 import { ConnectTo } from "./ConnectTo";
 import { DetailsHeading } from "./DetailsHeading";
+import { InThisRun, type ThisRun } from "./InThisRun";
 import { ComponentSettings } from "./fields/ComponentSettings";
 import { EdgeSettings } from "./fields/EdgeSettings";
 import { WorkflowNameField } from "./fields/WorkflowNameField";
@@ -53,12 +54,18 @@ export interface SelectionDetailsProps {
   readonly takeFocus: ProjectSelection["takeFocus"];
   /** Shows a Close button beside the heading, as the narrow layout does. */
   readonly closable?: boolean;
+  /**
+   * The run on screen, which a component's details end with; undefined
+   * before the first run, when they have no In this run.
+   */
+  readonly thisRun?: ThisRun | undefined;
 }
 
 /**
  * The selected component's or edge's settings, each a field that saves a
  * change once it passes its checks, and a component's "Connect to…"; then
- * what calls it (UX design §4.1, §4.3). Or the selected workflow's name field
+ * what calls it (UX design §4.1, §4.3), and after a run, its part of it
+ * (`InThisRun`, §9). Or the selected workflow's name field
  * and the workloads that run it, whose steps the dock's Workflows tab
  * outlines; or the selected step (`SelectedStep`); or the selected
  * workload's name field and problems, whose traffic the dock's Workloads
@@ -127,9 +134,12 @@ interface SelectedThingProps extends SelectionDetailsProps {
   readonly announce: (message: string) => void;
 }
 
-/** A component, an edge, a workflow, or a workload: heading, body, and callers. */
+/**
+ * A component, an edge, a workflow, or a workload: heading, body, and
+ * callers; then, for a component after a run, In this run.
+ */
 function SelectedThing(props: SelectedThingProps) {
-  const { selection, details } = props;
+  const { selection, details, thisRun } = props;
   const callers = dispatchKind(CALLERS, details);
   return (
     <>
@@ -137,6 +147,13 @@ function SelectedThing(props: SelectedThingProps) {
       <DetailsHeader key={keyOf(selection)} {...props} />
       <DetailsBody {...props} />
       {callers !== undefined && <p className={styles.callers}>{callers}</p>}
+      {details.kind === "component" && thisRun !== undefined && (
+        <InThisRun
+          componentId={details.componentId}
+          name={details.name}
+          thisRun={thisRun}
+        />
+      )}
     </>
   );
 }

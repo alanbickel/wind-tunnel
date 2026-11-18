@@ -3,6 +3,7 @@ import type { Selection } from "../../application/details/selection";
 import type { Project } from "../../domain/model/project";
 import { RunExplanation } from "../run/RunExplanation";
 import type { ProjectRun } from "../run/useProjectRun";
+import type { ThisRun } from "./InThisRun";
 import { Button } from "../shared/Button";
 import {
   ChevronLeftIcon,
@@ -246,10 +247,14 @@ function useHeadingFocus({ takeFocus }: ProjectSelection): () => boolean {
   return useCallback(() => takeFocus("heading"), [takeFocus]);
 }
 
-/** The selection's details, in a region of their own named "Details". */
+/**
+ * The selection's details, in a region of their own named "Details", with
+ * the run on screen, which a component's end with.
+ */
 function Details(props: InspectorContentProps) {
   const { project, selecting, onEdit, onRemove, stepRows, closable } = props;
   const { selection, selectWithin, close, takeFocus } = selecting;
+  const thisRun = thisRunOf(props.projectRun, selecting);
   if (selection === undefined) return null;
   return (
     <section aria-label="Details">
@@ -263,7 +268,27 @@ function Details(props: InspectorContentProps) {
         onClose={close}
         takeFocus={takeFocus}
         closable={closable ?? false}
+        thisRun={thisRun}
       />
     </section>
   );
+}
+
+/**
+ * The run on screen, as a component's details read it, or undefined
+ * before the first run. "See the run" selects it, as the verdict does.
+ */
+function thisRunOf(
+  { meaning, outOfDate, run }: ProjectRun,
+  selecting: ProjectSelection,
+): ThisRun | undefined {
+  if (meaning === undefined) return undefined;
+  return {
+    meaning,
+    outOfDate,
+    going: run.phase.status === "running",
+    onSelectRun: () => {
+      selecting.select({ kind: "run" });
+    },
+  };
 }

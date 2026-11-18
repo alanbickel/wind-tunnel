@@ -17,11 +17,7 @@ import { sampleRecord } from "../../application/testing/sample-record";
 import type { RunBadges } from "../run/run-badges";
 import { fakeUseCases } from "../app/testing/fake-use-cases";
 import { UseCasesProvider } from "../app/UseCasesProvider";
-import {
-  ArchitectureView,
-  type ArchitectureViewProps,
-} from "./ArchitectureView";
-import { useCanvasPanels } from "./useCanvasPanels";
+import { ArchitectureView } from "./ArchitectureView";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { FADED_CLASS, ON_PATH_CLASS } from "../diagram/to-react-flow";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
@@ -62,11 +58,6 @@ function boxesWith(nodes: Element[], className: string): (string | null)[] {
     .map((node) => node.getAttribute("data-id"));
 }
 
-/** The view, holding which canvas panel is open, as the screen does. */
-function WithPanels(props: Omit<ArchitectureViewProps, "panels">) {
-  return <ArchitectureView {...props} panels={useCanvasPanels()} />;
-}
-
 /** The view, with spies for what it reports. */
 function renderView({
   selection,
@@ -78,7 +69,7 @@ function renderView({
   const onMove = vi.fn<(componentId: string, position: Point) => void>();
   const tree = (shown: RunBadges | undefined) => (
     <UseCasesProvider useCases={fakeUseCases()}>
-      <WithPanels
+      <ArchitectureView
         record={record}
         selection={selection}
         badges={shown}
@@ -263,15 +254,15 @@ describe("ArchitectureView's tool rail", () => {
     vi.unstubAllGlobals();
   });
 
-  // Fails if zoom or fit leaves the rail, Connect goes before slice 7, or
+  // Fails if zoom or fit leaves the rail, Connect comes back to it, or
   // the rail's Workflows list, the workflow picker, or the bottom-left row
   // comes back: the Workflows tab is the one place a workflow is picked.
-  it("holds zoom out, zoom in, fit, and Connect, and no workflows", () => {
+  it("holds zoom out, zoom in, and fit, and nothing else", () => {
     renderView();
 
     expect(
       railButtons().map((b) => b.getAttribute("aria-label") ?? b.title),
-    ).toEqual(["Zoom out", "Zoom in", "Fit to screen", "Connect"]);
+    ).toEqual(["Zoom out", "Zoom in", "Fit to screen"]);
     expect(screen.queryAllByRole("button", { name: /Workflows/ })).toEqual([]);
     expect(
       document.querySelector('[aria-haspopup="menu"], [aria-haspopup="true"]'),
@@ -301,17 +292,6 @@ describe("ArchitectureView's tool rail", () => {
     );
   });
 
-  // Fails if Connect's hint doesn't open from its button, beside the rail.
-  it("opens Connect's hint from its button", () => {
-    renderView();
-    const connect = railButton("Connect");
-
-    fireEvent.click(connect);
-
-    expect(connect.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("region", { name: "Connect" })).toBeTruthy();
-  });
-
   // Fails if the canvas draws the text version again, or the project's
   // components and connections stop being the Components tab's alone.
   it("has no text version of its own: the dock's Components tab lists them", () => {
@@ -319,5 +299,59 @@ describe("ArchitectureView's tool rail", () => {
 
     expect(screen.queryByRole("button", { name: "As text" })).toBeNull();
     expect(screen.queryByRole("list", { name: "Components" })).toBeNull();
+  });
+});
+
+/** The sample, with its first `count` components and no edges. */
+function unconnectedRecord(count: number): ProjectRecord {
+  const { architecture } = sampleRecord.project;
+  return {
+    ...sampleRecord,
+    project: {
+      ...sampleRecord.project,
+      architecture: {
+        components: architecture.components.slice(0, count),
+        edges: [],
+      },
+    },
+  };
+}
+
+/** The canvas's line on how to connect boxes, if it's there. */
+function connectLine(): HTMLElement | null {
+  return screen.queryByText(
+    "Drag from a box’s handle to another box to connect them",
+  );
+}
+
+describe("ArchitectureView's connect line", () => {
+  preloadBeforeAll(() => import("../diagram/DiagramCanvas"));
+  beforeEach(stubDiagramBrowserApis);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  // Fails if the line doesn't show while there are boxes to connect and no
+  // arrows, or becomes a control that takes a tab stop.
+  it("says how to connect boxes while there are two or more and no arrows", () => {
+    renderView({ record: unconnectedRecord(2) });
+
+    const line = connectLine();
+    expect(line?.tagName).toBe("P");
+    expect(line?.closest("button, [tabindex]")).toBeNull();
+  });
+
+  // Fails if the line shows once there's an arrow, on an empty canvas
+  // (which has its own line), or with a lone box, which has nothing to
+  // connect to.
+  it.each([
+    ["an arrow", sampleRecord],
+    ["no components", unconnectedRecord(0)],
+    ["one component", unconnectedRecord(1)],
+  ])("says nothing about connecting with %s", (_case, record) => {
+    renderView({ record });
+
+    expect(connectLine()).toBeNull();
   });
 });

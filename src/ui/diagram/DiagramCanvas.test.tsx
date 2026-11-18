@@ -227,6 +227,27 @@ describe("DiagramCanvas's connections", () => {
     // Each box has a handle on each side: one to start from, one to end on.
     expect(connectableHandles(drawable.container)).toHaveLength(4);
   });
+
+  /** The tooltip on each of the boxes' handles, connectable or not. */
+  const handleTitles = (container: HTMLElement) =>
+    [...container.querySelectorAll(".react-flow__handle")].map((handle) =>
+      handle.getAttribute("title"),
+    );
+
+  // Fails if a connectable handle doesn't say what it's for, or a
+  // read-only diagram's handles offer a drag that does nothing.
+  it("says what a handle is for only when a drag can connect boxes", () => {
+    const readOnly = render(<DiagramCanvas content={boxes} />);
+    expect(handleTitles(readOnly.container)).toEqual([null, null, null, null]);
+    cleanup();
+
+    const drawable = render(
+      <DiagramCanvas content={boxes} onConnect={vi.fn()} />,
+    );
+    expect(handleTitles(drawable.container)).toEqual(
+      Array.from({ length: 4 }, () => "Drag to another box to connect"),
+    );
+  });
 });
 
 describe("DiagramCanvas's moves", () => {

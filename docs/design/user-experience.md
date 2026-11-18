@@ -56,7 +56,7 @@ Every part of the screen follows these. When a new feature seems to need an exce
 
 **Boxes.** Each component is a card: an icon for its type, its name, and its type in words. After a run, the card gets a badge from the run's totals, telling three cases apart: it **refused** work (it turned requests away), its limits made work **wait**, or **ok** (neither). Each badge has its own shape as well as its color, so color is never the only signal, and the Components tab lists the same status. Once the run is out of date, the badges are drawn hollow: they're from an earlier version of the project.
 
-**Arrows.** Edges belong to the architecture, so they're drawn, edited, and removed on their own, whether or not a workflow uses them. Drag from a box's handle to another box to connect them; from the keyboard, the inspector's "Connect to…" does the same. The canvas says how itself, with no control of its own: a handle's tooltip reads "Drag to another box to connect", and while the project has components but no edges, one line on the canvas says the same and goes once there's an edge. Drawing always makes an edge, whatever is selected. A workflow's calls go only along the edges that are there, in their direction (§7), so connecting is how the architecture says what can call what.
+**Arrows.** Edges belong to the architecture, so they're drawn, edited, and removed on their own, whether or not a workflow uses them. Drag from a box's handle to another box to connect them; from the keyboard, the inspector's "Connect to…" does the same. The canvas says how itself, with no control of its own: a handle's tooltip reads "Drag to another box to connect", and while the project has two components or more but no edges, one line on the canvas says the same and goes once there's an edge. Drawing always makes an edge, whatever is selected. A workflow's calls go only along the edges that are there, in their direction (§7), so connecting is how the architecture says what can call what.
 
 **Moving.** Boxes move by dragging, or with the arrow keys once one has the focus. Where a box sits is saved with the project, and a move is one undo step when it ends.
 
@@ -260,7 +260,7 @@ The [Roadmap](https://github.com/alanbickel/wind-tunnel/issues/32)'s M7 items, i
 7. **The timeline dock:** the run over time, read-only, with the full charts behind it. §9.
 8. **The player:** steps through a workflow's path one call at a time, after the timeline dock so the two can share a playback model. §7.
 
-The screen's view state ([#246](https://github.com/alanbickel/wind-tunnel/issues/246)) comes before the timeline dock, since the timeline is one of the dock's tabs. It reworks §2's regions and §5's rules in small slices, each listed on #246: the screen's state held in one place first, with no visible change, then the run as a selection with the run group in the dock, the dock's tabs, the floating panels' removal, the full-height inspector, and the connect hint.
+The screen's view state ([#246](https://github.com/alanbickel/wind-tunnel/issues/246)) comes before the timeline dock, since the timeline is one of the dock's tabs. It reworks §2's regions and §5's rules in small slices, each listed on #246: the screen's state held in one place first, with no visible change, then the run as a selection with the run group in the dock, the dock's tabs, the floating panels' removal, the full-height inspector, and how to connect on the canvas.
 
 ## 12. Not yet
 

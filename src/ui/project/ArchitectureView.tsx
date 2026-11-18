@@ -21,7 +21,6 @@ import type { ZoomActions } from "../diagram/zoom-actions";
 import { selectionOf } from "./diagram-items";
 import { useDisplayNames } from "./useDisplayNames";
 import { ToolRail } from "./ToolRail";
-import type { CanvasPanels as CanvasPanelState } from "./useCanvasPanels";
 import { useEdgeOffers, type OfferingProps } from "./useEdgeOffers";
 import styles from "./ArchitectureView.module.css";
 import { diagramOf } from "./diagram-of";
@@ -36,8 +35,6 @@ export interface ArchitectureViewProps {
   readonly onConnect: (from: string, to: string) => void;
   /** Moves a component to where it was put on the diagram. */
   readonly onMove: (componentId: string, position: Point) => void;
-  /** Whether the tool rail's Connect hint is open. */
-  readonly panels: CanvasPanelState;
   /** The run on screen's status badges, drawn on the boxes; none before the first run. */
   readonly badges?: RunBadges | undefined;
   /**
@@ -50,12 +47,14 @@ export interface ArchitectureViewProps {
 /**
  * The canvas: the project's components and connections as a diagram that
  * fills the room it's given, with a tool rail down its left edge (zoom
- * in, zoom out, fit, and Connect). A click on the diagram selects a
+ * out, zoom in, and fit). A click on the diagram selects a
  * component or a connection; the dock's Components tab has the same facts
  * as lists, which every user can rely on. The diagram marks
  * the selection, and a selected workflow's path, or a selected step's and
- * its workflow's. A drag from one box to another on the diagram connects
- * them; "Connect to…" in a component's Details is the keyboard's way. With a
+ * its workflow's. A drag from a box's handle to another box connects them,
+ * as each handle's tooltip says, and as a line on the canvas says while
+ * there are boxes to connect but no arrows; "Connect to…" in a component's
+ * Details is the keyboard's way. With a
  * workflow selected, each arrow leaving a box in its path has a "+" that adds
  * a call along it; the outline's "Add a call from …" is the keyboard's way. A
  * box moves by dragging it, or with the arrow keys once it has the focus;
@@ -82,12 +81,9 @@ export function ArchitectureView(props: ArchitectureViewProps) {
       <h3 id={headingId} className={styles.heading}>
         Architecture
       </h3>
-      <ToolRail
-        panels={props.panels}
-        zoom={empty ? undefined : zoom}
-        onInset={setRailInsetPx}
-      />
+      <ToolRail zoom={empty ? undefined : zoom} onInset={setRailInsetPx} />
       {empty ? <EmptyCanvas /> : <Drawing {...drawn} />}
+      {unconnected(content) && <ConnectLine />}
     </section>
   );
 }
@@ -97,6 +93,27 @@ function EmptyCanvas() {
   return (
     <p className={styles.empty}>
       No components yet. Add one to start describing your system.
+    </p>
+  );
+}
+
+/**
+ * Whether the canvas has boxes to connect and no arrows yet: two boxes at
+ * least, since a lone box has nothing to connect to.
+ */
+function unconnected({ nodes, edges }: DiagramContent): boolean {
+  return nodes.length >= 2 && edges.length === 0;
+}
+
+/**
+ * How to connect boxes, in the empty canvas's voice, along the canvas's
+ * bottom edge. It's text, not a control, so it takes no tab stop, and a
+ * drag passes through it to the diagram.
+ */
+function ConnectLine() {
+  return (
+    <p className={styles.connect}>
+      Drag from a box&rsquo;s handle to another box to connect them
     </p>
   );
 }

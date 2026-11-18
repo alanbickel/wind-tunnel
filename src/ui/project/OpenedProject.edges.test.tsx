@@ -21,13 +21,9 @@ function select(name: string): void {
   fireEvent.click(button);
 }
 
-/** Details' "Connect" button, not the tool rail's, which has the name too. */
+/** Details' "Connect" button, beside "Connect to…". */
 function connectButton(): HTMLElement {
-  const button = screen
-    .getAllByRole("button", { name: "Connect" })
-    .find((candidate) => candidate.closest('[role="toolbar"]') === null);
-  if (button === undefined) throw new Error("No Connect button in Details");
-  return button;
+  return screen.getByRole("button", { name: "Connect" });
 }
 
 function edgeOf(
@@ -57,6 +53,13 @@ function enter(field: HTMLElement, text: string): void {
 }
 
 const FN_TO_TABLE = "Function → Table";
+
+/** The canvas's line on how to connect boxes, if it's there. */
+function connectLine(): HTMLElement | null {
+  return screen.queryByText(
+    "Drag from a box’s handle to another box to connect them",
+  );
+}
 
 describe("OpenedProject's edges", () => {
   beforeEach(stubDiagramBrowserApis);
@@ -193,5 +196,37 @@ describe("OpenedProject's edges", () => {
     expect(cantRunRegion().textContent).toBe(
       "Steady can't run yet: Read item calls Table from Function, which has no edge to it.",
     );
+  });
+
+  // Fails if the canvas's line on connecting ignores the edges, so it stays
+  // once there's one, or isn't drawn: then it isn't there to start with,
+  // nor after an undo or a remove takes the last edge.
+  it("says how to connect on the canvas until there's an edge, and again with none", async () => {
+    const { projects } = renderOpenedProject({
+      project: {
+        ...sampleRecord.project,
+        architecture: { ...sampleRecord.project.architecture, edges: [] },
+      },
+    });
+    expect(connectLine()).not.toBeNull();
+
+    select("Function (Lambda)");
+    fireEvent.change(screen.getByRole("combobox", { name: "Connect to" }), {
+      target: { value: "table" },
+    });
+    fireEvent.click(connectButton());
+    await savedRecord(projects, (r) => edgeOf(r, "fn", "table") !== undefined);
+    expect(connectLine()).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Undo\b/ }));
+    expect(connectLine()).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Redo\b/ }));
+    expect(connectLine()).toBeNull();
+    select(FN_TO_TABLE);
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    const asking = screen.getByRole("group", { name: /^Remove the edge/ });
+    fireEvent.click(within(asking).getByRole("button", { name: "Remove" }));
+    expect(connectLine()).not.toBeNull();
   });
 });

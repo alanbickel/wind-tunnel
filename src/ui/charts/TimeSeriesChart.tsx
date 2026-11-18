@@ -2,8 +2,8 @@ import { lazy, Suspense, useId, useMemo } from "react";
 import { LoadFailureBoundary } from "../shared/load-failure-boundary";
 import { chartRows, type ChartRow } from "./chart-rows";
 import { formatValue } from "./format-value";
-import { PLOT_STYLE } from "./plot-style";
-import type { TimeSeries, TimeSeriesContent } from "./time-series";
+import { plotStyle } from "./plot-style";
+import type { ChartSize, TimeSeries, TimeSeriesContent } from "./time-series";
 
 // Recharts arrives in its own chunk the first time a chart draws, so the
 // app loads without it (#16).
@@ -11,14 +11,10 @@ const ChartPlot = lazy(() =>
   import("./ChartPlot").then((module) => ({ default: module.ChartPlot })),
 );
 
-// Holds the plot's place while Recharts loads, or if it can't.
-const STAND_IN_STYLE = {
-  ...PLOT_STYLE,
-  color: "var(--color-text-muted)",
-} as const;
-
 export interface TimeSeriesChartProps {
   readonly content: TimeSeriesContent;
+  /** How tall the plot is; "full" if not given. */
+  readonly size?: ChartSize;
 }
 
 /**
@@ -28,29 +24,36 @@ export interface TimeSeriesChartProps {
  * follow when Recharts has loaded, and if it can't, the table still holds
  * the numbers.
  */
-export function TimeSeriesChart({ content }: TimeSeriesChartProps) {
+export function TimeSeriesChart({
+  content,
+  size = "full",
+}: TimeSeriesChartProps) {
   const headingId = useId();
   const rows = useMemo(() => chartRows(content.series), [content.series]);
+  const standIn = standInStyle(size);
 
   return (
     <figure aria-labelledby={headingId}>
       <h4 id={headingId}>{content.title}</h4>
       <LoadFailureBoundary
         failure={
-          <div style={STAND_IN_STYLE}>
+          <div style={standIn}>
             Couldn't load the chart. Reload the page to try again.
           </div>
         }
       >
-        <Suspense
-          fallback={<div style={STAND_IN_STYLE}>Loading the chart…</div>}
-        >
-          <ChartPlot content={content} rows={rows} />
+        <Suspense fallback={<div style={standIn}>Loading the chart…</div>}>
+          <ChartPlot content={content} rows={rows} size={size} />
         </Suspense>
       </LoadFailureBoundary>
       <ChartTable content={content} rows={rows} />
     </figure>
   );
+}
+
+/** Holds the plot's place while Recharts loads, or if it can't. */
+function standInStyle(size: ChartSize) {
+  return { ...plotStyle(size), color: "var(--color-text-muted)" } as const;
 }
 
 interface ChartTableProps {

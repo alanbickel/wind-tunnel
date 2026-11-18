@@ -9,9 +9,9 @@ import {
 } from "recharts";
 import type { ChartRow } from "./chart-rows";
 import { formatValue } from "./format-value";
-import { PLOT_STYLE } from "./plot-style";
-import { seriesColor } from "./series-colors";
-import type { TimeSeries, TimeSeriesContent } from "./time-series";
+import { plotStyle } from "./plot-style";
+import { seriesLook } from "./series-look";
+import type { ChartSize, TimeSeries, TimeSeriesContent } from "./time-series";
 
 // Recessive chrome, so the lines are the loudest thing on the chart. Token
 // references resolve in the browser, so they follow the theme (ADR-0012).
@@ -38,15 +38,16 @@ const SERIES_TEXT_STYLE = { color: "var(--color-text)" } as const;
 export interface ChartPlotProps {
   readonly content: TimeSeriesContent;
   readonly rows: readonly ChartRow[];
+  readonly size: ChartSize;
 }
 
 /**
  * The lines themselves, drawn by Recharts. Only `TimeSeriesChart` renders
  * it, and loads it lazily, so Recharts stays out of the app's first chunk.
  */
-export function ChartPlot({ content, rows }: ChartPlotProps) {
+export function ChartPlot({ content, rows, size }: ChartPlotProps) {
   return (
-    <LineChart responsive style={PLOT_STYLE} data={rows}>
+    <LineChart responsive style={plotStyle(size)} data={rows}>
       <CartesianGrid stroke={GRID_COLOR} vertical={false} />
       <XAxis {...TIME_AXIS_PROPS} />
       <YAxis
@@ -78,14 +79,18 @@ function seriesIndex(content: TimeSeriesContent, label: unknown): number {
   return content.series.findIndex((series) => series.label === label);
 }
 
-/** One series' line, colored by its place in the list. */
+/**
+ * One series' line, colored by its status or its place in the list. Its
+ * legend swatch is a plain line, so a dashed line's shows the dash.
+ */
 function seriesLine(series: TimeSeries, index: number) {
   return (
     <Line
       key={series.id}
       name={series.label}
       dataKey={valueOf(series.id)}
-      stroke={seriesColor(index)}
+      {...seriesLook({ series, index })}
+      legendType="plainline"
       strokeWidth={2}
       dot={false}
       // Snapshots arrive several times a second; animating each one makes

@@ -79,7 +79,7 @@ If the PR already has a review whose body starts with `🤖 Claude review:`, thi
    - Outputs reconcile: any new counter or column has a check that the totals add up.
    - A doc that quotes test output ("Docs backed by tests") is updated with the snapshot it quotes.
    - Model changes come with before/after numbers from `npm run simulate` in the PR description, and the change in the numbers fits the change in the code. Don't rerun it.
-   - AWS claims go through `docs/design/fidelity.md`.
+   - AWS claims go through the fidelity pages (`docs/design/fidelity.md` and the service pages it lists).
    - **Docs a maintainer can learn from.** Could a maintainer new to this code learn how the change works from the docs in about ten minutes? Complex behavior (a state machine, timing, a flow across layers) needs a Mermaid diagram or a worked example in its subsystem's guide. A gap is **[should fix]**, or **[blocking]** if a new subsystem has no guide at all. Read the issue's `🤖 Claude decisions:` comment for what the author chose to document, and what it left out and why.
    - **No drift.** Search `docs/`, the README, and CONTRIBUTING for the names the PR changes or removes (types, functions, file paths, UI labels), and report any text that no longer matches.
    - New subsystems have a guide; the architecture overview and its diagrams match the new structure; every new document is reachable from the root README's map; exported `domain/` and `application/` code has doc comments with units and defaults.

@@ -27,3 +27,7 @@ The findings design for such a run ([§1.8](../design/findings.md#18-variant-tem
 - `MetricsSnapshot` changes shape. Snapshots aren't persisted, so no stored data needs migrating, but every place that builds a `ComponentMetrics` (the collector and test fixtures such as `sample-snapshots.ts`) gains the field.
 - Snapshots grow by one record per component; it's empty for every component but a queue whose deliveries failed.
 - The rule doesn't reach the per-component counts of attempts, which aren't final outcomes. `rejected` counts refused attempts, retried ones included, without their reason (§2.4). `failed` counts a component's work that ended because a nested call failed (fn-writer's 90 in §1.8); its cause is that call's, and it reaches the request's or the delivery's outcome. `timeouts` counts callers that gave up, and is itself a cause, the callee and `timeout`. Counting any of them by cause would follow the same pattern if a detector needs it.
+
+## Addendum, 2026-11-18
+
+The fidelity catalog became an index and a page per service ([#284](https://github.com/alanbickel/wind-tunnel/issues/284)), so SQS-1, linked in the context above, is now on the [SQS page](../design/fidelity/sqs.md#sqs-1-failed-messages-come-back-immediately). The decision is unchanged.

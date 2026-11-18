@@ -15,7 +15,6 @@ import { fitOptions } from "../diagram/fit-options";
 import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { preloadBeforeAll } from "../shared/testing/preload-before-all";
 import { ArchitectureView } from "./ArchitectureView";
-import { useCanvasPanels } from "./useCanvasPanels";
 
 const fitView = vi.fn(() => Promise.resolve(true));
 const zoomIn = vi.fn(() => Promise.resolve(true));
@@ -27,7 +26,7 @@ vi.mock("@xyflow/react", async (importOriginal) => ({
   useReactFlow: () => ({ fitView, zoomIn, zoomOut }),
 }));
 
-/** The view, holding which canvas panel is open, as the screen does. */
+/** The view of the sample, with spies for what it reports. */
 function View() {
   return (
     <ArchitectureView
@@ -38,7 +37,6 @@ function View() {
       onConnect={vi.fn()}
       onMove={vi.fn()}
       offering={{ onEdit: vi.fn(), onSelect: vi.fn(), announce: vi.fn() }}
-      panels={useCanvasPanels()}
     />
   );
 }

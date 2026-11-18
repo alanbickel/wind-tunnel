@@ -33,6 +33,7 @@ import { nodeIdOf } from "./node-id-of";
 import type { ZoomActions } from "./zoom-actions";
 import { toFlowEdge, toFlowNode, withOffer } from "./to-react-flow";
 import { OFFER_EDGE_TYPE, OfferEdge } from "./OfferEdge";
+import { NODE_TYPES } from "./BoxNode";
 import { useMeasuredSizes, type MeasuredSizes } from "./useMeasuredSizes";
 import {
   useNodeMoves,
@@ -155,6 +156,7 @@ export function DiagramCanvas(props: DiagramCanvasProps) {
     <ReactFlow
       nodes={items.nodes}
       edges={items.edges}
+      nodeTypes={NODE_TYPES}
       edgeTypes={EDGE_TYPES}
       // React Flow's own selection stays off: the diagram shows the
       // selection it's given, and reports clicks through onSelect.

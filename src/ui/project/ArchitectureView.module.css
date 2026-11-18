@@ -1,4 +1,4 @@
-/* The canvas: the diagram filling it, the rail and the panels over it.
+/* The canvas: the diagram filling it, the rail and the connect line over it.
    A fixed height at the top of a narrow window; the whole screen under the
    top bar in a wide one. */
 .canvas {
@@ -27,6 +27,22 @@
   margin: auto;
   padding: var(--space-5);
   color: var(--color-text-muted);
+}
+
+/* With boxes but no arrows, how to connect them, in the empty canvas's
+   voice, centered along the bottom edge, over the diagram. A drag passes
+   through it. */
+.connect {
+  position: absolute;
+  right: 0;
+  bottom: var(--space-4);
+  left: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0 var(--space-5);
+  color: var(--color-text-muted);
+  text-align: center;
+  pointer-events: none;
 }
 
 @media (min-width: 64rem) {

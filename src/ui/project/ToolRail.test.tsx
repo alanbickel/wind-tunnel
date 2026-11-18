@@ -3,25 +3,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ZoomActions } from "../diagram/zoom-actions";
 import { ToolRail } from "./ToolRail";
-import { useCanvasPanels } from "./useCanvasPanels";
-
-interface HarnessProps {
-  readonly zoom: ZoomActions | undefined;
-}
-
-/** The rail with the screen's panel state, and a button outside it. */
-function Harness({ zoom }: HarnessProps) {
-  const panels = useCanvasPanels();
-  return (
-    <>
-      <button type="button">Canvas</button>
-      <ToolRail panels={panels} zoom={zoom} />
-    </>
-  );
-}
 
 function renderRail(zoom?: ZoomActions) {
-  render(<Harness zoom={zoom} />);
+  render(<ToolRail zoom={zoom} />);
 }
 
 function railButton(name: string): HTMLElement {
@@ -41,22 +25,22 @@ describe("ToolRail", () => {
     vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockReturnValue(16);
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(48);
     const onInset = vi.fn<(leftInsetPx: number) => void>();
-    const panels = { open: undefined, toggle: vi.fn(), close: vi.fn() };
 
-    render(<ToolRail panels={panels} zoom={undefined} onInset={onInset} />);
+    render(<ToolRail zoom={undefined} onInset={onInset} />);
 
     expect(onInset).toHaveBeenLastCalledWith(80);
   });
 
   // Fails if a rail button loses its name or its tooltip, or the rail stops
-  // being a toolbar with zoom, fit, and Connect in order, or "Workflows",
-  // now the dock's tab, comes back.
+  // being a toolbar with zoom and fit in order and nothing else: Connect,
+  // which the canvas now explains itself, or "Workflows", now the dock's
+  // tab, comes back.
   it("is a toolbar of icon buttons, each with a name and a tooltip", () => {
     renderRail();
 
     const toolbar = screen.getByRole("toolbar", { name: "Tools" });
     const buttons = [...toolbar.querySelectorAll("button")];
-    const names = ["Zoom out", "Zoom in", "Fit to screen", "Connect"];
+    const names = ["Zoom out", "Zoom in", "Fit to screen"];
     expect(
       buttons.map((b) => b.getAttribute("aria-label") ?? b.textContent),
     ).toEqual(names);
@@ -84,26 +68,6 @@ describe("ToolRail", () => {
     expect(zoom.fit).toHaveBeenCalledOnce();
   });
 
-  // Fails if Connect's hint leaves out the drag or the keyboard's way, or
-  // doesn't close on Escape or on a click outside it.
-  it("opens Connect's hint with both ways to connect, and closes it", () => {
-    renderRail();
-    expect(screen.queryByRole("region", { name: "Connect" })).toBeNull();
-
-    fireEvent.click(railButton("Connect"));
-    const hint = screen.getByRole("region", { name: "Connect" });
-    expect(hint.textContent).toContain("Drag from a box’s handle");
-    expect(hint.textContent).toContain("“Connect to…” in its Details");
-
-    fireEvent.keyDown(hint, { key: "Escape" });
-    expect(screen.queryByRole("region", { name: "Connect" })).toBeNull();
-    expect(document.activeElement).toBe(railButton("Connect"));
-
-    fireEvent.click(railButton("Connect"));
-    fireEvent.mouseDown(railButton("Canvas"));
-    expect(screen.queryByRole("region", { name: "Connect" })).toBeNull();
-  });
-
   // Fails if the toolbar stops handling the arrow keys, flips their
   // directions, or stops wrapping at either end.
   it("moves the focus between the buttons with Down and Up, wrapping at the ends", () => {
@@ -117,9 +81,9 @@ describe("ToolRail", () => {
     expect(document.activeElement).toBe(railButton("Zoom out"));
 
     fireEvent.keyDown(railButton("Zoom out"), { key: "ArrowUp" });
-    expect(document.activeElement).toBe(railButton("Connect"));
+    expect(document.activeElement).toBe(railButton("Fit to screen"));
 
-    fireEvent.keyDown(railButton("Connect"), { key: "ArrowDown" });
+    fireEvent.keyDown(railButton("Fit to screen"), { key: "ArrowDown" });
     expect(document.activeElement).toBe(railButton("Zoom out"));
   });
 });

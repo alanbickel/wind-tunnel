@@ -28,7 +28,6 @@ import {
 import { ProjectName } from "./ProjectName";
 import { SaveFailure } from "./SaveFailure";
 import { useAddAndRemove, type AddAndRemove } from "./useAddAndRemove";
-import { useCanvasPanels, type CanvasPanels } from "./useCanvasPanels";
 import {
   useFocusAfterRedraw,
   type FocusAfterRedraw,
@@ -214,7 +213,6 @@ interface ProjectScreenInput {
  */
 function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
   const edits = useProjectEdits(input.loaded, input.onProjectNameChange);
-  const panels = useCanvasPanels();
   const selecting = useSelection();
   const { pickedWorkloadId: pickedId, pick } = selecting;
   const projectRun = useProjectRun(edits.record.project, { pickedId, pick });
@@ -235,7 +233,6 @@ function useProjectScreen(input: ProjectScreenInput): ProjectScreen {
     selecting,
     changes,
     move,
-    panels,
     badges: projectRun.badges,
   });
   const held = { edits, projectRun, selecting, undoRedo, stepRows };
@@ -252,7 +249,7 @@ const MemoArchitectureView = memo(ArchitectureView);
 
 /** The architecture, from what the screen holds. */
 function useArchitecture(input: ArchitectureInput) {
-  const { edits, selecting, changes, move, panels, badges } = input;
+  const { edits, selecting, changes, move, badges } = input;
   const { selection, select, clear } = selecting;
   const offering = useOffering({ edits, selecting, changes });
   return (
@@ -263,7 +260,6 @@ function useArchitecture(input: ArchitectureInput) {
       onClear={clear}
       onConnect={changes.connect}
       onMove={move}
-      panels={panels}
       badges={badges}
       offering={offering}
     />
@@ -316,7 +312,6 @@ interface ArchitectureInput {
   readonly selecting: ProjectSelection;
   readonly changes: AddAndRemove;
   readonly move: Move;
-  readonly panels: CanvasPanels;
   readonly badges: ProjectRun["badges"];
 }
 

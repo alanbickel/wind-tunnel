@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { stubDiagramBrowserApis } from "../diagram/testing/stub-diagram-browser-apis";
 import { ProfileChart } from "./ProfileChart";
 import { rateRows, type RateLineContent } from "./rate-line";
 
@@ -17,21 +18,33 @@ const line: RateLineContent = {
   endText: "Run ends at 45 s",
 };
 
+// What Tab stops on. Recharts gives its layers `tabindex="-1"`, which
+// leaves them out of the tab order.
+const TAB_STOPS =
+  '[tabindex]:not([tabindex="-1"]), a[href], button, input, select, textarea';
+
 describe("ProfileChart", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   // Fails if the chart loses its short label or the words that say where the
-  // run ends, or puts anything in the tab order: the table is how it's read.
-  it("has a label, says where the run ends, and has nothing to focus", () => {
-    render(<ProfileChart line={line} />);
+  // run ends, or if the drawn plot puts anything in the tab order
+  // (`accessibilityLayer` on gives its surface `tabindex="0"`): the table is
+  // how it's read.
+  it("has a label, says where the run ends, and has nothing to focus", async () => {
+    stubDiagramBrowserApis();
+    const { container } = render(<ProfileChart line={line} />);
 
     expect(
       screen.getByRole("figure", { name: "Request rate over time" }),
     ).toBeTruthy();
     expect(screen.getByText("Run ends at 45 s")).toBeTruthy();
-    expect(
-      document.querySelectorAll("[tabindex], a, button, input"),
-    ).toHaveLength(0);
+    await waitFor(() => {
+      expect(container.querySelector(".recharts-surface")).not.toBeNull();
+    });
+    expect(container.querySelectorAll(TAB_STOPS)).toHaveLength(0);
   });
 
   // Fails if a profile with no points draws a chart.

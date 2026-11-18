@@ -76,8 +76,8 @@ describe("The canvas's zoom buttons", () => {
   });
 
   // Fails if the buttons don't reach React Flow's zoom, or zoom the wrong
-  // way. (Fit is tested in DiagramCanvas.test.tsx: jsdom measures nothing,
-  // so React Flow's own fit never runs here.)
+  // way. (Fit is tested in DiagramCanvas.isolated.test.tsx: jsdom measures
+  // nothing, so React Flow's own fit never runs here.)
   it("zooms the view in and out", async () => {
     render(<Harness />);
     // Let the automatic fit land first, so it can't move the view under us.

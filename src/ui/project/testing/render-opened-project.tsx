@@ -273,8 +273,9 @@ export function status(): string | null {
   return statusRegions()[0].textContent;
 }
 
+/** Presses Run, in the run group. */
 export function clickRun(): void {
-  fireEvent.click(screen.getByRole("button", { name: "Run" }));
+  fireEvent.click(within(runGroup()).getByRole("button", { name: "Run" }));
 }
 
 /**

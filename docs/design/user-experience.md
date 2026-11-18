@@ -260,7 +260,7 @@ The [Roadmap](https://github.com/alanbickel/wind-tunnel/issues/32)'s M7 items, i
 7. **The timeline dock:** the run over time, read-only, with the full charts behind it. §9.
 8. **The player:** steps through a workflow's path one call at a time, after the timeline dock so the two can share a playback model. §7.
 
-The screen's view state ([#246](https://github.com/alanbickel/wind-tunnel/issues/246)) comes before the timeline dock, since the timeline is one of the dock's tabs. It reworks §2's regions and §5's rules in small slices, each listed on #246: the screen's state held in one place first, with no visible change, then the run as a selection with the run group in the dock, the dock's tabs, the floating panels' removal, the full-height inspector, and the connect hint.
+The screen's view state ([#246](https://github.com/alanbickel/wind-tunnel/issues/246)) comes before the timeline dock, since the timeline is one of the dock's tabs. It reworks §2's regions and §5's rules in small slices, each listed on #246: the screen's state held in one place first, with no visible change, then the run as a selection with the run group in the dock, the dock's tabs, the floating panels' removal, the full-height inspector, and how to connect on the canvas.
 
 ## 12. Not yet
 

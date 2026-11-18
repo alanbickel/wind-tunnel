@@ -24,33 +24,44 @@ const ALL_PAGES: Readonly<Record<string, string>> = {
   ...FIDELITY_PAGES,
 };
 
+const ADDENDUM_HEADING = "\n## Addendum";
+
 /** A link to a fidelity page, as written and as resolved. */
 interface FidelityLink {
   readonly from: string;
   readonly path: string;
   readonly anchor: string;
+  /** Whether the link comes before the doc's first addendum, if it has one. */
+  readonly inBody: boolean;
 }
 
 /** The links in a doc to a fidelity page, resolved from the doc's path. */
 function fidelityLinksIn([from, text]: [string, string]): FidelityLink[] {
-  return [...text.matchAll(/\]\(([^)\s#]*fidelity[^)\s#]*\.md)(#[^)\s]*)?\)/g)]
-    .map((m) => new URL(`${m[1] ?? ""}${m[2] ?? ""}`, `file://${from}`))
-    .map((url) => ({
+  const firstAddendum = text.indexOf(ADDENDUM_HEADING);
+  return [
+    ...text.matchAll(/\]\(([^)\s#]*fidelity[^)\s#]*\.md)(#[^)\s]*)?\)/g),
+  ].map((m) => {
+    const url = new URL(`${m[1] ?? ""}${m[2] ?? ""}`, `file://${from}`);
+    return {
       from,
       path: url.pathname,
       anchor: decodeURIComponent(url.hash.slice(1)),
-    }));
+      inBody: firstAddendum === -1 || m.index < firstAddendum,
+    };
+  });
 }
 
 /**
  * Whether a link is one an accepted ADR keeps as written, because an
  * addendum after it links the entry where it is now (documentation.md,
- * "ADRs").
+ * "ADRs"). Only a body link is kept: the addendum's own links are checked
+ * like any other.
  */
-function keptByAddendum({ from, anchor }: FidelityLink): boolean {
-  const addenda = (DOCS[from] ?? "").split("\n## Addendum").slice(1);
+function keptByAddendum({ from, anchor, inBody }: FidelityLink): boolean {
+  const addenda = (DOCS[from] ?? "").split(ADDENDUM_HEADING).slice(1);
   return (
     from.startsWith("/docs/adr/") &&
+    inBody &&
     addenda.some((addendum) => addendum.includes(`#${anchor})`))
   );
 }
@@ -85,6 +96,8 @@ describe("the fidelity pages", () => {
   // Fails if a doc links to an entry on a page it isn't on (say, the old
   // fidelity.md#lmb-8-… after the split), or to a heading since reworded,
   // unless the doc is an ADR whose addendum links the entry where it is.
+  // Also fails if that addendum's own link names a page or heading that
+  // doesn't exist (say, ADR-0017's addendum linking SQS-1 on fidelity/sqz.md).
   it("are linked from the docs only at pages and headings that exist", () => {
     const links = Object.entries(DOCS)
       .flatMap(fidelityLinksIn)

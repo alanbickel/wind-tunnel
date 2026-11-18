@@ -241,8 +241,9 @@ describe("OpenedProject's dock", () => {
     expect((again as HTMLInputElement).value).toBe("abc");
   });
 
-  // Fails if selecting a workload while Run shows leaves Run showing: here
-  // by undoing its remove, which selects it again with its row hidden.
+  // Fails if selecting a workload while Run shows leaves Run showing, or
+  // the Details heading doesn't take the focus: here by undoing its
+  // remove, which selects it again with its row hidden.
   it("shows Workloads when a workload is selected over Run", async () => {
     const shown = renderProject({ project: twoWorkloads });
     await runASecond(shown);
@@ -254,6 +255,7 @@ describe("OpenedProject's dock", () => {
     expect(shownTab()).toBe("Workloads");
     expect(editorHeading("Spike")).toBeTruthy();
     expect(detailsHeading().textContent).toBe("Spike · Workload");
+    expect(document.activeElement).toBe(detailsHeading());
   });
 
   // Fails if Run while Workloads shows leaves it showing, or keeps the

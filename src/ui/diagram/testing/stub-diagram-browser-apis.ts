@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { onTestFinished, vi } from "vitest";
 
 /**
  * Stubs the browser APIs React Flow needs that jsdom lacks, as React Flow's
@@ -60,14 +60,19 @@ const DRAWN_BOX_SIZE_PX = { width: 800, height: 400 };
 /**
  * Stubs what React Flow needs to draw arrows in jsdom, which lays nothing
  * out: it measures each box a tick after it appears, and each arrow's label
- * needs an SVG element to measure. Call it after `stubDiagramBrowserApis`;
- * `vi.unstubAllGlobals()` and `vi.restoreAllMocks()` undo it.
+ * needs an SVG element to measure. Call it after `stubDiagramBrowserApis`,
+ * in a test or a `beforeEach`; `vi.unstubAllGlobals()` and
+ * `vi.restoreAllMocks()` undo it, and `getBBox`, which jsdom lacks, goes when
+ * the test finishes, so it can't reach a later file in the same worker.
  */
 export function stubArrowDrawing(): void {
   stubMeasuringResizeObserver();
   Object.defineProperty(SVGElement.prototype, "getBBox", {
     configurable: true,
     value: () => ({ x: 0, y: 0, width: 10, height: 10 }),
+  });
+  onTestFinished(() => {
+    Reflect.deleteProperty(SVGElement.prototype, "getBBox");
   });
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(
     DRAWN_BOX_SIZE_PX.width,

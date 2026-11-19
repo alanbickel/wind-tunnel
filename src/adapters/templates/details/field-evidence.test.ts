@@ -61,7 +61,9 @@ interface DefaultRow {
 /** A page's defaults table rows, each split into its cells. */
 function tableRowsOf(page: string): string[][] {
   const section = page.split("## Default values and their evidence")[1];
-  const table = (section ?? "").split("\n## ")[0] ?? "";
+  // The table ends at the next heading of any level: in a profile, it sits
+  // under Settings, before the profile's next section.
+  const table = (section ?? "").split(/\n#+ /)[0] ?? "";
   return table
     .split("\n")
     .filter((line) => line.startsWith("| ") && !line.startsWith("| Component"))

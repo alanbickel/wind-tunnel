@@ -28,61 +28,38 @@ The rest describe the gap:
   - **Minor:** unlikely to change a lesson at MVP scale.
 - **To close:** what it would take to model it.
 
-Model defaults (the numbers in each definition's `defaultConfig`) are covered in [Default values and their evidence](#default-values-and-their-evidence).
-
-## A service's profile
-
-A new component type starts with its service's profile ([Adding a component type](../../CONTRIBUTING.md#adding-a-component-type)): what AWS exposes and enforces, researched before any code, so the type's settings, defaults, and limits come from AWS rather than from what was easy to build. It goes at the top of the service's page, under `## Profile`, before the entries, with a `Checked:` date for the whole profile. It's a research checklist: a row or a line per item, not prose. [S3's](fidelity/s3.md#profile) is the first.
-
-Every profile has these sections, in this order:
-
-- **The model, in one line:** what one component stands for (a function, a table, one prefix of a bucket) and what it does with a request.
-- **Model choices:** each place where AWS leaves the model room to choose, such as behavior AWS doesn't put numbers on, with the choice and why; cite the entry it leaves open. Leave it out if there are none.
-- **Actions:** each Wind Tunnel action the type accepts (`read`, `write`, …), the service's requests it stands for, and the limit each counts against.
-- **Settings:** each setting AWS exposes that could change behavior under load, with AWS's default, its allowed range, and whether Wind Tunnel models it. One the type doesn't model is an entry of kind Setting, Open or Accepted with its reason; cite its ID in place of "yes".
-- **Default values and their evidence:** right under Settings, the type's [defaults table](#default-values-and-their-evidence).
-- **Quotas:** each limit, with its default, whether it can be raised, and its scope: per resource, per account and Region, or per something smaller, such as a partition or a prefix. One the type doesn't enforce, or enforces at another scope, is an entry of kind Behavior, as [LMB-1](fidelity/lambda.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account) is.
-- **Behavior under load:** what happens at each limit (refused, and with which error; queued; slowed), how fast the service scales, and its latency. Each way the type will behave differently is an entry of kind Behavior; cite its ID beside the line.
-- **Evidence:** every claim marked as an entry's is (Documented with a link, Observed, or Assumption), checked on the profile's date or on a later one given beside it.
-
-The profile records what AWS does; its defaults table records what the model starts with and how sure that is. The pages for the first five types were written before profiles and don't have one yet.
-
-**Sections by shape.** A type may need more than these, depending on its shape: a rate-limited service, compute, a pool of workers or connections, a queue. Don't add a section ahead of need. The first type of a shape that needs one adds it to its profile, and lists it here under its shape, so the next type of that shape has it too. None is listed yet: S3, the first rate-limited type, needed only the sections above.
+Model defaults (the numbers in each definition's `defaultConfig`) are in each type's profile, in its [defaults table](fidelity/profile-spec.md#default-values-and-their-evidence).
 
 ## Differences that matter most for the templates
 
 | ID | Difference | Skew | Template | Status |
 |---|---|---|---|---|
-| [LMB-8](fidelity/lambda.md#lmb-8-rds-connections-are-held-per-invocation-not-per-environment) | RDS connections are held per invocation, not per execution environment | Optimistic | A | Open |
-| [RDS-2](fidelity/rds.md#rds-2-database-capacity-is-a-fixed-pool-of-query-workers) | Database capacity is a fixed pool of workers with a clean plateau | Optimistic | A | Open |
-| [RDS-4](fidelity/rds.md#rds-4-opening-a-connection-is-free) | Opening a connection is free | Optimistic | A | Open |
-| [SQS-1](fidelity/sqs.md#sqs-1-failed-messages-come-back-immediately) | Failed messages come back immediately, not after the visibility timeout | Mixed | B | Open |
-| [SQS-3](fidelity/sqs.md#sqs-3-the-consumer-reaches-full-concurrency-instantly) | The SQS consumer reaches full concurrency instantly | Optimistic | B | Open |
-| [DDB-1](fidelity/dynamodb.md#ddb-1-every-request-costs-one-capacity-unit) | Every DynamoDB request costs one capacity unit | Pessimistic for reads | B | Open |
-| [DDB-4](fidelity/dynamodb.md#ddb-4-throttled-requests-fail-immediately) | Throttled DynamoDB requests fail immediately; AWS SDKs retry them | Mixed | B | Open |
-| [LMB-1](fidelity/lambda.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account) | Lambda concurrency is per function, not shared by the account | Optimistic | B | Open |
+| [LMB-8](fidelity/lambda/lambda-fidelity.md#lmb-8-rds-connections-are-held-per-invocation-not-per-environment) | RDS connections are held per invocation, not per execution environment | Optimistic | A | Open |
+| [RDS-2](fidelity/rds/rds-fidelity.md#rds-2-database-capacity-is-a-fixed-pool-of-query-workers) | Database capacity is a fixed pool of workers with a clean plateau | Optimistic | A | Open |
+| [RDS-4](fidelity/rds/rds-fidelity.md#rds-4-opening-a-connection-is-free) | Opening a connection is free | Optimistic | A | Open |
+| [SQS-1](fidelity/sqs/sqs-fidelity.md#sqs-1-failed-messages-come-back-immediately) | Failed messages come back immediately, not after the visibility timeout | Mixed | B | Open |
+| [SQS-3](fidelity/sqs/sqs-fidelity.md#sqs-3-the-consumer-reaches-full-concurrency-instantly) | The SQS consumer reaches full concurrency instantly | Optimistic | B | Open |
+| [DDB-1](fidelity/dynamodb/dynamodb-fidelity.md#ddb-1-every-request-costs-one-capacity-unit) | Every DynamoDB request costs one capacity unit | Pessimistic for reads | B | Open |
+| [DDB-4](fidelity/dynamodb/dynamodb-fidelity.md#ddb-4-throttled-requests-fail-immediately) | Throttled DynamoDB requests fail immediately; AWS SDKs retry them | Mixed | B | Open |
+| [LMB-1](fidelity/lambda/lambda-fidelity.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account) | Lambda concurrency is per function, not shared by the account | Optimistic | B | Open |
 
 ---
 
 ## The service pages
 
-The entries are on a page per service, with IDs that start the same way:
+Each component type has a folder of two pages: its profile, what AWS exposes and enforces and what the type starts with, and its entries, with IDs that start the same way. [A service's profile](fidelity/profile-spec.md) says what a profile holds and how to research one. The engine and edges aren't a type, so they have one page, with their entries and the edges' defaults.
 
 - [Engine and edges](fidelity/engine-and-edges.md) (ENG)
-- [API Gateway](fidelity/api-gateway.md) (APIGW)
-- [Lambda](fidelity/lambda.md) (LMB)
-- [DynamoDB](fidelity/dynamodb.md) (DDB)
-- [RDS](fidelity/rds.md) (RDS)
-- [SQS and the Lambda consumer](fidelity/sqs.md) (SQS)
-- [S3](fidelity/s3.md) (S3), the first page with a profile
-
-## Default values and their evidence
-
-Each service page has a table of its defaults: under Settings in its profile, or at the end of a page without one. The engine page has the edges'. The Details tab quotes these tables: each setting's help ends with its default and how sure it is ("Default 16: an assumption (RDS-2)."). A new edge's settings come from its caller's type (`edgeDefaults`), so the edge rows are by caller. The field descriptors in [`src/application/details/fields/`](../../src/application/details/fields/) carry the level and the entry, and `field-evidence.test.ts` checks them against these tables, so keep each Evidence cell starting with its level and naming its entry, if it has one, by ID. A row's links are checked along with the entries that cite the same pages.
+- API Gateway (APIGW): [profile](fidelity/api-gateway/api-gateway-profile.md), [entries](fidelity/api-gateway/api-gateway-fidelity.md)
+- Lambda (LMB): [profile](fidelity/lambda/lambda-profile.md), [entries](fidelity/lambda/lambda-fidelity.md)
+- DynamoDB (DDB): [profile](fidelity/dynamodb/dynamodb-profile.md), [entries](fidelity/dynamodb/dynamodb-fidelity.md)
+- RDS (RDS): [profile](fidelity/rds/rds-profile.md), [entries](fidelity/rds/rds-fidelity.md)
+- SQS and the Lambda consumer (SQS): [profile](fidelity/sqs/sqs-profile.md), [entries](fidelity/sqs/sqs-fidelity.md)
+- S3 (S3): [profile](fidelity/s3/s3-profile.md), [entries](fidelity/s3/s3-fidelity.md), the first researched profile
 
 ## Keeping this page current
 
-- When a model differs from AWS, add an entry to its service's page in the same change, `Open` and checked today, and mention its ID in the code comment where the model differs. A new service gets a page of its own in [`fidelity/`](fidelity/), listed above and starting with its [profile](#a-services-profile); `fidelity-pages.test.ts` fails for a page that isn't, or for an ID that two entries share.
+- When a model differs from AWS, add an entry to its type's fidelity page in the same change, `Open` and checked today, and mention its ID in the code comment where the model differs. A new type gets a folder of its own in [`fidelity/`](fidelity/), with its [profile](fidelity/profile-spec.md) and its fidelity page, both listed above; `fidelity-pages.test.ts` fails for a page that isn't listed, for a folder without both, or for an ID that two entries share.
 - When a gap is closed, delete the entry (git history keeps it) and update the code comment.
 - Only the maintainer accepts a gap, or decides to keep one open. When they do, change its status to `Accepted:` with their reason, or add a "Kept open:" note with theirs. To challenge either reason, ask the maintainer; don't change the status on your own.
 - When you recheck an entry's evidence and links, set its Checked date to that day, and correct what has changed.

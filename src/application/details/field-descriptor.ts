@@ -12,12 +12,15 @@ import type { EdgeSettings } from "../../domain/model/edge-settings";
 export type FieldKind = "number" | "whole-number" | "distribution" | "retry";
 
 /**
- * How sure a default is, as its fidelity page's defaults table rates it: stated by
- * AWS, measured by others, or our own belief.
+ * How sure a default is, as its type's profile's defaults table rates it:
+ * stated by AWS, measured by others, or our own belief.
  */
 export type EvidenceLevel = "documented" | "observed" | "assumption";
 
-/** Where a default comes from (its fidelity page, "Default values and their evidence"). */
+/**
+ * Where a default comes from (its type's profile, "Default values and their
+ * evidence").
+ */
 export interface DefaultEvidence {
   readonly level: EvidenceLevel;
   /**

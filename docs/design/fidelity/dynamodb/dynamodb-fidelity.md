@@ -1,6 +1,6 @@
 # Fidelity: DynamoDB
 
-Where Wind Tunnel's model of DynamoDB differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../fidelity.md).
+Where Wind Tunnel's model of DynamoDB differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../../fidelity.md). Its settings and defaults are in its [profile](dynamodb-profile.md).
 
 #### DDB-1: Every request costs one capacity unit
 
@@ -59,11 +59,3 @@ Where Wind Tunnel's model of DynamoDB differs from AWS. How to read an entry, an
 - **AWS:** on-demand mode scales without set capacity. With provisioned capacity, auto scaling reacts when consumption stays over its target for two consecutive minutes, plus up to a few minutes of alarm delay.
 - **Evidence:** Documented: [provisioned capacity mode](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html).
 - **Skew:** Pessimistic compared with an auto-scaled table during long ramps. Accurate for short spikes, which auto scaling is too slow to catch.
-
-## Default values and their evidence
-
-| Component | Setting | Default | Evidence |
-|---|---|---|---|
-| DynamoDB | `readUnitsPerSec`, `writeUnitsPerSec` | 1,000, 500 | Assumption (a chosen table size) |
-| DynamoDB | `burstSec` | 300 | Documented maximum (DDB-2) |
-| DynamoDB | `latency` | median 5 ms, p99 20 ms | Assumption |

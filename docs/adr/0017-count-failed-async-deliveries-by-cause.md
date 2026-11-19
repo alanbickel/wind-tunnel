@@ -31,3 +31,7 @@ The findings design for such a run ([§1.8](../design/findings.md#18-variant-tem
 ## Addendum, 2026-11-18
 
 The fidelity catalog became an index and a page per service ([#284](https://github.com/alanbickel/wind-tunnel/issues/284)), so SQS-1, linked in the context above, is now on the [SQS page](../design/fidelity/sqs.md#sqs-1-failed-messages-come-back-immediately). The decision is unchanged.
+
+## Addendum, 2026-11-19
+
+Each component type's fidelity page moved into a folder of its own, beside its profile ([#295](https://github.com/alanbickel/wind-tunnel/issues/295)), so SQS-1, linked in the context above and in the addendum of 2026-11-18, is now on [SQS's fidelity page](../design/fidelity/sqs/sqs-fidelity.md#sqs-1-failed-messages-come-back-immediately). The decision is unchanged.

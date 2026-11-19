@@ -1,6 +1,6 @@
 # Fidelity: RDS
 
-Where Wind Tunnel's model of RDS differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../fidelity.md).
+Where Wind Tunnel's model of RDS differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../../fidelity.md). Its settings and defaults are in its [profile](rds-profile.md).
 
 #### RDS-1: The default connection limit isn't tied to an instance size
 
@@ -33,7 +33,7 @@ Where Wind Tunnel's model of RDS differs from AWS. How to read an entry, and the
 - **Depends on:** LMB-8 (M8 item 26).
 - **Checked:** 2026-10-14
 
-See [LMB-8](lambda.md#lmb-8-rds-connections-are-held-per-invocation-not-per-environment).
+See [LMB-8](../lambda/lambda-fidelity.md#lmb-8-rds-connections-are-held-per-invocation-not-per-environment).
 
 #### RDS-4: Opening a connection is free
 
@@ -68,11 +68,3 @@ See [LMB-8](lambda.md#lmb-8-rds-connections-are-held-per-invocation-not-per-envi
 - **AWS:** RDS Proxy pools connections and is recommended when applications open many connections, as Lambda does.
 - **Evidence:** Documented: [RDS maximum connections](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.MaxConnections).
 - **Skew:** none until a template wants to show the fix for Template A.
-
-## Default values and their evidence
-
-| Component | Setting | Default | Evidence |
-|---|---|---|---|
-| RDS | `maxConnections` | 90 | Assumption; documented formula in RDS-1 |
-| RDS | `queryWorkers` | 16 | Assumption (RDS-2) |
-| RDS | `queryTime` | median 15 ms, p99 60 ms | Assumption (workload-specific) |

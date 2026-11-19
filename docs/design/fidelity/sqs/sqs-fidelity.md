@@ -1,6 +1,6 @@
 # Fidelity: SQS and the Lambda consumer
 
-Where Wind Tunnel's model of SQS and the Lambda consumer differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../fidelity.md).
+Where Wind Tunnel's model of SQS and the Lambda consumer differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../../fidelity.md). Its settings and defaults are in its [profile](sqs-profile.md).
 
 #### SQS-1: Failed messages come back immediately
 
@@ -11,7 +11,7 @@ Where Wind Tunnel's model of SQS and the Lambda consumer differs from AWS. How t
 - **Wind Tunnel:** a failed delivery (including a throttled consumer) goes straight to the back of the backlog and can be delivered again at once. Messages are never dropped or moved to a dead-letter queue.
 - **AWS:** a received message is hidden for the queue's visibility timeout (default 30 s) and reappears if it isn't deleted. Lambda recommends a visibility timeout of "at least six times the configuration timeout on your function". After `maxReceiveCount` receives it can move to a dead-letter queue; Lambda recommends "setting the `maxReceiveCount` on your source queue's redrive policy to at least 5". Lambda recommends keeping the event source mapping's maximum concurrency within the function's reserved concurrency, "Otherwise, Lambda might throttle your messages."
 - **Evidence:** Documented: [visibility timeout](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html), [Lambda with SQS](https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html), [configuring an SQS event source mapping](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-configure.html) (checked 2026-10-22), [SQS scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html).
-- **Skew:** Mixed. The model retries failed messages much sooner (faster recovery, but more pressure on a struggling consumer), and the engine guards against zero-latency redelivery loops. A failed message waits again behind the whole backlog, which in AWS it wouldn't. But under the lunch rush, a message waits in the backlog for 6.2 s at most, far less than a 30 s visibility timeout, so a write that fails once lands later in AWS than in the model ([findings.md §1.8](findings.md#18-variant-template-b-lunch-rush-database-connections-cut-to-10-healthy-with-failed-deliveries)). And no message is ever lost, where in AWS one that fails `maxReceiveCount` times leaves the queue.
+- **Skew:** Mixed. The model retries failed messages much sooner (faster recovery, but more pressure on a struggling consumer), and the engine guards against zero-latency redelivery loops. A failed message waits again behind the whole backlog, which in AWS it wouldn't. But under the lunch rush, a message waits in the backlog for 6.2 s at most, far less than a 30 s visibility timeout, so a write that fails once lands later in AWS than in the model ([findings.md §1.8](../../findings.md#18-variant-template-b-lunch-rush-database-connections-cut-to-10-healthy-with-failed-deliveries)). And no message is ever lost, where in AWS one that fails `maxReceiveCount` times leaves the queue.
 - **To close:** a `wake-at` timer effect (ADR-0006), then visibility timeout, `maxReceiveCount`, and a dead-letter queue.
 
 #### SQS-2: Exactly once, in order
@@ -73,10 +73,3 @@ Where Wind Tunnel's model of SQS and the Lambda consumer differs from AWS. How t
 - **AWS:** standard queues allow about 120,000 in-flight messages (received but not deleted). The backlog itself is limited only by retention time.
 - **Evidence:** Documented: [visibility timeout, in-flight messages](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html).
 - **Skew:** Minor: in-flight messages never exceed the consumer's concurrency in the model.
-
-## Default values and their evidence
-
-| Component | Setting | Default | Evidence |
-|---|---|---|---|
-| SQS | `consumerMaxConcurrency` | 10 (allowed 2 to 1,000) | Assumption: our choice, within the documented range ([SQS scaling](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html)) |
-| SQS | `sendLatency` | median 10 ms, p99 30 ms | Assumption |

@@ -7,14 +7,15 @@ import type {
 import { EDGE_FIELDS } from "../../../application/details/fields/edge-fields";
 import { createAwsComponentRegistry } from "../../../domain/components/aws";
 import {
+  DEFAULTS_PAGES,
+  defaultsRowsOf,
   FIDELITY_ID_PATTERN,
   FIDELITY_IDS,
-  FIDELITY_PAGES,
 } from "../testing/fidelity-pages";
 
 // The Details tab's help is right about AWS (#85): every setting has a
 // descriptor, every fidelity entry a descriptor cites exists, and every
-// default's evidence is what its fidelity page's defaults table says.
+// default's evidence is what its profile's defaults table says.
 
 const registry = createAwsComponentRegistry();
 const catalog = createFieldCatalog();
@@ -52,27 +53,15 @@ const allFields: readonly FieldDescriptor[] = [
 /** A fidelity ID, wherever it's cited, e.g. "RDS-2". */
 const FIDELITY_ID = new RegExp(String.raw`\b${FIDELITY_ID_PATTERN}\b`, "g");
 
-/** One setting's row of a fidelity page's defaults table. */
+/** One setting's row of a defaults table. */
 interface DefaultRow {
   readonly level: string;
   readonly fidelityIds: readonly string[];
 }
 
-/** A page's defaults table rows, each split into its cells. */
-function tableRowsOf(page: string): string[][] {
-  const section = page.split("## Default values and their evidence")[1];
-  // The table ends at the next heading of any level: in a profile, it sits
-  // under Settings, before the profile's next section.
-  const table = (section ?? "").split(/\n#+ /)[0] ?? "";
-  return table
-    .split("\n")
-    .filter((line) => line.startsWith("| ") && !line.startsWith("| Component"))
-    .map((line) => line.split(" | "));
-}
-
-/** Every page's defaults rows, keyed "Component key", e.g. "RDS queryWorkers". */
+/** Every defaults table's rows, keyed "Component key", e.g. "RDS queryWorkers". */
 function defaultRows(): ReadonlyMap<string, DefaultRow> {
-  const rows = Object.values(FIDELITY_PAGES).flatMap(tableRowsOf);
+  const rows = Object.values(DEFAULTS_PAGES).flatMap(defaultsRowsOf);
   return new Map(
     rows.flatMap(([component = "", settings = "", , evidence = ""]) =>
       [...settings.matchAll(/`(\w+)`/g)].map((m) => [
@@ -118,8 +107,9 @@ describe("the setting descriptors", () => {
     }
   });
 
-  // Fails if a descriptor's evidence level or entry differs from its fidelity
-  // page's defaults table, or a setting has no row there: the help would claim
+  // Fails if a descriptor's evidence level or entry differs from its type's
+  // profile's defaults table, or a setting has no row there (say, a row left
+  // in lambda-fidelity.md rather than lambda-profile.md): the help would claim
   // more, or less, than the catalog of differences backs.
   it("give each default the evidence fidelity's defaults table gives it", () => {
     const rows = defaultRows();

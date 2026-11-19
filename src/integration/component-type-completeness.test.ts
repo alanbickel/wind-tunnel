@@ -5,7 +5,13 @@ import { checkComponentContract } from "../domain/components/check-component-con
 import type { ComponentDefinition } from "../domain/components/component-definition";
 import type { ComponentType } from "../domain/components/component-registry";
 import { SeededRandom } from "../domain/random/seeded-random";
-import { FIDELITY_PAGES } from "../adapters/templates/testing/fidelity-pages";
+import {
+  defaultsRowsOf,
+  ENTRY_PAGES,
+  entriesPathOf,
+  PROFILE_PAGES,
+  profilePathOf,
+} from "../adapters/templates/testing/fidelity-pages";
 import { COMPONENT_ICONS } from "../ui/diagram/component-icons";
 import definitionsGuide from "../../docs/architecture/component-definitions.md?raw";
 
@@ -66,15 +72,19 @@ describe("every registered component type", () => {
     expect(Object.hasOwn(COMPONENT_ICONS, type), type).toBe(true);
   });
 
-  // Fails if a type is registered without a fidelity page whose defaults
-  // table has its rows: rename the "RDS" rows in rds.md's table.
+  // Fails if a type is registered without its folder in the fidelity
+  // catalog: a profile whose defaults table has the type's rows (rename the
+  // "RDS" rows in rds-profile.md's table), and a page of entries beside it
+  // (rename rds-fidelity.md).
   it.each(registered)(
-    "$type has rows in a fidelity page's defaults table",
-    ({ displayName }) => {
-      const rows = Object.values(FIDELITY_PAGES).filter((page) =>
-        page.includes(`\n| ${displayName} | `),
+    "$type has a fidelity profile with its defaults, and a page of entries",
+    ({ type, displayName }) => {
+      const profile = PROFILE_PAGES[profilePathOf(type)] ?? "";
+      const rows = defaultsRowsOf(profile).filter(
+        ([component]) => component === `| ${displayName}`,
       );
-      expect(rows.length, displayName).toBeGreaterThan(0);
+      expect(rows.length, type).toBeGreaterThan(0);
+      expect(ENTRY_PAGES[entriesPathOf(type)], type).toBeDefined();
     },
   );
 

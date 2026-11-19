@@ -1,6 +1,6 @@
 # Fidelity: API Gateway
 
-Where Wind Tunnel's model of API Gateway differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../fidelity.md).
+Where Wind Tunnel's model of API Gateway differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../../fidelity.md). Its settings and defaults are in its [profile](api-gateway-profile.md).
 
 #### APIGW-1: The throttle limit belongs to one component, not the account
 
@@ -48,10 +48,3 @@ Where Wind Tunnel's model of API Gateway differs from AWS. How to read an entry,
 - **AWS:** not published. The difference between CloudWatch's `Latency` and `IntegrationLatency` shows the actual overhead.
 - **Evidence:** Assumption.
 - **Skew:** Minor.
-
-## Default values and their evidence
-
-| Component | Setting | Default | Evidence |
-|---|---|---|---|
-| API Gateway | `ratePerSec`, `burst` | 10,000/s, 5,000 | Documented account defaults ([quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html)); see APIGW-1 for scope |
-| API Gateway | `overhead` | median 10 ms, p99 25 ms | Assumption (APIGW-4) |

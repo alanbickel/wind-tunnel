@@ -5,7 +5,7 @@ import {
   indexStatusesOf,
   indexStatusProblems,
 } from "./fidelity-entry-fields";
-import { FIDELITY_INDEX, FIDELITY_PAGES } from "./fidelity-pages";
+import { ENTRY_PAGES, FIDELITY_INDEX } from "./fidelity-pages";
 
 // Each fidelity entry is a tracked gap (#285): it says whether it's open or
 // accepted, what kind of gap it is, what closing it needs, and when its
@@ -39,7 +39,7 @@ describe("each fidelity entry's fields", () => {
   // Fails if an entry on any page loses one of its four fields, or one of
   // them stops being well formed (say, LMB-3's Kind written "Both").
   it("are on every entry of every page, each well formed", () => {
-    const entries = Object.values(FIDELITY_PAGES).flatMap(entriesOf);
+    const entries = Object.values(ENTRY_PAGES).flatMap(entriesOf);
     expect(entries.length).toBeGreaterThan(30);
     expect(entries.flatMap(entryFieldProblems)).toEqual([]);
   });
@@ -112,7 +112,7 @@ function indexWith(status: string): string {
   return [
     "| ID | Difference | Skew | Template | Status |",
     "|---|---|---|---|---|",
-    `| [XYZ-1](fidelity/xyz.md#xyz-1-something-differs) | Something differs | Minor | A | ${status} |`,
+    `| [XYZ-1](fidelity/xyz/xyz-fidelity.md#xyz-1-something-differs) | Something differs | Minor | A | ${status} |`,
   ].join("\n");
 }
 
@@ -121,7 +121,7 @@ describe("the index's Status column", () => {
   // entry's Status (say, RDS-4 accepted on rds.md and still Open here), or
   // the table's rows stop being read.
   it("matches each entry's status on the real pages", () => {
-    const entries = Object.values(FIDELITY_PAGES).flatMap(entriesOf);
+    const entries = Object.values(ENTRY_PAGES).flatMap(entriesOf);
     expect(indexStatusesOf(FIDELITY_INDEX).size).toBeGreaterThan(5);
     expect(indexStatusProblems(FIDELITY_INDEX, entries)).toEqual([]);
   });

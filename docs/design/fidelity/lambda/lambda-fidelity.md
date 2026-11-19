@@ -1,6 +1,6 @@
 # Fidelity: Lambda
 
-Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../fidelity.md).
+Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and the differences that matter most, are on the [fidelity index](../../fidelity.md). Its settings and defaults are in its [profile](lambda-profile.md).
 
 #### LMB-1: Concurrency is per function, not shared by the account
 
@@ -106,12 +106,3 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 - **AWS:** provisioned concurrency keeps environments initialized ahead of time; SnapStart restores them from a snapshot.
 - **Evidence:** Documented: [Lambda concurrency](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
 - **Skew:** none until a template wants to show the fix for cold starts.
-
-## Default values and their evidence
-
-| Component | Setting | Default | Evidence |
-|---|---|---|---|
-| Lambda | `concurrency` | 1,000 | Documented account default ([concurrency](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)); see LMB-1 for scope |
-| Lambda | `coldStart` | median 300 ms, p99 1 s | Assumption within the documented range (LMB-6) |
-| Lambda | `idleTimeoutSec` | 600 | Observed (LMB-5) |
-| Lambda | `computeTime` | median 20 ms, p99 80 ms | Assumption (workload-specific) |

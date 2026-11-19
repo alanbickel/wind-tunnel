@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { entriesOf, entryFieldProblems } from "./fidelity-entry-fields";
-import { FIDELITY_PAGES } from "./fidelity-pages";
+import {
+  entriesOf,
+  entryFieldProblems,
+  indexStatusesOf,
+  indexStatusProblems,
+} from "./fidelity-entry-fields";
+import { FIDELITY_INDEX, FIDELITY_PAGES } from "./fidelity-pages";
 
 // Each fidelity entry is a tracked gap (#285): it says whether it's open or
 // accepted, what kind of gap it is, what closing it needs, and when its
@@ -39,9 +44,11 @@ describe("each fidelity entry's fields", () => {
     expect(entries.flatMap(entryFieldProblems)).toEqual([]);
   });
 
-  // Fails if entriesOf stops finding entries, or the checker rejects a
-  // well-formed entry, which would make every case below pass for nothing.
+  // Fails if entriesOf stops finding the page's entry (the first assertion),
+  // or the checker rejects a well-formed entry, Open or Accepted (the other
+  // two), which would make the cases below fail for the wrong reason.
   it("pass for an entry with all four, Open or Accepted with a reason", () => {
+    expect(entriesOf(pageWith(FIELDS)).map((e) => e.id)).toEqual(["XYZ-1"]);
     expect(problemsWith(FIELDS)).toEqual([]);
     const accepted = { ...FIELDS, status: "- **Status:** Accepted: Minor." };
     expect(problemsWith(accepted)).toEqual([]);
@@ -97,5 +104,40 @@ describe("each fidelity entry's fields", () => {
       ),
     );
     expect(problemsWith(fields)).toEqual([problem]);
+  });
+});
+
+/** An index whose table has one row, for XYZ-1, with the given status. */
+function indexWith(status: string): string {
+  return [
+    "| ID | Difference | Skew | Template | Status |",
+    "|---|---|---|---|---|",
+    `| [XYZ-1](fidelity/xyz.md#xyz-1-something-differs) | Something differs | Minor | A | ${status} |`,
+  ].join("\n");
+}
+
+describe("the index's Status column", () => {
+  // Fails if a row of "Differences that matter most" stops matching its
+  // entry's Status (say, RDS-4 accepted on rds.md and still Open here), or
+  // the table's rows stop being read.
+  it("matches each entry's status on the real pages", () => {
+    const entries = Object.values(FIDELITY_PAGES).flatMap(entriesOf);
+    expect(indexStatusesOf(FIDELITY_INDEX).size).toBeGreaterThan(5);
+    expect(indexStatusProblems(FIDELITY_INDEX, entries)).toEqual([]);
+  });
+
+  // Fails if the check stops dropping the Accepted reason before it
+  // compares, or stops reporting a row whose entry says something else.
+  it.each([
+    ["Open", "- **Status:** Open", []],
+    ["Accepted", "- **Status:** Accepted: Minor.", []],
+    [
+      "Open",
+      "- **Status:** Accepted: Minor.",
+      ["XYZ-1: the index says Open, the entry Accepted"],
+    ],
+  ])("compares a row showing %s with %s", (shown, status, problems) => {
+    const entries = entriesOf(pageWith({ ...FIELDS, status }));
+    expect(indexStatusProblems(indexWith(shown), entries)).toEqual(problems);
   });
 });

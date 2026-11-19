@@ -265,6 +265,8 @@ Two checks ask the registry about types (see [The domain model](domain-model.md#
 
 ## Writing a new definition: checklist
 
+Start from the service's [fidelity profile](../design/fidelity.md#a-services-profile), reviewed before any code. Its settings and ranges are the source of `configSchema` and `defaultConfig`; its quotas and behavior under load are the source of `limits` and each one's `whenFull`. Where the type departs from it, add the entry the profile names.
+
 1. Write a Zod `configSchema` and a `defaultConfig` that passes it, and `edgeDefaults`: the latency, timeout, and retry policy of a new edge drawn from a component of the type. Most AWS types use `AWS_EDGE_DEFAULTS` ([`aws/edge-defaults.ts`](../../src/domain/components/aws/edge-defaults.ts)); API Gateway sets its own 29 s timeout. The contract check fails defaults that don't pass `edgeSettingsSchema`.
 2. List the `actions` it accepts; set `deliversAsync` only for queue-like types.
 3. Write the run-time state as a class that implements `ComponentBehavior<T>`, in its own `<type>-behavior.ts` file. It takes a `<Class>Dependencies` object of primitive interfaces (`RateLimit`, `ConcurrencyLimit`, `ServiceTime`) and doesn't construct them itself (ADR-0009). `build` creates the primitives from the config (`TokenBucket`, `CountingSemaphore`, `SampledServiceTime`) and passes them in, taking randomness only from `context.random`. See [`aws/lambda.ts`](../../src/domain/components/aws/lambda.ts) and [`aws/lambda-behavior.ts`](../../src/domain/components/aws/lambda-behavior.ts).

@@ -36,7 +36,7 @@ A new component type starts with its service's profile ([Adding a component type
 
 - **Settings:** each setting AWS exposes that could change behavior under load, with AWS's default, its allowed range, and whether Wind Tunnel models it. One the type doesn't model is an entry of kind Setting, Open or Accepted with its reason; cite its ID in place of "yes".
 - **Quotas:** each limit, with its default, whether it can be raised, and its scope: per resource, per account and Region, or per something smaller, such as a partition or a prefix. One the type doesn't enforce, or enforces at another scope, is an entry of kind Behavior, as [LMB-1](fidelity/lambda.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account) is.
-- **Behavior under load:** what happens at each limit (refused, and with which error; queued; slowed), how fast the service scales, and its latency. Each way the type will behave differently is an entry of kind Behavior.
+- **Behavior under load:** what happens at each limit (refused, and with which error; queued; slowed), how fast the service scales, and its latency. Each way the type will behave differently is an entry of kind Behavior; cite its ID beside the line.
 - **Evidence:** every claim marked as an entry's is (Documented with a link, Observed, or Assumption), checked on the profile's date or on a later one given beside it.
 
 The profile records what AWS does; the [defaults table](#default-values-and-their-evidence) records what the model starts with and how sure that is. The pages for the first five types were written before profiles and don't have one yet.

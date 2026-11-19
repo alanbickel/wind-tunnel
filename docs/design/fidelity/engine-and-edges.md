@@ -4,6 +4,10 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 #### ENG-1: Edge latency is constant
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; it's M10 item 2.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** each edge has one fixed `latencyMs`, paid each way. No variation, packet loss, or connection setup.
 - **AWS:** network latency between services in a Region varies, with occasional slow outliers.
 - **Evidence:** Assumption.
@@ -12,6 +16,10 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 #### ENG-2: Retries follow the edge's policy, not the AWS SDK's
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; the preset is M8 item 6, without the retry quota, which has no Roadmap item yet.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** each edge sets `maxAttempts`, a backoff (`none`, `exponential`, `exponential-jitter`), and one `baseDelayMs`. The backoff is capped at 20 s. There's no retry budget: every caller retries as often as its policy allows, however many calls are failing.
 - **AWS:** the AWS SDKs retry automatically. Standard mode (the default) makes up to 3 attempts (4 for DynamoDB clients), with full jitter, a 20 s cap, and different base delays by error type: 50 ms for transient errors (25 ms for DynamoDB) and 1,000 ms for throttling. A **retry quota** (500 tokens per client; a retry costs 14 tokens for transient errors and 5 for throttling; successes refill it) stops retries when failures are widespread. Adaptive mode also rate-limits the client's first attempts. The page notes that this updated behavior is opt-in (`AWS_NEW_RETRIES_2026=true`) until it becomes the default, and older behavior differs by SDK.
 - **Evidence:** Documented: [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html).
@@ -20,6 +28,10 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 #### ENG-3: Every failure can be retried
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; it's M8 item 7.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** rejections, timeouts, and errors from further down can all be retried.
 - **AWS:** SDKs retry transient and throttling errors and return other errors (e.g. `ValidationException`) at once. Every failure Wind Tunnel produces today is a throttle, a capacity rejection, or a timeout, which the SDKs treat as retryable.
 - **Evidence:** Documented: [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html). Whether a database driver retries a refused connection on its own is an assumption (it usually doesn't).
@@ -28,6 +40,10 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 #### ENG-4: Timeouts don't cancel work
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** A new effect in ADR-0006's interface; it's M10 item 3.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** when a caller times out, it stops waiting, but the work it called runs to the end and keeps holding its resources (ADR-0006).
 - **AWS:** a synchronous Lambda invocation keeps running after its caller disconnects, until it finishes or hits the function's own timeout. A database usually keeps running a query after the client gives up, unless the driver sends a cancel.
 - **Evidence:** Assumption for both.
@@ -36,6 +52,10 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 #### ENG-5: Components have no timeouts of their own
 
+- **Status:** Open
+- **Kind:** Setting
+- **Depends on:** The timer effect (M8 item 19); Lambda's timeout is M8 item 21. API Gateway's integration timeout has no Roadmap item yet.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** only edges time out. A Lambda function waiting on a slow database waits as long as it takes, holding its concurrency slot.
 - **AWS:** a Lambda function has a timeout (default 3 s, up to 900 s); when it's reached, the invocation is stopped and its execution environment is reset (see LMB-4). API Gateway REST APIs have an integration timeout of 50 ms to 29 s (Regional and private APIs can request more).
 - **Evidence:** Documented: [Lambda function timeout](https://docs.aws.amazon.com/lambda/latest/dg/configuration-timeout.html), [API Gateway REST API quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html).
@@ -44,6 +64,10 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 #### ENG-6: Service times don't depend on load
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; it's M10 item 1.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** each service time is drawn from a fixed distribution. Load only adds the waiting that's modeled explicitly (RDS query workers, SQS backlog).
 - **AWS:** real services often slow down as they get busier (CPU contention, garbage collection, lock contention), before any explicit limit is reached.
 - **Evidence:** Assumption.
@@ -52,6 +76,10 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 #### ENG-7: Users don't give up or retry
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; it's M10 item 4.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** arrivals follow the workload's profile (an open Poisson model). The user's call to a workflow's root has no timeout and no retries.
 - **AWS:** not an AWS behavior, but real clients time out, retry (browsers, mobile apps, SDKs), or leave.
 - **Evidence:** Assumption (a modeling choice).
@@ -67,5 +95,3 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 | Edges from every type | `retry` | 1 attempt, no retries | Assumption: the caller retries only if you say so; the AWS SDKs would retry on their own (ENG-2) |
 | Edges from API Gateway | `timeoutMs` | 29,000 ms | Documented: a REST API's integration timeout is 29 s at most, unless a Regional or private API requests more ([quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html)); see ENG-5 |
 | Edges from the other types | `timeoutMs` | 5,000 ms | Assumption: a client timeout of our choosing (ENG-5) |
-
-Sources checked: 2026-10-14.

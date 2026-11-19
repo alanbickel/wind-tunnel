@@ -4,6 +4,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-1: Concurrency is per function, not shared by the account
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Account groups (M8 items 13 and 14); it's M8 item 15.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** each Lambda component has its own `concurrency` limit (default 1,000).
 - **AWS:** by default an account has 1,000 concurrent executions per Region, shared by all functions. Reserved concurrency sets aside part of the pool for one function, and caps it. Up to 900 can be reserved, because 100 always stay unreserved.
 - **Evidence:** Documented: [Lambda concurrency](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
@@ -12,6 +16,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-2: Lambda scales out instantly
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; no Roadmap item yet.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** a function can go from 0 to its full concurrency at once.
 - **AWS:** each function can add at most 1,000 execution environments every 10 seconds (or 10,000 requests per second every 10 seconds). The same page also says on-demand concurrency "can experience a burst increase of 500 concurrency every 10 seconds", which seems to conflict; we follow the bolded 1,000 figure.
 - **Evidence:** Documented: [Lambda concurrency, scaling rate](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
@@ -20,6 +28,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-3: No requests-per-second limit
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; it's M8 item 3.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** only concurrency is limited.
 - **AWS:** Lambda also limits requests per second to 10 × the concurrency limit (10,000/s by default), so very short functions can be throttled below their concurrency limit.
 - **Evidence:** Documented: [Lambda concurrency, concurrency vs. requests per second](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
@@ -28,6 +40,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-4: Every finished invocation leaves a warm environment
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** ENG-5's Lambda timeout; it's part of M8 item 21.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** any invocation, successful or failed, leaves a warm environment behind.
 - **AWS:** if a function crashes or times out during an invocation, Lambda resets the environment, and the next invocation in it pays the initialization again (a "suppressed init"). We assume a function that returns an error normally (without crashing) keeps its environment.
 - **Evidence:** Documented for crashes and timeouts: [execution environment lifecycle, failures during the invoke phase](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html). Assumption for handled errors.
@@ -36,6 +52,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-5: How long an environment stays warm
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; no Roadmap item yet.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** an environment idle for `idleTimeoutSec` (default 600 s) goes cold; otherwise it stays warm forever.
 - **AWS:** Lambda "retains the execution environment for a period of time" but doesn't say how long. It also "terminates execution environments every few hours" for maintenance, even for functions invoked continuously, and may sometimes initialize environments ahead of requests.
 - **Evidence:** Documented that retention is unspecified, and the periodic recycling: [execution environment lifecycle](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html). Observed: the 5 to 15 minute idle lifetime comes from community measurements, not AWS.
@@ -43,6 +63,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-6: Cold start time doesn't depend on the function
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** A source for typical cold starts by runtime. Nothing; no Roadmap item yet.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** cold starts are drawn from one distribution (default median 300 ms, p99 1 s), the same for every function. The environment is busy during initialization, which counts against concurrency (as in AWS).
 - **AWS:** "The duration of a cold start varies from under 100 ms to over 1 second", depending on runtime, package size, and initialization code. Initialization is limited to 10 s.
 - **Evidence:** Documented range: [execution environment lifecycle, cold starts](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html). Our specific numbers are an assumption inside that range.
@@ -51,6 +75,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-7: Memory size isn't modeled
 
+- **Status:** Open
+- **Kind:** Setting
+- **Depends on:** Nothing; no Roadmap item yet.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** compute time is a fixed distribution.
 - **AWS:** "Any increase in memory size triggers an equivalent increase in CPU available to your function", so CPU-bound functions get faster with more memory.
 - **Evidence:** Documented: [Lambda best practices](https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html).
@@ -58,6 +86,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-8: RDS connections are held per invocation, not per environment
 
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Components that know about each other's execution environments; it's M8 item 26.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** an invocation takes an RDS connection when its query arrives and gives it back when the query finishes.
 - **AWS:** the recommended pattern is to open database connections outside the handler, so they're reused by later invocations in the same environment. Each warm environment then holds its connection while idle, so connections in use ≈ execution environments, not running queries.
 - **Evidence:** Documented: [Lambda best practices](https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html), [execution environment lifecycle](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html) ("instead of reestablishing the connection, the original connection is used in subsequent invocations").
@@ -66,6 +98,10 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 
 #### LMB-9: No provisioned concurrency or SnapStart
 
+- **Status:** Open
+- **Kind:** Setting
+- **Depends on:** Nothing; no Roadmap item yet.
+- **Checked:** 2026-10-14
 - **Wind Tunnel:** every environment starts cold.
 - **AWS:** provisioned concurrency keeps environments initialized ahead of time; SnapStart restores them from a snapshot.
 - **Evidence:** Documented: [Lambda concurrency](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
@@ -79,5 +115,3 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 | Lambda | `coldStart` | median 300 ms, p99 1 s | Assumption within the documented range (LMB-6) |
 | Lambda | `idleTimeoutSec` | 600 | Observed (LMB-5) |
 | Lambda | `computeTime` | median 20 ms, p99 80 ms | Assumption (workload-specific) |
-
-Sources checked: 2026-10-14.

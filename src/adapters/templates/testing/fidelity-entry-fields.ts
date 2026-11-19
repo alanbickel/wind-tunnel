@@ -1,4 +1,4 @@
-import { entryIdsOf } from "./fidelity-pages";
+import { entryIdsOf, FIDELITY_ID_PATTERN } from "./fidelity-pages";
 
 // Every fidelity entry tracks its gap in four fields after its heading
 // (#285): Status, Kind, Depends on, and Checked. fidelity.md's "How to read
@@ -63,7 +63,8 @@ export function entryFieldProblems(entry: FidelityEntry): string[] {
 
 /** The status in each row of the index's table, by entry ID, from rows like `| [RDS-4](…) | … | Open |`. */
 export function indexStatusesOf(index: string): Map<string, string> {
-  const rows = index.matchAll(/^\| \[([A-Z]+-\d+)\]\(.*\| ([^|]+?) \|$/gm);
+  const row = String.raw`^\| \[(${FIDELITY_ID_PATTERN})\]\(.*\| ([^|]+?) \|$`;
+  const rows = index.matchAll(new RegExp(row, "gm"));
   return new Map([...rows].map((m) => [m[1] ?? "", m[2] ?? ""]));
 }
 

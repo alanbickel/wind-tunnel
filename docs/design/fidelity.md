@@ -6,7 +6,7 @@ For the model itself, see the [MVP design](mvp-design.md) and the [component def
 
 ## How to read an entry
 
-Each entry has an ID (e.g. `LMB-2`) so code comments, commits, and issues can refer to it. Its first four fields track the gap, and `fidelity-entry-fields.test.ts` fails for an entry without them:
+Each entry has an ID (e.g. `LMB-2`; a prefix may hold digits after its first letter, as `S3-1` does) so code comments, commits, and issues can refer to it. Its first four fields track the gap, and `fidelity-entry-fields.test.ts` fails for an entry without them:
 
 - **Status:** `Open`, a gap still to close, or `Accepted: <reason>`, one we've decided not to close, with the reason why (for example "Minor at any scale Wind Tunnel models"). An Open entry that looked like a candidate for Accepted may have a "Kept open:" note under its Status saying why it wasn't accepted. Both kinds of reason record the thinking when the decision was made, not a settled rule: if the evidence, the model, or the product has moved on, say so and propose a change.
 - **Kind:** `Setting`, a setting AWS exposes that Wind Tunnel doesn't, or `Behavior`, how the service behaves under load. An entry that's both gets its main kind.
@@ -66,6 +66,7 @@ The entries are on a page per service, with IDs that start the same way:
 - [DynamoDB](fidelity/dynamodb.md) (DDB)
 - [RDS](fidelity/rds.md) (RDS)
 - [SQS and the Lambda consumer](fidelity/sqs.md) (SQS)
+- [S3](fidelity/s3.md) (S3), the first page with a profile
 
 ## Default values and their evidence
 

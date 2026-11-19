@@ -135,3 +135,17 @@ When a Lambda function fails on an SQS message, the message isn't retried at onc
 
 **At scale:** a database refusing a few connections looks harmless to the API, because users were told "accepted". But every write that failed once lands at least a visibility timeout late, and one that keeps failing ends up in the dead-letter queue, where nothing writes it unless you redrive it. Watch the function's errors and the dead-letter queue, not only the queue's backlog.
 **Source:** [Creating and configuring an SQS event source mapping](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-configure.html), [SQS visibility timeout](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html)
+
+### S3's request rate is per prefix, and it grows only gradually
+
+An S3 bucket has no single request limit. Each **partitioned prefix** (the start of the object key) serves at least **3,500 writes** (`PUT`, `COPY`, `POST`, `DELETE`) and **5,500 reads** (`GET`, `HEAD`) per second, and a bucket can have any number of prefixes, so spreading keys over 10 prefixes gives 10 times the rate. Over a prefix's rate, S3 answers **`503 Slow Down`**. Under sustained load it raises the rate on its own, but **gradually**, and AWS doesn't say how fast; until it's done, some requests keep getting 503s.
+
+**At scale:** a key layout that puts every hot object under one prefix (a date, a tenant, `uploads/`) caps the whole bucket at one prefix's rate. A sudden launch-day spike gets 503s that a slow ramp to the same rate wouldn't, because S3 had time to scale. The SDKs retry `SlowDown` as a throttling error, so it often shows up as seconds of latency first.
+**Source:** [S3 performance guidelines](https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html), [S3 performance design patterns](https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance-design-patterns.html), [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html)
+
+### An SSE-KMS bucket can be throttled by KMS before S3
+
+With SSE-KMS encryption and no S3 Bucket Key, **every upload and download** makes S3 call AWS KMS on your behalf (`GenerateDataKey` or `Decrypt`). Those calls count against the account's **shared KMS request quota in the Region** (10,000 to 100,000 per second, depending on the Region), along with every other use of KMS in the account. An **S3 Bucket Key** cuts those calls by up to 99%. The default, SSE-S3, makes no KMS calls.
+
+**At scale:** a busy bucket can fail on KMS throttling while S3 itself has room, and it can starve other services in the account that use KMS. Turn on S3 Bucket Keys for SSE-KMS buckets.
+**Source:** [KMS request quotas](https://docs.aws.amazon.com/kms/latest/developerguide/requests-per-second.html), [S3 Bucket Keys](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-key.html)

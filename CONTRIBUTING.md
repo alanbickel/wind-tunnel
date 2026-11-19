@@ -52,8 +52,12 @@ Then the type touches these places, all in the same change:
 
 1. The definition, its behavior, its tests, its registration, and its field descriptors, following the [checklist in the component definitions guide](docs/architecture/component-definitions.md#writing-a-new-definition-checklist). The engine doesn't change.
 2. For each place the model simplifies or guesses at AWS behavior, an entry on the service's page of the [fidelity catalog](docs/design/fidelity.md), with its ID cited in the code comment. Mark every claim about AWS as **Documented** (with a link you checked), **Observed**, or **Assumption**. Each setting's default gets a row in its page's [defaults table](docs/design/fidelity.md#default-values-and-their-evidence), and the type's edge defaults get rows in the engine page's.
-3. Anything surprising about the service at scale goes in [AWS: Did you know?](docs/learning/aws-did-you-know.md).
-4. The [component definitions guide](docs/architecture/component-definitions.md), updated to list it.
+3. Its findings advice: a `<type>-advice.ts` in [`run-analysis/findings/catalog/`](src/application/run-analysis/findings/catalog/), listed in `createFindingsCatalog`, with words for each of its rejection reasons and limits, and a fix for each limit where one is known.
+4. Its canvas icon, an entry in [`ui/diagram/component-icons.ts`](src/ui/diagram/component-icons.ts). It's the only UI code a type adds.
+5. Anything surprising about the service at scale goes in [AWS: Did you know?](docs/learning/aws-did-you-know.md).
+6. The [component definitions guide](docs/architecture/component-definitions.md), updated to list it.
+
+A test fails for a registered type missing any piece a test can find; the guide's [checklist](docs/architecture/component-definitions.md#writing-a-new-definition-checklist) says which test checks which, and what's left to the reviewer.
 
 ## Tests and documentation
 

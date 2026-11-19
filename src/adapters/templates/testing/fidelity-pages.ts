@@ -14,9 +14,17 @@ export const FIDELITY_PAGES: Readonly<Record<string, string>> =
     eager: true,
   });
 
+/**
+ * A fidelity ID's pattern, e.g. `RDS-2` or `S3-1`: a prefix of capitals,
+ * with digits allowed after the first, then a number. The tests that find
+ * IDs build their RegExps from it, so a new prefix works in all of them.
+ */
+export const FIDELITY_ID_PATTERN = String.raw`[A-Z][A-Z0-9]*-\d+`;
+
 /** The IDs of a page's entries, from headings like `#### RDS-2: …`. */
 export function entryIdsOf(page: string): string[] {
-  return [...page.matchAll(/^#### ([A-Z]+-\d+):/gm)].map((m) => m[1] ?? "");
+  const heading = new RegExp(`^#### (${FIDELITY_ID_PATTERN}):`, "gm");
+  return [...page.matchAll(heading)].map((m) => m[1] ?? "");
 }
 
 /** The IDs of every service page's entries. */

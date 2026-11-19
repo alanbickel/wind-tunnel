@@ -46,9 +46,7 @@ Every change follows these rules, tests included. [Coding standards](docs/contri
 
 ## Adding a component type
 
-A new AWS service (or any other component type) starts with research, before any code:
-
-1. **The service's [fidelity profile](docs/design/fidelity.md#a-services-profile)**, on its own page of the fidelity catalog: the settings AWS exposes, its quotas and their scope, and how it behaves under load, with evidence. Open it as a PR of its own and have it reviewed and merged first; the type's settings, defaults, and limits come from it.
+A new AWS service (or any other component type) starts with research, before any code: the service's [fidelity profile](docs/design/fidelity.md#a-services-profile), on its own page of the fidelity catalog. It lists the settings AWS exposes, its quotas and their scope, and how it behaves under load, with evidence. Open it as a PR of its own and have it reviewed and merged first; the type's settings, defaults, and limits come from it.
 
 Then the type touches these places, all in the same change:
 

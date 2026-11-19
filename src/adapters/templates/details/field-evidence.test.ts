@@ -6,7 +6,11 @@ import type {
 } from "../../../application/details/field-descriptor";
 import { EDGE_FIELDS } from "../../../application/details/fields/edge-fields";
 import { createAwsComponentRegistry } from "../../../domain/components/aws";
-import { FIDELITY_IDS, FIDELITY_PAGES } from "../testing/fidelity-pages";
+import {
+  FIDELITY_ID_PATTERN,
+  FIDELITY_IDS,
+  FIDELITY_PAGES,
+} from "../testing/fidelity-pages";
 
 // The Details tab's help is right about AWS (#85): every setting has a
 // descriptor, every fidelity entry a descriptor cites exists, and every
@@ -46,7 +50,7 @@ const allFields: readonly FieldDescriptor[] = [
 ];
 
 /** A fidelity ID, wherever it's cited, e.g. "RDS-2". */
-const FIDELITY_ID = /\b[A-Z]+-\d+\b/g;
+const FIDELITY_ID = new RegExp(String.raw`\b${FIDELITY_ID_PATTERN}\b`, "g");
 
 /** One setting's row of a fidelity page's defaults table. */
 interface DefaultRow {
@@ -57,7 +61,9 @@ interface DefaultRow {
 /** A page's defaults table rows, each split into its cells. */
 function tableRowsOf(page: string): string[][] {
   const section = page.split("## Default values and their evidence")[1];
-  const table = (section ?? "").split("\n## ")[0] ?? "";
+  // The table ends at the next heading of any level: in a profile, it sits
+  // under Settings, before the profile's next section.
+  const table = (section ?? "").split(/\n#+ /)[0] ?? "";
   return table
     .split("\n")
     .filter((line) => line.startsWith("| ") && !line.startsWith("| Component"))

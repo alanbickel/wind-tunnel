@@ -83,6 +83,13 @@ describe("the fidelity pages", () => {
     expect(repeated).toEqual([]);
   });
 
+  // Fails if FIDELITY_ID_PATTERN goes back to letters only: S3's entries
+  // would drop out of every check that reads entries, without a failure.
+  it("find IDs whose prefix holds a digit", () => {
+    const s3 = FIDELITY_PAGES["/docs/design/fidelity/s3.md"] ?? "";
+    expect(entryIdsOf(s3)).toContain("S3-1");
+  });
+
   // Fails if a page is added to docs/design/fidelity/ and not listed on the
   // index, or the index lists a page that isn't there.
   it("are each listed on the index, and the index lists no others", () => {

@@ -21,3 +21,7 @@ Use `react-aws-icons`, and import each icon from its own file (`react-aws-icons/
 - The icons keep AWS's colors in both themes. If one reads badly on the dark theme, the fix is in `ComponentIcon`, not the package.
 - The package is unmaintained. If it breaks with a future React, replacing it means rewriting one file, since nothing else sees it.
 - The diagram's chunk grows by about 15 kB (3 kB gzipped).
+
+## Addendum, 2026-11-19
+
+The map from a component type's ID to its icon moved out of `ComponentIcon` into `COMPONENT_ICONS` in `src/ui/diagram/component-icons.ts` ([#291](https://github.com/alanbickel/wind-tunnel/issues/291)), so a test can read it. Where this ADR says a new type needs a line in `ComponentIcon`, or a dark-theme fix goes in `ComponentIcon`, read `component-icons.ts`. `ComponentIcon` still draws the icon and hides it from screen readers. A registered type with no entry in the map now fails the component type completeness test (`src/integration/component-type-completeness.test.ts`), so a new type can no longer go without an icon unnoticed. A type the package has no logo for would need its icon from somewhere else, where the first consequence above says its card has none. The decision is unchanged.

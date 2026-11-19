@@ -30,6 +30,17 @@ The rest describe the gap:
 
 Model defaults (the numbers in each definition's `defaultConfig`) are covered in [Default values and their evidence](#default-values-and-their-evidence).
 
+## A service's profile
+
+A new component type starts with its service's profile ([Adding a component type](../../CONTRIBUTING.md#adding-a-component-type)): what AWS exposes and enforces, researched before any code, so the type's settings, defaults, and limits come from AWS rather than from what was easy to build. It goes at the top of the service's page, under `## Profile`, before the entries, with a `Checked:` date for the whole profile. It's a research checklist: a row or a line per item, not prose.
+
+- **Settings:** each setting AWS exposes that could change behavior under load, with AWS's default, its allowed range, and whether Wind Tunnel models it. One the type doesn't model is an entry of kind Setting, Open or Accepted with its reason; cite its ID in place of "yes".
+- **Quotas:** each limit, with its default, whether it can be raised, and its scope: per resource, per account and Region, or per something smaller, such as a partition or a prefix. One the type doesn't enforce, or enforces at another scope, is an entry of kind Behavior, as [LMB-1](fidelity/lambda.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account) is.
+- **Behavior under load:** what happens at each limit (refused, and with which error; queued; slowed), how fast the service scales, and its latency. Each way the type will behave differently is an entry of kind Behavior.
+- **Evidence:** every claim marked as an entry's is (Documented with a link, Observed, or Assumption), checked on the profile's date or on a later one given beside it.
+
+The profile records what AWS does; the [defaults table](#default-values-and-their-evidence) records what the model starts with and how sure that is. The pages for the first five types were written before profiles and don't have one yet.
+
 ## Differences that matter most for the templates
 
 | ID | Difference | Skew | Template | Status |
@@ -62,7 +73,7 @@ Each service page ends with a table of its defaults, and the engine page has the
 
 ## Keeping this page current
 
-- When a model differs from AWS, add an entry to its service's page in the same change, `Open` and checked today, and mention its ID in the code comment where the model differs. A new service gets a page of its own in [`fidelity/`](fidelity/), listed above; `fidelity-pages.test.ts` fails for a page that isn't, or for an ID that two entries share.
+- When a model differs from AWS, add an entry to its service's page in the same change, `Open` and checked today, and mention its ID in the code comment where the model differs. A new service gets a page of its own in [`fidelity/`](fidelity/), listed above and starting with its [profile](#a-services-profile); `fidelity-pages.test.ts` fails for a page that isn't, or for an ID that two entries share.
 - When a gap is closed, delete the entry (git history keeps it) and update the code comment.
 - Only the maintainer accepts a gap, or decides to keep one open. When they do, change its status to `Accepted:` with their reason, or add a "Kept open:" note with theirs. To challenge either reason, ask the maintainer; don't change the status on your own.
 - When you recheck an entry's evidence and links, set its Checked date to that day, and correct what has changed.

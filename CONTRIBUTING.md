@@ -46,10 +46,14 @@ Every change follows these rules, tests included. [Coding standards](docs/contri
 
 ## Adding a component type
 
-A new AWS service (or any other component type) touches these places, all in the same change:
+A new AWS service (or any other component type) starts with research, before any code:
+
+1. **The service's [fidelity profile](docs/design/fidelity.md#a-services-profile)**, on its own page of the fidelity catalog: the settings AWS exposes, its quotas and their scope, and how it behaves under load, with evidence. Open it as a PR of its own and have it reviewed and merged first; the type's settings, defaults, and limits come from it.
+
+Then the type touches these places, all in the same change:
 
 1. The definition, its behavior, its tests, its registration, and its field descriptors, following the [checklist in the component definitions guide](docs/architecture/component-definitions.md#writing-a-new-definition-checklist). The engine doesn't change.
-2. For each place the model simplifies or guesses at AWS behavior, an entry on the service's page of the [fidelity catalog](docs/design/fidelity.md) (a new service gets a page of its own), with its ID cited in the code comment. Mark every claim about AWS as **Documented** (with a link you checked), **Observed**, or **Assumption**. Each setting's default gets a row in its page's [defaults table](docs/design/fidelity.md#default-values-and-their-evidence), and the type's edge defaults get rows in the engine page's.
+2. For each place the model simplifies or guesses at AWS behavior, an entry on the service's page of the [fidelity catalog](docs/design/fidelity.md), with its ID cited in the code comment. Mark every claim about AWS as **Documented** (with a link you checked), **Observed**, or **Assumption**. Each setting's default gets a row in its page's [defaults table](docs/design/fidelity.md#default-values-and-their-evidence), and the type's edge defaults get rows in the engine page's.
 3. Anything surprising about the service at scale goes in [AWS: Did you know?](docs/learning/aws-did-you-know.md).
 4. The [component definitions guide](docs/architecture/component-definitions.md), updated to list it.
 

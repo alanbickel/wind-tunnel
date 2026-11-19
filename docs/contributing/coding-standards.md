@@ -117,20 +117,20 @@ A class never creates the objects it delegates to. They come in through the cons
 
 ```ts
 // ✗ the constructor hides what the behavior depends on, and a test can't swap it
-class ApiGatewayBehavior<T> {
-  constructor(config: ApiGatewayConfig) {
-    this.limit = new TokenBucket({ ratePerSec: config.ratePerSec, burst: config.burst });
+class RdsBehavior<T> {
+  constructor(config: RdsConfig) {
+    this.connections = new CountingSemaphore<T>({ limit: config.maxConnections, whenFull: "reject" });
   }
 }
 
 // ✓ the behavior names the role it needs; build() is the factory that fills it
-interface ApiGatewayBehaviorDependencies {
-  readonly limit: RateLimit; // an interface; TokenBucket implements it
+interface RdsBehaviorDependencies<T> {
+  readonly connections: ConcurrencyLimit<T>; // an interface; CountingSemaphore implements it
 }
 
-build<T>(config: ApiGatewayConfig): ComponentBehavior<T> {
-  const limit = new TokenBucket({ ratePerSec: config.ratePerSec, burst: config.burst });
-  return new ApiGatewayBehavior<T>({ limit });
+build<T>(config: RdsConfig): ComponentBehavior<T> {
+  const connections = new CountingSemaphore<T>({ limit: config.maxConnections, whenFull: "reject" });
+  return new RdsBehavior<T>({ connections });
 }
 ```
 

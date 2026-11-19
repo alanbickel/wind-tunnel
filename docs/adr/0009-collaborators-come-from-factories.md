@@ -39,3 +39,7 @@ Two checks enforce this:
 - The checks have blind spots, which reviewers cover. The lint selector only sees `new` written inside a class body, so it misses a class that calls a module-level helper which builds a dependency for it (as DynamoDB's `capacityBucket` does today). The architecture test only sees types named `*Dependencies`, so a constructor that doesn't follow the naming convention isn't checked.
 - Deciding whether a new class is state or a dependency is a judgment call. A new pure accumulator goes in `STATE_CLASSES`, and the reviewer checks that it really delegates to nothing.
 - Existing violations carry disable comments naming the R2 task that removes them: R2.5 (the engine), R2.6 (the contract harness), and R2.8 (the AWS behaviors and the test fakes).
+
+## Addendum, 2026-11-19
+
+The blind-spot example under Consequences no longer exists. DynamoDB's `capacityBucket` now returns a bucket's size, not a bucket; `rateLimitedServiceDefinition` in [`src/domain/components/rate-limited-service.ts`](../../src/domain/components/rate-limited-service.ts), a factory, builds the buckets ([#292](https://github.com/alanbickel/wind-tunnel/issues/292)). The blind spot itself remains.

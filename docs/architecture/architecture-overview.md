@@ -94,7 +94,7 @@ Each guide is a short, visual introduction to one part of the system, with a wor
 |---|---|
 | [The domain model](domain-model.md) | Entities, workflows as call trees over the architecture, loading documents (`loadProject`), architecture checks and run checks (`findArchitectureIssues`, `findRunIssues`) |
 | [How the simulation engine works](simulation-engine.md) | Discrete-event loop, `EventQueue`, `RateLimit`, `ConcurrencyLimit`, `Queue`, `ServiceTime`, distributions, `simulate`, `ArrivalProcess`, `backoffMs` |
-| [Component definitions](component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, the type-specific checks (`validateComponents`, `findStepIssues`), the five AWS types |
+| [Component definitions](component-definitions.md) | `ComponentDefinition`, the registry, `ComponentBehavior` effects, `checkComponentContract`, the type-specific checks (`validateComponents`, `findStepIssues`), the AWS types |
 | [How metrics work](metrics.md) | Engine ticks, `MetricsCollector`, `MetricsSnapshot`, `simulateWithMetrics`, limits, gauges and counters, `LatencyHistogram` |
 | [The application layer and persistence](application-layer.md) | Use cases, ports, `ProjectRecord` vs. the project document, `loadProject` and migrations, `IndexedDbProjectRepository`, `BundledTemplateCatalog`, the in-process and Web Worker runners, the repository and runner contracts |
 | [The user interface](user-interface.md) | The composition root, `UseCasesProvider` and `useUseCases`, the screens, selection and the inspector, `useSimulationRun` and the Worker runner, a run traced from click to chart, UI test helpers |

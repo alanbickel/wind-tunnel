@@ -63,6 +63,6 @@ describe("NewComponent", () => {
   // Fails if an unknown type makes an input, which would add a component
   // that the save's architecture check refuses.
   it("makes nothing for a type the registry doesn't have", () => {
-    expect(awsNewComponent().execute({ type: "s3" })).toBeUndefined();
+    expect(awsNewComponent().execute({ type: "elasticache" })).toBeUndefined();
   });
 });

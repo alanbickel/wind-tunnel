@@ -47,6 +47,8 @@ describe("the findings catalog", () => {
       "sqs consumerConcurrency",
       "sqs failed-deliveries",
       "dynamodb readUnits",
+      "s3 readRate",
+      "s3 writeRate",
     ]);
     for (const { label, entry } of entries) {
       expect(entry.fixes.length, label).toBeGreaterThan(0);

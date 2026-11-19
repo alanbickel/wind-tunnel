@@ -67,7 +67,8 @@ function defaultRows(): ReadonlyMap<string, DefaultRow> {
       [...settings.matchAll(/`(\w+)`/g)].map((m) => [
         `${component.slice(2)} ${m[1] ?? ""}`,
         {
-          level: (evidence.split(/[\s:;(]/)[0] ?? "").toLowerCase(),
+          // The level is the cell's first word: "Assumption, within …".
+          level: (evidence.split(/[\s,:;(]/)[0] ?? "").toLowerCase(),
           fidelityIds: evidence.match(FIDELITY_ID) ?? [],
         },
       ]),
@@ -110,7 +111,8 @@ describe("the setting descriptors", () => {
   // Fails if a descriptor's evidence level or entry differs from its type's
   // profile's defaults table, or a setting has no row there (say, a row left
   // in lambda-fidelity.md rather than lambda-profile.md): the help would claim
-  // more, or less, than the catalog of differences backs.
+  // more, or less, than the catalog of differences backs. Also fails if the
+  // level is read with its comma, as "assumption," from S3's latency rows.
   it("give each default the evidence fidelity's defaults table gives it", () => {
     const rows = defaultRows();
     for (const { label, type, field } of configFields) {

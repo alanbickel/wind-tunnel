@@ -59,7 +59,7 @@ export interface RateLimitedServiceSpec<
  * A definition for a rate-limited request/response service: each action
  * takes a token from its limit's bucket, is refused when it's empty, and
  * is otherwise served for a sampled time. Nothing queues, and it never
- * delivers async work. DynamoDB and API Gateway are built on it.
+ * delivers async work. DynamoDB, API Gateway, and S3 are built on it.
  */
 export function rateLimitedServiceDefinition<
   Config,

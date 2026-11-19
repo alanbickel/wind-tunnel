@@ -162,6 +162,8 @@ describe("the default catalog's wording", () => {
       "sqs consumerConcurrency",
       "dynamodb readUnits",
       "dynamodb writeUnits",
+      "s3 readRate",
+      "s3 writeRate",
     ]);
   });
 });

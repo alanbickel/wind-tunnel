@@ -17,6 +17,7 @@ Where Wind Tunnel's model of SQS and the Lambda consumer differs from AWS. How t
 #### SQS-2: Exactly once, in order
 
 - **Status:** Open
+  - Kept open: Wind Tunnel will need to model both exactly-once and at-least-once delivery, so the gap needs closing rather than accepting, even though duplicates add little load today.
 - **Kind:** Behavior
 - **Depends on:** Nothing; no Roadmap item yet.
 - **Checked:** 2026-10-14
@@ -52,6 +53,7 @@ Where Wind Tunnel's model of SQS and the Lambda consumer differs from AWS. How t
 #### SQS-5: Polling takes no time
 
 - **Status:** Open
+  - Kept open: delivery that takes no time removes an async step, and in a larger system that may change how the parts interact, even if the delay is small for one message.
 - **Kind:** Behavior
 - **Depends on:** Nothing; no Roadmap item yet.
 - **Checked:** 2026-10-14
@@ -63,6 +65,7 @@ Where Wind Tunnel's model of SQS and the Lambda consumer differs from AWS. How t
 #### SQS-6: The backlog is unlimited
 
 - **Status:** Open
+  - Kept open: the 120,000 in-flight quota is a real way for a queue to fail. The templates are too small to reach it today, but a user's own architecture might not be.
 - **Kind:** Behavior
 - **Depends on:** Nothing; no Roadmap item yet.
 - **Checked:** 2026-10-14

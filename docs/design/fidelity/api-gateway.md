@@ -16,7 +16,7 @@ Where Wind Tunnel's model of API Gateway differs from AWS. How to read an entry,
 
 #### APIGW-2: Throttling is exact
 
-- **Status:** Open
+- **Status:** Accepted: AWS's throttling is a best-effort target, so an exact bucket is the fair reading of the documented limit.
 - **Kind:** Behavior
 - **Depends on:** Nothing; no Roadmap item yet.
 - **Checked:** 2026-10-14

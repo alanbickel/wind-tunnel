@@ -49,7 +49,7 @@ See [LMB-8](lambda.md#lmb-8-rds-connections-are-held-per-invocation-not-per-envi
 
 #### RDS-5: Refused connections fail instantly
 
-- **Status:** Open
+- **Status:** Accepted: the time to fail depends on the client, not AWS, and it's minor.
 - **Kind:** Behavior
 - **Depends on:** Nothing; no Roadmap item yet.
 - **Checked:** 2026-10-14

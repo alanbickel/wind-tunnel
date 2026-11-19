@@ -8,7 +8,7 @@ For the model itself, see the [MVP design](mvp-design.md) and the [component def
 
 Each entry has an ID (e.g. `LMB-2`) so code comments, commits, and issues can refer to it. Its first four fields track the gap, and `fidelity-entry-fields.test.ts` fails for an entry without them:
 
-- **Status:** `Open`, a gap still to close, or `Accepted: <reason>`, one we've decided not to close, with the reason why (for example "Minor at any scale Wind Tunnel models").
+- **Status:** `Open`, a gap still to close, or `Accepted: <reason>`, one we've decided not to close, with the reason why (for example "Minor at any scale Wind Tunnel models"). An Open entry that looked like a candidate for Accepted may have a "Kept open:" note under its Status saying why it wasn't accepted. Both kinds of reason record the thinking when the decision was made, not a settled rule: if the evidence, the model, or the product has moved on, say so and propose a change.
 - **Kind:** `Setting`, a setting AWS exposes that Wind Tunnel doesn't, or `Behavior`, how the service behaves under load. An entry that's both gets its main kind.
 - **Depends on:** what has to exist before the gap can close (other entries, engine features, or Roadmap items), or "Nothing", and the Roadmap item that closes it, if there is one.
 - **Checked:** the date, as `YYYY-MM-DD`, its evidence and links were last checked against AWS.
@@ -64,7 +64,7 @@ Each service page ends with a table of its defaults, and the engine page has the
 
 - When a model differs from AWS, add an entry to its service's page in the same change, `Open` and checked today, and mention its ID in the code comment where the model differs. A new service gets a page of its own in [`fidelity/`](fidelity/), listed above; `fidelity-pages.test.ts` fails for a page that isn't, or for an ID that two entries share.
 - When a gap is closed, delete the entry (git history keeps it) and update the code comment.
-- Only the maintainer accepts a gap. When they do, change its status to `Accepted:` with their reason.
+- Only the maintainer accepts a gap, or decides to keep one open. When they do, change its status to `Accepted:` with their reason, or add a "Kept open:" note with theirs. To challenge either reason, ask the maintainer; don't change the status on your own.
 - When you recheck an entry's evidence and links, set its Checked date to that day, and correct what has changed.
 - An Assumption becomes Documented only with a link to AWS documentation that states it. Re-check links before quoting them in the app; AWS quotas and behavior change.
 - Facts worth teaching can also go in [AWS: Did you know?](../learning/aws-did-you-know.md).

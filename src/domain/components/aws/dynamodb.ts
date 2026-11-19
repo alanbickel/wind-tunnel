@@ -1,15 +1,9 @@
 import { z } from "zod";
-import type { RateLimit } from "../../behaviors/rate-limit";
-import { TokenBucket } from "../../behaviors/token-bucket";
-import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import type { TokenBucketInput } from "../../behaviors/token-bucket";
 import { distributionSchema } from "../../random/distribution";
-import type { ComponentBehavior } from "../component-behavior";
+import type { RefuseWhenFull } from "../component-behavior";
+import { rateLimitedServiceDefinition } from "../rate-limited-service";
 import { AWS_EDGE_DEFAULTS } from "./edge-defaults";
-import type {
-  BuildContext,
-  ComponentDefinition,
-} from "../component-definition";
-import { DynamoDbBehavior, THROTTLED } from "./dynamo-db-behavior";
 
 const dynamoDbConfig = z.object({
   /** Provisioned read capacity units per second; each read uses one. */
@@ -25,6 +19,9 @@ const dynamoDbConfig = z.object({
 });
 export type DynamoDbConfig = z.infer<typeof dynamoDbConfig>;
 
+/** Rejects a request that finds less than one unit of its capacity left. */
+const THROTTLED: RefuseWhenFull = { kind: "refuse", reason: "throttled" };
+
 /**
  * Amazon DynamoDB with provisioned capacity (MVP design §3.2): one token
  * bucket for reads and one for writes, then a short latency. Over capacity,
@@ -35,7 +32,7 @@ export type DynamoDbConfig = z.infer<typeof dynamoDbConfig>;
  * aren't modeled yet.
  * See docs/design/fidelity/dynamodb/dynamodb-fidelity.md: DDB-1 to DDB-5.
  */
-export const dynamoDbDefinition: ComponentDefinition<DynamoDbConfig> = {
+export const dynamoDbDefinition = rateLimitedServiceDefinition({
   type: "dynamodb",
   displayName: "DynamoDB",
   configSchema: dynamoDbConfig,
@@ -46,38 +43,24 @@ export const dynamoDbDefinition: ComponentDefinition<DynamoDbConfig> = {
     latency: { kind: "lognormal", medianMs: 5, p99Ms: 20 },
   },
   edgeDefaults: AWS_EDGE_DEFAULTS,
-  actions: ["read", "write"],
-  deliversAsync: false,
-  rejectionReasons: [THROTTLED.reason],
-  build<T>(
-    config: DynamoDbConfig,
-    { random }: BuildContext,
-  ): ComponentBehavior<T> {
-    const { burstSec } = config;
-    return new DynamoDbBehavior<T>({
-      reads: capacityBucket({ unitsPerSec: config.readUnitsPerSec, burstSec }),
-      writes: capacityBucket({
-        unitsPerSec: config.writeUnitsPerSec,
-        burstSec,
-      }),
-      latency: new SampledServiceTime(config.latency, random),
-    });
+  refusal: THROTTLED,
+  limits: {
+    readUnits: (config) => capacityBucket(config.readUnitsPerSec, config),
+    writeUnits: (config) => capacityBucket(config.writeUnitsPerSec, config),
   },
-};
+  actions: {
+    read: { limit: "readUnits", serviceTime: "latency" },
+    write: { limit: "writeUnits", serviceTime: "latency" },
+  },
+});
 
-interface CapacityBucketInput {
-  readonly unitsPerSec: number;
-  /** Seconds of unused capacity the bucket can save up. */
-  readonly burstSec: number;
-}
-
-/** A token bucket for one kind of capacity, read or write. */
-function capacityBucket({
-  unitsPerSec,
-  burstSec,
-}: CapacityBucketInput): RateLimit {
-  return new TokenBucket({
+/** One kind of capacity, read or write, with `burstSec` of it saved up. */
+function capacityBucket(
+  unitsPerSec: number,
+  { burstSec }: DynamoDbConfig,
+): TokenBucketInput {
+  return {
     ratePerSec: unitsPerSec,
     burst: Math.max(1, unitsPerSec * burstSec),
-  });
+  };
 }

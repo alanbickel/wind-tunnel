@@ -1,14 +1,8 @@
 import { z } from "zod";
-import { TokenBucket } from "../../behaviors/token-bucket";
-import { SampledServiceTime } from "../../behaviors/sampled-service-time";
 import { distributionSchema } from "../../random/distribution";
-import type { ComponentBehavior } from "../component-behavior";
+import type { RefuseWhenFull } from "../component-behavior";
+import { rateLimitedServiceDefinition } from "../rate-limited-service";
 import { AWS_EDGE_DEFAULTS } from "./edge-defaults";
-import type {
-  BuildContext,
-  ComponentDefinition,
-} from "../component-definition";
-import { ApiGatewayBehavior, THROTTLED } from "./api-gateway-behavior";
 
 const apiGatewayConfig = z.object({
   /** Steady requests per second before throttling (HTTP 429). */
@@ -20,13 +14,16 @@ const apiGatewayConfig = z.object({
 });
 export type ApiGatewayConfig = z.infer<typeof apiGatewayConfig>;
 
+/** Rejects a request that finds less than one token in the bucket. */
+const THROTTLED: RefuseWhenFull = { kind: "refuse", reason: "throttled" };
+
 /**
  * Amazon API Gateway (MVP design §3.2): a token bucket in front of a short
  * overhead. Defaults are the account-level limit per region: 10,000
  * requests/s with a burst of 5,000. In AWS that limit is shared by every API
  * in the account and Region (fidelity APIGW-1).
  */
-export const apiGatewayDefinition: ComponentDefinition<ApiGatewayConfig> = {
+export const apiGatewayDefinition = rateLimitedServiceDefinition({
   type: "api-gateway",
   displayName: "API Gateway",
   configSchema: apiGatewayConfig,
@@ -37,19 +34,9 @@ export const apiGatewayDefinition: ComponentDefinition<ApiGatewayConfig> = {
   },
   // A REST API waits up to 29 s for its integration (ENG-5).
   edgeDefaults: { ...AWS_EDGE_DEFAULTS, timeoutMs: 29_000 },
-  actions: ["invoke"],
-  deliversAsync: false,
-  rejectionReasons: [THROTTLED.reason],
-  build<T>(
-    config: ApiGatewayConfig,
-    { random }: BuildContext,
-  ): ComponentBehavior<T> {
-    return new ApiGatewayBehavior<T>({
-      limit: new TokenBucket({
-        ratePerSec: config.ratePerSec,
-        burst: config.burst,
-      }),
-      overhead: new SampledServiceTime(config.overhead, random),
-    });
+  refusal: THROTTLED,
+  limits: {
+    requestRate: ({ ratePerSec, burst }) => ({ ratePerSec, burst }),
   },
-};
+  actions: { invoke: { limit: "requestRate", serviceTime: "overhead" } },
+});

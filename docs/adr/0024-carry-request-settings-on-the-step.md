@@ -39,6 +39,7 @@ What's in place:
 1. **`ArriveInput` gains `settings`:** the step's settings for this action, parsed, with the defaults filled in, and `{}` for an action that has none. Its type is `RequestSettings`, a readonly record of unknown values. A type reads them as its schema's output type: the registry has parsed them with that schema, so the cast is safe, and the type's tests show it.
 2. **Parsed once per step, when the run is built.** The topology parses each step's settings with its target's type, beside building each component, and `arrive` reads the result. Nothing is parsed per arrival, and a step with no settings costs one parse of `{}`.
 3. **The engine never reads them.** It hands them to `arrive`, as it hands over `action`. `finish` and `dispatchFinished` don't get them: a type that needs them later keeps what it needs with the request it holds.
+4. **A component gets one complete set of settings per arrival, and never sees where it came from.** Choosing the settings for an arrival is the engine's job; today that choice is trivial, because a step's settings are the same for every arrival. Anything that later varies a request's settings (a mix of profiles, a request class, the workload's time) changes how the engine chooses them, not what a type receives, so no type changes when it arrives ([What this leaves open](#what-this-leaves-open)). A type may still vary its own work within a setting, by sampling a distribution (decision 6).
 
 ### 4. Settings that don't fit are a run issue
 
@@ -63,6 +64,30 @@ What's in place:
 - **"Request settings"** in docs and on screen: the settings of one request to a component, as opposed to the component's settings and an edge's.
 - **`settings`** in code, on `Step`, in the document, and on `ArriveInput`; **`requestSettings`** on `ComponentDefinition`, where `settings` alone could mean the config; **`RequestSettings`** for the parsed type.
 
+## What this leaves open
+
+A step carries one set of request settings, so today a different kind of request to the same component is a different workflow, weighted in the workload's mix. That fits some cases and not others. This section names the ways requests vary, where each would fit, and what it would build on. None is decided here; each needs its own design when a type or a template needs it.
+
+| Variation | Example | Where it would fit |
+|---|---|---|
+| Within one kind of request | Query times that spread around a median | A distribution setting, which the type samples (decision 6). Available now. |
+| A different journey or path | Loading a page vs. watching a video | Separate workflows in the workload's mix. Available now. |
+| The same call with mixed payloads | A REST handler's S3 reads: mostly 2 KB assets, some 5 MB images | A weighted mix of named profiles on the step, one chosen per call. |
+| A kind of request that holds at every step | A "video" request: large at S3, long in Lambda, heavy in the cache | A request class chosen once per request, at the workflow's root, that each step keys its settings by. |
+| The same profile in many workflows | An "order item" read in checkout, history, and admin | Named profiles at the project level, which steps refer to. |
+| Payloads that change over the day | Larger uploads in the evening | Settings that vary with the workload's time. |
+| Which steps run | A cache hit skips the database; large uploads go multipart | Branches in the workflow, chosen by a weight, a request class, or a call's outcome. |
+| How many calls a request makes | A GraphQL query that resolves 20 items | A repeat count or parallel calls on a step (M8 item 23). |
+
+Two things to know before designing any of these:
+
+- **Per call or per request.** A mix drawn at each step is independent at each step: a request could draw a large S3 read and a small Lambda compute. Where a request's kind should hold across its steps, the choice belongs to the request (a class), not the call.
+- **Names make findings.** Anonymous draws, from a distribution or an unnamed mix, can only show up as spread. A named profile or class lets a finding say "the 5 MB reads time out", which is the north star, and it means the engine marks each arrival with its profile, for the metrics to count by.
+
+Every row leaves decisions 1 to 6 standing. The types' schemas, a step's partial settings, the run check, and `ArriveInput` stay as they are, because each row changes only how the engine chooses an arrival's settings (decision 3.4), or which steps run. A design that needed a type to know which profile or class it's serving would break that, and would need to supersede this decision.
+
+Until one of these exists, the guidance is the second row: a different kind of request is a different workflow. The component definitions guide says when a setting belongs on the step and when in the config; the workflow guidance in the UX design, and any template that needs a mix, should be revisited when the first of these is designed. S3's object size (S3-5) is the likely first case, because object sizes are often a mix of very small and very large.
+
 ## Consequences
 
 - **A type can let the request decide its cost or time** without an engine change: DDB-1 (#301), Neptune's query time (M8 item 12), and S3-5 each declare settings and read them in `arrive`.
@@ -70,6 +95,7 @@ What's in place:
 - **Two places say what a type takes:** its config for the component, and its request settings for each action. A type's author chooses between them: a setting that differs between calls to the same component belongs on the step; one that's the same for every call belongs in the config. "Adding a component type" says so.
 - **Defaults are in the schema here and in `defaultConfig` for config.** It's a second pattern, chosen because a step stores only what it sets. The field descriptors for request settings show the default by parsing `{}`.
 - **The behavior reads settings through a cast.** `ArriveInput` isn't generic over each action's settings, because one behavior serves every action and the registry hides the types. The cast is safe because the registry parsed them with the same schema; a type's tests show the values it reads.
+- **Mixed requests to one component need one workflow each, for now.** A handler whose S3 reads are a mix of sizes is modeled as several workflows, weighted in the mix, until a design from [What this leaves open](#what-this-leaves-open) arrives. Because a type never sees where its settings came from (decision 3.4), that design won't change any type.
 - **A default change reaches every step that doesn't set the value**, by design (decision 2.3).
 - **Changing a step's action loses its settings without asking**, unlike its calls. One undo brings them back.
 - **Follow-up:** [#304](https://github.com/alanbickel/wind-tunnel/issues/304) builds decisions 1 to 4 and 5.4 with a test type, and appends an addendum to ADR-0006, whose table quotes `arrive(request, action, nowMs)`. [#305](https://github.com/alanbickel/wind-tunnel/issues/305) builds the editor: the field descriptors for request settings, the edit command (decision 2.2), and decisions 5.1 and 5.2.

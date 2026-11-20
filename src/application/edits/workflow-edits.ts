@@ -185,14 +185,14 @@ export interface ChangeStepInput extends StepInput {
  * without either. The step keeps its id and loses everything under it,
  * `calls` and `async` alike (ADR-0021 decision 3): what's under a step
  * belongs to what the step was. So do its request `settings`, which belong
- * to the action of the type it called (ADR-0024 decision 5.1). A step changed to `enqueue` has an empty
- * async slot, which is stored as no `async`. Like `addCall`, it never adds
- * an edge: a change to a component the step's caller has no edge to
- * returns the record as it was. The root has no caller, so it can change to
- * any component. A step that isn't in the workflow returns the record as it
- * was; so does a change to what the step already is. A step may change its
- * action alone when its edge has gone: it adds no dependence. The caller of
- * an async root is its queue.
+ * to the action of the type it called (ADR-0024 decision 5.1). A step
+ * changed to `enqueue` has an empty async slot, which is stored as no
+ * `async`. Like `addCall`, it never adds an edge: a change to a component
+ * the step's caller has no edge to returns the record as it was. The root
+ * has no caller, so it can change to any component. A step that isn't in
+ * the workflow returns the record as it was; so does a change to what the
+ * step already is. A step may change its action alone when its edge has
+ * gone: it adds no dependence. The caller of an async root is its queue.
  */
 export function changeStep(
   record: ProjectRecord,

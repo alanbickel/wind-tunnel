@@ -2,6 +2,7 @@ import { apiGatewayAdvice } from "./api-gateway-advice";
 import { dynamoDbAdvice } from "./dynamo-db-advice";
 import { lambdaAdvice } from "./lambda-advice";
 import { rdsAdvice } from "./rds-advice";
+import { s3Advice } from "./s3-advice";
 import { sqsAdvice } from "./sqs-advice";
 import type { FindingsCatalog, TypeAdvice } from "./type-advice";
 
@@ -12,6 +13,7 @@ const ADVICE: readonly TypeAdvice[] = [
   rdsAdvice,
   sqsAdvice,
   dynamoDbAdvice,
+  s3Advice,
 ];
 
 /**

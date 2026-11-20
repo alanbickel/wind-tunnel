@@ -4,7 +4,7 @@ A short introduction to how a cloud service type (Lambda, RDS, …) is described
 
 Code: [`src/domain/components/`](../../src/domain/components/).
 
-> **Status:** the interface, registry, validation, contract checker, and the five MVP service types exist, and the [engine](simulation-engine.md#the-engine-loop-a-requests-journey) drives them.
+> **Status:** the interface, registry, validation, contract checker, and six AWS service types (the MVP's five, and S3) exist, and the [engine](simulation-engine.md#the-engine-loop-a-requests-journey) drives them.
 
 ## Three pieces
 
@@ -111,9 +111,9 @@ t(ms)  engine calls           effects returned   inProgress  queueDepth
 80     dispatchFinished m1 ✓  (none)             0           0
 ```
 
-## The five AWS types
+## The AWS types
 
-Code: [`src/domain/components/aws/`](../../src/domain/components/aws/). `createAwsComponentRegistry()` returns a registry with all five.
+Code: [`src/domain/components/aws/`](../../src/domain/components/aws/). `createAwsComponentRegistry()` returns a registry with all six.
 
 | `type` | Built from | Rejects with (`rejectionReasons`) | Key config | Reports limits (when full) |
 |---|---|---|---|---|
@@ -121,16 +121,18 @@ Code: [`src/domain/components/aws/`](../../src/domain/components/aws/). `createA
 | `lambda` | `ConcurrencyLimit` (reject) + warm environments → cold start + compute | `throttled` | `concurrency`, `coldStart`, `idleTimeoutSec`, `computeTime` | `concurrency` (refuses) |
 | `dynamodb` | one `RateLimit` for reads, one for writes → latency | `throttled` | `readUnitsPerSec`, `writeUnitsPerSec`, `burstSec`, `latency` | `readUnits`, `writeUnits` (both refuse) |
 | `rds` | `ConcurrencyLimit` on connections (reject) → `ConcurrencyLimit` on query workers (queue) → query time | `too-many-connections` | `maxConnections`, `queryWorkers`, `queryTime` | `connections` (refuses), `queryWorkers` (waits, holding `connections`) |
+| `s3` | one `RateLimit` for reads, one for writes → a latency for each | `slow-down` (HTTP 503 Slow Down) | `readsPerSec`, `writesPerSec`, `readLatency`, `writeLatency` | `readRate`, `writeRate` (both refuse) |
 | `sqs` | send latency → unbounded `Queue` → at most `consumerMaxConcurrency` dispatched at once | never | `consumerMaxConcurrency`, `sendLatency` | `consumerConcurrency` (waits, holding nothing) |
 
 Durations (`overhead`, `coldStart`, …) are distributions from [`distribution.ts`](../../src/domain/random/distribution.ts); defaults are mostly lognormal, given as a median and a p99.
 
 A few things to know:
 
-- **API Gateway and DynamoDB share one base.** Each is a spec for `rateLimitedServiceDefinition` ([`rate-limited-service.ts`](../../src/domain/components/rate-limited-service.ts)), not a behavior of its own: its limits, each one's bucket size from the config, and for each action the limit it takes a token from and the setting its service time comes from. Two actions may share either: DynamoDB's reads and writes have their own buckets and share `latency`. The base refuses with the type's one reason when a bucket is empty, and builds a [`RateLimitedServiceBehavior`](../../src/domain/components/rate-limited-service-behavior.ts). Lambda, RDS, and SQS hold work or make it wait, so they keep their own behaviors.
+- **API Gateway, DynamoDB, and S3 share one base.** Each is a spec for `rateLimitedServiceDefinition` ([`rate-limited-service.ts`](../../src/domain/components/rate-limited-service.ts)), not a behavior of its own: its limits, each one's bucket size from the config, and for each action the limit it takes a token from and the setting its service time comes from. Two actions may share either: DynamoDB's reads and writes have their own buckets and share `latency`; S3's have their own of both. The base refuses with the type's one reason when a bucket is empty, and builds a [`RateLimitedServiceBehavior`](../../src/domain/components/rate-limited-service-behavior.ts). Lambda, RDS, and SQS hold work or make it wait, so they keep their own behaviors.
 - **Lambda cold starts are checked lazily.** Each finished invocation leaves a warm environment. An arriving request takes the most recently used one; environments idle longer than `idleTimeoutSec` are dropped at that moment. The concurrency slot covers the cold start, the compute time, and every nested call.
 - **RDS holds a connection while a query waits for a worker.** That's what turns "the database is busy" into "the database refuses connections".
 - **DynamoDB's bucket starts full.** With the default `burstSec: 300`, a table can absorb a long spike before it throttles. Set `burstSec: 0` to see raw provisioned capacity.
+- **S3's buckets hold one second of requests**, and start full, with no burst setting: AWS documents none (S3-3). A bucket holds at least one request, since a request takes a whole token. A component is one key prefix (S3-1), and its rates don't grow during a run (S3-2).
 - **SQS redelivers failed messages immediately**, to the back of the backlog. Real SQS waits for the visibility timeout (30 s by default) and can move a message to a dead-letter queue; both need a timer effect, which ADR-0006 leaves for later.
 
 From [`aws-components.txt`](../../src/domain/traces/aws-components.txt). Lambda: two cold starts, a throttle, a warm reuse, and a cold start again after a long idle period:
@@ -277,7 +279,7 @@ Start from the service's [fidelity profile](../design/fidelity/profile-spec.md),
 7. Add a test that runs `checkComponentContract`, plus unit tests for the type's own behavior.
 8. Register it in `createAwsComponentRegistry` ([`aws/index.ts`](../../src/domain/components/aws/index.ts)), or in a new registry function for another provider.
 9. Write its field descriptors in [`application/details/fields/`](../../src/application/details/fields/) and list them in `createFieldCatalog`: one per setting, saying what it means to a user in AWS terms, its default's evidence, and for a number its range; and a `purpose`, the line the dock's Library shows after the type's name, such as "the front door; throttles requests over its rate." for API Gateway. Give its `edgeEvidence` too: how sure each of its `edgeDefaults` is (`ASSUMED_EDGE_EVIDENCE` for `AWS_EDGE_DEFAULTS`). The evidence must match its profile's [defaults table](../design/fidelity/profile-spec.md#default-values-and-their-evidence) and the engine page's edge rows: `field-evidence.test.ts` fails until every setting has evidence and it matches, and `field-ranges.test.ts` until each range agrees with the config schema. The Details tab and the Library then cover the type with no UI code, and `component-types.test.ts` fails for a registered type without its descriptors and `purpose`.
-10. Write its findings advice in a `<type>-advice.ts` in [`application/run-analysis/findings/catalog/`](../../src/application/run-analysis/findings/catalog/) and list it in `createFindingsCatalog`: words for each rejection reason and each limit, at both lengths, and for each limit the fixes you know, each with its claim and the fidelity entries behind it. The findings print a reason or limit without words as its ID, and show no fix for a limit without advice. See [`rds-advice.ts`](../../src/application/run-analysis/findings/catalog/rds-advice.ts).
+10. Write its findings advice in a `<type>-advice.ts` in [`application/run-analysis/findings/catalog/`](../../src/application/run-analysis/findings/catalog/) and list it in `createFindingsCatalog`: words for each rejection reason and each limit, at both lengths, and for each limit the fixes you know, each with its claim and the fidelity entries behind it. The findings print a reason or limit without words as its ID, and show no fix for a limit without advice. For now a type's words are its raw IDs, and two tests list every type's by hand: `create-phrasebook.test.ts` its limits, and `catalog-evidence.test.ts` its limits with advice; add the type's to both. See [`rds-advice.ts`](../../src/application/run-analysis/findings/catalog/rds-advice.ts).
 11. Add its icon from react-aws-icons to `COMPONENT_ICONS` in [`ui/diagram/component-icons.ts`](../../src/ui/diagram/component-icons.ts), wrapped in `iconOf`. That's the only UI code a type adds.
 
 What fails when a piece is missing, for a registered type:

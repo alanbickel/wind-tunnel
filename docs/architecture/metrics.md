@@ -137,6 +137,7 @@ A number like "90 connections" means little until you know the limit is 90. Each
 | RDS | `connections` | concurrency | refuses: `too-many-connections` |
 | RDS | `queryWorkers` | concurrency | makes work wait, holding `connections` |
 | DynamoDB | `readUnits`, `writeUnits` | rate | refuses: `throttled` |
+| S3 | `readRate`, `writeRate` | rate | refuses: `slow-down` |
 | SQS | `consumerConcurrency` | concurrency | makes work wait, holding nothing |
 
 A behavior exposes `limits`, an array of live views built once from its `ConcurrencyLimit`s and `RateLimit`s:

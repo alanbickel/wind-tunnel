@@ -3,6 +3,7 @@ import { apiGatewayFields } from "./fields/api-gateway-fields";
 import { dynamoDbFields } from "./fields/dynamo-db-fields";
 import { lambdaFields } from "./fields/lambda-fields";
 import { rdsFields } from "./fields/rds-fields";
+import { s3Fields } from "./fields/s3-fields";
 import { sqsFields } from "./fields/sqs-fields";
 
 /** Every type's settings. A new type adds a file and one line here. */
@@ -12,6 +13,7 @@ const FIELDS: readonly TypeFields[] = [
   rdsFields,
   sqsFields,
   dynamoDbFields,
+  s3Fields,
 ];
 
 /** The default descriptors of each component type's settings, keyed by type. */

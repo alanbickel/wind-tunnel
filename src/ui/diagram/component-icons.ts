@@ -2,6 +2,7 @@ import APIGateway from "react-aws-icons/dist/aws/logo/APIGateway";
 import DynamoDB from "react-aws-icons/dist/aws/logo/DynamoDB";
 import Lambda from "react-aws-icons/dist/aws/logo/Lambda";
 import RDS from "react-aws-icons/dist/aws/logo/RDS";
+import S3 from "react-aws-icons/dist/aws/logo/S3";
 import SQS from "react-aws-icons/dist/aws/logo/SQS";
 import { iconOf, type Icon } from "./icon-of";
 
@@ -14,5 +15,6 @@ export const COMPONENT_ICONS: Readonly<Record<string, Icon>> = {
   dynamodb: iconOf(DynamoDB),
   lambda: iconOf(Lambda),
   rds: iconOf(RDS),
+  s3: iconOf(S3),
   sqs: iconOf(SQS),
 };

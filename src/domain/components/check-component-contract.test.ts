@@ -16,7 +16,10 @@ import {
   type ConcurrencySource,
   type RateSource,
 } from "./limit-gauges";
+import { z } from "zod";
 import {
+  itemStoreDefinition,
+  itemStoreReadSettings,
   messageQueueDefinition,
   workerPoolDefinition,
 } from "./testing/fake-definitions";
@@ -147,6 +150,13 @@ describe("checkComponentContract", () => {
     expect(report.stats.started).toBeGreaterThan(0);
     expect(report.stats.queued).toBeGreaterThan(0);
     expect(report.stats.rejected).toBeGreaterThan(0);
+  });
+
+  // Fails if the harness stops sending a read's default settings, so the store's read times are NaN.
+  it("passes a type whose reads take request settings, sending their defaults", () => {
+    const report = checkComponentContract(itemStoreDefinition);
+    expect(report.violations).toEqual([]);
+    expect(report.stats.started).toBeGreaterThan(0);
   });
 
   it("passes a correct queue, including redelivery after failures", () => {
@@ -510,6 +520,39 @@ describe("checkComponentContract", () => {
         edgeDefaults: edgeDefaults as EdgeSettings,
       };
       expect(firstViolation(def)).toMatch(/edgeDefaults/);
+    });
+
+    // Fails if checkRequestSettings stops checking that a schema gives every field a default.
+    it("request settings with a field that has no default", () => {
+      const def = {
+        ...itemStoreDefinition,
+        requestSettings: {
+          read: itemStoreReadSettings.extend({ colour: z.string() }),
+        },
+      };
+      expect(firstViolation(def)).toMatch(
+        /requestSettings.read doesn't parse {}/,
+      );
+    });
+
+    // Fails if checkRequestSettings stops checking that a schema is strict.
+    it("request settings that accept a key they don't know", () => {
+      const def = {
+        ...itemStoreDefinition,
+        requestSettings: { read: itemStoreReadSettings.loose() },
+      };
+      expect(firstViolation(def)).toMatch(/requestSettings.read accepts a key/);
+    });
+
+    // Fails if checkRequestSettings stops checking that each schema is for an accepted action.
+    it("request settings for an action the type doesn't accept", () => {
+      const def = {
+        ...itemStoreDefinition,
+        requestSettings: { invoke: itemStoreReadSettings },
+      };
+      expect(firstViolation(def)).toMatch(
+        /requestSettings.invoke is for an action/,
+      );
     });
   });
 });

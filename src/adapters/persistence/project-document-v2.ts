@@ -8,7 +8,8 @@ import { edgeSettingsSchema } from "../../domain/model/edge-settings";
 // included; edges' ends) belong to `validateArchitecture`, and each
 // component's `config` to its definition (`validateComponents`);
 // `loadProject` runs all three. Rules for workflows and workloads (steps
-// following edges, mixes naming workflows) are run checks (`findRunIssues`),
+// following edges, a step's request settings fitting its component, mixes
+// naming workflows) are run checks (`findRunIssues`),
 // which stop a run, not loading.
 //
 // Objects are strict: an unknown key is an error, so a typo in a template
@@ -39,6 +40,11 @@ const stepSchema = z.strictObject({
   id,
   componentId: id,
   action: z.enum(["invoke", "read", "write", "enqueue"]),
+  /**
+   * Only the request settings the step sets (ADR-0024). Checked against
+   * the called type's action by the run checks, not here.
+   */
+  settings: z.record(z.string(), z.unknown()).optional(),
   get calls() {
     return z.array(stepSchema).optional();
   },

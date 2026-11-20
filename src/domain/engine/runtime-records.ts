@@ -1,4 +1,7 @@
-import type { ComponentBehavior } from "../components/component-behavior";
+import type {
+  ComponentBehavior,
+  RequestSettings,
+} from "../components/component-behavior";
 import type { Edge, Step } from "../model/project";
 import type { Failure } from "./simulation-events";
 
@@ -34,6 +37,8 @@ export interface UserRequest {
  */
 export interface Call {
   readonly step: Step;
+  /** The step's request settings, parsed, as `arrive` gets them. */
+  readonly settings: RequestSettings;
   readonly target: RuntimeComponent;
   readonly edge: Edge | undefined;
   readonly request: UserRequest;

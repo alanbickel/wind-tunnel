@@ -59,3 +59,7 @@ What each method may return, and every rule above, is unchanged. Measured with t
 ## Addendum, 2026-10-26
 
 The checks that use `actions` and `deliversAsync` moved from `validateComponents` to `findStepIssues`, when the project's checks were split into architecture checks and run checks ([ADR-0019](0019-edit-projects-with-commands-and-save-each-change.md), [#94](https://github.com/alanbickel/wind-tunnel/issues/94)). A step whose action its component doesn't accept is now a run issue: it stops a run of the workloads that use the workflow, not a save or an open. `validateComponents` keeps the checks on the components themselves. This decision is unchanged.
+
+## Addendum, 2026-11-20
+
+`arrive`'s input gained a field: `arrive({ request, action, settings, nowMs })`. `settings` is the calling step's request settings for `action`, parsed by the type's schema with its defaults filled in, and `{}` for an action that takes none ([ADR-0024](0024-carry-request-settings-on-the-step.md), [#304](https://github.com/alanbickel/wind-tunnel/issues/304)). The engine passes them through without reading them. `finish` and `dispatchFinished` are unchanged, and so is this decision: a component still returns effects and never schedules events.

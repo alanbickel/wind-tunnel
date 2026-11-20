@@ -40,11 +40,24 @@ export interface DispatchedEffect<T> {
   readonly request: T;
 }
 
+/**
+ * A step's request settings for its action, parsed by the type's schema
+ * with its defaults filled in (ADR-0024). A type reads them as its schema's
+ * output type: the registry parsed them with that schema.
+ */
+export type RequestSettings = Readonly<Record<string, unknown>>;
+
 /** A request arrives at the component. */
 export interface ArriveInput<T> {
   readonly request: T;
   /** What the step asks for; one of the definition's `actions`. */
   readonly action: StepAction;
+  /**
+   * The calling step's request settings for `action`, with every default
+   * filled in; `{}` for an action that takes none. The same for every
+   * arrival from one step. The engine never reads them.
+   */
+  readonly settings: RequestSettings;
   /** The current simulated time. */
   readonly nowMs: number;
 }

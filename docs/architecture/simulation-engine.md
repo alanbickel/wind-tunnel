@@ -163,7 +163,7 @@ Two kinds of "event" meet in the loop, and the code names them apart. What `Simu
 | `Simulation` | [`simulation.ts`](../../src/domain/engine/simulation.ts) | The loop: calls, attempts, timeouts, retries, and turning component effects into events |
 | `ScheduledWork` | [`scheduled-work.ts`](../../src/domain/engine/scheduled-work.ts) | What the loop schedules on its `EventQueue` and handles when it falls due |
 | `SimulationEvent`, `SimulationInput` | [`simulation-events.ts`](../../src/domain/engine/simulation-events.ts) | The public types: what a run takes, and the events it reports to the observer |
-| `Topology` | [`topology.ts`](../../src/domain/engine/topology.ts), [`project-topology.ts`](../../src/domain/engine/project-topology.ts) | Looks up a run's components, edges, and workflows; builds each component's behavior from the registry |
+| `Topology` | [`topology.ts`](../../src/domain/engine/topology.ts), [`project-topology.ts`](../../src/domain/engine/project-topology.ts) | Looks up a run's components, edges, and workflows; builds each component's behavior from the registry, and parses the request settings of each step the workload runs ([ADR-0024](../adr/0024-carry-request-settings-on-the-step.md)) |
 | `Call`, `Attempt`, `Visit` | [`runtime-records.ts`](../../src/domain/engine/runtime-records.ts) | The records a run creates: a request makes calls, a call makes attempts, an attempt becomes a visit |
 | `TickSampler` | [`tick-sampler.ts`](../../src/domain/engine/tick-sampler.ts), [`interval-tick-sampler.ts`](../../src/domain/engine/interval-tick-sampler.ts), [`no-tick-sampler.ts`](../../src/domain/engine/no-tick-sampler.ts) (runs without `tickMs`) | Reports a `metrics-tick` with every component's state every `tickMs`, and tracks peaks between ticks |
 
@@ -224,6 +224,7 @@ classDiagram
         component(id)
         edgeFor(fromId, toId)
         workflow(id)
+        settingsFor(step)
     }
     class ArrivalProcess {
         <<interface>>
@@ -268,7 +269,7 @@ sequenceDiagram
     participant T as Target (e.g. db)
     C->>E: nested call
     E->>E: schedule arrival (+latency) and timeout (+timeoutMs)
-    E->>T: arrive()
+    E->>T: arrive(action, the step's settings)
     T-->>E: started (serviceMs) / queued / rejected
     Note over E,T: after serviceMs: the target's own nested calls, in order
     E->>T: finish()

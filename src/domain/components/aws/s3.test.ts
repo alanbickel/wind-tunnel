@@ -27,6 +27,7 @@ function readsAt(
       s3.arrive({
         request: `r${String(nowMs)}-${String(i)}`,
         action: "read",
+        settings: {},
         nowMs,
       })[0]?.kind ?? "none",
   );
@@ -57,15 +58,15 @@ describe("s3Definition", () => {
   // over the rate is served or refused with another reason.
   it("refuses reads and writes over their own rates with slow-down", () => {
     const s3 = build({ readsPerSec: 1, writesPerSec: 1 });
-    expect(s3.arrive({ request: "r1", action: "read", nowMs: 0 })).toEqual([
-      { kind: "started", request: "r1", serviceMs: 20 },
-    ]);
-    expect(s3.arrive({ request: "r2", action: "read", nowMs: 0 })).toEqual([
-      { kind: "rejected", request: "r2", reason: "slow-down" },
-    ]);
-    expect(s3.arrive({ request: "w1", action: "write", nowMs: 0 })).toEqual([
-      { kind: "started", request: "w1", serviceMs: 30 },
-    ]);
+    expect(
+      s3.arrive({ request: "r1", action: "read", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "started", request: "r1", serviceMs: 20 }]);
+    expect(
+      s3.arrive({ request: "r2", action: "read", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "rejected", request: "r2", reason: "slow-down" }]);
+    expect(
+      s3.arrive({ request: "w1", action: "write", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "started", request: "w1", serviceMs: 30 }]);
     expect(s3.inProgress).toBe(2);
   });
 

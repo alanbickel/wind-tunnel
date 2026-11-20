@@ -355,11 +355,13 @@ describe("the other commands, on the async tree", () => {
     }
   });
 
-  // Fails if removing the async root drops the queue's calls, keeps its
-  // async field, takes an edge with it, or touches the input.
-  it("removeStep on the root leaves the slot empty, the queue's calls and every edge as they were", () => {
+  // Fails if removing the async root drops the queue's calls or request
+  // settings (withoutAsync must name each field it keeps), keeps its async
+  // field, takes an edge with it, or touches the input.
+  it("removeStep on the root leaves the slot empty, the queue's calls, settings, and every edge as they were", () => {
     const calls = [step("kept")];
-    const both = ordersWith({ async: writerStep, calls });
+    const settings = { batchSize: 10 };
+    const both = ordersWith({ async: writerStep, calls, settings });
     const before = copyOf(both);
 
     const next = removeStep(both, {
@@ -370,6 +372,7 @@ describe("the other commands, on the async tree", () => {
     const queue = queueOf(next);
     expect(queue).not.toHaveProperty("async");
     expect(queue.calls).toEqual(calls);
+    expect(queue.settings).toEqual(settings);
     expect(findStep(orders(next), "write-db")).toBeUndefined();
     expect(next.project.architecture).toBe(both.project.architecture);
     expect(both).toEqual(before);

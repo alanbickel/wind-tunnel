@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SeededRandom } from "../random/seeded-random";
 import { ComponentRegistryMap } from "./component-registry-map";
 import {
+  itemStoreDefinition,
   messageQueueDefinition,
   workerPoolDefinition,
 } from "./testing/fake-definitions";
@@ -47,10 +48,20 @@ describe("ComponentRegistryMap", () => {
       { random: new SeededRandom(1) },
     );
     expect(
-      behavior?.arrive({ request: "a", action: "invoke", nowMs: 0 }),
+      behavior?.arrive({
+        request: "a",
+        action: "invoke",
+        settings: {},
+        nowMs: 0,
+      }),
     ).toEqual([{ kind: "started", request: "a", serviceMs: 5 }]);
     expect(
-      behavior?.arrive({ request: "b", action: "invoke", nowMs: 0 }),
+      behavior?.arrive({
+        request: "b",
+        action: "invoke",
+        settings: {},
+        nowMs: 0,
+      }),
     ).toEqual([{ kind: "queued", request: "b" }]);
   });
 
@@ -59,5 +70,46 @@ describe("ComponentRegistryMap", () => {
     expect(() =>
       type?.build({ workers: 0 }, { random: new SeededRandom(1) }),
     ).toThrow();
+  });
+
+  describe("request settings", () => {
+    const store = () =>
+      new ComponentRegistryMap()
+        .register(itemStoreDefinition)
+        .get("test-item-store");
+
+    // Fails if parseSettings stops parsing with the action's schema, so the defaults aren't filled in.
+    it("fills in the defaults a step doesn't set", () => {
+      expect(store()?.parseSettings("read", { itemSizeKb: 40 })).toEqual({
+        itemSizeKb: 40,
+        msPerKb: 1,
+      });
+      expect(store()?.parseSettings("read", undefined)).toEqual({
+        itemSizeKb: 4,
+        msPerKb: 1,
+      });
+    });
+
+    // Fails if an action with no schema accepts any settings, or parses to anything but {}.
+    it("gives an action that takes none {}, and takes no keys for it", () => {
+      expect(store()?.parseSettings("write", undefined)).toEqual({});
+      expect(store()?.checkSettings("write", {})).toEqual([]);
+      expect(store()?.checkSettings("write", { itemSizeKb: 4 })).toEqual([
+        { path: [], message: expect.stringContaining("itemSizeKb") as string },
+      ]);
+      expect(() =>
+        store()?.parseSettings("write", { itemSizeKb: 4 }),
+      ).toThrow();
+    });
+
+    // Fails if checkSettings stops reporting each problem with its path into the settings.
+    it("checks settings with the action's schema, with paths relative to them", () => {
+      expect(store()?.checkSettings("read", undefined)).toEqual([]);
+      const issues = store()?.checkSettings("read", {
+        itemSizeKb: 0,
+        colour: "red",
+      });
+      expect(issues?.map((i) => i.path)).toEqual([["itemSizeKb"], []]);
+    });
   });
 });

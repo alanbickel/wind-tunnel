@@ -159,7 +159,11 @@ describe("moveStep and removeStep", () => {
       calls: [step("consumer-db"), step("consumer-log")],
     }),
   });
-  const fn = step("fn", { calls: [step("read"), step("write"), enqueue] });
+  const fnSettings = { memoryMb: 256 };
+  const fn = step("fn", {
+    settings: fnSettings,
+    calls: [step("read"), step("write"), enqueue],
+  });
   const create: Workflow = {
     id: "create",
     name: "Create order",
@@ -246,15 +250,18 @@ describe("moveStep and removeStep", () => {
   });
 
   // Fails if the last call leaves `calls: []` behind, so a step that has
-  // none stores differently from one that never had any.
-  it("leaves a step with no calls without a calls field", () => {
+  // none stores differently from one that never had any; or if withCalls
+  // drops the step's request settings when it rebuilds it.
+  it("leaves a step with no calls without a calls field, and keeps its settings", () => {
     const next = removeStep(
       removeStep(record, { workflowId: "create", stepId: "read" }),
       { workflowId: "create", stepId: "write" },
     );
     const only = removeStep(next, { workflowId: "create", stepId: "enq" });
 
-    expect(only.project.workflows[1]?.root.calls?.[0]).toEqual(step("fn"));
+    expect(only.project.workflows[1]?.root.calls?.[0]).toEqual(
+      step("fn", { settings: fnSettings }),
+    );
   });
 
   // Fails if removeStep takes a workflow's root, or returns a new record for

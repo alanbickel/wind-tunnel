@@ -184,14 +184,15 @@ export interface ChangeStepInput extends StepInput {
  * Changes a step's component and action together, so it's never left
  * without either. The step keeps its id and loses everything under it,
  * `calls` and `async` alike (ADR-0021 decision 3): what's under a step
- * belongs to what the step was. A step changed to `enqueue` has an empty
- * async slot, which is stored as no `async`. Like `addCall`, it never adds
- * an edge: a change to a component the step's caller has no edge to
- * returns the record as it was. The root has no caller, so it can change to
- * any component. A step that isn't in the workflow returns the record as it
- * was; so does a change to what the step already is. A step may change its
- * action alone when its edge has gone: it adds no dependence. The caller of
- * an async root is its queue.
+ * belongs to what the step was. So do its request `settings`, which belong
+ * to the action of the type it called (ADR-0024 decision 5.1). A step
+ * changed to `enqueue` has an empty async slot, which is stored as no
+ * `async`. Like `addCall`, it never adds an edge: a change to a component
+ * the step's caller has no edge to returns the record as it was. The root
+ * has no caller, so it can change to any component. A step that isn't in
+ * the workflow returns the record as it was; so does a change to what the
+ * step already is. A step may change its action alone when its edge has
+ * gone: it adds no dependence. The caller of an async root is its queue.
  */
 export function changeStep(
   record: ProjectRecord,
@@ -206,7 +207,7 @@ export function changeStep(
   }
   const caller = holderOf(workflow, stepId);
   if (lacksEdge(record, { step, caller, componentId })) return record;
-  // Names id, componentId and action only, so calls and async go.
+  // Names id, componentId and action only, so settings, calls and async go.
   const change = (s: Step): Step =>
     s.id === stepId ? { id: s.id, componentId, action } : s;
   return withWorkflow(record, {
@@ -370,13 +371,25 @@ function withWorkflow(record: ProjectRecord, changed: Workflow): ProjectRecord {
 
 /** The step without its async work, naming every field it keeps. */
 function withoutAsync(step: Step): Step {
-  const { id, componentId, action, calls } = step;
-  return { id, componentId, action, ...(calls && { calls }) };
+  const { id, componentId, action, settings, calls } = step;
+  return {
+    id,
+    componentId,
+    action,
+    ...(settings && { settings }),
+    ...(calls && { calls }),
+  };
 }
 
 /** The step with these calls; a step with none has no `calls` at all. */
 function withCalls(step: Step, calls: readonly Step[]): Step {
   if (calls.length > 0) return { ...step, calls };
-  const { id, componentId, action, async } = step;
-  return { id, componentId, action, ...(async && { async }) };
+  const { id, componentId, action, settings, async } = step;
+  return {
+    id,
+    componentId,
+    action,
+    ...(settings && { settings }),
+    ...(async && { async }),
+  };
 }

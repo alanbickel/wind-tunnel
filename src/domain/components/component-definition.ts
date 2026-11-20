@@ -2,13 +2,22 @@ import type { z } from "zod";
 import type { EdgeSettings } from "../model/edge-settings";
 import type { StepAction } from "../model/project";
 import type { RandomSource } from "../random/random-source";
-import type { ComponentBehavior } from "./component-behavior";
+import type { ComponentBehavior, RequestSettings } from "./component-behavior";
 
 /** What a definition gets from the engine when it builds a component. */
 export interface BuildContext {
   /** The run's seeded randomness; service times are sampled from it. */
   readonly random: RandomSource;
 }
+
+/**
+ * The request settings each action takes: a strict Zod object schema whose
+ * every field has a `.default()`, so parsing `{}` gives all the defaults
+ * (ADR-0024). An action left out takes none.
+ */
+export type RequestSettingsSchemas = Readonly<
+  Partial<Record<StepAction, z.ZodType<RequestSettings>>>
+>;
 
 /**
  * Describes one component type, e.g. "lambda": its config and how to build
@@ -36,6 +45,13 @@ export interface ComponentDefinition<Config> {
   readonly edgeDefaults: EdgeSettings;
   /** Step actions this type accepts, e.g. `["read", "write"]`. */
   readonly actions: readonly StepAction[];
+  /**
+   * The settings a step may give each of `actions`, for a request whose
+   * cost or time depends on the call rather than the component: a
+   * DynamoDB read's item size, an S3 object's size (ADR-0024). Left out by
+   * a type whose actions take none. `arrive` gets them parsed.
+   */
+  readonly requestSettings?: RequestSettingsSchemas;
   /**
    * True for queue-like types that run the `async` step of the requests they
    * accept, using `dispatched` effects. Only these may be the target of a

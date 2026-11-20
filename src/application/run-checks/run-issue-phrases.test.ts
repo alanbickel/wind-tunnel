@@ -39,6 +39,28 @@ const STEP_ISSUES: readonly (readonly [StepIssue, string])[] = [
     { kind: "async-not-delivered", path: [], componentId: "fn" },
     "[a] gives <fn> async work to deliver, but only queue-like components can deliver it.",
   ],
+  [
+    {
+      kind: "invalid-request-settings",
+      path: [],
+      settingPath: ["itemSizeKb"],
+      componentId: "db",
+      action: "read",
+      message: "Too big: expected number to be <=400",
+    },
+    '[a] gives <db> an invalid itemSizeKb for "read" (Too big: expected number to be <=400).',
+  ],
+  [
+    {
+      kind: "invalid-request-settings",
+      path: [],
+      settingPath: [],
+      componentId: "db",
+      action: "write",
+      message: 'Unrecognized key: "colour"',
+    },
+    '[a] gives <db> invalid request settings for "write" (Unrecognized key: "colour").',
+  ],
 ];
 
 const WORKLOAD_ISSUES: readonly (readonly [WorkloadIssue, string])[] = [

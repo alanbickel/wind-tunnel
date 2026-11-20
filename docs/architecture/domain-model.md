@@ -43,7 +43,9 @@ flowchart LR
 
 Thick arrows are this workflow's calls; the dotted one is an edge this workflow doesn't use ("Get order" does). Every thick arrow must sit on an edge, because the edge supplies the call's latency, timeout, and retry policy. The `async` step is different from a nested call: the user's request completes once the message is enqueued, and the queue calls `fn-writer` later.
 
-Each step has an `id`, unique among all the project's steps. It's how the screen selects a step and how an edit names one, since a step's path in the tree shifts when a sibling moves or is removed. It's identity, not content: the engine and metrics never read it, and it's never shown; a step is named by its component and action ([ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)). [`step-tree.ts`](../../src/domain/model/step-tree.ts) walks a project's steps (`stepsOf`, each with its path) or one workflow's (`stepsOfWorkflow`), and rebuilds a tree (`mapSteps`); use them rather than writing the recursion again.
+Each step has an `id`, unique among all the project's steps. It's how the screen selects a step and how an edit names one, since a step's path in the tree shifts when a sibling moves or is removed. It's identity, not content: the engine and metrics never read it, and it's never shown; a step is named by its component and action ([ADR-0020](../adr/0020-give-workflow-steps-stable-ids.md)). A step may also carry **request settings** (`settings`): what it tells the component it calls about this request, for its action, such as a read's item size. It stores only the values it sets, and a step that sets none has no `settings`; the component's type declares what each action takes, and the defaults the rest follow ([ADR-0024](../adr/0024-carry-request-settings-on-the-step.md), [Component definitions](component-definitions.md#request-settings)).
+
+[`step-tree.ts`](../../src/domain/model/step-tree.ts) walks a project's steps (`stepsOf`, each with its path) or one workflow's (`stepsOfWorkflow`), and rebuilds a tree (`mapSteps`); use them rather than writing the recursion again.
 
 ## Validation: who checks what
 
@@ -87,6 +89,7 @@ Run rules (`findStepIssues` for steps, `findWorkloadIssues` for workloads):
 
 - Every step targets an existing component, and every call (including `async` ones) follows an edge in the right direction.
 - The target's type accepts the step's action, and only an `enqueue` step on a queue-like (`deliversAsync`) component has `async` work.
+- The step's request settings fit what its type takes for its action (`invalid-request-settings`, one per problem, with a path into the step's `settings`). They aren't checked for a step whose component is gone or whose action isn't accepted, which already has its issue.
 - A workload's mix is non-empty, names existing workflows once each, and has positive weights.
 - A workload's profile is non-empty, its times strictly increase, and its rates aren't negative.
 
@@ -100,5 +103,5 @@ run           workloads.0.mix.0.workflowId  unknown-workflow
 run           workloads.0.profile.1.atMs    profile-time-not-increasing
 ```
 
-Rules that depend on a component's type (for example, "only queues accept `enqueue`" or "this Lambda's config is valid") ask the registry, so neither group changes when a new component type is added; see [Component definitions](component-definitions.md#type-specific-validation).
+Rules that depend on a component's type (for example, "only queues accept `enqueue`", "this Lambda's config is valid", or "a read takes these request settings") ask the registry, so neither group changes when a new component type is added; see [Component definitions](component-definitions.md#type-specific-validation).
 

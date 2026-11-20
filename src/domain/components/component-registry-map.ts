@@ -1,6 +1,16 @@
+import { z } from "zod";
+import type { StepAction } from "../model/project";
+import type { ValidationIssue } from "../model/validation-issue";
 import { issuesFromZod } from "../model/zod-issues";
-import type { ComponentDefinition } from "./component-definition";
+import type { RequestSettings } from "./component-behavior";
+import type {
+  ComponentDefinition,
+  RequestSettingsSchemas,
+} from "./component-definition";
 import type { ComponentRegistry, ComponentType } from "./component-registry";
+
+/** What an action that takes no request settings accepts: none at all. */
+const NO_SETTINGS: z.ZodType<RequestSettings> = z.strictObject({});
 
 /**
  * A `ComponentRegistry` kept in a `Map`. Factories such as
@@ -18,6 +28,7 @@ export class ComponentRegistryMap implements ComponentRegistry {
       );
     }
     const schema = definition.configSchema;
+    const settingsFor = settingsSchemaFor(definition.requestSettings ?? {});
     this.byType.set(definition.type, {
       type: definition.type,
       displayName: definition.displayName,
@@ -26,11 +37,11 @@ export class ComponentRegistryMap implements ComponentRegistry {
       rejectionReasons: definition.rejectionReasons,
       defaultConfig: definition.defaultConfig,
       edgeDefaults: definition.edgeDefaults,
-      checkConfig(config) {
-        const result = schema.safeParse(config);
-        if (result.success) return [];
-        return issuesFromZod(result.error);
-      },
+      checkConfig: (config) => issuesOf(schema.safeParse(config)),
+      checkSettings: (action, settings) =>
+        issuesOf(settingsFor(action).safeParse(settings ?? {})),
+      parseSettings: (action, settings) =>
+        settingsFor(action).parse(settings ?? {}),
       build(config, context) {
         return definition.build(schema.parse(config), context);
       },
@@ -45,4 +56,16 @@ export class ComponentRegistryMap implements ComponentRegistry {
   list(): ComponentType[] {
     return [...this.byType.values()];
   }
+}
+
+/** Each action's schema, or `NO_SETTINGS` for an action that takes none. */
+function settingsSchemaFor(
+  schemas: RequestSettingsSchemas,
+): (action: StepAction) => z.ZodType<RequestSettings> {
+  return (action) => schemas[action] ?? NO_SETTINGS;
+}
+
+/** A parse's issues; none if it passed. */
+function issuesOf(result: z.ZodSafeParseResult<unknown>): ValidationIssue[] {
+  return result.success ? [] : issuesFromZod(result.error);
 }

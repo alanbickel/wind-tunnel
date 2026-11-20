@@ -50,13 +50,31 @@ export interface AsyncNotDeliveredIssue {
   readonly componentId: string;
 }
 
+/**
+ * A step's request settings don't fit its component's type and action
+ * (ADR-0024): a key the action doesn't take, or a value its schema
+ * rejects. One issue per problem.
+ */
+export interface InvalidRequestSettingsIssue {
+  readonly kind: "invalid-request-settings";
+  /** To the setting, e.g. `[..., "settings", "itemSizeKb"]`; to `settings` for an unknown key. */
+  readonly path: IssuePath;
+  /** The part of `path` after `settings`: `["itemSizeKb"]`, or `[]`. */
+  readonly settingPath: IssuePath;
+  readonly componentId: string;
+  readonly action: StepAction;
+  /** The problem, as the type's schema words it. */
+  readonly message: string;
+}
+
 /** A problem with one of a workflow's steps. */
 export type StepIssue =
   | UnknownComponentIssue
   | MissingEdgeIssue
   | ActionNotAcceptedIssue
   | AsyncNotOnEnqueueIssue
-  | AsyncNotDeliveredIssue;
+  | AsyncNotDeliveredIssue
+  | InvalidRequestSettingsIssue;
 
 /** A workload's mix has no workflows. */
 export interface EmptyMixIssue {

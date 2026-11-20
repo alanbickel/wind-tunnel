@@ -299,6 +299,7 @@ interface StepDocument {
   id: string;                  // unique among the project's steps; never shown (ADR-0020)
   componentId: string;
   action: "invoke" | "read" | "write" | "enqueue";
+  settings?: Record<string, unknown>; // only the request settings the step sets (ADR-0024)
   calls?: StepDocument[];
   async?: StepDocument;
 }

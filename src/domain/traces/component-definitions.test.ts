@@ -54,7 +54,7 @@ describe("traces", () => {
       onPool(
         0,
         `arrive ${id}`,
-        pool.arrive({ request: id, action: "invoke", nowMs: 0 }),
+        pool.arrive({ request: id, action: "invoke", settings: {}, nowMs: 0 }),
       );
     }
     onPool(10, "finish a", pool.finish({ request: "a", nowMs: 10 }));
@@ -77,12 +77,22 @@ describe("traces", () => {
     onQueue(
       0,
       "arrive m1 (enqueue)",
-      queue.arrive({ request: "m1", action: "enqueue", nowMs: 0 }),
+      queue.arrive({
+        request: "m1",
+        action: "enqueue",
+        settings: {},
+        nowMs: 0,
+      }),
     );
     onQueue(
       0,
       "arrive m2 (enqueue)",
-      queue.arrive({ request: "m2", action: "enqueue", nowMs: 0 }),
+      queue.arrive({
+        request: "m2",
+        action: "enqueue",
+        settings: {},
+        nowMs: 0,
+      }),
     );
     onQueue(1, "finish m1", queue.finish({ request: "m1", nowMs: 1 }));
     onQueue(1, "finish m2", queue.finish({ request: "m2", nowMs: 1 }));
@@ -173,19 +183,19 @@ describe("traces", () => {
     lambda.record(
       0,
       "arrive a",
-      fn.arrive({ request: "a", action: "invoke", nowMs: 0 }),
+      fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 }),
       "cold start",
     );
     lambda.record(
       0,
       "arrive b",
-      fn.arrive({ request: "b", action: "invoke", nowMs: 0 }),
+      fn.arrive({ request: "b", action: "invoke", settings: {}, nowMs: 0 }),
       "cold start",
     );
     lambda.record(
       0,
       "arrive c",
-      fn.arrive({ request: "c", action: "invoke", nowMs: 0 }),
+      fn.arrive({ request: "c", action: "invoke", settings: {}, nowMs: 0 }),
       "2 of 2 busy",
     );
     lambda.record(
@@ -203,14 +213,19 @@ describe("traces", () => {
     lambda.record(
       400,
       "arrive d",
-      fn.arrive({ request: "d", action: "invoke", nowMs: 400 }),
+      fn.arrive({ request: "d", action: "invoke", settings: {}, nowMs: 400 }),
       "warm",
     );
     lambda.record(420, "finish d", fn.finish({ request: "d", nowMs: 420 }));
     lambda.record(
       90_000,
       "arrive e",
-      fn.arrive({ request: "e", action: "invoke", nowMs: 90_000 }),
+      fn.arrive({
+        request: "e",
+        action: "invoke",
+        settings: {},
+        nowMs: 90_000,
+      }),
       "idle > 60 s: cold",
     );
 
@@ -226,25 +241,25 @@ describe("traces", () => {
     rds.record(
       0,
       "arrive a",
-      db.arrive({ request: "a", action: "read", nowMs: 0 }),
+      db.arrive({ request: "a", action: "read", settings: {}, nowMs: 0 }),
       "connection 1",
     );
     rds.record(
       0,
       "arrive b",
-      db.arrive({ request: "b", action: "read", nowMs: 0 }),
+      db.arrive({ request: "b", action: "read", settings: {}, nowMs: 0 }),
       "connection 2",
     );
     rds.record(
       0,
       "arrive c",
-      db.arrive({ request: "c", action: "read", nowMs: 0 }),
+      db.arrive({ request: "c", action: "read", settings: {}, nowMs: 0 }),
       "connection 3",
     );
     rds.record(
       0,
       "arrive d",
-      db.arrive({ request: "d", action: "read", nowMs: 0 }),
+      db.arrive({ request: "d", action: "read", settings: {}, nowMs: 0 }),
       "no connection",
     );
     rds.record(
@@ -256,7 +271,7 @@ describe("traces", () => {
     rds.record(
       15,
       "arrive e",
-      db.arrive({ request: "e", action: "read", nowMs: 15 }),
+      db.arrive({ request: "e", action: "read", settings: {}, nowMs: 15 }),
       "a's connection",
     );
     rds.record(30, "finish b", db.finish({ request: "b", nowMs: 30 }));

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
+import {
+  frontCalling,
+  itemStoreProject,
+  itemStoreRegistry,
+  storeRead,
+} from "../../domain/components/testing/item-store-project";
 import type { Project, Step } from "../../domain/model/project";
 import { removeComponent } from "../edits/component-edits";
 import { sampleRecord } from "../testing/sample-record";
@@ -86,6 +92,27 @@ describe("workflowRunChecks", () => {
         "fn-again",
         ["This step calls Function from Table, which has no edge to it."],
       ],
+    ]);
+  });
+
+  // Fails if request settings issues don't reach the step's outline: if
+  // STEP_PATHS gives them a path to no step, or the count leaves them out.
+  it("puts each request settings issue on the step that sets them", () => {
+    const root = frontCalling(storeRead({ itemSizeKb: 0, colour: "red" }));
+    const check = workflowRunChecks({
+      project: itemStoreProject(root),
+      registry: itemStoreRegistry(),
+    }).get("w");
+
+    expect(check?.problems).toBe("2 problems");
+    expect([...(check?.onSteps.keys() ?? [])]).toEqual(["store-read"]);
+    expect(check?.onSteps.get("store-read")).toEqual([
+      expect.stringMatching(
+        /^This step gives store an invalid itemSizeKb for "read"/,
+      ),
+      expect.stringMatching(
+        /^This step gives store invalid request settings for "read"/,
+      ),
     ]);
   });
 });

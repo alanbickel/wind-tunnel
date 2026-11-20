@@ -36,6 +36,30 @@ describe("the project document mapper", () => {
     expect(toProjectDocument(load(template))).toStrictEqual(template);
   });
 
+  // Fails if the schema refuses a step's settings, or either direction of
+  // the mapper drops them, in the root or in a nested call.
+  it("loads and saves a step's request settings unchanged", () => {
+    const [workflow, ...rest] = templateA.workflows;
+    if (workflow === undefined) throw new Error("Template A has a workflow");
+    const [call, ...calls] = workflow.root.calls;
+    if (call === undefined) throw new Error("Its root makes a call");
+    const document = {
+      ...templateA,
+      workflows: [
+        {
+          ...workflow,
+          root: {
+            ...workflow.root,
+            settings: { payloadKb: 2 },
+            calls: [{ ...call, settings: { itemSizeKb: 8 } }, ...calls],
+          },
+        },
+        ...rest,
+      ],
+    };
+    expect(toProjectDocument(load(document))).toStrictEqual(document);
+  });
+
   it("leaves out optional fields the record doesn't have", () => {
     const { id, name, architecture, workflows, workloads } =
       sampleRecord.project;

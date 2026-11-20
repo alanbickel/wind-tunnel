@@ -8,12 +8,14 @@ import type {
   BuildContext,
   ComponentDefinition,
 } from "../component-definition";
+import { ItemStoreBehavior } from "./item-store-behavior";
 import { MessageQueueBehavior } from "./message-queue-behavior";
 import { QUEUE_FULL, WorkerPoolBehavior } from "./worker-pool-behavior";
 
 // Small, correct definitions for tests of the registry, validation, and the
 // contract checker. They also serve as reference implementations of
-// `ComponentBehavior`: one ordinary component and one queue-like one.
+// `ComponentBehavior`: one ordinary component, one queue-like one, and one
+// whose reads take request settings.
 
 /** A new edge from either: fast, with no retries. */
 const TEST_EDGE_DEFAULTS: EdgeSettings = {
@@ -82,5 +84,37 @@ export const messageQueueDefinition: ComponentDefinition<MessageQueueConfig> = {
   edgeDefaults: TEST_EDGE_DEFAULTS,
   build<T>(config: MessageQueueConfig): ComponentBehavior<T> {
     return new MessageQueueBehavior<T>(config);
+  },
+};
+
+const itemStoreConfig = z.object({ writeMs: z.number().nonnegative() });
+type ItemStoreConfig = z.infer<typeof itemStoreConfig>;
+
+/**
+ * A read's request settings: strict, with a default for every field, as
+ * ADR-0024 requires. Writes take none.
+ */
+export const itemStoreReadSettings = z.strictObject({
+  itemSizeKb: z.number().int().min(1).max(400).default(4),
+  msPerKb: z.number().nonnegative().default(1),
+});
+
+/**
+ * A store whose reads take request settings: a read's time is its
+ * `itemSizeKb` × `msPerKb`, so a test sees which settings reached
+ * `arrive`. Writes take `writeMs` and no settings.
+ */
+export const itemStoreDefinition: ComponentDefinition<ItemStoreConfig> = {
+  type: "test-item-store",
+  displayName: "Test item store",
+  configSchema: itemStoreConfig,
+  defaultConfig: { writeMs: 2 },
+  actions: ["read", "write"],
+  requestSettings: { read: itemStoreReadSettings },
+  deliversAsync: false,
+  rejectionReasons: [],
+  edgeDefaults: TEST_EDGE_DEFAULTS,
+  build<T>(config: ItemStoreConfig): ComponentBehavior<T> {
+    return new ItemStoreBehavior<T>(config);
   },
 };

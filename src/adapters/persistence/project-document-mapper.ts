@@ -121,6 +121,7 @@ function toStep(step: StepDocument): Step {
     id: step.id,
     componentId: step.componentId,
     action: step.action,
+    ...(step.settings === undefined ? {} : { settings: { ...step.settings } }),
     ...(step.calls === undefined ? {} : { calls: step.calls.map(toStep) }),
     ...(step.async === undefined ? {} : { async: toStep(step.async) }),
   };
@@ -176,6 +177,7 @@ function toStepDocument(step: Step): StepDocument {
     id: step.id,
     componentId: step.componentId,
     action: step.action,
+    ...(step.settings === undefined ? {} : { settings: { ...step.settings } }),
     ...(step.calls === undefined
       ? {}
       : { calls: step.calls.map(toStepDocument) }),

@@ -37,61 +37,91 @@ describe("lambdaDefinition", () => {
   it("cold-starts the first invocation and reuses the warm environment", () => {
     const fn = build();
     expect(
-      serviceMs(fn.arrive({ request: "a", action: "invoke", nowMs: 0 })),
+      serviceMs(
+        fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 }),
+      ),
     ).toBe(320);
     fn.finish({ request: "a", nowMs: 320 });
     expect(
-      serviceMs(fn.arrive({ request: "b", action: "invoke", nowMs: 400 })),
+      serviceMs(
+        fn.arrive({ request: "b", action: "invoke", settings: {}, nowMs: 400 }),
+      ),
     ).toBe(20);
   });
 
   it("cold-starts when every warm environment is busy", () => {
     const fn = build();
-    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 });
     fn.finish({ request: "a", nowMs: 320 });
     expect(
-      serviceMs(fn.arrive({ request: "b", action: "invoke", nowMs: 400 })),
+      serviceMs(
+        fn.arrive({ request: "b", action: "invoke", settings: {}, nowMs: 400 }),
+      ),
     ).toBe(20);
     expect(
-      serviceMs(fn.arrive({ request: "c", action: "invoke", nowMs: 400 })),
+      serviceMs(
+        fn.arrive({ request: "c", action: "invoke", settings: {}, nowMs: 400 }),
+      ),
     ).toBe(320);
   });
 
   it("goes cold after the idle timeout", () => {
     const fn = build();
-    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 });
     fn.finish({ request: "a", nowMs: 320 });
     expect(
-      serviceMs(fn.arrive({ request: "b", action: "invoke", nowMs: 60_320 })),
+      serviceMs(
+        fn.arrive({
+          request: "b",
+          action: "invoke",
+          settings: {},
+          nowMs: 60_320,
+        }),
+      ),
     ).toBe(320);
   });
 
   it("expires only the environments that have been idle too long", () => {
     const fn = build();
-    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
-    fn.arrive({ request: "b", action: "invoke", nowMs: 0 });
+    fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 });
+    fn.arrive({ request: "b", action: "invoke", settings: {}, nowMs: 0 });
     fn.finish({ request: "a", nowMs: 320 });
     fn.finish({ request: "b", nowMs: 30_000 });
     // At 61 s, the environment a used has been idle for over 60 s; b's hasn't.
     expect(
-      serviceMs(fn.arrive({ request: "c", action: "invoke", nowMs: 61_000 })),
+      serviceMs(
+        fn.arrive({
+          request: "c",
+          action: "invoke",
+          settings: {},
+          nowMs: 61_000,
+        }),
+      ),
     ).toBe(20);
     expect(
-      serviceMs(fn.arrive({ request: "d", action: "invoke", nowMs: 61_000 })),
+      serviceMs(
+        fn.arrive({
+          request: "d",
+          action: "invoke",
+          settings: {},
+          nowMs: 61_000,
+        }),
+      ),
     ).toBe(320);
   });
 
   it("throttles beyond its concurrency, counting cold starts", () => {
     const fn = build();
-    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
-    fn.arrive({ request: "b", action: "invoke", nowMs: 0 });
-    expect(fn.arrive({ request: "c", action: "invoke", nowMs: 0 })).toEqual([
-      { kind: "rejected", request: "c", reason: "throttled" },
-    ]);
+    fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 });
+    fn.arrive({ request: "b", action: "invoke", settings: {}, nowMs: 0 });
+    expect(
+      fn.arrive({ request: "c", action: "invoke", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "rejected", request: "c", reason: "throttled" }]);
     expect(fn.inProgress).toBe(2);
     fn.finish({ request: "a", nowMs: 320 });
     expect(
-      fn.arrive({ request: "c", action: "invoke", nowMs: 320 })[0]?.kind,
+      fn.arrive({ request: "c", action: "invoke", settings: {}, nowMs: 320 })[0]
+        ?.kind,
     ).toBe("started");
     // a and b started cold; c reused a's warm environment.
     expect(fn.counters).toEqual({ coldStarts: 2 });
@@ -103,7 +133,7 @@ describe("lambdaDefinition", () => {
   // throttles.
   it("reports its concurrency and its request rate of 10 × concurrency", () => {
     const fn = build();
-    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
+    fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 });
     expect(limitValues(fn)).toEqual([
       {
         kind: "concurrency",
@@ -131,16 +161,22 @@ describe("lambdaDefinition", () => {
     const fn = build({ computeTime: { kind: "constant", valueMs: 1 } });
     // 20 invocations in the first 10 ms, one at a time: concurrency 1 of 2.
     for (let i = 0; i < 20; i++) {
-      fn.arrive({ request: `r${String(i)}`, action: "invoke", nowMs: i / 2 });
+      fn.arrive({
+        request: `r${String(i)}`,
+        action: "invoke",
+        settings: {},
+        nowMs: i / 2,
+      });
       fn.finish({ request: `r${String(i)}`, nowMs: i / 2 });
     }
-    expect(fn.arrive({ request: "x", action: "invoke", nowMs: 10 })).toEqual([
-      { kind: "rejected", request: "x", reason: "throttled" },
-    ]);
+    expect(
+      fn.arrive({ request: "x", action: "invoke", settings: {}, nowMs: 10 }),
+    ).toEqual([{ kind: "rejected", request: "x", reason: "throttled" }]);
     expect(fn.inProgress).toBe(0);
     // At 20 a second, a token comes back every 50 ms.
     expect(
-      fn.arrive({ request: "y", action: "invoke", nowMs: 60 })[0]?.kind,
+      fn.arrive({ request: "y", action: "invoke", settings: {}, nowMs: 60 })[0]
+        ?.kind,
     ).toBe("started");
   });
 
@@ -148,10 +184,11 @@ describe("lambdaDefinition", () => {
   // (taken 3, not 2).
   it("takes no token for an invocation its concurrency refuses", () => {
     const fn = build();
-    fn.arrive({ request: "a", action: "invoke", nowMs: 0 });
-    fn.arrive({ request: "b", action: "invoke", nowMs: 0 });
+    fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 });
+    fn.arrive({ request: "b", action: "invoke", settings: {}, nowMs: 0 });
     expect(
-      fn.arrive({ request: "c", action: "invoke", nowMs: 0 })[0]?.kind,
+      fn.arrive({ request: "c", action: "invoke", settings: {}, nowMs: 0 })[0]
+        ?.kind,
     ).toBe("rejected");
     expect(limitValues(fn)[1]).toMatchObject({ taken: 2, tokensLeft: 18 });
   });
@@ -162,7 +199,8 @@ describe("lambdaDefinition", () => {
   it("throttles everything with concurrency 0, at its concurrency", () => {
     const fn = build({ concurrency: 0 });
     expect(
-      fn.arrive({ request: "a", action: "invoke", nowMs: 0 })[0]?.kind,
+      fn.arrive({ request: "a", action: "invoke", settings: {}, nowMs: 0 })[0]
+        ?.kind,
     ).toBe("rejected");
     expect(limitValues(fn)).toMatchObject([
       { name: "concurrency", limit: 0, inUse: 0 },

@@ -77,7 +77,8 @@ function checkOf(
  * The path to the step an issue is on. Most issues' paths go on into a
  * field of the step, which `stepAt` stops at; but a path that ends in
  * `async` would lead it on into the async work, so an issue about the
- * step's own `async` drops it. A missing edge's path is to the step called.
+ * step's own `async` drops it. A missing edge's path is to the step called;
+ * a request setting's goes on into `settings`, where `stepAt` stops.
  */
 function stepPathOf(issue: StepIssue): IssuePath {
   return lookup(STEP_PATHS, issue.kind)(issue.path);
@@ -92,4 +93,5 @@ const STEP_PATHS: Record<StepIssue["kind"], (path: IssuePath) => IssuePath> = {
   "action-not-accepted": toField,
   "async-not-on-enqueue": toField,
   "async-not-delivered": toField,
+  "invalid-request-settings": toStep,
 };

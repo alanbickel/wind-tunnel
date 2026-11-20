@@ -43,6 +43,13 @@ export interface Architecture {
 export type StepAction = "invoke" | "read" | "write" | "enqueue";
 
 /**
+ * A step's request settings as it stores them: only the values set for this
+ * step, each differing from the type's default (ADR-0024). The called type
+ * checks them, and fills in the rest when a run starts.
+ */
+export type StepSettings = Readonly<Record<string, unknown>>;
+
+/**
  * One step of a workflow: a call to a component. Nested `calls` are made in
  * order while this step holds its resources (design §3.3).
  */
@@ -54,6 +61,12 @@ export interface Step {
   readonly id: string;
   readonly componentId: string;
   readonly action: StepAction;
+  /**
+   * The request settings this step sets for its action; absent when it
+   * sets none. They belong to the action of the component's type, so a
+   * change of either drops them (ADR-0024).
+   */
+  readonly settings?: StepSettings;
   readonly calls?: readonly Step[];
   /** Only on `enqueue`: work done later, when a consumer takes the message. */
   readonly async?: Step;

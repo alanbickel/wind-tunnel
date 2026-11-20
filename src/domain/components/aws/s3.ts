@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TokenBucketInput } from "../../behaviors/token-bucket";
+import { oneSecondOf } from "../../behaviors/token-bucket";
 import { distributionSchema } from "../../random/distribution";
 import type { RefuseWhenFull } from "../component-behavior";
 import { rateLimitedServiceDefinition } from "../rate-limited-service";
@@ -52,12 +52,3 @@ export const s3Definition = rateLimitedServiceDefinition({
     write: { limit: "writeRate", serviceTime: "writeLatency" },
   },
 });
-
-/**
- * A bucket that refills at the rate and holds one second of it (S3-3), but
- * at least one request: a request takes a whole token, so a bucket under
- * one would refuse every request at a rate under 1/s.
- */
-function oneSecondOf(ratePerSec: number): TokenBucketInput {
-  return { ratePerSec, burst: Math.max(1, ratePerSec) };
-}

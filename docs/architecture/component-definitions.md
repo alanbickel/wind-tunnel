@@ -118,7 +118,7 @@ Code: [`src/domain/components/aws/`](../../src/domain/components/aws/). `createA
 | `type` | Built from | Rejects with (`rejectionReasons`) | Key config | Reports limits (when full) |
 |---|---|---|---|---|
 | `api-gateway` | `RateLimit` → overhead | `throttled` (HTTP 429) | `ratePerSec`, `burst`, `overhead` | `requestRate` (refuses) |
-| `lambda` | `ConcurrencyLimit` (reject) + warm environments → cold start + compute | `throttled` | `concurrency`, `coldStart`, `idleTimeoutSec`, `computeTime` | `concurrency` (refuses) |
+| `lambda` | `ConcurrencyLimit` (reject) + `RateLimit` of 10 × concurrency a second + warm environments → cold start + compute | `throttled` | `concurrency`, `coldStart`, `idleTimeoutSec`, `computeTime` | `concurrency`, `requestRate` (both refuse) |
 | `dynamodb` | one `RateLimit` for reads, one for writes → latency | `throttled` | `readUnitsPerSec`, `writeUnitsPerSec`, `burstSec`, `latency` | `readUnits`, `writeUnits` (both refuse) |
 | `rds` | `ConcurrencyLimit` on connections (reject) → `ConcurrencyLimit` on query workers (queue) → query time | `too-many-connections` | `maxConnections`, `queryWorkers`, `queryTime` | `connections` (refuses), `queryWorkers` (waits, holding `connections`) |
 | `s3` | one `RateLimit` for reads, one for writes → a latency for each | `slow-down` (HTTP 503 Slow Down) | `readsPerSec`, `writesPerSec`, `readLatency`, `writeLatency` | `readRate`, `writeRate` (both refuse) |

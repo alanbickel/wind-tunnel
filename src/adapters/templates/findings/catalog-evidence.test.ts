@@ -42,6 +42,7 @@ describe("the findings catalog", () => {
   // finding kind's entry is left out of these checks.
   it("has advice for the limits and kinds the findings name", () => {
     expect(entries.map((e) => e.label)).toEqual([
+      "lambda requestRate",
       "rds connections",
       "rds queryWorkers",
       "sqs consumerConcurrency",

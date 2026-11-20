@@ -37,7 +37,7 @@ function problemsWith(fields: Partial<typeof FIELDS>): string[] {
 
 describe("each fidelity entry's fields", () => {
   // Fails if an entry on any page loses one of its four fields, or one of
-  // them stops being well formed (say, LMB-3's Kind written "Both").
+  // them stops being well formed (say, LMB-4's Kind written "Both").
   it("are on every entry of every page, each well formed", () => {
     const entries = Object.values(ENTRY_PAGES).flatMap(entriesOf);
     expect(entries.length).toBeGreaterThan(30);

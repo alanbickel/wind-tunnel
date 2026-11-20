@@ -157,6 +157,7 @@ describe("the default catalog's wording", () => {
     expect(wordedIn("limits")).toEqual([
       "api-gateway requestRate",
       "lambda concurrency",
+      "lambda requestRate",
       "rds connections",
       "rds queryWorkers",
       "sqs consumerConcurrency",

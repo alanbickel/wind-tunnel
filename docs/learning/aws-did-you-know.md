@@ -99,6 +99,13 @@ A cold start (downloading code and running the initialization code outside the h
 **At scale:** concurrency ≈ requests per second × duration, and during a spike the duration includes the cold start. Provisioned concurrency keeps environments initialized ahead of time.
 **Source:** [Lambda execution environment lifecycle](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html), [Understanding Lambda function scaling](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)
 
+### Fast Lambda functions hit a request rate limit before concurrency
+
+Lambda limits requests per second as well as concurrency: **10 × the concurrency limit**, for the account and for a function with reserved concurrency. At the default 1,000, that's 10,000 requests a second. A function that takes 200 ms reaches 1,000 concurrency at 5,000 requests a second, so concurrency runs out first; one that takes 50 ms would need 20,000 a second to fill it, so the rate runs out first, at half its concurrency. Both throttle with `429 TooManyRequestsException`.
+
+**At scale:** for a function under 100 ms, making it faster doesn't raise how much traffic it can take. Only more concurrency does, since the rate is tied to it.
+**Source:** [Understanding Lambda function scaling, concurrency and requests per second](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html#concurrency-vs-requests-per-second)
+
 ### Retries at every layer multiply
 
 If a client makes up to 3 attempts against an API, the Lambda function behind it makes up to 3 attempts at its database call, and the database is the slow part, one user request can become **3 × 3 = 9** database queries. AWS's guidance is to retry at one layer only and to cap retries with a token bucket so a struggling service isn't buried.

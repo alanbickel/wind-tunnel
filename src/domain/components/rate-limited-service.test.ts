@@ -59,15 +59,15 @@ describe("rateLimitedServiceDefinition", () => {
   // comes from another action's setting.
   it("serves each action for its own time, from the bucket they share", () => {
     const service = build();
-    expect(service.arrive({ request: "w", action: "write", nowMs: 0 })).toEqual(
-      [{ kind: "started", request: "w", serviceMs: 7 }],
-    );
-    expect(service.arrive({ request: "r", action: "read", nowMs: 0 })).toEqual([
-      { kind: "rejected", request: "r", reason: "slow-down" },
-    ]);
-    expect(service.arrive({ request: "r", action: "read", nowMs: 10 })).toEqual(
-      [{ kind: "started", request: "r", serviceMs: 2 }],
-    );
+    expect(
+      service.arrive({ request: "w", action: "write", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "started", request: "w", serviceMs: 7 }]);
+    expect(
+      service.arrive({ request: "r", action: "read", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "rejected", request: "r", reason: "slow-down" }]);
+    expect(
+      service.arrive({ request: "r", action: "read", settings: {}, nowMs: 10 }),
+    ).toEqual([{ kind: "started", request: "r", serviceMs: 2 }]);
     expect(limitValues(service, 10)).toMatchObject([
       { name: "requests", whenFull: { reason: "slow-down" }, taken: 2 },
     ]);
@@ -77,7 +77,12 @@ describe("rateLimitedServiceDefinition", () => {
   // action's bucket instead of failing loudly.
   it("throws for an action the type doesn't accept", () => {
     expect(() =>
-      build().arrive({ request: "x", action: "enqueue", nowMs: 0 }),
+      build().arrive({
+        request: "x",
+        action: "enqueue",
+        settings: {},
+        nowMs: 0,
+      }),
     ).toThrow('No action "enqueue"');
   });
 });

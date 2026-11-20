@@ -207,7 +207,16 @@ export class Simulation {
   private call({ step, fromId, request, onSettled }: CallInput): void {
     const target = this.topology.component(step.componentId);
     const edge = this.topology.edgeFor(fromId, step.componentId);
-    this.sendAttempt({ step, target, edge, request, attempts: 0, onSettled });
+    const settings = this.topology.settingsFor(step);
+    this.sendAttempt({
+      step,
+      settings,
+      target,
+      edge,
+      request,
+      attempts: 0,
+      onSettled,
+    });
   }
 
   private sendAttempt(call: Call): void {
@@ -238,6 +247,7 @@ export class Simulation {
     const effects = target.behavior.arrive({
       request: visit,
       action: step.action,
+      settings: attempt.call.settings,
       nowMs: this.nowMs,
     });
     this.apply(target, effects);

@@ -1,6 +1,7 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
 import type { Project } from "../../domain/model/project";
 import type { StepIssue, WorkloadIssue } from "../../domain/model/run-issue";
+import type { IssuePath } from "../../domain/model/validation-issue";
 import {
   handleKind,
   type KindHandlers,
@@ -116,7 +117,24 @@ function stepPhrases(
       `${who} ${verb("gives")} async work to a "${action}" step; only "enqueue" steps can have it.`,
     "async-not-delivered": ({ componentId }) =>
       `${who} ${verb("gives")} ${name(componentId)} async work to deliver, but only queue-like components can deliver it.`,
+    "invalid-request-settings": ({
+      componentId,
+      action,
+      settingPath,
+      message,
+    }) =>
+      `${who} ${verb("gives")} ${name(componentId)} ${invalidSetting(settingPath)} for "${action}" (${message}).`,
   };
+}
+
+/**
+ * What's wrong in a step's request settings: "an invalid itemSizeKb", or
+ * "invalid request settings" when the problem is with the settings as a
+ * whole, such as a key the action doesn't take.
+ */
+function invalidSetting(settingPath: IssuePath): string {
+  if (settingPath.length === 0) return "invalid request settings";
+  return `an invalid ${settingPath.join(".")}`;
 }
 
 /** Each workload issue's sentence. */

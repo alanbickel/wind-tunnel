@@ -54,6 +54,9 @@ export interface ContractReport {
  *   declarations on every read, a held limit that refuses, concurrency use
  *   within the limit, and rate limits taking no more than their burst and
  *   rate allow;
+ * - each action's `requestSettings` schema is for an action the type
+ *   accepts, parses `{}` (every field has a default), and rejects a key it
+ *   doesn't know (ADR-0024);
  * - `rejectionReasons` doesn't list `timeout`, every refusing limit's
  *   reason is on it, and so is every rejection's; a rejection whose reason
  *   a limit declares comes while one such limit is full (see
@@ -105,7 +108,34 @@ function checkDefinition<Config>(
       `rejectionReasons lists "${TIMEOUT_REASON}", which the engine reserves for callers that stop waiting.`,
     );
   }
-  return problems;
+  return [...problems, ...checkRequestSettings(definition)];
+}
+
+/** A key no request settings schema takes, to show a schema is strict. */
+const UNKNOWN_SETTING = "notARequestSetting";
+
+/**
+ * Problems with the definition's request settings schemas: each is for an
+ * action the type accepts, gives a default for every field, and is strict.
+ */
+function checkRequestSettings<Config>(
+  definition: ComponentDefinition<Config>,
+): string[] {
+  const schemas = Object.entries(definition.requestSettings ?? {});
+  return schemas.flatMap(([action, schema]) => {
+    const problems: string[] = [];
+    const name = `requestSettings.${action}`;
+    if (!definition.actions.some((accepted) => accepted === action)) {
+      problems.push(`${name} is for an action the type doesn't accept.`);
+    }
+    if (!schema.safeParse({}).success) {
+      problems.push(`${name} doesn't parse {}: every field needs a default.`);
+    }
+    if (schema.safeParse({ [UNKNOWN_SETTING]: 0 }).success) {
+      problems.push(`${name} accepts a key it doesn't know: make it strict.`);
+    }
+    return problems;
+  });
 }
 
 /** Compares the effect logs of two runs with the same seed. */

@@ -69,6 +69,7 @@ function change(
 function nestedRecord(): ProjectRecord {
   const enq = step("enq", {
     action: "enqueue",
+    settings: { batchSize: 10 },
     calls: [step("call")],
     async: step("consumer", { calls: [step("below")] }),
   });
@@ -187,11 +188,11 @@ describe("changeStep", () => {
     expect(next.project.architecture).toBe(record.project.architecture);
   });
 
-  // Fails if a change of component drops only the calls or only the async
-  // work, or only when the type differs (even a change to another component
-  // of the same type drops what's under the step), or a change of action
-  // alone keeps them.
-  it("drops calls and async work on any change of component or action", () => {
+  // Fails if a change of component drops only the calls, only the async
+  // work, or not the request settings, or only when the type differs (even
+  // a change to another component of the same type drops what's under the
+  // step), or a change of action alone keeps them (ADR-0024 decision 5.1).
+  it("drops calls, async work, and settings on any change of component or action", () => {
     const nested = nestedRecord();
     const toFn = changeStepIn(nested, { componentId: "fn", action: "invoke" });
     const toWrite = changeStepIn(nested, TABLE_WRITE);

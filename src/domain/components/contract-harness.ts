@@ -10,6 +10,7 @@ import type {
   DispatchedEffect,
   Effect,
   RejectedEffect,
+  RequestSettings,
   StartedEffect,
 } from "./component-behavior";
 import type { ComponentDefinition } from "./component-definition";
@@ -233,7 +234,10 @@ export class ContractHarness<Config> {
   private arrive({ request, action }: HarnessRequestDue): void {
     const state: Tracked = { phase: "arriving" };
     this.tracked.set(request, state);
-    this.apply(this.behavior.arrive({ request, action, nowMs: this.nowMs }));
+    const settings = defaultSettings(this.definition, action);
+    this.apply(
+      this.behavior.arrive({ request, action, settings, nowMs: this.nowMs }),
+    );
     if (state.phase !== "arriving") return;
     this.violate(
       request,
@@ -494,4 +498,16 @@ function describeEffect(nowMs: number, effect: Effect<number>): string {
 
 export function emptyStats(): ContractStats {
   return { started: 0, queued: 0, rejected: 0, dispatched: 0 };
+}
+
+/**
+ * What a step that sets no request settings sends with `action`: its
+ * schema's defaults, or `{}` for an action that takes none. The contract
+ * has already checked that each schema parses `{}`.
+ */
+function defaultSettings<Config>(
+  definition: ComponentDefinition<Config>,
+  action: StepAction,
+): RequestSettings {
+  return definition.requestSettings?.[action]?.parse({}) ?? {};
 }

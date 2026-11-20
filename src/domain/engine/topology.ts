@@ -1,4 +1,5 @@
-import type { Edge, Workflow } from "../model/project";
+import type { RequestSettings } from "../components/component-behavior";
+import type { Edge, Step, Workflow } from "../model/project";
 import type { RuntimeComponent } from "./runtime-records";
 
 /**
@@ -15,4 +16,10 @@ export interface Topology {
   edgeFor(fromId: string | undefined, toId: string): Edge | undefined;
   /** The workflow with this ID. */
   workflow(id: string): Workflow;
+  /**
+   * The request settings `step`'s component gets with each arrival from
+   * it, parsed when the run was built (ADR-0024). Only the steps of the
+   * workload's workflows have them.
+   */
+  settingsFor(step: Step): RequestSettings;
 }

@@ -23,9 +23,9 @@ describe("sqsDefinition", () => {
   it("finishes the send, then dispatches up to the consumer's limit", () => {
     const queue = build();
     for (const m of ["m1", "m2", "m3"]) {
-      expect(queue.arrive({ request: m, action: "enqueue", nowMs: 0 })).toEqual(
-        [{ kind: "started", request: m, serviceMs: 10 }],
-      );
+      expect(
+        queue.arrive({ request: m, action: "enqueue", settings: {}, nowMs: 0 }),
+      ).toEqual([{ kind: "started", request: m, serviceMs: 10 }]);
     }
     expect(queue.finish({ request: "m1", nowMs: 10 })).toEqual([
       { kind: "dispatched", request: "m1" },
@@ -43,7 +43,7 @@ describe("sqsDefinition", () => {
   it("reports deliveries in flight against the consumer limit", () => {
     const queue = build();
     for (const m of ["m1", "m2", "m3"]) {
-      queue.arrive({ request: m, action: "enqueue", nowMs: 0 });
+      queue.arrive({ request: m, action: "enqueue", settings: {}, nowMs: 0 });
       queue.finish({ request: m, nowMs: 10 });
     }
     expect(limitValues(queue)).toEqual([
@@ -63,7 +63,7 @@ describe("sqsDefinition", () => {
   it("puts a failed delivery at the back of the backlog", () => {
     const queue = build();
     for (const m of ["m1", "m2", "m3"]) {
-      queue.arrive({ request: m, action: "enqueue", nowMs: 0 });
+      queue.arrive({ request: m, action: "enqueue", settings: {}, nowMs: 0 });
       queue.finish({ request: m, nowMs: 10 });
     }
     expect(

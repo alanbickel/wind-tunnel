@@ -1,7 +1,7 @@
 import type { EdgeSettings } from "../model/edge-settings";
-import type { StepAction } from "../model/project";
+import type { StepAction, StepSettings } from "../model/project";
 import type { ValidationIssue } from "../model/validation-issue";
-import type { ComponentBehavior } from "./component-behavior";
+import type { ComponentBehavior, RequestSettings } from "./component-behavior";
 import type { BuildContext } from "./component-definition";
 
 /**
@@ -21,6 +21,24 @@ export interface ComponentType {
   readonly edgeDefaults: EdgeSettings;
   /** Problems with `config`, with paths relative to the config. */
   checkConfig(config: unknown): ValidationIssue[];
+  /**
+   * Problems with a step's request `settings` for `action`, as the step
+   * stores them, with paths relative to the settings. An action that takes
+   * none accepts only none, or `{}`.
+   */
+  checkSettings(
+    action: StepAction,
+    settings: StepSettings | undefined,
+  ): ValidationIssue[];
+  /**
+   * A step's request settings for `action`, with the defaults filled in,
+   * as `arrive` gets them; `{}` for an action that takes none. Throws if
+   * they're invalid, so check them with `checkSettings` first.
+   */
+  parseSettings(
+    action: StepAction,
+    settings: StepSettings | undefined,
+  ): RequestSettings;
   /**
    * Parses `config` (applying schema defaults) and builds the behavior.
    * Throws if the config is invalid, so check it when the project loads.

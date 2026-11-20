@@ -25,8 +25,9 @@ export type EdgeTargets = ReadonlyMap<string, ReadonlySet<string>>;
 /**
  * A workflow's run issues, at any depth: each step's component exists, a
  * call follows an edge from its caller (and async work one from its
- * queue), the component accepts the step's action, and only an `enqueue`
- * step on a queue-like component has async work. Assumes the architecture
+ * queue), the component accepts the step's action and the step's request
+ * settings for it, and only an `enqueue` step on a queue-like component
+ * has async work. Assumes the architecture
  * passes `findArchitectureIssues`.
  */
 export function findStepIssues(
@@ -115,22 +116,57 @@ function checkEdge(at: StepInput, context: StepContext): void {
   });
 }
 
-/** The step's component accepts its action, and can deliver its async work. */
+/**
+ * The step's component accepts its action and the settings for it, and can
+ * deliver its async work.
+ */
 function checkType(at: TypedStepInput, issues: StepIssue[]): void {
   const { step, path, type } = at;
-  const { componentId, action } = step;
-  if (!type.actions.includes(action)) {
-    issues.push({
-      kind: "action-not-accepted",
-      path: [...path, "action"],
-      componentId,
-      action,
-      accepted: type.actions,
-    });
-  }
+  const { componentId } = step;
+  checkAction(at, issues);
   if (step.async !== undefined && !type.deliversAsync) {
     const asyncPath = [...path, "async"];
     issues.push({ kind: "async-not-delivered", path: asyncPath, componentId });
+  }
+}
+
+/** The step's component accepts its action, and the settings for it. */
+function checkAction(at: TypedStepInput, issues: StepIssue[]): void {
+  const { step, path, type } = at;
+  const { componentId, action } = step;
+  if (type.actions.includes(action)) {
+    checkSettings(at, issues);
+    return;
+  }
+  issues.push({
+    kind: "action-not-accepted",
+    path: [...path, "action"],
+    componentId,
+    action,
+    accepted: type.actions,
+  });
+}
+
+/**
+ * The step's request settings fit its action: one issue per problem. Only
+ * checked once the action is accepted, since settings belong to an action
+ * the type has (ADR-0024 decision 4.3).
+ */
+function checkSettings(at: TypedStepInput, issues: StepIssue[]): void {
+  const { step, path, type } = at;
+  const { componentId, action } = step;
+  for (const { path: settingPath, message } of type.checkSettings(
+    action,
+    step.settings,
+  )) {
+    issues.push({
+      kind: "invalid-request-settings",
+      path: [...path, "settings", ...settingPath],
+      settingPath,
+      componentId,
+      action,
+      message,
+    });
   }
 }
 

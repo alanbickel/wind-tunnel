@@ -32,7 +32,7 @@ export function createSimulation(input: SimulationInput): Simulation {
   const workload = findWorkload(project, input.workloadId);
   const random = input.random ?? seededStreams(workload.seed);
   // Streams are created in this order; scripted sources in tests rely on it.
-  const topology = buildTopology({ project, registry, random });
+  const topology = buildTopology({ project, registry, random, workload });
   const arrivals = new PoissonArrivalProcess({
     workload,
     timing: random("arrivals"),

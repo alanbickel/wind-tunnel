@@ -38,16 +38,18 @@ describe("rdsDefinition", () => {
   // connections refuse and query workers make queries wait holding one.
   it("queues for a worker, then rejects once connections run out", () => {
     const db = build();
-    expect(db.arrive({ request: "a", action: "read", nowMs: 0 })).toEqual([
-      { kind: "started", request: "a", serviceMs: 15 },
-    ]);
-    expect(db.arrive({ request: "b", action: "write", nowMs: 0 })).toEqual([
-      { kind: "queued", request: "b" },
-    ]);
-    expect(db.arrive({ request: "c", action: "read", nowMs: 0 })).toEqual([
-      { kind: "queued", request: "c" },
-    ]);
-    expect(db.arrive({ request: "d", action: "read", nowMs: 0 })).toEqual([
+    expect(
+      db.arrive({ request: "a", action: "read", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "started", request: "a", serviceMs: 15 }]);
+    expect(
+      db.arrive({ request: "b", action: "write", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "queued", request: "b" }]);
+    expect(
+      db.arrive({ request: "c", action: "read", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "queued", request: "c" }]);
+    expect(
+      db.arrive({ request: "d", action: "read", settings: {}, nowMs: 0 }),
+    ).toEqual([
       { kind: "rejected", request: "d", reason: "too-many-connections" },
     ]);
     expect([db.inProgress, db.queueDepth]).toEqual([1, 2]);
@@ -72,14 +74,14 @@ describe("rdsDefinition", () => {
 
   it("hands a freed worker to the next waiter and frees a connection", () => {
     const db = build();
-    db.arrive({ request: "a", action: "read", nowMs: 0 });
-    db.arrive({ request: "b", action: "read", nowMs: 0 });
-    db.arrive({ request: "c", action: "read", nowMs: 0 });
+    db.arrive({ request: "a", action: "read", settings: {}, nowMs: 0 });
+    db.arrive({ request: "b", action: "read", settings: {}, nowMs: 0 });
+    db.arrive({ request: "c", action: "read", settings: {}, nowMs: 0 });
     expect(db.finish({ request: "a", nowMs: 15 })).toEqual([
       { kind: "started", request: "b", serviceMs: 15 },
     ]);
-    expect(db.arrive({ request: "d", action: "read", nowMs: 15 })).toEqual([
-      { kind: "queued", request: "d" },
-    ]);
+    expect(
+      db.arrive({ request: "d", action: "read", settings: {}, nowMs: 15 }),
+    ).toEqual([{ kind: "queued", request: "d" }]);
   });
 });

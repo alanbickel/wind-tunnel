@@ -36,14 +36,15 @@ describe("dynamoDbDefinition", () => {
 
   it("throttles reads and writes separately", () => {
     const db = build();
-    expect(db.arrive({ request: "r1", action: "read", nowMs: 0 })).toEqual([
-      { kind: "started", request: "r1", serviceMs: 5 },
-    ]);
-    expect(db.arrive({ request: "r2", action: "read", nowMs: 0 })).toEqual([
-      { kind: "rejected", request: "r2", reason: "throttled" },
-    ]);
     expect(
-      db.arrive({ request: "w1", action: "write", nowMs: 0 })[0]?.kind,
+      db.arrive({ request: "r1", action: "read", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "started", request: "r1", serviceMs: 5 }]);
+    expect(
+      db.arrive({ request: "r2", action: "read", settings: {}, nowMs: 0 }),
+    ).toEqual([{ kind: "rejected", request: "r2", reason: "throttled" }]);
+    expect(
+      db.arrive({ request: "w1", action: "write", settings: {}, nowMs: 0 })[0]
+        ?.kind,
     ).toBe("started");
     expect(db.inProgress).toBe(2);
   });
@@ -53,8 +54,8 @@ describe("dynamoDbDefinition", () => {
   // other than the one it throttles with.
   it("reports read and write capacity taken and left", () => {
     const db = build({ burstSec: 0 });
-    db.arrive({ request: "r1", action: "read", nowMs: 0 });
-    db.arrive({ request: "r2", action: "read", nowMs: 0 });
+    db.arrive({ request: "r1", action: "read", settings: {}, nowMs: 0 });
+    db.arrive({ request: "r2", action: "read", settings: {}, nowMs: 0 });
     expect(limitValues(db)).toEqual([
       {
         kind: "rate",
@@ -82,7 +83,12 @@ describe("dynamoDbDefinition", () => {
     const started = Array.from(
       { length: 25 },
       (_, i) =>
-        db.arrive({ request: String(i), action: "read", nowMs: 0 })[0]?.kind,
+        db.arrive({
+          request: String(i),
+          action: "read",
+          settings: {},
+          nowMs: 0,
+        })[0]?.kind,
     ).filter((kind) => kind === "started");
     expect(started).toHaveLength(20);
   });

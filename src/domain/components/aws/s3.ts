@@ -53,7 +53,11 @@ export const s3Definition = rateLimitedServiceDefinition({
   },
 });
 
-/** A bucket that refills at the rate and holds one second of it (S3-3). */
+/**
+ * A bucket that refills at the rate and holds one second of it (S3-3), but
+ * at least one request: a request takes a whole token, so a bucket under
+ * one would refuse every request at a rate under 1/s.
+ */
 function oneSecondOf(ratePerSec: number): TokenBucketInput {
   return { ratePerSec, burst: Math.max(1, ratePerSec) };
 }

@@ -86,6 +86,14 @@ describe("s3Definition", () => {
     ]);
   });
 
+  // Fails if the bucket's floor of one request goes: at 0.5 reads a second,
+  // a bucket of half a token would refuse every read.
+  it("lets a read through at a rate under one a second", () => {
+    const s3 = build({ readsPerSec: 0.5 });
+    expect(readsAt(s3, { count: 2, nowMs: 0 })).toEqual(["started", "rejected"]);
+    expect(readsAt(s3, { count: 1, nowMs: 2_000 })).toEqual(["started"]);
+  });
+
   // Fails if S3 stops reporting either rate, counts a refused request as a
   // token taken, drains the wrong bucket, or declares a reason other than
   // the one it refuses with.

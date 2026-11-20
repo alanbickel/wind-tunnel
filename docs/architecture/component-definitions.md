@@ -132,7 +132,7 @@ A few things to know:
 - **Lambda cold starts are checked lazily.** Each finished invocation leaves a warm environment. An arriving request takes the most recently used one; environments idle longer than `idleTimeoutSec` are dropped at that moment. The concurrency slot covers the cold start, the compute time, and every nested call.
 - **RDS holds a connection while a query waits for a worker.** That's what turns "the database is busy" into "the database refuses connections".
 - **DynamoDB's bucket starts full.** With the default `burstSec: 300`, a table can absorb a long spike before it throttles. Set `burstSec: 0` to see raw provisioned capacity.
-- **S3's buckets hold one second of requests**, and start full, with no burst setting: AWS documents none (S3-3). A component is one key prefix (S3-1), and its rates don't grow during a run (S3-2).
+- **S3's buckets hold one second of requests**, and start full, with no burst setting: AWS documents none (S3-3). A bucket holds at least one request, since a request takes a whole token. A component is one key prefix (S3-1), and its rates don't grow during a run (S3-2).
 - **SQS redelivers failed messages immediately**, to the back of the backlog. Real SQS waits for the visibility timeout (30 s by default) and can move a message to a dead-letter queue; both need a timer effect, which ADR-0006 leaves for later.
 
 From [`aws-components.txt`](../../src/domain/traces/aws-components.txt). Lambda: two cold starts, a throttle, a warm reuse, and a cold start again after a long idle period:

@@ -4,10 +4,7 @@ import type { Project } from "../../domain/model/project";
 import type { StepIssue } from "../../domain/model/run-issue";
 import { stepAt } from "../../domain/model/step-tree";
 import type { IssuePath } from "../../domain/model/validation-issue";
-import {
-  handleKind,
-  type KindHandlers,
-} from "../../domain/shared/kind-handlers";
+import { lookup } from "../../domain/shared/kind-handlers";
 import { problemCount } from "./problem-count";
 import {
   runIssueNames,
@@ -84,13 +81,13 @@ function checkOf(
  * a request setting's goes on into `settings`, where `stepAt` stops.
  */
 function stepPathOf(issue: StepIssue): IssuePath {
-  return handleKind(STEP_PATHS, issue);
+  return lookup(STEP_PATHS, issue.kind)(issue.path);
 }
 
-const toStep = ({ path }: StepIssue) => path;
-const toField = ({ path }: StepIssue) => path.slice(0, -1);
+const toStep = (path: IssuePath) => path;
+const toField = (path: IssuePath) => path.slice(0, -1);
 
-const STEP_PATHS: KindHandlers<StepIssue, IssuePath> = {
+const STEP_PATHS: Record<StepIssue["kind"], (path: IssuePath) => IssuePath> = {
   "unknown-component": toField,
   "missing-edge": toStep,
   "action-not-accepted": toField,

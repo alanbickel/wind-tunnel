@@ -134,6 +134,7 @@ A number like "90 connections" means little until you know the limit is 90. Each
 |---|---|---|---|
 | API Gateway | `requestRate` | rate | refuses: `throttled` |
 | Lambda | `concurrency` | concurrency | refuses: `throttled` |
+| Lambda | `requestRate` (10 × `concurrency` a second) | rate | refuses: `throttled` |
 | RDS | `connections` | concurrency | refuses: `too-many-connections` |
 | RDS | `queryWorkers` | concurrency | makes work wait, holding `connections` |
 | DynamoDB | `readUnits`, `writeUnits` | rate | refuses: `throttled` |

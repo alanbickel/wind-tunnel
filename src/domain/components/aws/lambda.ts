@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CountingSemaphore } from "../../behaviors/counting-semaphore";
 import { SampledServiceTime } from "../../behaviors/sampled-service-time";
+import { oneSecondOf, TokenBucket } from "../../behaviors/token-bucket";
 import { distributionSchema } from "../../random/distribution";
 import type { ComponentBehavior } from "../component-behavior";
 import { AWS_EDGE_DEFAULTS } from "./edge-defaults";
@@ -26,8 +27,17 @@ const lambdaConfig = z.object({
 export type LambdaConfig = z.infer<typeof lambdaConfig>;
 
 /**
+ * Invocations a second Lambda allows per unit of concurrency: a function
+ * with `concurrency` 1,000 is throttled over 10,000 a second.
+ */
+export const REQUESTS_PER_SEC_PER_CONCURRENCY = 10;
+
+/**
  * AWS Lambda (MVP design §3.2): a concurrency limit that throttles instead of
- * queueing, plus warm execution environments.
+ * queueing, a request rate of 10 × the concurrency that throttles too, plus
+ * warm execution environments. The rate is a token bucket holding one
+ * second of invocations, full at the start (LMB-10), so very short
+ * functions at high rates throttle while concurrency has room.
  *
  * Each finished invocation leaves a warm environment behind. An invocation
  * that finds one warm starts right away; otherwise it pays a cold start
@@ -38,8 +48,7 @@ export type LambdaConfig = z.infer<typeof lambdaConfig>;
  * time, and all nested calls. That's why slow dependencies raise concurrency.
  *
  * Differences from AWS (shared account pool, scaling rate, no function
- * timeout, ...) are listed in docs/design/fidelity/lambda/lambda-fidelity.md
- * as LMB-1 to LMB-9.
+ * timeout, ...) are listed in docs/design/fidelity/lambda/lambda-fidelity.md.
  */
 export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
   type: "lambda",
@@ -64,6 +73,9 @@ export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
         limit: config.concurrency,
         whenFull: "reject",
       }),
+      requestRate: new TokenBucket(
+        oneSecondOf(config.concurrency * REQUESTS_PER_SEC_PER_CONCURRENCY),
+      ),
       coldStart: new SampledServiceTime(config.coldStart, random),
       computeTime: new SampledServiceTime(config.computeTime, random),
       idleTimeoutMs: config.idleTimeoutSec * 1000,

@@ -12,7 +12,7 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 - **AWS:** by default an account has 1,000 concurrent executions per Region, shared by all functions. Reserved concurrency sets aside part of the pool for one function, and caps it. Up to 900 can be reserved, because 100 always stay unreserved.
 - **Evidence:** Documented: [Lambda concurrency](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
 - **Skew:** Optimistic for projects with several functions: Template B's two functions get 1,000 each in the model, but would share 1,000 in AWS.
-- **To close:** an account-level pool, with an optional reserved concurrency per function.
+- **To close:** an account-level pool, with an optional reserved concurrency per function. The request rate (10 × concurrency, LMB-10) follows concurrency to whichever level holds it: AWS enforces it for the account and for each function with reserved concurrency.
 
 #### LMB-2: Lambda scales out instantly
 
@@ -25,18 +25,6 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 - **Evidence:** Documented: [Lambda concurrency, scaling rate](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
 - **Skew:** Optimistic for spikes that need more than about 1,000 new environments within 10 s. The MVP templates stay under that.
 - **To close:** a token bucket on new environments.
-
-#### LMB-3: No requests-per-second limit
-
-- **Status:** Open
-- **Kind:** Behavior
-- **Depends on:** Nothing; it's M8 item 3.
-- **Checked:** 2026-10-14
-- **Wind Tunnel:** only concurrency is limited.
-- **AWS:** Lambda also limits requests per second to 10 × the concurrency limit (10,000/s by default), so very short functions can be throttled below their concurrency limit.
-- **Evidence:** Documented: [Lambda concurrency, concurrency vs. requests per second](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
-- **Skew:** Optimistic for functions shorter than about 100 ms at high rates.
-- **To close:** a `RateLimit` in front of the concurrency limit.
 
 #### LMB-4: Every finished invocation leaves a warm environment
 
@@ -106,3 +94,15 @@ Where Wind Tunnel's model of Lambda differs from AWS. How to read an entry, and 
 - **AWS:** provisioned concurrency keeps environments initialized ahead of time; SnapStart restores them from a snapshot.
 - **Evidence:** Documented: [Lambda concurrency](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html).
 - **Skew:** none until a template wants to show the fix for cold starts.
+
+#### LMB-10: Lambda's request rate holds one second of invocations, and is checked after concurrency
+
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; no Roadmap item yet.
+- **Checked:** 2026-11-20
+- **Wind Tunnel:** a function's request rate, 10 × `concurrency` invocations a second (10,000 at the default 1,000), is a token bucket that holds one second of invocations and starts full. There's no burst setting. An invocation is refused at `concurrency` if every slot is taken, and otherwise at `requestRate` if the bucket is empty; neither limit is spent on an invocation the other refuses. So `concurrency: 0` refuses every invocation at `concurrency`.
+- **AWS:** limits requests per second to 10 × the concurrency, for the account and for a function's reserved concurrency, and throttles with `429 TooManyRequestsException` over either limit. It doesn't say how requests are counted within the second, whether a quiet function can take a burst over the rate, or which limit it checks first.
+- **Evidence:** Documented for the rate: [Lambda concurrency, concurrency vs. requests per second](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html#concurrency-vs-requests-per-second). Assumption for the burst, the starting level, and the order.
+- **Skew:** Mixed. A bucket smaller than Lambda's lets fewer invocations through a sudden spike; a larger one, more. The order changes only which limit a refusal is put down to when both are full.
+- **To close:** evidence of how Lambda counts a second's requests.

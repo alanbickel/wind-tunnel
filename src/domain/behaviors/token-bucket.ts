@@ -8,6 +8,17 @@ export interface TokenBucketInput {
 }
 
 /**
+ * A bucket that refills at `ratePerSec` and holds one second of it, but at
+ * least one request: a request takes a whole token, so a bucket under one
+ * would refuse every request at a rate under 1/s. For a service whose AWS
+ * limit is a rate per second with no documented burst, such as S3's (S3-3)
+ * and Lambda's request rate (LMB-10).
+ */
+export function oneSecondOf(ratePerSec: number): TokenBucketInput {
+  return { ratePerSec, burst: Math.max(1, ratePerSec) };
+}
+
+/**
  * How far short of one token a bucket can fall and still give one, to absorb
  * the floating-point error of refilling (see `tryTake`).
  */

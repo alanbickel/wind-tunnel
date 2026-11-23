@@ -56,6 +56,7 @@ function edgeSetting(input: EdgeSettingInput): SettingDetails {
     label: field.label,
     value: settingValueText(field, value),
     help: field.help,
+    defaultMark: undefined,
   };
   if (defaults === undefined || evidence === undefined) {
     return { ...shown, defaultNote: undefined, editor: undefined };

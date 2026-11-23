@@ -94,6 +94,7 @@ function changedToEnqueue(from: Place): Place {
     toLabel: "orders-queue · enqueue",
     stepsBelow: start.stepsBelow,
     toEnqueue: true,
+    hadSettings: start.hasSettings,
   });
   return apply({
     from,

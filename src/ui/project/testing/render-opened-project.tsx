@@ -53,6 +53,11 @@ export interface RenderOpenedProjectInput {
   readonly listProjects?: UseCases["listProjects"];
   /** Follows the saved record's name. */
   readonly onProjectNameChange?: (name: string) => void;
+  /**
+   * Use cases that replace the defaults, applied last: those over other
+   * component types than AWS's, for a project that uses them.
+   */
+  readonly useCases?: Partial<UseCases>;
 }
 
 /** An opened project on screen, and what drives it. */
@@ -124,6 +129,7 @@ function buildUseCases({
     newWorkflow: awsNewWorkflow(),
     newWorkload: newWorkload(),
     saveProject: input.saveProject ?? awsSaveProject(projects),
+    ...input.useCases,
   });
 }
 

@@ -208,6 +208,7 @@ function changeText({ start, choice, action }: ChangedStep): ChangeStepText {
     toLabel: toLabelOf(choice, action),
     stepsBelow: start.stepsBelow,
     toEnqueue: action === "enqueue",
+    hadSettings: start.hasSettings,
   });
 }
 

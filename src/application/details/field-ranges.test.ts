@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
+import type { ComponentRegistry } from "../../domain/components/component-registry";
+import { itemStoreRegistry } from "../../domain/components/testing/item-store-project";
+import { itemStoreFieldCatalog } from "../testing/item-store-types";
 import {
   edgeSettingsSchema,
   retryPolicySchema,
   type EdgeSettings,
 } from "../../domain/model/edge-settings";
+import type { StepAction } from "../../domain/model/project";
 import { distributionSchema } from "../../domain/random/distribution";
 import { createFieldCatalog } from "./create-field-catalog";
 import { DISTRIBUTION_KINDS, DISTRIBUTION_PARTS } from "./distribution-parts";
-import type { FieldRange } from "./field-descriptor";
+import type { FieldCatalog, FieldRange } from "./field-descriptor";
 import { EDGE_FIELDS } from "./fields/edge-fields";
 import { RETRY_PARTS } from "./retry-draft";
 
@@ -70,6 +74,66 @@ describe("each number setting's range", () => {
           [field.key]: value,
         })
         .filter((issue) => issue.path[0] === field.key);
+    const { inside, outside } = endsOf(
+      field.range,
+      field.kind === "whole-number",
+    );
+
+    for (const value of inside)
+      expect(issuesAt(value), String(value)).toEqual([]);
+    for (const value of outside) {
+      expect(issuesAt(value), String(value)).not.toEqual([]);
+    }
+  });
+});
+
+/** A catalog of descriptors, and the registry whose types they describe. */
+interface DescribedTypes {
+  readonly catalog: FieldCatalog;
+  readonly registry: ComponentRegistry;
+}
+
+/**
+ * Each request setting's number descriptor, with its type and action: the
+ * AWS types', and the test item store's, so the check runs before any AWS
+ * type takes request settings (DDB-1, #301, is the first).
+ */
+const requestNumberFields = (
+  [
+    { catalog: createFieldCatalog(), registry },
+    { catalog: itemStoreFieldCatalog(), registry: itemStoreRegistry() },
+  ] satisfies DescribedTypes[]
+).flatMap(({ catalog, registry: types }) =>
+  [...catalog.values()].flatMap(({ type, requestFields = {} }) =>
+    Object.entries(requestFields).flatMap(([action, fields]) =>
+      fields.flatMap((field) =>
+        field.kind === "distribution"
+          ? []
+          : [{ type: types.get(type), action: action as StepAction, field }],
+      ),
+    ),
+  ),
+);
+
+describe("each request setting's range", () => {
+  // Fails if a request setting's range disagrees with its action's schema
+  // (ADR-0024), as a component setting's must agree with its config's. No
+  // AWS type takes request settings yet; the test item store's are checked
+  // too, so the check itself is shown to run.
+  it.each(
+    requestNumberFields.map(
+      ({ type, action, field }) =>
+        [
+          `${type?.type ?? "?"} ${action} ${field.key}`,
+          type,
+          action,
+          field,
+        ] as const,
+    ),
+  )("%s agrees with its schema", (name, type, action, field) => {
+    if (type === undefined) throw new Error(`no type for "${name}"`);
+    const issuesAt = (value: number) =>
+      type.checkSettings(action, { [field.key]: value });
     const { inside, outside } = endsOf(
       field.range,
       field.kind === "whole-number",

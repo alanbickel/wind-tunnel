@@ -24,6 +24,7 @@ import { NewComponent } from "./application/use-cases/new-component";
 import { NewEdge } from "./application/use-cases/new-edge";
 import type { IdGenerator } from "./application/ports/id-generator";
 import { ChangeStep } from "./application/use-cases/change-step";
+import { SetStepSetting } from "./application/use-cases/set-step-setting";
 import { NewCall } from "./application/use-cases/new-call";
 import { NewWorkflow } from "./application/use-cases/new-workflow";
 import { NewWorkload } from "./application/use-cases/new-workload";
@@ -94,6 +95,7 @@ function createUseCases(database: ProjectDatabase): UseCases {
     saveProject: new SaveProject({ projects, clock, registry }),
     deleteProject: new DeleteProject({ projects }),
     runSimulation: new RunSimulation({ runner, registry }),
+    setStepSetting: new SetStepSetting({ registry }),
     ...createStarters({ registry, ids }),
     ...createProjectReaders(registry),
     storagePersistence: new BrowserStoragePersistence({

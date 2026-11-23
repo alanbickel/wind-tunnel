@@ -10,6 +10,7 @@ const labels: ChangeStepTextInput = {
   toLabel: "orders-db · read",
   stepsBelow: 0,
   toEnqueue: false,
+  hadSettings: false,
 };
 
 describe("changeStepText", () => {
@@ -51,6 +52,22 @@ describe("changeStepText", () => {
       "Changed fn-orders · invoke to orders-db · read. It has no async work yet.",
     );
     expect(text.undoName).toBe("Change fn-orders · invoke to orders-db · read");
+  });
+
+  // Fails if a change that drops a step's request settings doesn't say
+  // they're gone (ADR-0024 decision 5.2), says it of a step that had none,
+  // or puts it anywhere but after the steps that go.
+  it("says the step's request settings are gone, when it had any", () => {
+    const text = changeStepText({
+      ...labels,
+      stepsBelow: 1,
+      hadSettings: true,
+    });
+
+    expect(text.announcement).toBe(
+      "Changed fn-orders · invoke to orders-db · read. The 1 step under it is gone. Its request settings are gone.",
+    );
+    expect(changeStepText(labels).announcement).not.toMatch(/settings/);
   });
 });
 

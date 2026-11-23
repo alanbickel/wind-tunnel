@@ -24,19 +24,20 @@ export interface SettingProps extends FieldProps {
 }
 
 /**
- * One setting: its field with Reset beside it, and an info control that
- * opens its help and its default's evidence. Reset stays out of the info
- * content so it's reachable without opening anything. The help and the
- * default note stay in the DOM while hidden, so they still describe the
- * field to a screen reader. It saves and resets through `save` and
+ * One setting: its field with Reset beside it, and "Uses the default" after
+ * them for a step's request setting the step doesn't set, and an info
+ * control that opens its help and its default's evidence. Reset stays out
+ * of the info content so it's reachable without opening anything. The help
+ * and the default note stay in the DOM while hidden, so they still describe
+ * the field to a screen reader. It saves and resets through `save` and
  * `reset`, so it serves a component's settings and an edge's alike.
  */
 export function Setting(props: SettingProps) {
   const { setting, reset, ...fieldProps } = props;
   const helpId = useId();
   const defaultId = useId();
-  const describedBy =
-    setting.defaultNote === undefined ? helpId : `${helpId} ${defaultId}`;
+  const markId = useId();
+  const describedBy = describedByOf(setting, { helpId, defaultId, markId });
   return (
     <div className={styles.setting}>
       <Explained
@@ -48,6 +49,7 @@ export function Setting(props: SettingProps) {
               {...fieldProps}
             />
             <ResetButton setting={setting} reset={reset} />
+            <DefaultMark id={markId} setting={setting} />
           </>
         }
         subject={setting.label}
@@ -59,6 +61,24 @@ export function Setting(props: SettingProps) {
       </Explained>
     </div>
   );
+}
+
+/** The ids of what describes a setting's field. */
+interface SettingIds {
+  readonly helpId: string;
+  readonly defaultId: string;
+  readonly markId: string;
+}
+
+/** Its help, then its default note and its default mark, if it has them. */
+function describedByOf(setting: SettingDetails, ids: SettingIds): string {
+  return [
+    ids.helpId,
+    setting.defaultNote === undefined ? undefined : ids.defaultId,
+    setting.defaultMark === undefined ? undefined : ids.markId,
+  ]
+    .filter((id) => id !== undefined)
+    .join(" ");
 }
 
 interface SettingFieldProps extends FieldProps {
@@ -130,6 +150,21 @@ function DefaultNote({ id, setting }: DefaultNoteProps) {
     <p id={id} className={styles.default}>
       {setting.defaultNote}
     </p>
+  );
+}
+
+interface DefaultMarkProps {
+  readonly id: string;
+  readonly setting: SettingDetails;
+}
+
+/** "Uses the default", for a step's request setting the step doesn't set. */
+function DefaultMark({ id, setting }: DefaultMarkProps) {
+  if (setting.defaultMark === undefined) return null;
+  return (
+    <span id={id} className={styles.mark}>
+      {setting.defaultMark}
+    </span>
   );
 }
 

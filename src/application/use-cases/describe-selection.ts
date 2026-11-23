@@ -1,13 +1,19 @@
 import type { ComponentRegistry } from "../../domain/components/component-registry";
-import type { Project } from "../../domain/model/project";
+import type { Project, Step } from "../../domain/model/project";
 import {
   handleKind,
   type KindHandlers,
 } from "../../domain/shared/kind-handlers";
 import { componentDetails } from "../details/component-details";
-import type { Details, WorkflowDetails } from "../details/details";
+import type {
+  Details,
+  SettingDetails,
+  WorkflowDetails,
+} from "../details/details";
 import { edgeDetails } from "../details/edge-details";
 import type { FieldCatalog } from "../details/field-descriptor";
+import { requestSettingDetails } from "../details/request-setting-details";
+import { findStep } from "../edits/step-search";
 import type { Selection } from "../details/selection";
 import { stepDetails } from "../details/step-details";
 import { workflowDetails } from "../details/workflow-details";
@@ -61,7 +67,13 @@ export class DescribeSelection {
       workflow: ({ workflowId }) =>
         describeWorkflow({ project, registry, id: workflowId }),
       step: ({ workflowId, stepId }) =>
-        describeStep({ project, registry, id: workflowId, stepId }),
+        describeStep({
+          project,
+          registry,
+          fields: this.deps.fields,
+          id: workflowId,
+          stepId,
+        }),
       workload: ({ workloadId }) =>
         this.describeWorkload({ project, id: workloadId }),
       // A draft has no details to describe: the UI shows it.
@@ -127,6 +139,8 @@ interface WorkflowItemInput extends ItemInput {
 /** A selected step, by its id, and its workflow's. */
 interface StepItemInput extends WorkflowItemInput {
   readonly stepId: string;
+  /** What its request settings mean to a user. */
+  readonly fields: FieldCatalog;
 }
 
 /**
@@ -145,13 +159,37 @@ function describeWorkflow(
 }
 
 /**
- * The step's line of its workflow's outline, and how a request reaches it;
- * undefined if the project has no such workflow, or it has no such step.
+ * The step's line of its workflow's outline, how a request reaches it, and
+ * its request settings; undefined if the project has no such workflow, or
+ * it has no such step.
  */
 function describeStep(input: StepItemInput): Details | undefined {
   const { project, id, stepId } = input;
   const workflow = project.workflows.find((w) => w.id === id);
   const details = describeWorkflow(input);
-  if (workflow === undefined || details === undefined) return undefined;
-  return stepDetails({ project, workflow, details, stepId });
+  const step = workflow && findStep(workflow, stepId);
+  if (workflow === undefined || details === undefined || step === undefined) {
+    return undefined;
+  }
+  const settings = stepSettings({ ...input, step });
+  return stepDetails({ project, workflow, details, stepId, settings });
+}
+
+/** A step, and the project, types, and descriptors to read its settings by. */
+interface StepSettingsInput extends StepItemInput {
+  readonly step: Step;
+}
+
+/** The step's request settings, read by its component's type. */
+function stepSettings(input: StepSettingsInput): SettingDetails[] {
+  const { project, registry, fields, step } = input;
+  const component = project.architecture.components.find(
+    (c) => c.id === step.componentId,
+  );
+  const typeName = component?.type ?? "";
+  return requestSettingDetails({
+    step,
+    type: registry.get(typeName),
+    fields: fields.get(typeName),
+  });
 }

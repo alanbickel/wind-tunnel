@@ -342,13 +342,13 @@ function changeCallsHolding(
 }
 
 /** A workflow, and the step in it that's replaced, by its id. */
-interface ReplaceStepInput {
+export interface ReplaceStepInput {
   readonly workflow: Workflow;
   readonly step: Step;
 }
 
 /** The record with the workflow's step of the same id as `step` replaced by it. */
-function replaceStep(
+export function replaceStep(
   record: ProjectRecord,
   { workflow, step }: ReplaceStepInput,
 ): ProjectRecord {

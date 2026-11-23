@@ -8,6 +8,7 @@ import { NewCall } from "../use-cases/new-call";
 import { NewEdge } from "../use-cases/new-edge";
 import { NewWorkflow } from "../use-cases/new-workflow";
 import { NewWorkload } from "../use-cases/new-workload";
+import { SetStepSetting } from "../use-cases/set-step-setting";
 import { SequentialIds } from "./sequential-ids";
 
 /**
@@ -34,6 +35,11 @@ export function awsNewComponent(
 /** `ChangeStep` over the AWS registry. */
 export function awsChangeStep(): ChangeStep {
   return new ChangeStep({ registry: createAwsComponentRegistry() });
+}
+
+/** `SetStepSetting` over the AWS registry. */
+export function awsSetStepSetting(): SetStepSetting {
+  return new SetStepSetting({ registry: createAwsComponentRegistry() });
 }
 
 /**

@@ -74,6 +74,7 @@ function describedSetting({
     label: field.label,
     value: settingValueText(field, value),
     help: field.help,
+    defaultMark: undefined,
     defaultNote:
       defaultValue === undefined
         ? undefined
@@ -96,6 +97,7 @@ function undescribedSettings({
       value: JSON.stringify(value),
       help: "",
       defaultNote: undefined,
+      defaultMark: undefined,
       editor: undefined,
     }));
 }

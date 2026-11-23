@@ -102,7 +102,7 @@ export class LambdaBehavior<T> implements ComponentBehavior<T> {
    */
   private admits(request: T, nowMs: number): boolean {
     if (this.slots.inUse >= this.slots.limit) return false;
-    if (!this.requestRate.tryTake(nowMs)) return false;
+    if (!this.requestRate.tryTake({ nowMs, cost: 1 })) return false;
     return this.slots.acquire(request) === "admitted";
   }
 

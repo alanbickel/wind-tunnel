@@ -133,9 +133,10 @@ export interface ConcurrencyLimitGauge {
 }
 
 /**
- * A token bucket, e.g. API Gateway's `requestRate`: each request takes a
- * token, tokens refill at `ratePerSec` up to `burst`, and with less than
- * one token left the next request is rejected.
+ * A token bucket, e.g. API Gateway's `requestRate`: each request takes its
+ * cost in tokens (one, for every type so far), tokens refill at
+ * `ratePerSec` up to `burst`, and a request finding less than its cost
+ * left is rejected.
  */
 export interface RateLimitGauge {
   readonly kind: "rate";
@@ -151,7 +152,11 @@ export interface RateLimitGauge {
   readonly ratePerSec: number;
   /** Most tokens the bucket holds: what can be taken at once after a quiet spell. */
   readonly burst: number;
-  /** Tokens taken since the run began. Never decreases. */
+  /**
+   * Tokens taken since the run began: the sum of the costs of the requests
+   * it admitted, so not a count of requests where a request costs other
+   * than one. Never decreases.
+   */
   readonly taken: number;
   /**
    * Tokens in the bucket at `nowMs`, between 0 and `burst`. Only reads;

@@ -1,33 +1,40 @@
-import type { RateLimit } from "./rate-limit";
+import type { RateLimit, TakeInput } from "./rate-limit";
 
 export interface TokenBucketInput {
-  /** Tokens added per second: the sustained request rate. */
+  /** Tokens added per second: the sustained rate. */
   ratePerSec: number;
-  /** Bucket size: how many requests can arrive at once after a quiet period. */
+  /**
+   * Bucket size: how many tokens can be taken at once after a quiet period.
+   * It must hold the largest cost a request can have: a request costing
+   * more than the burst is refused for ever.
+   */
   burst: number;
 }
 
 /**
  * A bucket that refills at `ratePerSec` and holds one second of it, but at
- * least one request: a request takes a whole token, so a bucket under one
- * would refuse every request at a rate under 1/s. For a service whose AWS
- * limit is a rate per second with no documented burst, such as S3's (S3-3)
- * and Lambda's request rate (LMB-10).
+ * least one token, so it holds a request that costs one: a bucket under one
+ * would refuse every such request at a rate under 1/s. A request costing
+ * more than one second's tokens is still refused for ever, so a type whose
+ * requests can cost more than one needs a burst that holds its largest. For
+ * a service whose AWS limit is a rate per second with no documented burst,
+ * such as S3's (S3-3) and Lambda's request rate (LMB-10).
  */
 export function oneSecondOf(ratePerSec: number): TokenBucketInput {
   return { ratePerSec, burst: Math.max(1, ratePerSec) };
 }
 
 /**
- * How far short of one token a bucket can fall and still give one, to absorb
- * the floating-point error of refilling (see `tryTake`).
+ * How far short of a request's cost a bucket can fall and still give it, to
+ * absorb the floating-point error of refilling (see `tryTake`).
  */
 export const TOKEN_EPSILON = 1e-9;
 
 /**
- * Token bucket (MVP design §3.1). Each request takes one token; tokens refill
- * at a steady rate up to the burst size. With no token, the request is
- * rejected (for example API Gateway's HTTP 429).
+ * Token bucket (MVP design §3.1). Each request takes its cost in tokens, one
+ * or any other positive number; tokens refill at a steady rate up to the
+ * burst size. With less than the cost left, the request is rejected (for
+ * example API Gateway's HTTP 429) and takes nothing.
  *
  * The bucket starts full and refills lazily, based on the simulated time
  * passed to `tryTake`, so it needs no timer events.
@@ -48,20 +55,26 @@ export class TokenBucket implements RateLimit {
     this.tokens = input.burst;
   }
 
-  /** Takes a token at simulated time `nowMs`. Returns false when throttled. */
-  tryTake(nowMs: number): boolean {
+  /**
+   * Takes `cost` tokens at simulated time `nowMs`. Returns false, taking
+   * nothing, when the bucket holds less than `cost`: throttled.
+   */
+  tryTake({ nowMs, cost }: TakeInput): boolean {
+    if (!(cost > 0 && cost < Infinity)) {
+      throw new RangeError("cost must be a positive number");
+    }
     this.refill(nowMs);
     // Refilling in fractional steps accumulates floating-point error, so a
     // bucket that should hold exactly 1 token may hold 0.9999999999. Without
     // the tolerance, every token would arrive a little late and the
     // sustained rate would fall short of `ratePerSec`.
-    if (this.tokens < 1 - TOKEN_EPSILON) return false;
-    this.tokens--;
-    this.tokensTaken++;
+    if (this.tokens < cost - TOKEN_EPSILON) return false;
+    this.tokens -= cost;
+    this.tokensTaken += cost;
     return true;
   }
 
-  /** Tokens taken since the run began. */
+  /** Tokens taken since the run began: the sum of the costs. */
   get taken(): number {
     return this.tokensTaken;
   }

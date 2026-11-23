@@ -83,10 +83,12 @@ describe("ComponentRegistryMap", () => {
       expect(store()?.parseSettings("read", { itemSizeKb: 40 })).toEqual({
         itemSizeKb: 40,
         msPerKb: 1,
+        consistency: "eventual",
       });
       expect(store()?.parseSettings("read", undefined)).toEqual({
         itemSizeKb: 4,
         msPerKb: 1,
+        consistency: "eventual",
       });
     });
 

@@ -10,11 +10,25 @@ import {
 } from "../../domain/shared/kind-handlers";
 import { count } from "../run-analysis/number-format";
 import type {
+  ChoiceFieldDescriptor,
+  ChoiceOption,
   DefaultEvidence,
   EvidenceLevel,
   FieldDescriptor,
   FieldKind,
 } from "./field-descriptor";
+
+/** The kinds whose values read without anything but their descriptor's unit. */
+type PlainKind = Exclude<FieldKind, "choice">;
+
+/**
+ * A setting's descriptor, as reading its value needs it: a choice with its
+ * options, any other kind with no more than its kind and unit. An edge's
+ * setting whose default is unknown has no evidence, so this asks for none.
+ */
+export type ReadableField =
+  | ChoiceFieldDescriptor
+  | { [K in PlainKind]: FieldDescriptor & { readonly kind: K } }[PlainKind];
 
 /** A setting's value, and the unit to read it in if it's a plain number. */
 interface ValueTextInput {
@@ -24,24 +38,35 @@ interface ValueTextInput {
 
 type ValueText = (input: ValueTextInput) => string;
 
-const VALUE_TEXTS: Readonly<Record<FieldKind, ValueText>> = {
-  number: numberText,
-  "whole-number": numberText,
-  distribution: ({ value }) => distributionText(value),
-  retry: ({ value }) => retryText(value as RetryPolicy),
+/** How each kind of setting reads its value; a choice reads its options. */
+const VALUE_TEXTS: KindHandlers<ReadableField, ValueText> = {
+  number: () => numberText,
+  "whole-number": () => numberText,
+  distribution:
+    () =>
+    ({ value }) =>
+      distributionText(value),
+  retry:
+    () =>
+    ({ value }) =>
+      retryText(value as RetryPolicy),
+  choice:
+    ({ options }) =>
+    ({ value }) =>
+      choiceText(options, value),
 };
 
-/** A setting's value as the Details tab reads it, e.g. "90 connections". */
-export function settingValueText(
-  field: FieldDescriptor,
-  value: unknown,
-): string {
-  return lookup(VALUE_TEXTS, field.kind)({ value, unit: field.unit });
+/**
+ * A setting's value as the Details tab reads it, e.g. "90 connections", or
+ * a choice's option label, e.g. "Strongly consistent".
+ */
+export function settingValueText(field: ReadableField, value: unknown): string {
+  return handleKind(VALUE_TEXTS, field)({ value, unit: field.unit });
 }
 
 /** One setting's default and its evidence. */
 export interface DefaultNoteInput {
-  readonly field: FieldDescriptor;
+  readonly field: ReadableField;
   readonly value: unknown;
   readonly evidence: DefaultEvidence;
 }
@@ -58,7 +83,7 @@ export function defaultNote({
   value,
   evidence,
 }: DefaultNoteInput): string {
-  const shown = lookup(VALUE_TEXTS, field.kind)({ value, unit: undefined });
+  const shown = handleKind(VALUE_TEXTS, field)({ value, unit: undefined });
   const cited =
     evidence.fidelityId === undefined ? "" : ` (${evidence.fidelityId})`;
   return `Default ${shown}: ${LEVEL_WORDS[evidence.level]}${cited}.`;
@@ -68,6 +93,15 @@ export function defaultNote({
 function numberText({ value, unit }: ValueTextInput): string {
   if (typeof value !== "number") return String(value);
   return unit === undefined ? count(value) : `${count(value)} ${unit}`;
+}
+
+/**
+ * The label of the option `value` is, e.g. "Strongly consistent"; the value
+ * as it is if no option has it.
+ */
+function choiceText(options: readonly ChoiceOption[], value: unknown): string {
+  const chosen = options.find((option) => option.value === value);
+  return chosen === undefined ? String(value) : chosen.label;
 }
 
 const DISTRIBUTION_TEXTS: KindHandlers<Distribution, string> = {

@@ -10,6 +10,8 @@ export interface ItemStoreReadSettings {
   readonly itemSizeKb: number;
   /** How long each KB takes to read. */
   readonly msPerKb: number;
+  /** A choice setting, for tests of choice fields; it doesn't change the read's time. */
+  readonly consistency: "eventual" | "strong";
 }
 
 export interface ItemStoreBehaviorDependencies {

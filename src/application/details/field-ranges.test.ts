@@ -12,7 +12,12 @@ import type { StepAction } from "../../domain/model/project";
 import { distributionSchema } from "../../domain/random/distribution";
 import { createFieldCatalog } from "./create-field-catalog";
 import { DISTRIBUTION_KINDS, DISTRIBUTION_PARTS } from "./distribution-parts";
-import type { FieldCatalog, FieldRange } from "./field-descriptor";
+import type {
+  ConfigFieldDescriptor,
+  FieldCatalog,
+  FieldRange,
+  NumberFieldDescriptor,
+} from "./field-descriptor";
 import { EDGE_FIELDS } from "./fields/edge-fields";
 import { RETRY_PARTS } from "./retry-draft";
 
@@ -49,11 +54,17 @@ function endsOf(range: FieldRange, wholeNumber: boolean): RangeEnds {
   };
 }
 
+/** The number descriptors among `fields`: those with a range. */
+function numbersOf(
+  fields: readonly ConfigFieldDescriptor[],
+): NumberFieldDescriptor[] {
+  return fields.flatMap((field) =>
+    field.kind === "number" || field.kind === "whole-number" ? [field] : [],
+  );
+}
+
 const numberFields = [...createFieldCatalog().values()].flatMap(
-  ({ type, fields }) =>
-    fields.flatMap((field) =>
-      field.kind === "distribution" ? [] : [{ type, field }],
-    ),
+  ({ type, fields }) => numbersOf(fields).map((field) => ({ type, field })),
 );
 
 describe("each number setting's range", () => {
@@ -106,11 +117,11 @@ const requestNumberFields = (
 ).flatMap(({ catalog, registry: types }) =>
   [...catalog.values()].flatMap(({ type, requestFields = {} }) =>
     Object.entries(requestFields).flatMap(([action, fields]) =>
-      fields.flatMap((field) =>
-        field.kind === "distribution"
-          ? []
-          : [{ type: types.get(type), action: action as StepAction, field }],
-      ),
+      numbersOf(fields).map((field) => ({
+        type: types.get(type),
+        action: action as StepAction,
+        field,
+      })),
     ),
   ),
 );

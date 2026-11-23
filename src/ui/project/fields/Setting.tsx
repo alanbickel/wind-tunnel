@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from "react";
 import type { SettingDetails } from "../../../application/details/details";
 import type {
+  ChoiceFieldDescriptor,
   DistributionFieldDescriptor,
   NumberFieldDescriptor,
   RetryFieldDescriptor,
@@ -11,6 +12,7 @@ import type { KindHandlers } from "../../../domain/shared/kind-handlers";
 import { Button } from "../../shared/Button";
 import { Explained } from "../../shared/Explained";
 import { dispatchKind } from "../../shared/kind-dispatch";
+import { ChoiceField } from "./ChoiceField";
 import { DistributionField } from "./DistributionField";
 import type { FieldProps } from "./field-parts";
 import styles from "./Fields.module.css";
@@ -87,8 +89,8 @@ interface SettingFieldProps extends FieldProps {
 }
 
 /**
- * The field for the setting's kind, a number, a distribution, or a retry
- * policy; or its value, read-only, if no descriptor covers it.
+ * The field for the setting's kind, a number, a distribution, a retry
+ * policy, or a choice; or its value, read-only, if no descriptor covers it.
  */
 function SettingField({ setting, ...props }: SettingFieldProps) {
   const { editor } = setting;
@@ -122,6 +124,9 @@ const FIELDS: KindHandlers<
   ),
   retry: (field: RetryFieldDescriptor) => (context) => (
     <RetryField field={field} {...context} />
+  ),
+  choice: (field: ChoiceFieldDescriptor) => (context) => (
+    <ChoiceField field={field} {...context} />
   ),
 };
 

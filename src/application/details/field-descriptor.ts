@@ -6,11 +6,12 @@ import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { StepAction } from "../../domain/model/project";
 
 /**
- * How a setting's value is read and, later, edited: a number, a whole
- * number, a duration distribution (`Distribution`), or an edge's retry
- * policy.
+ * How a setting's value is read and edited: a number, a whole number, a
+ * duration distribution (`Distribution`), an edge's retry policy, or one of
+ * a few named values (a choice).
  */
-export type FieldKind = "number" | "whole-number" | "distribution" | "retry";
+export type FieldKind =
+  "number" | "whole-number" | "distribution" | "retry" | "choice";
 
 /**
  * How sure a default is, as its type's profile's defaults table rates it:
@@ -37,7 +38,7 @@ export interface FieldDescriptor {
   readonly key: string;
   /** Shown to users, e.g. "Query workers". */
   readonly label: string;
-  /** What the number counts, e.g. "ms" or "requests/s"; undefined for a retry policy. */
+  /** What the number counts, e.g. "ms" or "requests/s"; undefined for a retry policy or a choice. */
   readonly unit: string | undefined;
   readonly kind: FieldKind;
   /**
@@ -64,7 +65,7 @@ export interface FieldRange {
 
 /** A component setting: a descriptor, and the evidence for its default. */
 export type ConfigFieldDescriptor =
-  NumberFieldDescriptor | DistributionFieldDescriptor;
+  NumberFieldDescriptor | DistributionFieldDescriptor | ChoiceFieldDescriptor;
 
 /**
  * A setting a field can edit, a component's or an edge's, with the
@@ -90,6 +91,26 @@ export interface NumberFieldDescriptor extends RangedFieldDescriptor {
 /** A setting that's a duration distribution, such as a service time. */
 export interface DistributionFieldDescriptor extends FieldDescriptor {
   readonly kind: "distribution";
+  readonly evidence: DefaultEvidence;
+}
+
+/** One value a choice setting can take, and what a user reads for it. */
+export interface ChoiceOption {
+  /** As stored, e.g. `"strong"`: one of the schema's enum values. */
+  readonly value: string;
+  /** Shown to users, e.g. "Strongly consistent". */
+  readonly label: string;
+}
+
+/**
+ * A setting whose value is one of a few named values, such as a DynamoDB
+ * read's consistency (ADR-0024). The schema's enum stays the authority; a
+ * test checks that the options are exactly its values.
+ */
+export interface ChoiceFieldDescriptor extends FieldDescriptor {
+  readonly kind: "choice";
+  /** Every value the schema allows, in the order the field lists them. */
+  readonly options: readonly ChoiceOption[];
   readonly evidence: DefaultEvidence;
 }
 

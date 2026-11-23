@@ -17,8 +17,7 @@ export interface StepDetailsInput {
 /**
  * A step on its own (UX design §5): its outline line, the workflow it's
  * in, how a request reaches it, along which edge, and its request
- * settings. Undefined if the
- * workflow has no step with that id.
+ * settings. Undefined if the workflow has no step with that id.
  */
 export function stepDetails(input: StepDetailsInput): StepDetails | undefined {
   const { project, workflow, details, stepId, settings } = input;

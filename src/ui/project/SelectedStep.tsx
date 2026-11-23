@@ -33,9 +33,10 @@ export interface SelectedStepProps {
 /**
  * A selected step in the inspector (UX design §5): what it calls, which
  * workflow it's in, how a request reaches it and along which edge, its run
- * issues, its request settings (ADR-0024), and Remove. Its place in the workflow, and the edits that change
- * it, are the outline's, in the Workflows tab. The first step has no
- * Remove: removing it is removing the workflow.
+ * issues, its request settings (ADR-0024), and Remove. Its place in the
+ * workflow, and the edits that change it, are the outline's, in the
+ * Workflows tab. The first step has no Remove: removing it is removing the
+ * workflow.
  */
 export function SelectedStep(props: SelectedStepProps) {
   const { details, onEdit, announce } = props;

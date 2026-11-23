@@ -26,10 +26,10 @@ export interface SettingProps extends FieldProps {
 /**
  * One setting: its field with Reset beside it, and "Uses the default" after
  * them for a step's request setting the step doesn't set, and an info
- * control that opens its help and its default's evidence. Reset stays out of the info
- * content so it's reachable without opening anything. The help and the
- * default note stay in the DOM while hidden, so they still describe the
- * field to a screen reader. It saves and resets through `save` and
+ * control that opens its help and its default's evidence. Reset stays out
+ * of the info content so it's reachable without opening anything. The help
+ * and the default note stay in the DOM while hidden, so they still describe
+ * the field to a screen reader. It saves and resets through `save` and
  * `reset`, so it serves a component's settings and an edge's alike.
  */
 export function Setting(props: SettingProps) {

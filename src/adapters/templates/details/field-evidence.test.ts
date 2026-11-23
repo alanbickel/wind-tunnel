@@ -39,9 +39,18 @@ function edgeRow(
     .find((row) => row !== undefined);
 }
 
-/** Each component setting's descriptor, labeled "type key". */
-const configFields = [...catalog.values()].flatMap(({ type, fields }) =>
-  fields.map((field) => ({ label: `${type} ${field.key}`, type, field })),
+/**
+ * Each component setting's descriptor, and each request setting's, labeled
+ * "type key". A request setting's default has a row in its type's defaults
+ * table, as a config setting's does.
+ */
+const configFields = [...catalog.values()].flatMap(
+  ({ type, fields, requestFields = {} }) =>
+    [...fields, ...Object.values(requestFields).flat()].map((field) => ({
+      label: `${type} ${field.key}`,
+      type,
+      field,
+    })),
 );
 
 /** Every descriptor, the edges' included. */
@@ -92,6 +101,24 @@ describe("the setting descriptors", () => {
         .map((t) => t.type)
         .sort(),
     );
+  });
+
+  // Fails if an action's request settings (ADR-0024) gain a setting with
+  // no descriptor, or a descriptor names one the action doesn't take, or
+  // describes an action that takes none.
+  it("describe every request setting of every action, and nothing else", () => {
+    for (const type of registry.list()) {
+      const requestFields = catalog.get(type.type)?.requestFields ?? {};
+      for (const action of type.actions) {
+        const keys = Object.keys(type.parseSettings(action, {}));
+        const described = (requestFields[action] ?? []).map((f) => f.key);
+        expect(described, `${type.type} ${action}`).toEqual(keys);
+      }
+      const describedActions = Object.keys(requestFields);
+      for (const action of describedActions) {
+        expect(type.actions, type.type).toContain(action);
+      }
+    }
   });
 
   // Fails if a descriptor's help or evidence cites a fidelity entry that

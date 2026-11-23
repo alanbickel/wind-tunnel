@@ -18,6 +18,7 @@ import type { NewWorkload } from "../../application/use-cases/new-workload";
 import type { OpenProject } from "../../application/use-cases/open-project";
 import type { RunSimulation } from "../../application/use-cases/run-simulation";
 import type { SaveProject } from "../../application/use-cases/save-project";
+import type { SetStepSetting } from "../../application/use-cases/set-step-setting";
 
 /**
  * A use case as a component sees it: only `execute`. A class with private
@@ -51,6 +52,7 @@ export interface UseCases {
   readonly newComponent: UseCase<NewComponent>;
   readonly newCall: UseCase<NewCall>;
   readonly changeStep: UseCase<ChangeStep>;
+  readonly setStepSetting: UseCase<SetStepSetting>;
   readonly newEdge: UseCase<NewEdge>;
   readonly newWorkflow: UseCase<NewWorkflow>;
   readonly newWorkload: UseCase<NewWorkload>;

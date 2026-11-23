@@ -3,6 +3,7 @@ import type { StepDetails } from "../../application/details/details";
 import type { Selection } from "../../application/details/selection";
 import { Button } from "../shared/Button";
 import { DetailsHeading } from "./DetailsHeading";
+import { StepSettings } from "./fields/StepSettings";
 import { RemoveConfirmation } from "./RemoveConfirmation";
 import styles from "./SelectionDetails.module.css";
 import { useConfirming } from "./useConfirming";
@@ -15,11 +16,11 @@ export interface SelectedStepProps {
   readonly details: StepDetails;
   readonly selection: Selection;
   readonly takeFocus: ProjectSelection["takeFocus"];
-  /** Saves the step's remove. */
+  /** Saves the step's remove, and a change to its request settings. */
   readonly onEdit: (edit: Edit) => void;
   /** Selects the step's caller once the step is removed. */
   readonly onSelect: ProjectSelection["selectWithin"];
-  /** Says what the remove did, in Details' polite region. */
+  /** Says what the remove, or a setting's save, did, in Details' polite region. */
   readonly announce: (message: string) => void;
   /** The outline's step lines, so the focus can go to the caller's. */
   readonly stepRows: FocusAfterRedraw;
@@ -32,12 +33,12 @@ export interface SelectedStepProps {
 /**
  * A selected step in the inspector (UX design §5): what it calls, which
  * workflow it's in, how a request reaches it and along which edge, its run
- * issues, and Remove. Its place in the workflow, and the edits that change
+ * issues, its request settings (ADR-0024), and Remove. Its place in the workflow, and the edits that change
  * it, are the outline's, in the Workflows tab. The first step has no
  * Remove: removing it is removing the workflow.
  */
 export function SelectedStep(props: SelectedStepProps) {
-  const { details } = props;
+  const { details, onEdit, announce } = props;
   const { issues } = details.step;
   return (
     <>
@@ -49,6 +50,13 @@ export function SelectedStep(props: SelectedStepProps) {
           {issue}
         </p>
       ))}
+      {/* Keyed by the step, so a draft doesn't carry over to another's. */}
+      <StepSettings
+        key={`settings-${details.step.stepId}`}
+        details={details}
+        onEdit={onEdit}
+        announce={announce}
+      />
     </>
   );
 }

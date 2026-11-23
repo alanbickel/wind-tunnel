@@ -10,6 +10,8 @@ export interface ChangeStepTextInput {
   readonly stepsBelow: number;
   /** True when the step is now an `enqueue`, which has an empty async slot. */
   readonly toEnqueue: boolean;
+  /** True when the step had request settings, which the change drops. */
+  readonly hadSettings: boolean;
 }
 
 /** What the question before a change needs: the labels, and how many steps go. */
@@ -33,23 +35,26 @@ function stepCount(count: number): string {
 
 /**
  * The sentences a change adds to the announcement, after the first: the
- * steps it drops, and the empty slot an `enqueue` has.
+ * steps it drops, the request settings it drops (ADR-0024 decision 5.2),
+ * and the empty slot an `enqueue` has.
  */
 function addedSentences({
   stepsBelow,
   toEnqueue,
+  hadSettings,
 }: ChangeStepTextInput): string[] {
   const gone = stepsBelow === 1 ? "is" : "are";
   return [
     stepsBelow > 0 && `The ${stepCount(stepsBelow)} under it ${gone} gone.`,
+    hadSettings && "Its request settings are gone.",
     toEnqueue && "It has no async work yet.",
   ].filter((sentence) => typeof sentence === "string");
 }
 
 /**
  * The words for changing a step (UX design §2.5 step 6, §4.4). A change
- * drops everything under the step, so the announcement says so, and Undo's
- * name names them.
+ * drops everything under the step, and its request settings, so the
+ * announcement says so; Undo's name names the steps.
  */
 export function changeStepText(input: ChangeStepTextInput): ChangeStepText {
   const { fromLabel, toLabel, stepsBelow } = input;

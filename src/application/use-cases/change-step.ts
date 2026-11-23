@@ -34,6 +34,8 @@ export interface ChangeStepStart {
   readonly choices: readonly CallChoice[];
   /** How many steps are under the step, calls and async work and everything nested; a change drops them all. */
   readonly stepsBelow: number;
+  /** Whether the step sets request settings, which any change drops (ADR-0024 decision 5). */
+  readonly hasSettings: boolean;
 }
 
 /** The step's label, "orders-db · read"; "a removed component" if the project has none. */
@@ -85,6 +87,7 @@ export class ChangeStep {
         currentId: current?.id,
       }),
       stepsBelow: stepsBelow(step).length,
+      hasSettings: step.settings !== undefined,
     };
   }
 }

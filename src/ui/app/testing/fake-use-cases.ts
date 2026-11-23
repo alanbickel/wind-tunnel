@@ -3,6 +3,7 @@ import { awsCheckWorkloads } from "../../../application/testing/aws-check-worklo
 import {
   awsChangeStep,
   awsListComponentTypes,
+  awsSetStepSetting,
 } from "../../../application/testing/aws-component-types";
 import { awsNameComponents } from "../../../application/testing/aws-name-components";
 import type { UseCases } from "../use-cases";
@@ -21,8 +22,9 @@ const throwsUnexpected = (name: string) => (): never => {
  * `newWorkflow`, and `newWorkload`), for UI tests. Override the ones a test expects:
  * `fakeUseCases({ listProjects: { execute: () => ... } })`.
  * `nameComponents`, `checkWorkloads`, `checkWorkflows`,
- * `listComponentTypes`, and `changeStep` are the real ones over the AWS
- * types: they're pure, and every test that shows a project uses them.
+ * `listComponentTypes`, `changeStep`, and `setStepSetting` are the real
+ * ones over the AWS types: they're pure, and every test that shows a
+ * project uses them.
  */
 export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
   return {
@@ -44,6 +46,7 @@ export function fakeUseCases(overrides: Partial<UseCases> = {}): UseCases {
     newComponent: { execute: throwsUnexpected("newComponent") },
     newCall: { execute: throwsUnexpected("newCall") },
     changeStep: awsChangeStep(),
+    setStepSetting: awsSetStepSetting(),
     newEdge: { execute: throwsUnexpected("newEdge") },
     newWorkflow: { execute: throwsUnexpected("newWorkflow") },
     newWorkload: { execute: throwsUnexpected("newWorkload") },

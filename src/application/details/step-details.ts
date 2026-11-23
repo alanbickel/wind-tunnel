@@ -1,6 +1,6 @@
 import type { Project, Step, Workflow } from "../../domain/model/project";
 import { stepLinksOf, type StepLink } from "../../domain/model/step-tree";
-import type { StepDetails, WorkflowDetails } from "./details";
+import type { SettingDetails, StepDetails, WorkflowDetails } from "./details";
 import { componentName, outlineSteps } from "./workflow-details";
 
 /** A step, by its id, in its workflow and that workflow's details. */
@@ -10,15 +10,18 @@ export interface StepDetailsInput {
   /** The workflow's details, whose outline has the step's line. */
   readonly details: WorkflowDetails;
   readonly stepId: string;
+  /** Its request settings, as `requestSettingDetails` reads them. */
+  readonly settings: readonly SettingDetails[];
 }
 
 /**
  * A step on its own (UX design §5): its outline line, the workflow it's
- * in, and how a request reaches it, along which edge. Undefined if the
+ * in, how a request reaches it, along which edge, and its request
+ * settings. Undefined if the
  * workflow has no step with that id.
  */
 export function stepDetails(input: StepDetailsInput): StepDetails | undefined {
-  const { project, workflow, details, stepId } = input;
+  const { project, workflow, details, stepId, settings } = input;
   const step = outlineSteps(details.outline).find((s) => s.stepId === stepId);
   if (step === undefined) return undefined;
   const link = stepLinksOf(workflow).find((l) => l.callee.id === stepId);
@@ -32,6 +35,7 @@ export function stepDetails(input: StepDetailsInput): StepDetails | undefined {
     workflowName: workflow.name,
     step,
     ...arrival,
+    settings,
   };
 }
 

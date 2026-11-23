@@ -28,6 +28,13 @@ export interface SettingDetails {
    */
   readonly defaultNote: string | undefined;
   /**
+   * Says the value shown is the default, for a step's request setting that
+   * the step doesn't set: "Uses the default". Undefined for one it sets,
+   * and for a component's or an edge's setting, which always has a value
+   * of its own.
+   */
+  readonly defaultMark: string | undefined;
+  /**
    * What a field needs to edit the setting; undefined for one that can't
    * be edited: a setting no descriptor covers, or an edge's whose caller
    * has no known type.
@@ -161,6 +168,12 @@ export interface StepDetails {
    * user calls, and for a call the architecture has no edge for.
    */
   readonly edgeId: string | undefined;
+  /**
+   * The request settings its action takes (ADR-0024), each with the value
+   * the step sets or else the type's default, marked as such. Empty for an
+   * action that takes none, and for a step whose component or type is gone.
+   */
+  readonly settings: readonly SettingDetails[];
 }
 
 /**

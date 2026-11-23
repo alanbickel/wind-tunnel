@@ -108,6 +108,7 @@ function changedCall(from: Place): Place {
     toLabel: "orders-db · write",
     stepsBelow: 0,
     toEnqueue: false,
+    hadSettings: false,
   });
   return apply({
     from,

@@ -3,6 +3,7 @@
 // descriptors say what each one means to a user, in AWS terms.
 
 import type { EdgeSettings } from "../../domain/model/edge-settings";
+import type { StepAction } from "../../domain/model/project";
 
 /**
  * How a setting's value is read and, later, edited: a number, a whole
@@ -107,9 +108,19 @@ export type EdgeEvidence = Readonly<
 >;
 
 /**
+ * The request settings each action of a type takes, in the order a step's
+ * Details lists them (ADR-0024): a field for every key its schema's
+ * defaults have. An action that takes none is left out.
+ */
+export type RequestFields = Readonly<
+  Partial<Record<StepAction, readonly ConfigFieldDescriptor[]>>
+>;
+
+/**
  * One component type's settings, in the order the Details tab lists them,
  * and a line on what the type is for. There's a setting for every key of
- * the type's `defaultConfig`.
+ * the type's `defaultConfig`, and a request setting for every key of each
+ * action's request settings.
  */
 export interface TypeFields {
   /** The component definition's type, e.g. `"rds"`. */
@@ -125,6 +136,11 @@ export interface TypeFields {
    * timeout, and retry policy of a new edge from it are.
    */
   readonly edgeEvidence: EdgeEvidence;
+  /**
+   * The request settings a step gives each action; left out by a type
+   * whose actions take none.
+   */
+  readonly requestFields?: RequestFields;
 }
 
 /** Every type's settings, keyed by type. */

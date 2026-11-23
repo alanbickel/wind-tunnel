@@ -12,6 +12,7 @@ import {
   RateLimitedServiceBehavior,
   type RateLimitedAction,
   type RateLimitedServiceBehaviorDependencies,
+  type RequestCost,
 } from "./rate-limited-service-behavior";
 
 /** A config field that holds a distribution, such as `latency`. */
@@ -24,8 +25,13 @@ export type BucketOf<Config> = (config: Config) => TokenBucketInput;
 
 /** What one action draws on, by name: a limit, and a config field's time. */
 export interface RateLimitedActionSpec<Config, Limit extends string> {
-  /** The limit it takes a token from; two actions may name the same one. */
+  /** The limit it takes its cost from; two actions may name the same one. */
   readonly limit: Limit;
+  /**
+   * Tokens a request takes, from its step's request settings; 1 if left
+   * out. The limit's burst must hold the largest cost it returns.
+   */
+  readonly cost?: RequestCost;
   /** The setting its service time comes from; two actions may share one. */
   readonly serviceTime: DistributionKey<Config>;
 }
@@ -56,10 +62,11 @@ export interface RateLimitedServiceSpec<
 }
 
 /**
- * A definition for a rate-limited request/response service: each action
- * takes a token from its limit's bucket, is refused when it's empty, and
- * is otherwise served for a sampled time. Nothing queues, and it never
- * delivers async work. DynamoDB, API Gateway, and S3 are built on it.
+ * A definition for a rate-limited request/response service: each request
+ * takes its action's cost in tokens from its limit's bucket, is refused when
+ * the bucket holds less, and is otherwise served for a sampled time.
+ * Nothing queues, and it never delivers async work. DynamoDB, API Gateway,
+ * and S3 are built on it.
  */
 export function rateLimitedServiceDefinition<
   Config,
@@ -120,15 +127,22 @@ function dependenciesOf<
   };
 }
 
-/** Each action with its limit's bucket and a time sampled from its setting. */
+/** One token, whatever the request: the cost of an action that names none. */
+const ONE_TOKEN: RequestCost = () => 1;
+
+/**
+ * Each action with its limit's bucket, its cost, and a time sampled from
+ * its setting.
+ */
 function actionsOf<Config, Limit extends string, Action extends StepAction>(
   { spec, config, random }: DependenciesOfInput<Config, Limit, Action>,
   buckets: Readonly<Record<Limit, RateLimit>>,
 ): Record<Action, RateLimitedAction> {
   // Separate SampledServiceTimes on one setting draw the same sequence as a
   // shared one would: the only state they hold is the run's random source.
-  return mapValues(spec.actions, ({ limit, serviceTime }) => ({
+  return mapValues(spec.actions, ({ limit, cost, serviceTime }) => ({
     limit: buckets[limit],
+    cost: cost ?? ONE_TOKEN,
     serviceTime: new SampledServiceTime(
       config[serviceTime] as Distribution,
       random,

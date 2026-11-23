@@ -48,14 +48,14 @@ The engine doesn't know what "Lambda" or "RDS" are. Each component type is assem
 
 ### RateLimit: a token bucket
 
-Think of a bucket that holds up to `burst` tokens and gains `ratePerSec` tokens per second. Each request takes one token; with none left, the request is throttled. `burst` decides how big a sudden spike can be absorbed; `ratePerSec` decides what can be sustained.
+Think of a bucket that holds up to `burst` tokens and gains `ratePerSec` tokens per second. Each request takes its cost in tokens, one unless its type charges by the request; with less than that left, the request is throttled and takes nothing. `burst` decides how big a sudden spike can be absorbed; `ratePerSec` decides what can be sustained.
 
 ```mermaid
 flowchart LR
     R["Refill: ratePerSec<br/>(stops at burst)"] --> B[("Bucket<br/>tokens")]
-    REQ[Request] --> C{"tokens ≥ 1?"}
+    REQ[Request] --> C{"tokens ≥ cost?"}
     B -.-> C
-    C -->|yes: take one| OK[Allowed]
+    C -->|yes: take cost| OK[Allowed]
     C -->|no| T["Throttled (429)"]
 ```
 

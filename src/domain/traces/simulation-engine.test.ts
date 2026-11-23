@@ -99,7 +99,7 @@ describe("traces", () => {
     const step = (timeMs: number, requests: number) => {
       const before = limit.available(timeMs);
       const results = Array.from({ length: requests }, () =>
-        limit.tryTake(timeMs) ? "✓" : "✗",
+        limit.tryTake({ nowMs: timeMs, cost: 1 }) ? "✓" : "✗",
       ).join("");
       rows.push([String(timeMs), before.toFixed(1), results]);
     };

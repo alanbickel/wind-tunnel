@@ -7,13 +7,22 @@ import type {
   Effect,
   LimitGauge,
   RefuseWhenFull,
+  RequestSettings,
 } from "./component-behavior";
 import { rateGauge } from "./limit-gauges";
 
-/** What one action draws on: the bucket it takes a token from, and its time. */
+/**
+ * A request's cost in tokens from its step's request settings for the
+ * action: any positive number, at most the bucket's burst.
+ */
+export type RequestCost = (settings: RequestSettings) => number;
+
+/** What one action draws on: the bucket it takes its cost from, and its time. */
 export interface RateLimitedAction {
-  /** Takes one token per request; may be shared with other actions. */
+  /** The bucket each request takes its cost from; may be shared with other actions. */
   readonly limit: RateLimit;
+  /** How many tokens a request takes, from its settings. */
+  readonly cost: RequestCost;
   /** How long a request that gets in takes; may be shared too. */
   readonly serviceTime: ServiceTime;
 }
@@ -36,9 +45,9 @@ export interface RateLimitedServiceBehaviorDependencies {
 
 /**
  * The run-time state of a rate-limited request/response service, such as
- * DynamoDB or API Gateway: a request takes a token from its action's bucket,
- * or is refused when the bucket is empty, and otherwise is served for its
- * action's service time. Nothing waits inside it.
+ * DynamoDB or API Gateway: a request takes its cost in tokens from its
+ * action's bucket, or is refused when the bucket holds less, and otherwise
+ * is served for its action's service time. Nothing waits inside it.
  */
 export class RateLimitedServiceBehavior<T> implements ComponentBehavior<T> {
   readonly queueDepth = 0;
@@ -63,9 +72,9 @@ export class RateLimitedServiceBehavior<T> implements ComponentBehavior<T> {
     return this.running;
   }
 
-  arrive({ request, action, nowMs }: ArriveInput<T>): Effect<T>[] {
-    const { limit, serviceTime } = this.actionOf(action);
-    if (!limit.tryTake(nowMs)) {
+  arrive({ request, action, settings, nowMs }: ArriveInput<T>): Effect<T>[] {
+    const { limit, cost, serviceTime } = this.actionOf(action);
+    if (!limit.tryTake({ nowMs, cost: cost(settings) })) {
       return [{ kind: "rejected", request, reason: this.whenFull.reason }];
     }
     this.running++;

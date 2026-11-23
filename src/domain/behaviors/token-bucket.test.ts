@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { RateLimit } from "./rate-limit";
 import { TokenBucket } from "./token-bucket";
 
+const takeOne = (limit: RateLimit, nowMs: number) =>
+  limit.tryTake({ nowMs, cost: 1 });
+
 const takeMany = (limit: RateLimit, nowMs: number, count: number) =>
-  Array.from({ length: count }, () => limit.tryTake(nowMs)).filter(Boolean)
+  Array.from({ length: count }, () => takeOne(limit, nowMs)).filter(Boolean)
     .length;
 
 describe("TokenBucket", () => {
@@ -15,9 +18,9 @@ describe("TokenBucket", () => {
   it("refills at the steady rate", () => {
     const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
     takeMany(limit, 0, 5);
-    expect(limit.tryTake(50)).toBe(false); // half a token so far
-    expect(limit.tryTake(100)).toBe(true); // one token after 100 ms
-    expect(limit.tryTake(100)).toBe(false);
+    expect(takeOne(limit, 50)).toBe(false); // half a token so far
+    expect(takeOne(limit, 100)).toBe(true); // one token after 100 ms
+    expect(takeOne(limit, 100)).toBe(false);
     expect(takeMany(limit, 400, 10)).toBe(3);
   });
 
@@ -30,7 +33,7 @@ describe("TokenBucket", () => {
     const limit = new TokenBucket({ ratePerSec: 100, burst: 1 });
     let admitted = 0;
     for (let ms = 0; ms <= 10_000; ms++) {
-      if (limit.tryTake(ms)) admitted++;
+      if (takeOne(limit, ms)) admitted++;
     }
     // One initial token plus 100/s for 10 s. Refilling in 0.1-token steps
     // drifts in floating point; this catches the rate falling short.
@@ -48,8 +51,47 @@ describe("TokenBucket", () => {
 
   it("rejects time going backwards", () => {
     const limit = new TokenBucket({ ratePerSec: 1, burst: 1 });
-    limit.tryTake(100);
-    expect(() => limit.tryTake(50)).toThrow(RangeError);
+    takeOne(limit, 100);
+    expect(() => takeOne(limit, 50)).toThrow(RangeError);
+  });
+
+  // Fails if a request is let in on any token rather than its whole cost,
+  // or a refused one still takes what's left.
+  it("refuses a request costing more than the bucket holds, taking nothing", () => {
+    const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
+    expect(limit.tryTake({ nowMs: 0, cost: 3 })).toBe(true);
+    expect(limit.tryTake({ nowMs: 0, cost: 3 })).toBe(false);
+    expect(limit.available(0)).toBe(2);
+    expect(limit.tryTake({ nowMs: 0, cost: 6 })).toBe(false);
+    expect(limit.taken).toBe(3);
+  });
+
+  // Fails if a cost is rounded up to a whole token, so two half-token
+  // requests drain two tokens.
+  it("takes a fractional cost", () => {
+    const limit = new TokenBucket({ ratePerSec: 10, burst: 1 });
+    expect(limit.tryTake({ nowMs: 0, cost: 0.5 })).toBe(true);
+    expect(limit.tryTake({ nowMs: 0, cost: 0.5 })).toBe(true);
+    expect(limit.tryTake({ nowMs: 0, cost: 0.5 })).toBe(false);
+    // Half a token back after 50 ms at 10/s.
+    expect(limit.tryTake({ nowMs: 50, cost: 0.5 })).toBe(true);
+  });
+
+  // Fails if `taken` counts requests rather than adding up their costs.
+  it("sums the costs taken", () => {
+    const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
+    limit.tryTake({ nowMs: 0, cost: 0.5 });
+    limit.tryTake({ nowMs: 0, cost: 2 });
+    limit.tryTake({ nowMs: 0, cost: 4 }); // refused: 2.5 left
+    limit.tryTake({ nowMs: 0, cost: 1.5 });
+    expect(limit.taken).toBe(4);
+  });
+
+  // Fails if a cost of zero, a negative one, or NaN is let through, which
+  // would admit requests for free or refill the bucket.
+  it.each([0, -1, Number.NaN, Infinity])("rejects a cost of %s", (cost) => {
+    const limit = new TokenBucket({ ratePerSec: 1, burst: 1 });
+    expect(() => limit.tryTake({ nowMs: 0, cost })).toThrow(RangeError);
   });
 
   it("rejects invalid options", () => {

@@ -4,7 +4,10 @@ import { distributionSchema } from "../random/distribution";
 import { SeededRandom } from "../random/seeded-random";
 import { AWS_EDGE_DEFAULTS } from "./aws/edge-defaults";
 import { checkComponentContract } from "./check-component-contract";
-import { rateLimitedServiceDefinition } from "./rate-limited-service";
+import {
+  rateLimitedServiceDefinition,
+  type RateLimitedServiceSpec,
+} from "./rate-limited-service";
 import { limitValues } from "./testing/limit-values";
 
 const config = z.object({
@@ -15,7 +18,7 @@ const config = z.object({
 
 // A type whose reads and writes share one bucket but not a service time,
 // the other way round from DynamoDB, so the base is shown to allow both.
-const definition = rateLimitedServiceDefinition({
+const SPEC = {
   type: "shared-bucket",
   displayName: "Shared bucket",
   configSchema: config,
@@ -31,7 +34,13 @@ const definition = rateLimitedServiceDefinition({
     read: { limit: "requests", serviceTime: "readTime" },
     write: { limit: "requests", serviceTime: "writeTime" },
   },
-});
+} satisfies RateLimitedServiceSpec<
+  z.infer<typeof config>,
+  "requests",
+  "read" | "write"
+>;
+
+const definition = rateLimitedServiceDefinition(SPEC);
 
 const build = () =>
   definition.build<string>(definition.defaultConfig, {
@@ -71,6 +80,40 @@ describe("rateLimitedServiceDefinition", () => {
     expect(limitValues(service, 10)).toMatchObject([
       { name: "requests", whenFull: { reason: "slow-down" }, taken: 2 },
     ]);
+  });
+
+  // Fails if the base takes one token whatever the action's cost, or reads
+  // the cost from settings other than the arriving request's.
+  it("takes each request's cost, worked out from its settings", () => {
+    const costed = rateLimitedServiceDefinition({
+      ...SPEC,
+      limits: { requests: ({ ratePerSec }) => ({ ratePerSec, burst: 4 }) },
+      actions: {
+        read: {
+          limit: "requests",
+          serviceTime: "readTime",
+          cost: (settings) => Number(settings["units"]),
+        },
+        write: { limit: "requests", serviceTime: "writeTime" },
+      },
+    });
+    const service = costed.build<string>(costed.defaultConfig, {
+      random: new SeededRandom(1),
+    });
+    const read = (units: number) =>
+      service.arrive({
+        request: "r",
+        action: "read",
+        settings: { units },
+        nowMs: 0,
+      });
+    const write = () =>
+      service.arrive({ request: "w", action: "write", settings: {}, nowMs: 0 });
+    expect(read(2.5)[0]?.kind).toBe("started"); // 1.5 left
+    expect(write()[0]?.kind).toBe("started"); // one token: 0.5 left
+    expect(read(1)[0]?.kind).toBe("rejected");
+    expect(read(0.5)[0]?.kind).toBe("started");
+    expect(limitValues(service, 0)).toMatchObject([{ taken: 4 }]);
   });
 
   // Fails if an action the type doesn't accept is served from another

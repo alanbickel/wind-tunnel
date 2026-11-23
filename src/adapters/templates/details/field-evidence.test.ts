@@ -5,7 +5,9 @@ import type {
   FieldDescriptor,
 } from "../../../application/details/field-descriptor";
 import { EDGE_FIELDS } from "../../../application/details/fields/edge-fields";
+import { itemStoreFieldCatalog } from "../../../application/testing/item-store-types";
 import { createAwsComponentRegistry } from "../../../domain/components/aws";
+import { itemStoreRegistry } from "../../../domain/components/testing/item-store-project";
 import {
   DEFAULTS_PAGES,
   defaultsRowsOf,
@@ -40,9 +42,11 @@ function edgeRow(
 }
 
 /**
- * Each component setting's descriptor, and each request setting's, labeled
- * "type key". A request setting's default has a row in its type's defaults
- * table, as a config setting's does.
+ * Each AWS component setting's descriptor, and each request setting's,
+ * labeled "type key". A request setting's default has a row in its type's
+ * defaults table, as a config setting's does. No AWS type takes request
+ * settings yet, so the evidence checks below start to cover them with DDB-1
+ * (#301). The test item store stays out: it has no profile page.
  */
 const configFields = [...catalog.values()].flatMap(
   ({ type, fields, requestFields = {} }) =>
@@ -105,21 +109,27 @@ describe("the setting descriptors", () => {
 
   // Fails if an action's request settings (ADR-0024) gain a setting with
   // no descriptor, or a descriptor names one the action doesn't take, or
-  // describes an action that takes none.
-  it("describe every request setting of every action, and nothing else", () => {
-    for (const type of registry.list()) {
-      const requestFields = catalog.get(type.type)?.requestFields ?? {};
-      for (const action of type.actions) {
-        const keys = Object.keys(type.parseSettings(action, {}));
-        const described = (requestFields[action] ?? []).map((f) => f.key);
-        expect(described, `${type.type} ${action}`).toEqual(keys);
+  // describes an action that takes none. No AWS type takes request settings
+  // yet, so the test item store's are checked too: they show it can fail.
+  it.each([
+    ["AWS", registry, catalog],
+    ["test item store", itemStoreRegistry(), itemStoreFieldCatalog()],
+  ] as const)(
+    "describe every request setting of every action, and nothing else (%s)",
+    (_, types, descriptors) => {
+      for (const type of types.list()) {
+        const requestFields = descriptors.get(type.type)?.requestFields ?? {};
+        for (const action of type.actions) {
+          const keys = Object.keys(type.parseSettings(action, {}));
+          const described = (requestFields[action] ?? []).map((f) => f.key);
+          expect(described, `${type.type} ${action}`).toEqual(keys);
+        }
+        for (const action of Object.keys(requestFields)) {
+          expect(type.actions, type.type).toContain(action);
+        }
       }
-      const describedActions = Object.keys(requestFields);
-      for (const action of describedActions) {
-        expect(type.actions, type.type).toContain(action);
-      }
-    }
-  });
+    },
+  );
 
   // Fails if a descriptor's help or evidence cites a fidelity entry that
   // no fidelity page has, as after an entry is renumbered or deleted.

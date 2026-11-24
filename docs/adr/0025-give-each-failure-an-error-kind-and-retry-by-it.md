@@ -32,6 +32,13 @@ What's in place:
    - **A failure from further down** is transient when it reaches the caller of the component it passed through. That component answers with an error of its own, not its callee's: API Gateway answers a failed integration with a 502, which the SDKs class as transient. The cause (its component and reason) passes up unchanged; only the kind is the passing component's.
 4. **The kind travels beside the cause, not inside it.** The answer to an attempt carries its `Failure` and its kind. `Failure` stays the cause that metrics count and findings explain; a failure from further down keeps its cause while its kind changes at each component it passes through.
 
+   For example, API Gateway calls a Lambda function, which calls DynamoDB, and DynamoDB rejects the request as `throttled`:
+
+   | Edge | Its policy sees the cause | and the kind |
+   |---|---|---|
+   | Lambda → DynamoDB | DynamoDB `throttled` | `throttling` (DynamoDB's kind for `throttled`) |
+   | API Gateway → Lambda | DynamoDB `throttled` | `transient` (Lambda's failure, passing DynamoDB's up) |
+
 ### 2. A policy retries only what's retryable, with a delay by kind
 
 1. **A non-retryable failure is never retried,** whatever the edge's policy and however many attempts it has left. The call fails at once, and its caller gets the original failure, cause unchanged.
@@ -43,7 +50,7 @@ What's in place:
 1. **An edge's `retry` is either a custom policy or the preset.** The custom policy is today's `RetryPolicy`, unchanged. The preset is `{ preset: "aws-sdk-standard" }`, with an optional `maxAttempts`. These are the two settings the SDKs themselves expose: a retry mode and a maximum number of attempts.
 2. **The preset stores a name, not values.** The engine resolves it when it builds a run: full jitter (`exponential-jitter`), the 20 s cap (`MAX_BACKOFF_MS`), 1,000 ms after a throttle, 50 ms after a transient error, and 3 attempts unless the edge sets `maxAttempts`. A stored name lets the editor and the findings say that an edge follows the SDK, which values filled in by a button couldn't, and it's what the retry quota needs (decision 6).
 3. **The callee's type may change the preset's defaults.** `ComponentDefinition` gains an optional `sdkRetryDefaults`, with the attempts and transient base delay that its service's SDK client uses. DynamoDB sets `{ maxAttempts: 4, transientBaseDelayMs: 25 }`; a type that leaves it out takes the general values. The preset is resolved against the edge's target, so the engine needs no code about any one service (Open/Closed), and because an edge's ends never change, a preset edge never needs re-resolving after an edit. An edge's own `maxAttempts` overrides the type's.
-4. **Editing the edge.** Setting the attempts on a preset edge keeps the preset, with that `maxAttempts`. Changing the backoff or a delay makes it a custom policy. The preset can't express a delay that isn't the SDK's, and a policy that says "AWS SDK standard" should behave like it. The edge editor's details are [#318](https://github.com/alanbickel/wind-tunnel/issues/318)'s.
+4. **Editing the edge.** Setting the attempts on a preset edge keeps the preset, with that `maxAttempts`. Changing the backoff or a delay makes it a custom policy. The preset can't express a delay that isn't the SDK's, and a policy that says "AWS SDK standard" should behave like it. Which of the preset's resolved values the new custom policy starts from (its attempts, and which of the two base delays becomes its one) isn't decided here. That, and the rest of the edge editor's details, are [#318](https://github.com/alanbickel/wind-tunnel/issues/318)'s.
 5. **The preset is a choice, not a default.** `AWS_EDGE_DEFAULTS` keeps "no retries", and the templates' edges into DynamoDB and S3 move to the preset (#318). Whether a type's `edgeDefaults` should become the preset (Lambda's, whose code calls AWS through an SDK) is a separate decision.
 
 ### 4. Saved projects and templates

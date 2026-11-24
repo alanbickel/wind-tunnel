@@ -18,7 +18,7 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 - **Status:** Open
 - **Kind:** Behavior
-- **Depends on:** Nothing; the preset is M8 item 6, without the retry quota, which has no Roadmap item yet.
+- **Depends on:** Nothing; the preset is M8 item 6 (#318), without the retry quota, which is a Roadmap stub in M10. [ADR-0025](../../adr/0025-give-each-failure-an-error-kind-and-retry-by-it.md) decides how the preset is stored and applied, and leaves room for the quota.
 - **Checked:** 2026-10-14
 - **Wind Tunnel:** each edge sets `maxAttempts`, a backoff (`none`, `exponential`, `exponential-jitter`), and one `baseDelayMs`. The backoff is capped at 20 s. There's no retry budget: every caller retries as often as its policy allows, however many calls are failing.
 - **AWS:** the AWS SDKs retry automatically. Standard mode (the default) makes up to 3 attempts (4 for DynamoDB clients), with full jitter, a 20 s cap, and different base delays by error type: 50 ms for transient errors (25 ms for DynamoDB) and 1,000 ms for throttling. A **retry quota** (500 tokens per client; a retry costs 14 tokens for transient errors and 5 for throttling; successes refill it) stops retries when failures are widespread. Adaptive mode also rate-limits the client's first attempts. The page notes that this updated behavior is opt-in (`AWS_NEW_RETRIES_2026=true`) until it becomes the default, and older behavior differs by SDK.
@@ -30,7 +30,7 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 - **Status:** Open
 - **Kind:** Behavior
-- **Depends on:** Nothing; it's M8 item 7.
+- **Depends on:** Nothing; it's M8 item 7 (#317). [ADR-0025](../../adr/0025-give-each-failure-an-error-kind-and-retry-by-it.md) decides where a failure's kind comes from.
 - **Checked:** 2026-10-14
 - **Wind Tunnel:** rejections, timeouts, and errors from further down can all be retried.
 - **AWS:** SDKs retry transient and throttling errors and return other errors (e.g. `ValidationException`) at once. Every failure Wind Tunnel produces today is a throttle, a capacity rejection, or a timeout, which the SDKs treat as retryable.

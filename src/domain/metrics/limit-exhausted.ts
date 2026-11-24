@@ -11,8 +11,10 @@ export type LimitAtPeak = Pick<LimitUse, "kind" | "limit" | "peak">;
  * - rate: the bucket held less than one token (`peak > limit - 1`), the
  *   level at which the bucket throttles.
  *
- * The rate rule assumes a request costs one token. One that costs more,
- * such as a large DynamoDB item, can be refused with more left (#314).
+ * The rate rule assumes a request costs one token, so it's wrong both ways
+ * for other costs (#314): one that costs more, such as a large DynamoDB
+ * item, can be refused with more left, and one that costs half a token,
+ * such as a default DynamoDB read, is still served with less.
  *
  * A request arriving then had to wait or was rejected. A bucket can run out
  * well short of `peak / limit` = 1: one with a burst of 2 is out at 1.1

@@ -211,7 +211,9 @@ describe("simulateWithMetrics", () => {
   // Fails if a rate limit's peak is read only at ticks, not after every
   // request (e.g. with `trackLimitPeaks` emptied). Some throttled second must
   // have a full bucket at both its ticks, where a peak read at ticks is 0.
-  it("shows a bucket drawn down in every second that throttled", () => {
+  // A request costs one token here, so it's refused only once the bucket
+  // holds less than one: a throttled second's peak use is above limit − 1.
+  it("shows a bucket drawn below one request's cost in every second that throttled", () => {
     // A one-token bucket refills in 50 ms, so it's usually full by a tick.
     const { snapshots } = run(project({ apiRatePerSec: 20, apiBurst: 1 }));
     const buckets = snapshots.map((s) =>
@@ -227,7 +229,8 @@ describe("simulateWithMetrics", () => {
     );
     expect(fullAtBothTicks.length).toBeGreaterThan(0);
     for (const index of throttled) {
-      expect(buckets[index]?.peak).toBeGreaterThan(0);
+      const bucket = buckets[index];
+      expect(bucket?.peak).toBeGreaterThan((bucket?.limit ?? 0) - 1);
     }
     for (const bucket of buckets) {
       expect(bucket.current).toBeGreaterThanOrEqual(0);

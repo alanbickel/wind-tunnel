@@ -27,7 +27,10 @@ import { FixedClock } from "./fixed-clock";
 /** Every test type's defaults are ours, with nothing behind them. */
 const ASSUMED: DefaultEvidence = { level: "assumption", fidelityId: undefined };
 
-/** The item store's descriptors: its write time, and a read's settings. */
+/**
+ * The item store's descriptors: its write time, and a read's settings, a
+ * number of each kind and a choice.
+ */
 export const itemStoreFields: TypeFields = {
   type: itemStoreDefinition.type,
   purpose: "a store whose reads take request settings.",
@@ -61,6 +64,18 @@ export const itemStoreFields: TypeFields = {
         kind: "number",
         range: { min: 0, minExclusive: false, max: undefined },
         help: "How long each KB of the item takes to read.",
+        evidence: ASSUMED,
+      },
+      {
+        key: "consistency",
+        label: "Consistency",
+        unit: undefined,
+        kind: "choice",
+        options: [
+          { value: "eventual", label: "Eventually consistent" },
+          { value: "strong", label: "Strongly consistent" },
+        ],
+        help: "Whether a read may return a value a recent write has replaced.",
         evidence: ASSUMED,
       },
     ],

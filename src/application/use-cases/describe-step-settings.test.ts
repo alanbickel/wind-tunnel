@@ -49,7 +49,8 @@ function shown(settings?: StepSettings) {
 describe("DescribeSelection, for a step with request settings", () => {
   // Fails if a step that sets none doesn't show its action's settings, in
   // the descriptors' order, with the defaults as values, each marked as the
-  // default and with its default's evidence.
+  // default and with its default's evidence, or a choice shows its stored
+  // value rather than its option's label.
   it("shows each setting at its default, marked as such, when the step sets none", () => {
     expect(shown()).toEqual([
       {
@@ -67,6 +68,14 @@ describe("DescribeSelection, for a step with request settings", () => {
         defaultMark: "Uses the default",
         editorValue: 1,
         defaultValue: 1,
+      },
+      {
+        label: "Consistency",
+        value: "Eventually consistent",
+        defaultNote: "Default Eventually consistent: an assumption.",
+        defaultMark: "Uses the default",
+        editorValue: "eventual",
+        defaultValue: "eventual",
       },
     ]);
   });

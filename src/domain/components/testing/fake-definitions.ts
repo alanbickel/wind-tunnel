@@ -97,6 +97,7 @@ type ItemStoreConfig = z.infer<typeof itemStoreConfig>;
 export const itemStoreReadSettings = z.strictObject({
   itemSizeKb: z.number().int().min(1).max(400).default(4),
   msPerKb: z.number().nonnegative().default(1),
+  consistency: z.enum(["eventual", "strong"]).default("eventual"),
 });
 
 /**

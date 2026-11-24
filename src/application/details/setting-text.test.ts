@@ -1,29 +1,54 @@
 import { describe, expect, it } from "vitest";
-import type { FieldDescriptor } from "./field-descriptor";
+import type {
+  ChoiceFieldDescriptor,
+  DefaultEvidence,
+  DistributionFieldDescriptor,
+  NumberFieldDescriptor,
+  RetryFieldDescriptor,
+} from "./field-descriptor";
 import { defaultNote, settingValueText } from "./setting-text";
 
-const queryTime: FieldDescriptor = {
+const ASSUMED: DefaultEvidence = { level: "assumption", fidelityId: undefined };
+
+const queryTime: DistributionFieldDescriptor = {
   key: "queryTime",
   label: "Query time",
   unit: "ms",
   kind: "distribution",
   help: "",
+  evidence: ASSUMED,
 };
 
-const retry: FieldDescriptor = {
+const retry: RetryFieldDescriptor = {
   key: "retry",
   label: "Retries",
   unit: undefined,
   kind: "retry",
   help: "",
+  evidence: ASSUMED,
 };
 
-const workers: FieldDescriptor = {
+const workers: NumberFieldDescriptor = {
   key: "queryWorkers",
   label: "Query workers",
   unit: "queries",
   kind: "whole-number",
   help: "",
+  range: { min: 1, minExclusive: false, max: undefined },
+  evidence: ASSUMED,
+};
+
+const consistency: ChoiceFieldDescriptor = {
+  key: "consistency",
+  label: "Consistency",
+  unit: undefined,
+  kind: "choice",
+  options: [
+    { value: "eventual", label: "Eventually consistent" },
+    { value: "strong", label: "Strongly consistent" },
+  ],
+  help: "",
+  evidence: ASSUMED,
 };
 
 describe("settingValueText", () => {
@@ -64,6 +89,16 @@ describe("settingValueText", () => {
   it("reads a number with its unit", () => {
     expect(settingValueText(workers, 1_000)).toBe("1,000 queries");
   });
+
+  // Fails if a choice reads as its stored value rather than its option's
+  // label, or a value no option has throws instead of showing as it is.
+  it.each([
+    ["strong", "Strongly consistent"],
+    ["eventual", "Eventually consistent"],
+    ["linear", "linear"],
+  ])("reads choice %s as %s", (value, text) => {
+    expect(settingValueText(consistency, value)).toBe(text);
+  });
 });
 
 describe("defaultNote", () => {
@@ -84,5 +119,12 @@ describe("defaultNote", () => {
         evidence: { level: "observed", fidelityId: undefined },
       }),
     ).toBe("Default 600: observed.");
+  });
+
+  // Fails if a choice's default note shows its stored value, not its label.
+  it("says a choice's default by its option's label", () => {
+    expect(
+      defaultNote({ field: consistency, value: "eventual", evidence: ASSUMED }),
+    ).toBe("Default Eventually consistent: an assumption.");
   });
 });

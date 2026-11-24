@@ -16,8 +16,9 @@ import {
 
 // A step's request settings in its Details (ADR-0024), over the test types:
 // "W" is front · invoke, which calls store · read. A read takes "Item size"
-// (default 4 KB) and "Read time per KB" (default 1 ms); a write takes none.
-// No AWS type takes request settings yet.
+// (default 4 KB), "Read time per KB" (default 1 ms), and the choice
+// "Consistency" (default "Eventually consistent"); a write takes none. No AWS
+// type takes request settings yet.
 
 /** The store's read, setting these, or none. */
 function storeRead(settings?: StepSettings): Step {
@@ -100,6 +101,12 @@ function field(label: string): HTMLInputElement {
   });
 }
 
+function picker(label: string): HTMLSelectElement {
+  return within(settingsRegion()).getByRole<HTMLSelectElement>("combobox", {
+    name: label,
+  });
+}
+
 function typeAndLeave(input: HTMLInputElement, value: string): void {
   fireEvent.change(input, { target: { value } });
   fireEvent.blur(input);
@@ -132,7 +139,81 @@ describe("OpenedProject's editing a step's request settings", () => {
 
     expect(field("Item size").value).toBe("4");
     expect(field("Read time per KB").value).toBe("1");
+    expect(picker("Consistency").value).toBe("eventual");
+    expect(marks()).toBe(3);
+  });
+
+  // Fails if a choice setting isn't a picker of its options by label, or
+  // its default note shows the stored value rather than the option's label.
+  it("shows a choice setting as a picker of its options' labels, with the default's label", () => {
+    openAndSelect();
+
+    const options = [...picker("Consistency").options];
+    expect(options.map((option) => option.text)).toEqual([
+      "Eventually consistent",
+      "Strongly consistent",
+    ]);
+    expect(
+      within(settingsRegion()).getByText(
+        "Default Eventually consistent: an assumption.",
+      ),
+    ).toBeTruthy();
+  });
+
+  // Fails if a pick doesn't store the option's value (not its label) on the
+  // step as one undo step named for the setting, isn't announced by the
+  // option's label, or Undo doesn't put the default back.
+  it("saves a picked option's value as one undo step, announces its label, and undoes it", async () => {
+    const { projects } = openAndSelect();
+
+    fireEvent.change(picker("Consistency"), { target: { value: "strong" } });
+
+    const saved = await savedRecord(
+      projects,
+      (r) => storeSettings(r) !== undefined,
+    );
+    expect(storeSettings(saved)).toEqual({ consistency: "strong" });
+    expect(detailsStatus().textContent).toBe(
+      "Set store · read's consistency to Strongly consistent.",
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Undo change store · read's consistency",
+      }),
+    ).toBeTruthy();
+    expect(picker("Consistency").value).toBe("strong");
     expect(marks()).toBe(2);
+
+    pressUndo();
+
+    await savedRecord(projects, (r) => storeSettings(r) === undefined);
+    expect(picker("Consistency").value).toBe("eventual");
+    expect(marks()).toBe(3);
+  });
+
+  // Fails if Reset on a choice doesn't store the step without it, so it
+  // follows the default again, or announces the default by its stored value.
+  it("resets a choice to the default, announced by its label", async () => {
+    const { projects } = openAndSelect({
+      itemSizeKb: 40,
+      consistency: "strong",
+    });
+
+    fireEvent.click(
+      within(settingsRegion()).getByRole("button", {
+        name: "Reset to default: Consistency",
+      }),
+    );
+
+    const saved = await savedRecord(
+      projects,
+      (r) => storeSettings(r)?.consistency === undefined,
+    );
+    expect(storeSettings(saved)).toEqual({ itemSizeKb: 40 });
+    expect(detailsStatus().textContent).toBe(
+      "Set store · read's consistency to the default, Eventually consistent.",
+    );
+    expect(picker("Consistency").value).toBe("eventual");
   });
 
   // Fails if a saved value isn't stored on the step, isn't one undo step
@@ -156,13 +237,13 @@ describe("OpenedProject's editing a step's request settings", () => {
         name: "Undo change store · read's item size",
       }),
     ).toBeTruthy();
-    expect(marks()).toBe(1);
+    expect(marks()).toBe(2);
 
     pressUndo();
 
     await savedRecord(projects, (r) => storeSettings(r) === undefined);
     expect(field("Item size").value).toBe("4");
-    expect(marks()).toBe(2);
+    expect(marks()).toBe(3);
   });
 
   // Fails if Reset doesn't store the step without the value, so it follows

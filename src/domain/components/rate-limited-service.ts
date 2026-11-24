@@ -6,7 +6,11 @@ import type { EdgeSettings } from "../model/edge-settings";
 import type { StepAction } from "../model/project";
 import type { Distribution } from "../random/distribution";
 import type { RandomSource } from "../random/random-source";
-import type { ComponentBehavior, RefuseWhenFull } from "./component-behavior";
+import type {
+  ComponentBehavior,
+  RefuseWhenFull,
+  RequestSettings,
+} from "./component-behavior";
 import type { BuildContext, ComponentDefinition } from "./component-definition";
 import {
   RateLimitedServiceBehavior,
@@ -28,8 +32,9 @@ export interface RateLimitedActionSpec<Config, Limit extends string> {
   /** The limit it takes its cost from; two actions may name the same one. */
   readonly limit: Limit;
   /**
-   * Tokens a request takes, from its step's request settings; 1 if left
-   * out. The limit's burst must hold the largest cost it returns.
+   * Tokens a request takes, from its step's request settings (the spec's
+   * `requestSettings` for the action, parsed); 1 if left out. The limit's
+   * burst must hold the largest cost it returns.
    */
   readonly cost?: RequestCost;
   /** The setting its service time comes from; two actions may share one. */
@@ -59,6 +64,14 @@ export interface RateLimitedServiceSpec<
   readonly actions: Readonly<
     Record<Action, RateLimitedActionSpec<Config, Limit>>
   >;
+  /**
+   * The request settings each action takes, as `ComponentDefinition`'s
+   * (ADR-0024); an action's `cost` reads them. Left out by a type whose
+   * actions take none.
+   */
+  readonly requestSettings?: Readonly<
+    Partial<Record<Action, z.ZodType<RequestSettings>>>
+  >;
 }
 
 /**
@@ -83,6 +96,7 @@ export function rateLimitedServiceDefinition<
     defaultConfig,
     edgeDefaults,
     actions: Object.keys(spec.actions) as Action[],
+    requestSettings: spec.requestSettings,
     deliversAsync: false,
     rejectionReasons: [spec.refusal.reason],
     build<T>(config: Config, { random }: BuildContext): ComponentBehavior<T> {

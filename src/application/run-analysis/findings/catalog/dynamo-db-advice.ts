@@ -11,12 +11,12 @@ export const dynamoDbAdvice: TypeAdvice = {
       fixes: [
         {
           scope: "wind-tunnel",
-          message: say`Provision readUnitsPerSec for the sustained read rate, not the burst: a bucket that refills slower than reads arrive runs out however large it is. A rate at or above the sustained read rate throttles nothing.`,
+          message: say`Provision readUnitsPerSec for the units your sustained reads take a second, not for the burst. A read takes one unit per started 4 KB of its item, half that if eventually consistent, so the bucket counts units, not reads. A bucket that refills slower than reads take units runs out however large it is; at or above that rate, nothing is throttled.`,
           claim: {
             kind: "observed",
             test: "serves every request of the long rush without a failure",
           },
-          fidelityIds: ["DDB-1", "DDB-2"],
+          fidelityIds: ["DDB-2"],
         },
         {
           scope: "aws",

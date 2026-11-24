@@ -39,7 +39,6 @@ Model defaults (the numbers in each definition's `defaultConfig`) are in each ty
 | [RDS-4](fidelity/rds/rds-fidelity.md#rds-4-opening-a-connection-is-free) | Opening a connection is free | Optimistic | A | Open |
 | [SQS-1](fidelity/sqs/sqs-fidelity.md#sqs-1-failed-messages-come-back-immediately) | Failed messages come back immediately, not after the visibility timeout | Mixed | B | Open |
 | [SQS-3](fidelity/sqs/sqs-fidelity.md#sqs-3-the-consumer-reaches-full-concurrency-instantly) | The SQS consumer reaches full concurrency instantly | Optimistic | B | Open |
-| [DDB-1](fidelity/dynamodb/dynamodb-fidelity.md#ddb-1-every-request-costs-one-capacity-unit) | Every DynamoDB request costs one capacity unit | Pessimistic for reads | B | Open |
 | [DDB-4](fidelity/dynamodb/dynamodb-fidelity.md#ddb-4-throttled-requests-fail-immediately) | Throttled DynamoDB requests fail immediately; AWS SDKs retry them | Mixed | B | Open |
 | [LMB-1](fidelity/lambda/lambda-fidelity.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account) | Lambda concurrency is per function, not shared by the account | Optimistic | B | Open |
 

@@ -134,7 +134,7 @@ export interface ConcurrencyLimitGauge {
 
 /**
  * A token bucket, e.g. API Gateway's `requestRate`: each request takes its
- * cost in tokens (one, for every type so far), tokens refill at
+ * cost in tokens (one, or a DynamoDB request's units), tokens refill at
  * `ratePerSec` up to `burst`, and a request finding less than its cost
  * left is rejected.
  */

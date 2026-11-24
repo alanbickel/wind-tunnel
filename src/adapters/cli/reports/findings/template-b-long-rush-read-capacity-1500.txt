@@ -7,7 +7,7 @@ Failing. 4,377 of 273,539 answered requests failed (1.6%); 7 were still in progr
    - The last failure was in the second ending at 141 s, and none followed in the 59 s after it.
    - After it, orders-read's readUnits peaked at 7,497 of 7,500 tokens drawn.
    Fixes:
-   - In Wind Tunnel: Provision readUnitsPerSec for the sustained read rate, not the burst: a bucket that refills slower than reads arrive runs out however large it is. A rate at or above the sustained read rate throttles nothing. (Observed: "serves every request of the long rush without a failure"; fidelity DDB-1, DDB-2)
+   - In Wind Tunnel: Provision readUnitsPerSec for the units your sustained reads take a second, not for the burst. A read takes one unit per started 4 KB of its item, half that if eventually consistent, so the bucket counts units, not reads. A bucket that refills slower than reads take units runs out however large it is; at or above that rate, nothing is throttled. (Observed: "serves every request of the long rush without a failure"; fidelity DDB-2)
    - In AWS: Look for throttles in latency, not only in errors: the AWS SDKs retry throttled requests on their own, so a throttle may reach your code only as a slower answer. (Documented: DynamoDB error handling, https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html; fidelity DDB-4)
    Learn more: docs/learning/aws-did-you-know.md#dynamodb-saves-up-unused-capacity-for-bursts
    1.1. Note: orders-read's readUnits bucket drained from 18 s and ran out in the second ending at 96 s.

@@ -99,3 +99,7 @@ Until one of these exists, the guidance is the second row: a different kind of r
 - **A default change reaches every step that doesn't set the value**, by design (decision 2.3).
 - **Changing a step's action loses its settings without asking**, unlike its calls. One undo brings them back.
 - **Follow-up:** [#304](https://github.com/alanbickel/wind-tunnel/issues/304) builds decisions 1 to 4 and 5.4 with a test type, and appends an addendum to ADR-0006, whose table quotes `arrive(request, action, nowMs)`. [#305](https://github.com/alanbickel/wind-tunnel/issues/305) builds the editor: the field descriptors for request settings, the edit command (decision 2.2), and decisions 5.1 and 5.2.
+
+## Addendum, 2026-11-24
+
+DDB-1, linked in the context above, is closed ([#311](https://github.com/alanbickel/wind-tunnel/issues/311)): a DynamoDB `read` step takes the item's size and its consistency, a `write` step its item's size, and each request takes the units AWS charges. A closed entry is deleted from the fidelity catalog, so the link above no longer resolves; its [last version](https://github.com/alanbickel/wind-tunnel/blob/71517d3932c47fccd95dd8613791cba86ca0f607/docs/design/fidelity/dynamodb/dynamodb-fidelity.md#ddb-1-every-request-costs-one-capacity-unit) is in the history. Decision 4's choice field kind came first, on the test item store ([#310](https://github.com/alanbickel/wind-tunnel/issues/310)); DynamoDB's read consistency is its first use by an AWS type. The decision is unchanged.

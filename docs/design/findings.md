@@ -110,7 +110,7 @@ orders-queue's consumers were all busy in the first second, while fn-writer cold
 
 ### 1.7 Variant: Template B, long rush, read capacity cut to 1,500 a second: failing
 
-Not a shipped workload. It's here because it's the case the issue names: a failure whose cause starts long before it. To reproduce, set `orders-read`'s `readUnitsPerSec` to 1500 in `template-b.json` (don't commit it) and run the long rush. Under the lunch rush the same change fails nothing.
+Not a shipped workload. It's here because it's the case the issue names: a failure whose cause starts long before it. To reproduce, set `orders-read`'s `readUnitsPerSec` to 1500 in `template-b.json`, and *Get order*'s read to strongly consistent, so each read takes one unit (don't commit either), and run the long rush. Under the lunch rush the same change fails nothing.
 
 > **Failing.** 4,377 of 273,539 answered requests failed (1.6%); 7 were still in progress when the run ended.
 
@@ -119,7 +119,7 @@ Not a shipped workload. It's here because it's the case the issue names: a failu
 3. **Retries rescued most reads.** orders-read refused 64,201 read attempts; the edge's 4 attempts got all but 4,377 requests through. 278,914 attempts = 214,713 completed + 64,201 refused. [totals: orders-read arrivals, completed, rejected] The retries cost time: *Get order*'s p99 rose from about 105 ms to 168–194 ms while throttling lasted. [snapshots] In AWS, the SDKs retry throttled DynamoDB requests on their own. **Documented:** [DynamoDB error handling](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html). So a throttle may reach your code only as latency ([Did you know?](../learning/aws-did-you-know.md#your-code-may-never-see-a-dynamodb-throttle-because-the-sdk-retries-it)).
 4. **Recovery.** Once the rush eased, the bucket refilled: full again at 152 s. [snapshots]
 5. **Fix, in Wind Tunnel.** Provision for the sustained rate, not the burst: at 2,500 reads a second (the template's setting) nothing fails. **Observed:** §1.5.
-6. **What would change this in AWS.** Probably everything: [DDB-1](fidelity/dynamodb/dynamodb-fidelity.md#ddb-1-every-request-costs-one-capacity-unit) (default reads are eventually consistent and cost half a unit, so 1,500 units serve 3,000 reads a second), [DDB-2](fidelity/dynamodb/dynamodb-fidelity.md#ddb-2-the-burst-bucket-starts-full-and-is-reliable) (AWS keeps up to 300 s of burst, not the template's 5 s), [DDB-4](fidelity/dynamodb/dynamodb-fidelity.md#ddb-4-throttled-requests-fail-immediately) (the SDK backs off from 1,000 ms for throttles, not 25 ms). The variant teaches the shape of a finding, not a fact about DynamoDB.
+6. **What would change this in AWS.** Probably everything: the reads' consistency (eventually consistent reads, AWS's default, take half a unit, so 1,500 units serve 3,000 reads a second), [DDB-2](fidelity/dynamodb/dynamodb-fidelity.md#ddb-2-the-burst-bucket-starts-full-and-is-reliable) (AWS keeps up to 300 s of burst, not the template's 5 s), [DDB-4](fidelity/dynamodb/dynamodb-fidelity.md#ddb-4-throttled-requests-fail-immediately) (the SDK backs off from 1,000 ms for throttles, not 25 ms). The variant teaches the shape of a finding, not a fact about DynamoDB.
 7. **Learn more:** [DynamoDB saves up unused capacity for bursts](../learning/aws-did-you-know.md#dynamodb-saves-up-unused-capacity-for-bursts).
 
 The variant's queue is unchanged, so it also gets §1.5's warning about late writes, below the failure.

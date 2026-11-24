@@ -74,9 +74,9 @@ function typeChoices(
 }
 
 /**
- * Every choice descriptor, with its schema: the AWS types', and the test
- * item store's, so the check runs before any AWS type has a choice (DDB-1,
- * #301, is the first).
+ * Every choice descriptor, with its schema: the AWS types' (DynamoDB's read
+ * consistency), and the test item store's, so the check doesn't depend on
+ * an AWS type keeping one.
  */
 const choiceFields = (
   [

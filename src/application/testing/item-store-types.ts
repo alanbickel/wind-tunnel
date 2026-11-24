@@ -21,8 +21,8 @@ import { FixedClock } from "./fixed-clock";
 
 // The test types whose reads take request settings (ADR-0024), with
 // descriptors and use cases over them, for tests of a step's request
-// settings in layers that can't build a registry. No AWS type takes request
-// settings yet; DDB-1 (#301) is the first.
+// settings in layers that can't build a registry, so they don't depend on
+// an AWS type's settings, such as DynamoDB's.
 
 /** Every test type's defaults are ours, with nothing behind them. */
 const ASSUMED: DefaultEvidence = { level: "assumption", fidelityId: undefined };

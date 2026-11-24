@@ -9,6 +9,7 @@ import {
 import type { LimitUse } from "../../../domain/metrics/metrics-snapshot";
 import { componentIn } from "../../../domain/metrics/testing/snapshot-lookups";
 import type { Project } from "../../../domain/model/project";
+import { mapSteps } from "../../../domain/model/step-tree";
 
 const registry = createAwsComponentRegistry();
 
@@ -99,9 +100,9 @@ function rejectionLine(
 
 /**
  * The project with orders-read's `readUnitsPerSec` replaced: findings.md
- * §1.7's variant of Template B at 1,500, whose long rush drains the read
- * bucket and throttles reads. Built in tests only; the template keeps its
- * setting.
+ * §1.7's variant of Template B at 1,500, with `withStrongReads`, whose long
+ * rush drains the read bucket and throttles reads. Built in tests only; the
+ * template keeps its setting.
  */
 export function withReadUnitsPerSec(
   project: Project,
@@ -111,6 +112,24 @@ export function withReadUnitsPerSec(
     id: "orders-read",
     config: { readUnitsPerSec },
   });
+}
+
+/**
+ * The project with every read of orders-read strongly consistent, so each
+ * costs one read unit rather than the default half: findings.md §1.7's
+ * variant, whose bucket then drains as it did when every read took one
+ * unit. Built in tests only; the template's reads keep the default.
+ */
+export function withStrongReads(project: Project): Project {
+  const workflows = project.workflows.map((workflow) => ({
+    ...workflow,
+    root: mapSteps(workflow.root, (step) =>
+      step.componentId === "orders-read" && step.action === "read"
+        ? { ...step, settings: { ...step.settings, consistency: "strong" } }
+        : step,
+    ),
+  }));
+  return { ...project, workflows };
 }
 
 /**

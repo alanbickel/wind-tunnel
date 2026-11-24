@@ -156,3 +156,10 @@ With SSE-KMS encryption and no S3 Bucket Key, **every upload and download** make
 
 **At scale:** a busy bucket can fail on KMS throttling while S3 itself has room, and it can starve other services in the account that use KMS. Turn on S3 Bucket Keys for SSE-KMS buckets.
 **Source:** [KMS request quotas](https://docs.aws.amazon.com/kms/latest/developerguide/requests-per-second.html), [S3 Bucket Keys](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-key.html)
+
+### A DynamoDB request's cost grows with its item, in steps
+
+A read uses one read capacity unit per started **4 KB** of the item, and half that if it's eventually consistent, the default; a write uses one write capacity unit per started **1 KB**. A 4.1 KB item costs as much to read as an 8 KB one, and a 400 KB item, DynamoDB's largest, takes 400 write units to write.
+
+**At scale:** a table's capacity is in units, not requests, so 1,000 read units serve 2,000 eventually consistent reads of a 1 KB item a second, but only 100 strongly consistent reads of a 40 KB one. Growing an item past a 4 KB (reads) or 1 KB (writes) boundary raises the cost of every request for it. In Wind Tunnel, each step sets its item's size, and a read's consistency.
+**Source:** [DynamoDB provisioned capacity](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html), [DynamoDB constraints](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Constraints.html)

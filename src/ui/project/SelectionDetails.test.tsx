@@ -59,7 +59,7 @@ describe("SelectionDetails", () => {
       screen.getByText("Called by Function · invoke, along Function → Table."),
     ).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Steps" })).toBeNull();
-    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     cleanup();
 
     renderDetails(step("gone"));

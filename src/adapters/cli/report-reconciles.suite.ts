@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../../domain/components/aws";
+import type { RequestSettings } from "../../domain/components/component-behavior";
 import type {
   ComponentMetrics,
   LimitUse,
@@ -9,7 +10,8 @@ import {
   componentIn,
   limitIn,
 } from "../../domain/metrics/testing/snapshot-lookups";
-import type { Project } from "../../domain/model/project";
+import type { Project, Step } from "../../domain/model/project";
+import { stepsOf } from "../../domain/model/step-tree";
 import type { RunGetter, TemplateRun } from "../templates/testing/use-run";
 import { createDetectors } from "../../application/run-analysis/findings/create-detectors";
 import { FAILED_DELIVERIES } from "../../application/run-analysis/findings/detectors/failed-deliveries";
@@ -67,6 +69,58 @@ function everyLimit(snapshots: readonly MetricsSnapshot[]): LimitInWindow[] {
 }
 
 const windowSec = (s: MetricsSnapshot) => (s.endMs - s.startMs) / 1000;
+
+/** A request's cost in tokens, from its parsed request settings. */
+type CostRule = (settings: RequestSettings) => number;
+
+/**
+ * What one request costs, by "type action", worked out here from AWS's
+ * rules rather than read from the definitions, so a wrong cost there turns
+ * the check red. DynamoDB charges one read unit per started 4 KB, halved if
+ * eventually consistent, and one write unit per started 1 KB; every other
+ * request takes one token.
+ */
+const COSTS: Readonly<Record<string, CostRule>> = {
+  "dynamodb read": (s) =>
+    Math.ceil((s.itemSizeKb as number) / 4) *
+    (s.consistency === "strong" ? 1 : 0.5),
+  "dynamodb write": (s) => Math.ceil(s.itemSizeKb as number),
+};
+
+/**
+ * What each request to each component costs, by component ID. Every step
+ * that calls a component must cost the same, since a window's metrics don't
+ * split its arrivals by step; the check throws for one that doesn't.
+ */
+function costPerRequest(project: Project): ReadonlyMap<string, number> {
+  const costs = new Map<string, Set<number>>();
+  for (const { step } of stepsOf(project)) {
+    const each = costs.get(step.componentId) ?? new Set<number>();
+    costs.set(step.componentId, each.add(stepCost(project, step)));
+  }
+  return new Map([...costs].map(([id, each]) => [id, onlyCost(id, each)]));
+}
+
+/** What one request of `step` costs its component, by `COSTS`. */
+function stepCost(project: Project, step: Step): number {
+  const type =
+    project.architecture.components.find((c) => c.id === step.componentId)
+      ?.type ?? "";
+  const rule = COSTS[`${type} ${step.action}`];
+  if (rule === undefined) return 1;
+  const definition = registry.get(type);
+  if (definition === undefined) throw new Error(`No type ${type}`);
+  return rule(definition.parseSettings(step.action, step.settings ?? {}));
+}
+
+/** The one cost a component's steps share; throws if they differ. */
+function onlyCost(id: string, costs: ReadonlySet<number>): number {
+  const [cost, ...others] = costs;
+  if (cost === undefined || others.length > 0) {
+    throw new Error(`${id}'s steps cost ${[...costs].join(", ")}`);
+  }
+  return cost;
+}
 
 /** Checks that a template's totals reconcile, in the run of its first workload. */
 export function describeTotalsReconcile(getRun: RunGetter): void {
@@ -158,23 +212,28 @@ export function describeTotalsReconcile(getRun: RunGetter): void {
       expect(counted.length).toBeGreaterThanOrEqual(snapshots.length * 2);
     });
 
-    // Fails if a rate limit stops counting admitted requests as tokens taken.
-    // Neither template throttles, so counting throttled requests as taken can't
-    // turn this red; token-bucket.test.ts and api-gateway.test.ts cover that.
-    it("takes one rate token for each request a rate-limited component admits", () => {
+    // Fails if a rate limit stops counting admitted requests' costs as
+    // tokens taken, or a request's cost differs from AWS's: a DynamoDB read
+    // charged a whole unit, as before DDB-1 closed, or one token taken per
+    // request whatever it costs. Neither template throttles, so counting
+    // throttled requests as taken can't turn this red; token-bucket.test.ts
+    // and api-gateway.test.ts cover that.
+    it("takes each admitted request's cost in tokens from its rate limits", () => {
+      const costs = costPerRequest(project);
       const windows = snapshots.flatMap((snapshot) =>
         Object.entries(snapshot.components).map(([id, metrics]) => ({
           metrics,
+          cost: costs.get(id) ?? 0,
           rates: metrics.limits.flatMap((l) => (l.kind === "rate" ? [l] : [])),
           where: `${id} at ${String(snapshot.endMs)} ms`,
           sec: windowSec(snapshot),
         })),
       );
       const rateLimited = windows.filter((w) => w.rates.length > 0);
-      for (const { metrics, rates, where, sec } of rateLimited) {
+      for (const { metrics, cost, rates, where, sec } of rateLimited) {
         const taken = rates.reduce((n, l) => n + l.takenPerSec, 0) * sec;
         expect(taken, where).toBeCloseTo(
-          metrics.arrivals - metrics.rejected,
+          (metrics.arrivals - metrics.rejected) * cost,
           6,
         );
       }

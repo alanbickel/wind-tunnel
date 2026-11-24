@@ -106,8 +106,8 @@ interface DescribedTypes {
 
 /**
  * Each request setting's number descriptor, with its type and action: the
- * AWS types', and the test item store's, so the check runs before any AWS
- * type takes request settings (DDB-1, #301, is the first).
+ * AWS types' (DynamoDB's item sizes), and the test item store's, so the
+ * check doesn't depend on an AWS type keeping one.
  */
 const requestNumberFields = (
   [
@@ -128,9 +128,9 @@ const requestNumberFields = (
 
 describe("each request setting's range", () => {
   // Fails if a request setting's range disagrees with its action's schema
-  // (ADR-0024), as a component setting's must agree with its config's. No
-  // AWS type takes request settings yet; the test item store's are checked
-  // too, so the check itself is shown to run.
+  // (ADR-0024), as a component setting's must agree with its config's: a
+  // DynamoDB item size whose descriptor allows 401 KB, say. The test item
+  // store's are checked too, so the check doesn't depend on DynamoDB's.
   it.each(
     requestNumberFields.map(
       ({ type, action, field }) =>

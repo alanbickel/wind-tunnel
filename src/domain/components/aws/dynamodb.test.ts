@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { StepAction } from "../../model/project";
 import { SeededRandom } from "../../random/seeded-random";
 import { checkComponentContract } from "../check-component-contract";
+import type { ComponentBehavior, RequestSettings } from "../component-behavior";
 import { limitValues } from "../testing/limit-values";
 import { dynamoDbDefinition, type DynamoDbConfig } from "./dynamodb";
 
@@ -16,17 +18,56 @@ const build = (config: Partial<DynamoDbConfig> = {}) =>
     { random: new SeededRandom(1) },
   );
 
+/** A step's settings for `action`, parsed as the registry parses them. */
+function settingsOf(
+  action: StepAction,
+  settings: RequestSettings = {},
+): RequestSettings {
+  const schema = dynamoDbDefinition.requestSettings?.[action];
+  if (schema === undefined) throw new Error(`No settings for ${action}`);
+  return schema.parse(settings);
+}
+
+/** One request at time 0, and whether it started. */
+interface SendInput {
+  readonly action: StepAction;
+  readonly settings?: RequestSettings;
+}
+
+function send(db: ComponentBehavior<string>, input: SendInput): string {
+  const settings = settingsOf(input.action, input.settings);
+  const effects = db.arrive({
+    request: "r",
+    action: input.action,
+    settings,
+    nowMs: 0,
+  });
+  return effects[0]?.kind ?? "none";
+}
+
+/** The units `action`'s bucket has given out so far. */
+function taken(db: ComponentBehavior<string>, name: string): number {
+  const limit = limitValues(db).find((l) => l.name === name);
+  if (limit?.kind !== "rate") throw new Error(`No rate limit ${name}`);
+  return limit.taken;
+}
+
 describe("dynamoDbDefinition", () => {
   it("passes the component contract", () => {
     expect(checkComponentContract(dynamoDbDefinition).violations).toEqual([]);
   });
 
+  // Fails if a throttling table breaks the contract, or these rates stop
+  // throttling: the buckets hold only the largest request (DDB-6), which
+  // 2,000 default requests run dry. A 4 KB default item, half the requests,
+  // throttles nothing.
   it("passes the component contract while throttling", () => {
     const report = checkComponentContract(dynamoDbDefinition, {
+      requests: 2_000,
       config: {
         ...dynamoDbDefinition.defaultConfig,
-        readUnitsPerSec: 100,
-        writeUnitsPerSec: 50,
+        readUnitsPerSec: 5,
+        writeUnitsPerSec: 5,
         burstSec: 0,
       },
     });
@@ -34,18 +75,88 @@ describe("dynamoDbDefinition", () => {
     expect(report.stats.rejected).toBeGreaterThan(0);
   });
 
+  // Fails if a step's settings default to anything but a 1 KB item, read
+  // eventually consistent, as the profile's defaults table says.
+  it("defaults to a 1 KB item, read eventually consistent", () => {
+    expect(settingsOf("read")).toEqual({
+      itemSizeKb: 1,
+      consistency: "eventual",
+    });
+    expect(settingsOf("write")).toEqual({ itemSizeKb: 1 });
+  });
+
+  // Fails if an eventually consistent read costs a whole unit, as it did
+  // before DDB-1 closed, or the read's settings are ignored.
+  it("charges an eventually consistent read half a unit", () => {
+    const db = build();
+    send(db, { action: "read" });
+    expect(taken(db, "readUnits")).toBe(0.5);
+  });
+
+  // Fails if a strongly consistent read is charged as an eventual one.
+  it("charges a strongly consistent read one unit", () => {
+    const db = build();
+    send(db, { action: "read", settings: { consistency: "strong" } });
+    expect(taken(db, "readUnits")).toBe(1);
+  });
+
+  // Fails if a read's size isn't rounded up to whole 4 KB units, or isn't
+  // counted at all: 9 KB is three units strong, one and a half eventual.
+  it.each([
+    ["strong", 3],
+    ["eventual", 1.5],
+  ] as const)(
+    "charges a 9 KB %s read per started 4 KB",
+    (consistency, units) => {
+      const db = build();
+      send(db, { action: "read", settings: { itemSizeKb: 9, consistency } });
+      expect(taken(db, "readUnits")).toBe(units);
+    },
+  );
+
+  // Fails if a write's size is counted in 4 KB units, as a read's is, or
+  // not at all: a 3 KB write takes three write units.
+  it("charges a write one unit per KB", () => {
+    const db = build();
+    send(db, { action: "write", settings: { itemSizeKb: 3 } });
+    expect(taken(db, "writeUnits")).toBe(3);
+  });
+
+  // Fails if a step's settings accept an item over DynamoDB's 400 KB, a
+  // fraction of a KB, or a consistency AWS doesn't offer.
+  it.each([
+    ["read", { itemSizeKb: 401 }],
+    ["write", { itemSizeKb: 0.5 }],
+    ["read", { consistency: "transactional" }],
+    ["write", { consistency: "strong" }],
+  ] as const)("rejects %s settings %j", (action, settings) => {
+    expect(() => settingsOf(action, settings)).toThrow();
+  });
+
+  // Fails if a bucket smaller than the largest request is allowed, which
+  // would refuse a 400 KB item for ever at a small burstSec (DDB-6).
+  it("serves the largest request with no burst saved up", () => {
+    const db = build({ burstSec: 0 });
+    const largest = { itemSizeKb: 400 };
+    expect(
+      send(db, {
+        action: "read",
+        settings: { ...largest, consistency: "strong" },
+      }),
+    ).toBe("started");
+    expect(send(db, { action: "write", settings: largest })).toBe("started");
+    expect(taken(db, "readUnits")).toBe(100);
+    expect(taken(db, "writeUnits")).toBe(400);
+  });
+
+  // Fails if reads and writes share a bucket, or a request is served with
+  // less capacity left than it costs.
   it("throttles reads and writes separately", () => {
     const db = build();
-    expect(
-      db.arrive({ request: "r1", action: "read", settings: {}, nowMs: 0 }),
-    ).toEqual([{ kind: "started", request: "r1", serviceMs: 5 }]);
-    expect(
-      db.arrive({ request: "r2", action: "read", settings: {}, nowMs: 0 }),
-    ).toEqual([{ kind: "rejected", request: "r2", reason: "throttled" }]);
-    expect(
-      db.arrive({ request: "w1", action: "write", settings: {}, nowMs: 0 })[0]
-        ?.kind,
-    ).toBe("started");
+    const large = { itemSizeKb: 400, consistency: "strong" };
+    expect(send(db, { action: "read", settings: large })).toBe("started");
+    expect(send(db, { action: "read" })).toBe("rejected");
+    expect(send(db, { action: "write" })).toBe("started");
     expect(db.inProgress).toBe(2);
   });
 
@@ -54,42 +165,41 @@ describe("dynamoDbDefinition", () => {
   // other than the one it throttles with.
   it("reports read and write capacity taken and left", () => {
     const db = build({ burstSec: 0 });
-    db.arrive({ request: "r1", action: "read", settings: {}, nowMs: 0 });
-    db.arrive({ request: "r2", action: "read", settings: {}, nowMs: 0 });
+    send(db, {
+      action: "read",
+      settings: { itemSizeKb: 396, consistency: "strong" },
+    });
+    send(db, { action: "read", settings: { itemSizeKb: 400 } });
+    send(db, { action: "write", settings: { itemSizeKb: 3 } });
     expect(limitValues(db)).toEqual([
       {
         kind: "rate",
         name: "readUnits",
         whenFull: { kind: "refuse", reason: "throttled" },
         ratePerSec: 10,
-        burst: 1,
-        taken: 1,
-        tokensLeft: 0,
+        burst: 100,
+        taken: 99,
+        tokensLeft: 1,
       },
       {
         kind: "rate",
         name: "writeUnits",
         whenFull: { kind: "refuse", reason: "throttled" },
         ratePerSec: 10,
-        burst: 1,
-        taken: 0,
-        tokensLeft: 1,
+        burst: 400,
+        taken: 3,
+        tokensLeft: 397,
       },
     ]);
   });
 
+  // Fails if burstSec stops sizing the bucket once it holds more than the
+  // largest request: 300 s of 10 units is 3,000.
   it("spends saved-up capacity in a burst", () => {
-    const db = build({ burstSec: 2 });
-    const started = Array.from(
-      { length: 25 },
-      (_, i) =>
-        db.arrive({
-          request: String(i),
-          action: "read",
-          settings: {},
-          nowMs: 0,
-        })[0]?.kind,
+    const db = build({ burstSec: 300 });
+    const started = Array.from({ length: 6_100 }, () =>
+      send(db, { action: "read" }),
     ).filter((kind) => kind === "started");
-    expect(started).toHaveLength(20);
+    expect(started).toHaveLength(6_000);
   });
 });

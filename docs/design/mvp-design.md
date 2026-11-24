@@ -367,7 +367,7 @@ The templates are `src/adapters/templates/template-a.json` and `template-b.json`
 | fn-api → orders-read | 4 attempts, exponential jitter, 25 ms base | Like the AWS SDK's DynamoDB client (ENG-2, DDB-4) |
 | fn-api → orders-queue | 3 attempts, exponential jitter, 50 ms base | Like the AWS SDK's standard mode (ENG-2) |
 | orders-queue → fn-writer | 1 attempt | SQS redelivers failed messages itself (SQS-1) |
-| orders-read `readUnitsPerSec`, `burstSec` | 2,500, 5 | Headroom over the 1,600 reads/s peak without leaning on a full 300 s bucket, which would hide throttling (DDB-2) |
+| orders-read `readUnitsPerSec`, `burstSec` | 2,500, 5 | Read units a second: headroom over the 1,600 reads/s peak, which draws about 800 units/s at half a unit per default read, without leaning on a full 300 s bucket, which would hide throttling (DDB-2) |
 | orders-queue `consumerMaxConcurrency` | 15 | Low enough that the backlog grows during the spike, high enough that it drains before the run ends (see below). Tried: 40 and 20 left almost no backlog; 12 left 825 messages at 60 s |
 | Edge latencies | 1–2 ms | Same-Region calls; nonzero so redelivery loops advance time |
 | Steady day rate | 200 requests/s | The lunch rush's calm rate. At 250, nothing fails, but Template A's 16 query workers all fill at once on two of the three test seeds, so the run no longer shows clear headroom |
@@ -399,7 +399,7 @@ The other two workloads split the templates differently: under the steady day bo
 | **Long rush: queue backlog** | n/a | Grows by about 85 messages a second for the whole peak, because writes arrive at about 400 a second and 15 consumers deliver about 315. Peaks at 10,197 at 142 s, empty by 185 s |
 | **Long rush: writes** | Same as the response | Answered within 114 ms (p99), but land 32.6 s later (p99), past API Gateway's 29 s timeout |
 
-Under the long rush, Template B degrades without failing: a finding for it is a warning, not an error. It's also the only workload that would catch a read capacity too small to last a long peak: with `readUnitsPerSec` cut to 1,500, the lunch rush still fails nothing, because the 5 s burst bucket covers its 20 s peak, but the long rush empties the bucket and 4,377 reads fail as `orders-read: throttled`.
+Under the long rush, Template B degrades without failing: a finding for it is a warning, not an error. It's also the only workload that would catch a read capacity too small to last a long peak: with `readUnitsPerSec` cut to 1,500 and *Get order*'s read strongly consistent, so each read takes a whole unit ([findings §1.7](findings.md#17-variant-template-b-long-rush-read-capacity-cut-to-1500-a-second-failing)), the lunch rush still fails nothing, because the 5 s burst bucket covers its 20 s peak, but the long rush empties the bucket and 4,377 reads fail as `orders-read: throttled`.
 
 ## 8. Testing strategy
 

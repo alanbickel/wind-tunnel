@@ -44,9 +44,8 @@ function edgeRow(
 /**
  * Each AWS component setting's descriptor, and each request setting's,
  * labeled "type key". A request setting's default has a row in its type's
- * defaults table, as a config setting's does. No AWS type takes request
- * settings yet, so the evidence checks below start to cover them with DDB-1
- * (#301). The test item store stays out: it has no profile page.
+ * defaults table, as a config setting's does: DynamoDB's, for one. The test
+ * item store stays out: it has no profile page.
  */
 const configFields = [...catalog.values()].flatMap(
   ({ type, fields, requestFields = {} }) =>
@@ -109,8 +108,8 @@ describe("the setting descriptors", () => {
 
   // Fails if an action's request settings (ADR-0024) gain a setting with
   // no descriptor, or a descriptor names one the action doesn't take, or
-  // describes an action that takes none. No AWS type takes request settings
-  // yet, so the test item store's are checked too: they show it can fail.
+  // describes an action that takes none. The test item store's are checked
+  // too, so the check doesn't depend on DynamoDB's.
   it.each([
     ["AWS", registry, catalog],
     ["test item store", itemStoreRegistry(), itemStoreFieldCatalog()],

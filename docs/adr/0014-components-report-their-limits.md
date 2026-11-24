@@ -1,6 +1,6 @@
 # ADR-0014: Components report their limits; a rate limit's use is how far its bucket was drawn down
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-11-24
 - **Date:** 2026-10-20
 
 ## Context
@@ -24,6 +24,8 @@ The engine knows nothing about component types (Open/Closed), and [ADR-0007](000
 - The engine reads every limit after every call into the component, as it already does for `peakInProgress`, and keeps each limit's highest use since the last tick. Peaks are exact, not sampled.
 - Each snapshot's `ComponentMetrics` gets `limits: LimitUse[]`, each with `name`, `kind`, `limit`, `current` (at the window's end), and `peak` (the most at once during the window). In the run's totals, `peak` is the highest of any window and `current` is the last window's.
 - **`peak / limit` is the share used at the busiest moment, from 0 to 1, for every limit.** When a limit ran out depends on its kind, so one rule, `limitExhausted` (`domain/metrics/limit-exhausted.ts`), decides it for the CLI, the run panel, and the findings: a concurrency limit is exhausted at `peak >= limit`, every slot held; a bucket at `peak > limit − 1`, less than one token left, which is where `tryTake` starts refusing. Either way, a request arriving then waited or was rejected. The displays round `peak / limit` down, so 100% never shows for a limit with room left, and show whether it was exhausted beside it.
+
+> **Changed by the [addendum of 2026-11-24](#addendum-2026-11-24).**
 - **A rate limit's use is option B, its bucket's level.** `limit` is the bucket's size (its burst), and `current` and `peak` count the tokens missing from a full bucket. The flow travels with it as context: `ratePerSec`, and `takenPerSec` for the window (in the totals, the busiest window's). Taking tokens faster than `ratePerSec` drains the bucket.
 - The component contract checks every limit: the same limits on every read, concurrency use within its limit, a bucket holding between 0 and `burst` tokens, and no more tokens taken than the burst plus the rate since the start allow.
 - RDS's `connectionsHeld` gauge is removed: its `connections` limit reports the same number, plus its peak and the limit itself.
@@ -35,7 +37,11 @@ A per-second flow is an exact count, but it can't explain a throttle. It also go
 ## Consequences
 
 - Every limit reads the same way: `peak / limit` from 0 to 1, so findings and the "busiest component" verdict can compare an RDS pool with an API throttle. A bucket runs out just short of 1, at less than one token left, so "exhausted" comes from `limitExhausted`, not from the share. At Template scale (a burst of 5,000) the gap doesn't show; for a small DynamoDB table with a burst of a few units, it does.
+
+> **Changed by the [addendum of 2026-11-24](#addendum-2026-11-24).**
 - A bucket's level alone can't show sustained headroom. At 9,900 requests per second against a 10,000-per-second rate, the bucket stays full and its use reads 0%. That's why every rate limit carries its flow. Both tables show both, and a draining bucket runs out, below one token, in `(tokensLeft − 1) / (takenPerSec − ratePerSec)` seconds.
+
+> **Changed by the [addendum of 2026-11-24](#addendum-2026-11-24).**
 - Shape within a second is invisible: two seconds with the same lowest level look the same. Shorter metric windows would show more, if a finding ever needs it.
 - The CLI report and the run panel share `limitPeaks` (`application/run-analysis/`, [ADR-0013](0013-derive-run-results-in-application-run-analysis.md)). The CLI's per-second table shows a component's limits in place of its "busy" column.
 - Reading a bucket's level after every call must not change the run, so `RateLimit.available` only reads. Before this, it refilled the bucket, which could shift later refills by floating-point steps.
@@ -45,3 +51,20 @@ A per-second flow is an exact count, but it can't explain a throttle. It also go
 ## Addendum (2026-10-21): what a full limit does
 
 [ADR-0015](0015-findings-come-from-registered-detectors.md) adds a field to the shapes above. Each `LimitGauge`, and so each `LimitUse` in every snapshot and the totals, also carries `whenFull`: whether the limit refuses work (with its rejection reason) or makes it wait (holding which other limit, if any). `concurrencyGauge` and `rateGauge` take it as an input. A rate view may only refuse. The decision here is unchanged.
+
+## Addendum, 2026-11-24
+
+**Context.** The decision's rule for a bucket, exhausted at `peak > limit − 1`, assumed each request takes one token: that's where `tryTake` refused. Since DynamoDB requests cost their units ([#311](https://github.com/alanbickel/wind-tunnel/issues/311)), it's wrong both ways. A 40 KB strongly consistent read, costing 10 units, is throttled with 9 left, so the bucket refused without counting as out; and a default read, costing half a unit, is still served with 0.7 left, so the bucket counted as out while it served ([#314](https://github.com/alanbickel/wind-tunnel/issues/314)). Where a bucket refuses depends on what the next request costs, so its level can't say whether it ran out. The findings read `limitExhausted`, so they couldn't name the bucket behind those throttles, and the contract's rejection check passed only because it sent default settings.
+
+**Decision.**
+
+- A bucket counts the requests it refuses for holding less than they cost. `RateLimit` and `RateLimitGauge` carry the running count as `refused`, and each snapshot's `RateLimitUse` carries the window's (in the totals, the whole run's).
+- `limitExhausted` reads `refused` for a rate limit: it ran out in a window in which it refused a request. The concurrency rule is unchanged. A rate limit's use is still its level, so `peak / limit` reads as before, and a bucket can still run out short of 1.
+- The time a draining bucket lasts, quoted by bucket-drained, is the time to empty: `tokensLeft / (takenPerSec − ratePerSec)`, from full `burst / (flow − refill)`. It runs out a little before that, once what's left is less than the next request costs, which the snapshots don't record.
+- The contract checks a rejection whose reason a bucket declares against that bucket's refusals in the same call, and checks that `refused` is a count that never goes down. `ContractInput.requestSettings` sends settings besides the defaults, so a type whose requests can cost more is checked at those costs.
+
+**Consequences.**
+
+- "Exhausted" for a bucket is exact whatever its requests cost: it means a request was refused, which is what a reader acts on. A bucket drawn to its last half unit that refused nothing isn't out.
+- The formula overstates how long a bucket lasts by at most the time it takes to drain one request's cost. At template scale (a burst of 5,000) that doesn't show; for a small table with large items, bucket-drained says the bucket runs out sooner, and quotes the measured bounds beside it.
+- No template run changes, since their requests cost the defaults; a run whose steps set larger items now gets its throttles explained by its bucket.

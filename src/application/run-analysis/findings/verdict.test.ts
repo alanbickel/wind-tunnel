@@ -213,6 +213,7 @@ describe("the verdict's headroom", () => {
       peak: 90,
       ratePerSec: 50,
       takenPerSec: 70,
+      refused: 0,
     };
     const snapshots = [
       sampleSnapshot({ second: 1, api: { limits: [requestRate] } }),
@@ -238,6 +239,7 @@ describe("the verdict's no-headroom line", () => {
     peak: out ? 99.5 : 40,
     ratePerSec: 50,
     takenPerSec: 70,
+    refused: out ? 1 : 0,
   });
 
   // fn's concurrency is out in seconds 1 and 2, and fn refuses 3 attempts

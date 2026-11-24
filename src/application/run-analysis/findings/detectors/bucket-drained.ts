@@ -232,8 +232,10 @@ function flowStatement(input: DrainedFindingInput): BucketDrainedStatement {
 
 /**
  * How long the burst lasted, against ADR-0014's formula: a full bucket
- * lasts (burst − 1) ÷ (flow − refill), since it throttles at less than one
- * token left. A flow no faster than the refill gives no formula.
+ * empties in burst ÷ (flow − refill). It runs out a little sooner, once it
+ * holds less than the next request costs; the snapshots don't say what
+ * that is, so the formula stops at empty. A flow no faster than the refill
+ * gives no formula.
  */
 function lastedStatements(
   input: DrainedFindingInput,
@@ -249,7 +251,7 @@ function lastedStatements(
   };
   const excessPerSec = drain.takenPerSec - ratePerSec;
   if (excessPerSec <= 0) return [lasted];
-  const predictedMs = ((limit - 1) / excessPerSec) * 1_000;
+  const predictedMs = (limit / excessPerSec) * 1_000;
   return [lasted, { kind: "burst-predicted", predictedMs }];
 }
 
@@ -267,7 +269,7 @@ function evidenceOf({ bucket, tally, drain }: DrainedFindingInput): Evidence[] {
       source: "config",
     },
     {
-      what: `${name}: seconds in which it ran out (limitExhausted on the second's peak)`,
+      what: `${name}: seconds in which it ran out (limitExhausted: it refused a request)`,
       value: tally.out.count,
       source: "snapshots",
     },

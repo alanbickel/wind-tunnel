@@ -1,4 +1,7 @@
-import { limitExhausted, type LimitAtPeak } from "../metrics/limit-exhausted";
+import {
+  limitExhausted,
+  type LimitExhaustion,
+} from "../metrics/limit-exhausted";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
 import type {
   ConcurrencyLimitGauge,
@@ -19,6 +22,8 @@ export interface LimitReading {
   readonly signature: string;
   /** Each rate limit's `taken`, by index; 0 for concurrency limits. */
   readonly taken: readonly number[];
+  /** Each rate limit's `refused`, by index; 0 for concurrency limits. */
+  readonly refused: readonly number[];
 }
 
 /** One read of a behavior's limits, and the read before it. */
@@ -45,8 +50,11 @@ export interface LimitCheckResult {
 export interface RejectionCheckInput {
   /** The behavior's `limits`, read live. */
   readonly limits: readonly LimitGauge[];
-  /** Simulated time of the rejection, for the buckets' levels. */
-  readonly nowMs: number;
+  /**
+   * The limits as read after the previous event, before the call that
+   * rejected; undefined before the first.
+   */
+  readonly previous: LimitReading | undefined;
   /** The `rejected` effect's reason, e.g. `"too-many-connections"`. */
   readonly reason: string;
   /** The definition's `rejectionReasons`. */
@@ -58,6 +66,8 @@ interface GaugeCheckContext {
   readonly nowMs: number;
   /** The limit's `taken` at the previous read, for rate limits. */
   readonly takenBefore: number;
+  /** The limit's `refused` at the previous read, for rate limits. */
+  readonly refusedBefore: number;
 }
 
 /**
@@ -70,9 +80,10 @@ interface GaugeCheckContext {
  *   of the same component, one that refuses;
  * - a limit that refuses does so with a reason in `rejectionReasons`;
  * - a concurrency limit's use is between 0 and its limit;
- * - a rate limit's values are finite, `taken` never decreases, it never
- *   takes more than its burst plus its rate since the start allows, and its
- *   bucket holds between 0 and `burst` tokens.
+ * - a rate limit's values are finite, `taken` never decreases, `refused`
+ *   is a count that never decreases, it never takes more than its burst
+ *   plus its rate since the start allows, and its bucket holds between 0
+ *   and `burst` tokens.
  */
 export function checkLimits({
   limits,
@@ -95,6 +106,7 @@ export function checkLimits({
       )({
         nowMs,
         takenBefore: previous?.taken[index] ?? 0,
+        refusedBefore: previous?.refused[index] ?? 0,
       }),
     ),
   ];
@@ -110,6 +122,7 @@ function readLimits(limits: readonly LimitGauge[]): LimitReading {
       )
       .join(", "),
     taken: limits.map((l) => handleKind(TAKEN, l)),
+    refused: limits.map((l) => handleKind(REFUSED, l)),
   };
 }
 
@@ -121,6 +134,11 @@ const WHEN_FULL_TEXT: KindHandlers<WhenFull, string> = {
 const TAKEN: KindHandlers<LimitGauge, number> = {
   concurrency: () => 0,
   rate: ({ taken }) => taken,
+};
+
+const REFUSED: KindHandlers<LimitGauge, number> = {
+  concurrency: () => 0,
+  rate: ({ refused }) => refused,
 };
 
 function changedLimits(
@@ -196,14 +214,15 @@ const HELD: KindHandlers<WhenFull, string | undefined> = {
 /**
  * The `rejected` rules of `checkComponentContract` (ADR-0016): the
  * effect's reason is in `rejectionReasons`, and if any of the behavior's
- * limits declares it, one of those is full as it rejects, by
- * `limitExhausted`'s rule. The findings rely on that to name the limit
- * behind a failure (ADR-0015). A listed reason that no limit declares has
- * no limit behind it, such as a failed validation.
+ * limits declares it, one of those ran out in the call that rejected, by
+ * `limitExhausted`'s rule: a concurrency limit is full, or a bucket refused
+ * a request since the previous read. The findings rely on that to name the
+ * limit behind a failure (ADR-0015). A listed reason that no limit declares
+ * has no limit behind it, such as a failed validation.
  */
 export function checkRejection({
   limits,
-  nowMs,
+  previous,
   reason,
   rejectionReasons,
 }: RejectionCheckInput): string[] {
@@ -214,23 +233,42 @@ export function checkRejection({
     (l) => handleKind(REFUSAL_REASON, l.whenFull) === reason,
   );
   if (declaring.length === 0) return [];
-  if (declaring.some((l) => limitExhausted(handleKind(AT_PEAK, l)(nowMs)))) {
-    return [];
-  }
+  const ranOut = (limit: LimitGauge) =>
+    limitExhausted(
+      handleKind(
+        SINCE_PREVIOUS,
+        limit,
+      )({ index: limits.indexOf(limit), previous }),
+    );
+  if (declaring.some(ranOut)) return [];
   const names = declaring.map((l) => l.name).join(", ");
   return [`rejected as "${reason}" while ${names} had room.`];
 }
 
-/** A limit's use now, as `limitExhausted` reads it. */
-const AT_PEAK: KindHandlers<LimitGauge, (nowMs: number) => LimitAtPeak> = {
+/** Where a limit's previous read is. */
+interface PreviousReadContext {
+  /** The limit's index in the behavior's `limits`. */
+  readonly index: number;
+  readonly previous: LimitReading | undefined;
+}
+
+/**
+ * A limit's use since the previous read, as `limitExhausted` reads it: a
+ * concurrency limit's slots held now, or a bucket's refusals since.
+ */
+const SINCE_PREVIOUS: KindHandlers<
+  LimitGauge,
+  (context: PreviousReadContext) => LimitExhaustion
+> = {
   concurrency:
     ({ kind, limit, inUse }) =>
     () => ({ kind, limit, peak: inUse }),
-  rate: (gauge) => (nowMs) => ({
-    kind: gauge.kind,
-    limit: gauge.burst,
-    peak: gauge.burst - gauge.tokensLeft(nowMs),
-  }),
+  rate:
+    ({ kind, refused }) =>
+    ({ index, previous }) => ({
+      kind,
+      refused: refused - (previous?.refused[index] ?? 0),
+    }),
 };
 
 const GAUGE_CHECKS: KindHandlers<
@@ -262,6 +300,7 @@ function checkRate(
   }
   return [
     ...checkTakenGrows(limit, context),
+    ...checkRefusedCounts(limit, context),
     ...checkTakenAllowed(limit, context),
     ...checkTokensLeft(limit, context),
   ];
@@ -274,6 +313,17 @@ function checkTakenGrows(
   if (taken >= takenBefore) return [];
   return [
     `limit ${name} taken went from ${String(takenBefore)} to ${String(taken)}.`,
+  ];
+}
+
+/** `refused` counts requests, so it's a whole number that never goes down. */
+function checkRefusedCounts(
+  { name, refused }: RateLimitGauge,
+  { refusedBefore }: GaugeCheckContext,
+): string[] {
+  if (Number.isInteger(refused) && refused >= refusedBefore) return [];
+  return [
+    `limit ${name} refused went from ${String(refusedBefore)} to ${String(refused)}.`,
   ];
 }
 

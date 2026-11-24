@@ -1,11 +1,13 @@
 import { TIMEOUT_REASON } from "../engine/simulation-events";
 import { edgeSettingsSchema } from "../model/edge-settings";
+import type { StepAction } from "../model/project";
 import type { ComponentDefinition } from "./component-definition";
 import {
   createContractHarness,
   emptyStats,
   MAX_VIOLATIONS,
   type ContractHarnessInput,
+  type ContractRequestSettings,
   type ContractScenario,
   type ContractStats,
 } from "./contract-harness";
@@ -26,6 +28,12 @@ export interface ContractInput<Config> {
   readonly maxHoldMs?: number;
   /** Share of async deliveries that fail and must be redelivered. */
   readonly dispatchFailureRate?: number;
+  /**
+   * Request settings to send besides the defaults, by action, so a type
+   * whose requests cost more than the defaults do is checked at those
+   * costs. Each arrival sends its action's defaults or one of these.
+   */
+  readonly requestSettings?: ContractRequestSettings;
 }
 
 export interface ContractReport {
@@ -56,7 +64,8 @@ export interface ContractReport {
  *   rate allow;
  * - each action's `requestSettings` schema is for an action the type
  *   accepts, parses `{}` (every field has a default), and rejects a key it
- *   doesn't know (ADR-0024);
+ *   doesn't know (ADR-0024); the input's `requestSettings`, sent besides
+ *   the defaults, parse with it;
  * - `rejectionReasons` doesn't list `timeout`, every refusing limit's
  *   reason is on it, and so is every rejection's; a rejection whose reason
  *   a limit declares comes while one such limit is full (see
@@ -69,7 +78,10 @@ export function checkComponentContract<Config>(
   definition: ComponentDefinition<Config>,
   input: ContractInput<Config> = {},
 ): ContractReport {
-  const problems = checkDefinition(definition);
+  const problems = [
+    ...checkDefinition(definition),
+    ...checkSentSettings(definition, input.requestSettings ?? {}),
+  ];
   if (problems.length > 0) return { violations: problems, stats: emptyStats() };
 
   const harnessInput: ContractHarnessInput<Config> = {
@@ -138,6 +150,23 @@ function checkRequestSettings<Config>(
   });
 }
 
+/** The settings the input sends each parse with their action's schema. */
+function checkSentSettings<Config>(
+  definition: ComponentDefinition<Config>,
+  sent: ContractRequestSettings,
+): string[] {
+  return Object.entries(sent).flatMap(([action, settings]) => {
+    // Object.entries widens the keys; they came from a StepAction record.
+    const schema = definition.requestSettings?.[action as StepAction];
+    return settings
+      .filter((setting) => schema?.safeParse(setting).success !== true)
+      .map(
+        (setting) =>
+          `The input's ${action} settings ${JSON.stringify(setting)} don't parse with requestSettings.${action}.`,
+      );
+  });
+}
+
 /** Compares the effect logs of two runs with the same seed. */
 function checkDeterminism(first: string[], second: string[]): string[] {
   const index = first.findIndex((line, i) => line !== second[i]);
@@ -153,7 +182,7 @@ function checkDeterminism(first: string[], second: string[]): string[] {
 function contractScenario<Config>(
   input: ContractInput<Config>,
 ): ContractScenario {
-  // Complexity 6, one `??` per default; there's nothing else to branch on.
+  // Complexity 7, one `??` per default; there's nothing else to branch on.
   return {
     seed: input.seed ?? 1,
     arrivals: {
@@ -163,5 +192,6 @@ function contractScenario<Config>(
     },
     maxHoldMs: input.maxHoldMs ?? 20,
     dispatchFailureRate: input.dispatchFailureRate ?? 0.2,
+    requestSettings: input.requestSettings ?? {},
   };
 }

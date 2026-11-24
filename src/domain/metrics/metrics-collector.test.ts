@@ -211,7 +211,7 @@ describe("simulateWithMetrics", () => {
   // Fails if a rate limit's peak is read only at ticks, not after every
   // request (e.g. with `trackLimitPeaks` emptied). Some throttled second must
   // have a full bucket at both its ticks, where a peak read at ticks is 0.
-  it("shows a bucket exhausted in every second that throttled", () => {
+  it("shows a bucket drawn down in every second that throttled", () => {
     // A one-token bucket refills in 50 ms, so it's usually full by a tick.
     const { snapshots } = run(project({ apiRatePerSec: 20, apiBurst: 1 }));
     const buckets = snapshots.map((s) =>
@@ -227,13 +227,31 @@ describe("simulateWithMetrics", () => {
     );
     expect(fullAtBothTicks.length).toBeGreaterThan(0);
     for (const index of throttled) {
-      expect(buckets[index] && limitExhausted(buckets[index])).toBe(true);
+      expect(buckets[index]?.peak).toBeGreaterThan(0);
     }
     for (const bucket of buckets) {
       expect(bucket.current).toBeGreaterThanOrEqual(0);
       expect(bucket.current).toBeLessThanOrEqual(bucket.peak);
       expect(bucket.peak).toBeLessThanOrEqual(bucket.limit);
     }
+  });
+
+  // Fails if a window's `refused` is the running total rather than its
+  // own, or the totals' isn't the sum of the windows'. API Gateway rejects
+  // only for its bucket, so its refusals are its rejections.
+  it("counts a bucket's refusals in the second they happen, and sums them in the totals", () => {
+    const { snapshots, totals } = run(
+      project({ apiRatePerSec: 20, apiBurst: 1 }),
+    );
+    const refused = snapshots.map(
+      (s) => rateLimitIn(componentIn(s, "api"), "requestRate").refused,
+    );
+    const rejected = snapshots.map((s) => componentIn(s, "api").rejected);
+    expect(refused).toEqual(rejected);
+    expect(rejected.filter((count) => count > 0).length).toBeGreaterThan(1);
+    const total = rateLimitIn(componentIn(totals, "api"), "requestRate");
+    expect(total.refused).toBe(componentIn(totals, "api").rejected);
+    expect(limitExhausted(total)).toBe(true);
   });
 
   it("counts a timeout once, where it happened, and groups failures by cause", () => {

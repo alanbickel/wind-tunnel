@@ -149,6 +149,7 @@ describe("lambdaDefinition", () => {
         ratePerSec: 20,
         burst: 20,
         taken: 1,
+        refused: 0,
         tokensLeft: 19,
       },
     ]);

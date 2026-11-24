@@ -31,8 +31,9 @@ export interface BurstLastedStatement extends Statement {
 }
 
 /**
- * How long a full bucket lasts at the drain's flow, by ADR-0014's formula:
- * (burst − 1) ÷ (flow − refill).
+ * How long a full bucket takes to empty at the drain's flow, by ADR-0014's
+ * formula: burst ÷ (flow − refill). It runs out a little sooner, once it
+ * holds less than the next request costs.
  */
 export interface BurstPredictedStatement extends Statement {
   readonly kind: "burst-predicted";
@@ -77,8 +78,8 @@ export const BUCKET_DRAINED_PHRASES: Phrases<BucketDrainedStatement> = {
   },
   "burst-predicted": {
     long: (s) =>
-      say`At that flow, a full bucket lasts about ${duration(s.predictedMs)}: (burst − 1) ÷ (flow − refill).`,
+      say`At that flow, a full bucket empties in about ${duration(s.predictedMs)}: burst ÷ (flow − refill). It runs out a little sooner, once it holds less than the next request costs.`,
     short: (s) =>
-      say`at that flow, a full bucket lasts about ${duration(s.predictedMs)}`,
+      say`at that flow, a full bucket empties in about ${duration(s.predictedMs)}`,
   },
 };

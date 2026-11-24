@@ -30,6 +30,7 @@ const readUnits = (out: boolean): LimitUse => ({
   peak: out ? 99.5 : 10,
   ratePerSec: 50,
   takenPerSec: 60,
+  refused: out ? 1 : 0,
 });
 
 /** fn's 4 consumers, which make messages wait; `current` busy at the end. */

@@ -66,6 +66,18 @@ describe("TokenBucket", () => {
     expect(limit.taken).toBe(3);
   });
 
+  // Fails if `refused` counts the requests let in, sums the refused costs,
+  // or misses a refusal.
+  it("counts the requests it refuses", () => {
+    const limit = new TokenBucket({ ratePerSec: 10, burst: 5 });
+    limit.tryTake({ nowMs: 0, cost: 3 });
+    expect(limit.refused).toBe(0);
+    limit.tryTake({ nowMs: 0, cost: 3 });
+    limit.tryTake({ nowMs: 0, cost: 2.5 });
+    limit.tryTake({ nowMs: 0, cost: 2 });
+    expect(limit.refused).toBe(2);
+  });
+
   // Fails if a cost is rounded up to a whole token, so two half-token
   // requests drain two tokens.
   it("takes a fractional cost", () => {

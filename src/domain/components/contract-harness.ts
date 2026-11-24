@@ -47,6 +47,8 @@ interface HarnessRequestDue {
   readonly kind: "request-due";
   readonly request: number;
   readonly action: StepAction;
+  /** Parsed, as the registry passes them. */
+  readonly settings: RequestSettings;
 }
 
 interface HarnessVisitServiceDone {
@@ -67,12 +69,22 @@ interface ArrivalPlan {
   readonly quietMs: number;
 }
 
+/**
+ * Request settings a step may set for each action, besides its defaults.
+ * Each must parse with the action's `requestSettings` schema.
+ */
+export type ContractRequestSettings = Readonly<
+  Partial<Record<StepAction, readonly RequestSettings[]>>
+>;
+
 /** `ContractInput` with the defaults filled in. */
 export interface ContractScenario {
   readonly seed: number;
   readonly arrivals: ArrivalPlan;
   readonly maxHoldMs: number;
   readonly dispatchFailureRate: number;
+  /** Each arrival sends its action's defaults or one of these, at random. */
+  readonly requestSettings: ContractRequestSettings;
 }
 
 export interface ContractHarnessInput<Config> {
@@ -197,8 +209,30 @@ export class ContractHarness<Config> {
       timeMs += sample({ kind: "exponential", meanMs: meanGapMs }, this.random);
       const action =
         actions[Math.floor(this.random.next() * actions.length)] ?? "invoke";
-      this.events.schedule(timeMs, { kind: "request-due", request, action });
+      const settings = this.settingsFor(action);
+      this.events.schedule(timeMs, {
+        kind: "request-due",
+        request,
+        action,
+        settings,
+      });
     }
+  }
+
+  /**
+   * The action's defaults, or one of the scenario's settings for it, at
+   * random. Draws nothing for an action with none, so a scenario without
+   * settings sends what it always did.
+   */
+  private settingsFor(action: StepAction): RequestSettings {
+    const schema = this.definition.requestSettings?.[action];
+    const extra = this.scenario.requestSettings[action] ?? [];
+    if (schema === undefined || extra.length === 0) {
+      return defaultSettings(this.definition, action);
+    }
+    const options = [{}, ...extra];
+    const picked = Math.floor(this.random.next() * options.length);
+    return schema.parse(options[picked]);
   }
 
   private handleEvents(): void {
@@ -231,10 +265,9 @@ export class ContractHarness<Config> {
     },
   };
 
-  private arrive({ request, action }: HarnessRequestDue): void {
+  private arrive({ request, action, settings }: HarnessRequestDue): void {
     const state: Tracked = { phase: "arriving" };
     this.tracked.set(request, state);
-    const settings = defaultSettings(this.definition, action);
     this.apply(
       this.behavior.arrive({ request, action, settings, nowMs: this.nowMs }),
     );
@@ -347,7 +380,7 @@ export class ContractHarness<Config> {
   private checkRejection({ request, reason }: RejectedEffect<number>): void {
     const problems = checkRejection({
       limits: this.behavior.limits ?? [],
-      nowMs: this.nowMs,
+      previous: this.lastLimits,
       reason,
       rejectionReasons: this.definition.rejectionReasons,
     });

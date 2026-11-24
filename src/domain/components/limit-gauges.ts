@@ -16,7 +16,7 @@ export type ConcurrencySource = Pick<
 /** What a rate gauge reads: a `RateLimit`. */
 export type RateSource = Pick<
   RateLimit,
-  "ratePerSec" | "burst" | "taken" | "available"
+  "ratePerSec" | "burst" | "taken" | "refused" | "available"
 >;
 
 /** What `concurrencyGauge` wraps, and the name it reports. */
@@ -76,6 +76,9 @@ export function rateGauge({
     },
     get taken() {
       return source.taken;
+    },
+    get refused() {
+      return source.refused;
     },
     tokensLeft(nowMs) {
       return source.available(nowMs);

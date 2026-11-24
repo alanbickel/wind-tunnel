@@ -128,7 +128,7 @@ export const READ_CAPACITY_1500: FindingsCase = {
             "orders-read's readUnits bucket drained from 18 s and ran out in the second ending at 96 s.",
             "It was last full at 18 s. From then, requests took 1,595 tokens a second on average, against a refill of 1,500.",
             "Its burst of 7,500 tokens lasted between 77 s and 78 s.",
-            "At that flow, a full bucket lasts about 78.9 s: (burst − 1) ÷ (flow − refill).",
+            "At that flow, a full bucket empties in about 78.9 s: burst ÷ (flow − refill). It runs out a little sooner, once it holds less than the next request costs.",
           ],
         },
       ],

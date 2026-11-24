@@ -303,7 +303,7 @@ const LIMIT_COLUMNS: readonly Column<LimitRow>[] = [
 
 const LIMIT_NOTES = [
   '"peak" is the most used at once during the run, against the limit in "of": slots held, or tokens drawn out of a full bucket.',
-  '"peak %" rounds down. "exhausted" means the limit ran out: every slot held, or less than one token in the bucket, so a request arriving then waited or was rejected (see "peak queue" and "rejected" in Components).',
+  '"peak %" rounds down. "exhausted" means the limit ran out: every slot held, or a request refused for want of tokens in the bucket, so a request arriving then waited or was rejected (see "peak queue" and "rejected" in Components).',
   `A rate limit's bucket refills at a steady rate. "busiest flow" is the busiest second's tokens taken, against that rate: above it, the bucket drains.`,
 ];
 

@@ -57,6 +57,8 @@ export interface RateLimitSample {
   readonly burst: number;
   /** Tokens taken since the run began. */
   readonly taken: number;
+  /** Requests refused since the run began. */
+  readonly refused: number;
   /** Tokens missing from a full bucket at the tick: `burst` minus those left. */
   readonly drawnDown: number;
   /** Most tokens missing at once since the previous tick (or the start). */

@@ -75,6 +75,28 @@ describe("dynamoDbDefinition", () => {
     expect(report.stats.rejected).toBeGreaterThan(0);
   });
 
+  // Fails if a bucket counts as exhausted only below one token (#314): a
+  // 40 KB strong read costs 10 units and a 40 KB write 40, so they're
+  // throttled with several units left, and the contract finds them
+  // "rejected as throttled while readUnits, writeUnits had room".
+  it("passes the component contract while throttling large items", () => {
+    const report = checkComponentContract(dynamoDbDefinition, {
+      requests: 2_000,
+      config: {
+        ...dynamoDbDefinition.defaultConfig,
+        readUnitsPerSec: 50,
+        writeUnitsPerSec: 50,
+        burstSec: 0,
+      },
+      requestSettings: {
+        read: [{ itemSizeKb: 40, consistency: "strong" }],
+        write: [{ itemSizeKb: 40 }],
+      },
+    });
+    expect(report.violations).toEqual([]);
+    expect(report.stats.rejected).toBeGreaterThan(0);
+  });
+
   // Fails if a step's settings default to anything but a 1 KB item, read
   // eventually consistent, as the profile's defaults table says.
   it("defaults to a 1 KB item, read eventually consistent", () => {
@@ -161,7 +183,8 @@ describe("dynamoDbDefinition", () => {
   });
 
   // Fails if DynamoDB stops reporting either capacity, counts a throttled
-  // request as capacity taken, drains the wrong bucket, or declares a reason
+  // request as capacity taken or doesn't count it as refused (the 50-unit
+  // read, with 1 unit left), drains the wrong bucket, or declares a reason
   // other than the one it throttles with.
   it("reports read and write capacity taken and left", () => {
     const db = build({ burstSec: 0 });
@@ -179,6 +202,7 @@ describe("dynamoDbDefinition", () => {
         ratePerSec: 10,
         burst: 100,
         taken: 99,
+        refused: 1,
         tokensLeft: 1,
       },
       {
@@ -188,6 +212,7 @@ describe("dynamoDbDefinition", () => {
         ratePerSec: 10,
         burst: 400,
         taken: 3,
+        refused: 0,
         tokensLeft: 397,
       },
     ]);

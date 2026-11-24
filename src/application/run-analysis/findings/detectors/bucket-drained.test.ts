@@ -19,10 +19,13 @@ interface BucketSecond {
   readonly takenPerSec: number;
   /** 5 if left out. */
   readonly ratePerSec?: number;
+  /** Requests refused during the second: it ran out if any. 0 if left out. */
+  readonly refused?: number;
 }
 
 function second(bucket: BucketSecond) {
-  const { second: n, current, peak, takenPerSec, ratePerSec = 5 } = bucket;
+  const { second: n, current, peak, takenPerSec } = bucket;
+  const { ratePerSec = 5, refused = 0 } = bucket;
   const readUnits: LimitUse = {
     kind: "rate",
     name: "readUnits",
@@ -32,6 +35,7 @@ function second(bucket: BucketSecond) {
     peak,
     ratePerSec,
     takenPerSec,
+    refused,
   };
   return sampleSnapshot({ second: n, table: { limits: [readUnits] } });
 }
@@ -51,8 +55,8 @@ const drained = [
   second({ second: 1, current: 0, peak: 0.5, takenPerSec: 4 }),
   second({ second: 2, current: 3, peak: 3, takenPerSec: 7 }),
   second({ second: 3, current: 6, peak: 6, takenPerSec: 8 }),
-  second({ second: 4, current: 9.5, peak: 9.5, takenPerSec: 9 }),
-  second({ second: 5, current: 9.5, peak: 9.6, takenPerSec: 5 }),
+  second({ second: 4, current: 9.5, peak: 9.5, takenPerSec: 9, refused: 1 }),
+  second({ second: 5, current: 9.5, peak: 9.6, takenPerSec: 5, refused: 2 }),
   second({ second: 6, current: 6, peak: 9, takenPerSec: 2 }),
 ];
 
@@ -86,7 +90,8 @@ describe("bucket-drained", () => {
 
   // Fails if the mean flow includes a second outside the drain, the time it
   // lasted isn't bounded by the second it ran out, or the formula drifts
-  // from (burst − 1) ÷ (flow − refill).
+  // from burst ÷ (flow − refill), e.g. back to (burst − 1) ÷ (flow −
+  // refill), which assumes each request costs one token (#314).
   it("quotes when it was last full, the flow over the drain, and how long it lasted", () => {
     expect(statements(detector.detect(sampleRun(drained))[0])).toEqual([
       {
@@ -97,7 +102,7 @@ describe("bucket-drained", () => {
       },
       { kind: "drain-flow", fullAtMs: 1_000, takenPerSec: 8, ratePerSec: 5 },
       { kind: "burst-lasted", burst: 10, atLeastMs: 2_000, atMostMs: 3_000 },
-      { kind: "burst-predicted", predictedMs: 3_000 },
+      { kind: "burst-predicted", predictedMs: 10_000 / 3 },
     ]);
   });
 
@@ -110,7 +115,7 @@ describe("bucket-drained", () => {
       second({ second: 1, current: 2, peak: 2, takenPerSec: 7 }),
       second({ second: 2, current: 2, peak: 2, takenPerSec: 5 }),
       second({ second: 3, current: 5, peak: 5, takenPerSec: 8 }),
-      second({ second: 4, current: 9, peak: 9.5, takenPerSec: 9 }),
+      second({ second: 4, current: 9, peak: 9.5, takenPerSec: 9, refused: 1 }),
     ];
     const [finding] = detector.detect(sampleRun(split));
     expect(finding?.causeWindow).toEqual({ fromMs: 0, toMs: 4_000 });
@@ -123,7 +128,7 @@ describe("bucket-drained", () => {
       },
       { kind: "drain-flow", fullAtMs: 0, takenPerSec: 7.25, ratePerSec: 5 },
       { kind: "burst-lasted", burst: 10, atLeastMs: 3_000, atMostMs: 4_000 },
-      { kind: "burst-predicted", predictedMs: 4_000 },
+      { kind: "burst-predicted", predictedMs: 10_000 / 2.25 },
     ]);
   });
 
@@ -135,7 +140,14 @@ describe("bucket-drained", () => {
     const ratePerSec = 20;
     const sudden = [
       second({ second: 1, current: 0.5, peak: 2, takenPerSec: 4, ratePerSec }),
-      second({ second: 2, current: 0, peak: 9.5, takenPerSec: 15, ratePerSec }),
+      second({
+        second: 2,
+        current: 0,
+        peak: 9.5,
+        takenPerSec: 15,
+        ratePerSec,
+        refused: 3,
+      }),
     ];
     const [finding] = detector.detect(sampleRun(sudden));
     expect(finding?.causeWindow).toBeUndefined();
@@ -145,12 +157,12 @@ describe("bucket-drained", () => {
     ]);
   });
 
-  // Fails if a bucket that came within one token of running out, but no
-  // closer, gets a note.
+  // Fails if a bucket that never refused a request gets a note, however
+  // far it was drawn: this one held half a token at its lowest (#314).
   it("says nothing of a bucket that never ran out", () => {
     const run = sampleRun([
       second({ second: 1, current: 4, peak: 4, takenPerSec: 9 }),
-      second({ second: 2, current: 9, peak: 9, takenPerSec: 10 }),
+      second({ second: 2, current: 9, peak: 9.5, takenPerSec: 10 }),
     ]);
     expect(detector.detect(run)).toEqual([]);
   });

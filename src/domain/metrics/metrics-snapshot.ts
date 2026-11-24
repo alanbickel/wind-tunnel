@@ -81,9 +81,10 @@ export interface ConcurrencyLimitUse {
 /**
  * A token bucket, e.g. API Gateway's `requestRate` or DynamoDB's
  * `readUnits`. Use is how far the bucket was drawn down: tokens missing
- * from a full bucket. A request finding less than one token is throttled,
- * so the bucket ran out once `peak` is over `limit - 1`. Whether it drains
- * depends on the flow: `takenPerSec` against `ratePerSec`.
+ * from a full bucket. A request finding less than its cost left is
+ * throttled, so the bucket ran out when it `refused` one, however much it
+ * still held. Whether it drains depends on the flow: `takenPerSec` against
+ * `ratePerSec`.
  */
 export interface RateLimitUse {
   readonly kind: "rate";
@@ -104,6 +105,11 @@ export interface RateLimitUse {
    * window's. Over `ratePerSec`, the bucket is draining.
    */
   readonly takenPerSec: number;
+  /**
+   * Requests refused during the window for finding less than their cost
+   * left. In the totals, the whole run's. Over 0, the bucket ran out.
+   */
+  readonly refused: number;
 }
 
 /** One workflow's user requests that got an answer during a window. */

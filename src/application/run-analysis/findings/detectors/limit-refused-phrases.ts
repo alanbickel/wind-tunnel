@@ -39,7 +39,7 @@ export interface LimitHeldAllStatement extends Statement {
   readonly coverage: Coverage;
 }
 
-/** A bucket had less than one token left in seconds with the failures. */
+/** A bucket refused requests for want of tokens in seconds with the failures. */
 export interface BucketRanOutStatement extends Statement {
   readonly kind: "bucket-ran-out";
   readonly componentId: string;

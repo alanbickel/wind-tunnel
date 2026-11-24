@@ -159,7 +159,7 @@ function exhaustionEvidence(
   return [
     { what: `${name}: the limit`, value: e.limit.limit, source: "config" },
     {
-      what: `${name}: seconds with these failures in which it ran out (limitExhausted on the second's peak)`,
+      what: `${name}: seconds with these failures in which it ran out (limitExhausted: every slot held at the peak, or a request refused for want of tokens)`,
       value: e.secondsOut,
       source: "snapshots",
     },

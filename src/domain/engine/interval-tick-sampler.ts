@@ -158,7 +158,7 @@ const LIMIT_SAMPLES: KindHandlers<
       peakInUse: peak,
     }),
   rate:
-    ({ name, whenFull, ratePerSec, burst, taken }) =>
+    ({ name, whenFull, ratePerSec, burst, taken, refused }) =>
     ({ use, peak }) => ({
       kind: "rate",
       name,
@@ -166,6 +166,7 @@ const LIMIT_SAMPLES: KindHandlers<
       ratePerSec,
       burst,
       taken,
+      refused,
       drawnDown: use,
       peakDrawnDown: peak,
     }),

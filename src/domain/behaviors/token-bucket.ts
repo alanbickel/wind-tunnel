@@ -44,6 +44,7 @@ export class TokenBucket implements RateLimit {
   readonly burst: number;
   private tokens: number;
   private tokensTaken = 0;
+  private requestsRefused = 0;
   private lastRefillMs = 0;
 
   constructor(input: TokenBucketInput) {
@@ -68,7 +69,10 @@ export class TokenBucket implements RateLimit {
     // bucket that should hold exactly 1 token may hold 0.9999999999. Without
     // the tolerance, every token would arrive a little late and the
     // sustained rate would fall short of `ratePerSec`.
-    if (this.tokens < cost - TOKEN_EPSILON) return false;
+    if (this.tokens < cost - TOKEN_EPSILON) {
+      this.requestsRefused++;
+      return false;
+    }
     this.tokens -= cost;
     this.tokensTaken += cost;
     return true;
@@ -77,6 +81,11 @@ export class TokenBucket implements RateLimit {
   /** Tokens taken since the run began: the sum of the costs. */
   get taken(): number {
     return this.tokensTaken;
+  }
+
+  /** Requests refused since the run began. */
+  get refused(): number {
+    return this.requestsRefused;
   }
 
   /**

@@ -47,8 +47,9 @@ describe("apiGatewayDefinition", () => {
   });
 
   // Fails if API Gateway stops reporting its rate limit, counts a throttled
-  // request as a token taken, reports the bucket's level wrong, or declares
-  // a reason other than the one it throttles with.
+  // request as a token taken or doesn't count it as refused, reports the
+  // bucket's level wrong, or declares a reason other than the one it
+  // throttles with.
   it("reports its request rate, the tokens taken, and the tokens left", () => {
     const api = build();
     for (const request of ["a", "b", "c"]) {
@@ -62,6 +63,7 @@ describe("apiGatewayDefinition", () => {
         ratePerSec: 10,
         burst: 2,
         taken: 2,
+        refused: 1,
         tokensLeft: 0,
       },
     ]);

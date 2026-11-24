@@ -60,10 +60,10 @@ describe("bucket-drained's phrases", () => {
             short: "its burst of 10 tokens lasted at most 3000",
           },
           {
-            name: "how long a full bucket lasts",
+            name: "how long a full bucket takes to empty",
             statement: { kind: "burst-predicted", predictedMs: 3_000 },
-            long: "At that flow, a full bucket lasts about 3000: (burst − 1) ÷ (flow − refill).",
-            short: "at that flow, a full bucket lasts about 3000",
+            long: "At that flow, a full bucket empties in about 3000: burst ÷ (flow − refill). It runs out a little sooner, once it holds less than the next request costs.",
+            short: "at that flow, a full bucket empties in about 3000",
           },
         ],
       }),

@@ -25,6 +25,12 @@ export interface RateLimit {
   /** Tokens taken since the run began: the sum of the costs. Never decreases. */
   readonly taken: number;
   /**
+   * Requests refused since the run began, because the bucket held less than
+   * their cost. Never decreases. A bucket ran out in a stretch of time if
+   * this grew during it, whatever the requests cost (ADR-0014).
+   */
+  readonly refused: number;
+  /**
    * Takes the request's `cost` in tokens at `nowMs`. Returns false, and
    * takes nothing, when the bucket holds less than the cost: throttled.
    */

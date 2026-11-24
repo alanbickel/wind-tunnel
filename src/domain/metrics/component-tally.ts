@@ -22,10 +22,18 @@ export interface ComponentTallySampleInput {
   readonly windowMs: number;
 }
 
+/** A rate limit's running totals since the start; 0 for a concurrency limit. */
+interface RateTotals {
+  readonly taken: number;
+  readonly refused: number;
+}
+
+const NO_RATE_TOTALS: RateTotals = { taken: 0, refused: 0 };
+
 /** A limit's sample, and what's needed to turn it into its use in a window. */
 interface LimitUseContext {
-  /** A rate limit's tokens taken since the start, at the previous tick. */
-  readonly takenBefore: number;
+  /** A rate limit's running totals at the previous tick. */
+  readonly before: RateTotals;
   readonly windowMs: number;
 }
 
@@ -50,8 +58,8 @@ export class ComponentTally {
   /** Each counter's running total at the latest tick. */
   countersSoFar: Readonly<Record<string, number>> = {};
   limits: readonly LimitUse[] = [];
-  /** Each rate limit's tokens taken at the latest tick, by index; 0 otherwise. */
-  takenSoFar: readonly number[] = [];
+  /** Each rate limit's running totals at the latest tick, by index. */
+  rateSoFar: readonly RateTotals[] = [];
 
   /** Records work that finished here, successfully or not. */
   finish({ latencyMs, failure }: ComponentFinishedEvent): void {
@@ -92,11 +100,11 @@ export class ComponentTally {
         LIMIT_USES,
         limit,
       )({
-        takenBefore: soFar.takenSoFar[index] ?? 0,
+        before: soFar.rateSoFar[index] ?? NO_RATE_TOTALS,
         windowMs,
       }),
     );
-    this.takenSoFar = sample.limits.map(takenSoFar);
+    this.rateSoFar = sample.limits.map(rateTotals);
   }
 
   /** Adds a finished window into these run totals. */
@@ -122,7 +130,7 @@ export class ComponentTally {
     this.limits = window.limits.map((limit, index) =>
       addLimit(limit, this.limits[index]),
     );
-    this.takenSoFar = window.takenSoFar;
+    this.rateSoFar = window.rateSoFar;
   }
 
   reset(): void {
@@ -181,7 +189,7 @@ const LIMIT_USES: KindHandlers<
 
 function rateLimitUse(
   sample: RateLimitSample,
-  { takenBefore, windowMs }: LimitUseContext,
+  { before, windowMs }: LimitUseContext,
 ): RateLimitUse {
   return {
     kind: "rate",
@@ -191,7 +199,8 @@ function rateLimitUse(
     current: sample.drawnDown,
     peak: sample.peakDrawnDown,
     ratePerSec: sample.ratePerSec,
-    takenPerSec: perSecond({ count: sample.taken - takenBefore, windowMs }),
+    takenPerSec: perSecond({ count: sample.taken - before.taken, windowMs }),
+    refused: sample.refused - before.refused,
   };
 }
 
@@ -206,19 +215,20 @@ function perSecond({ count, windowMs }: PerSecondInput): number {
   return (count * 1000) / windowMs;
 }
 
-function takenSoFar(limit: LimitSample): number {
-  return handleKind(TAKEN_SO_FAR, limit);
+function rateTotals(limit: LimitSample): RateTotals {
+  return handleKind(RATE_TOTALS, limit);
 }
 
-/** A rate limit's running total of tokens taken; concurrency limits have none. */
-const TAKEN_SO_FAR: KindHandlers<LimitSample, number> = {
-  concurrency: () => 0,
-  rate: ({ taken }) => taken,
+/** A rate limit's running totals; concurrency limits have none. */
+const RATE_TOTALS: KindHandlers<LimitSample, RateTotals> = {
+  concurrency: () => NO_RATE_TOTALS,
+  rate: ({ taken, refused }) => ({ taken, refused }),
 };
 
 /**
  * A window's limit added to the run so far: the highest peak, and for a
- * rate limit, the busiest window's flow. Everything else is the window's.
+ * rate limit, the busiest window's flow and every window's refusals.
+ * Everything else is the window's.
  */
 function addLimit(window: LimitUse, soFar: LimitUse | undefined): LimitUse {
   if (soFar === undefined) return window;
@@ -226,20 +236,23 @@ function addLimit(window: LimitUse, soFar: LimitUse | undefined): LimitUse {
   return { ...handleKind(BUSIEST_FLOW, window)(soFar), peak };
 }
 
-/** A rate limit keeps the busiest window's `takenPerSec`. */
+/** A rate limit keeps the busiest window's `takenPerSec` and sums `refused`. */
 const BUSIEST_FLOW: KindHandlers<LimitUse, (soFar: LimitUse) => LimitUse> = {
   concurrency: (window) => () => window,
-  rate: (window) => (soFar) => ({
-    ...window,
-    takenPerSec: Math.max(window.takenPerSec, takenPerSecOf(soFar)),
-  }),
+  rate: (window) => (soFar) => {
+    const before = handleKind(FLOW_SO_FAR, soFar);
+    return {
+      ...window,
+      takenPerSec: Math.max(window.takenPerSec, before.takenPerSec),
+      refused: window.refused + before.refused,
+    };
+  },
 };
 
-function takenPerSecOf(limit: LimitUse): number {
-  return handleKind(TAKEN_PER_SEC, limit);
-}
+/** What a rate limit's totals carry over; a concurrency limit carries none. */
+type FlowSoFar = Pick<RateLimitUse, "takenPerSec" | "refused">;
 
-const TAKEN_PER_SEC: KindHandlers<LimitUse, number> = {
-  concurrency: () => 0,
-  rate: ({ takenPerSec }) => takenPerSec,
+const FLOW_SO_FAR: KindHandlers<LimitUse, FlowSoFar> = {
+  concurrency: () => ({ takenPerSec: 0, refused: 0 }),
+  rate: ({ takenPerSec, refused }) => ({ takenPerSec, refused }),
 };

@@ -38,6 +38,7 @@ const READ_VALUES: KindHandlers<LimitGauge, (nowMs: number) => LimitValues> = {
     ratePerSec: gauge.ratePerSec,
     burst: gauge.burst,
     taken: gauge.taken,
+    refused: gauge.refused,
     tokensLeft: gauge.tokensLeft(nowMs),
   }),
 };

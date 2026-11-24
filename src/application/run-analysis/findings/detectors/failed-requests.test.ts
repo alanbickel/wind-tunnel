@@ -9,7 +9,10 @@ import { failedRequestsDetector } from "./failed-requests";
 
 const detector = failedRequestsDetector(createFindingsCatalog());
 
-/** table's read bucket of 100 tokens, `peak` of them drawn. */
+/**
+ * table's read bucket of 100 tokens, `peak` of them drawn. Its requests
+ * cost one token, so it refused one once less than one was left.
+ */
 const readUnits = (peak: number): LimitUse => ({
   kind: "rate",
   name: "readUnits",
@@ -19,6 +22,7 @@ const readUnits = (peak: number): LimitUse => ({
   peak,
   ratePerSec: 50,
   takenPerSec: 60,
+  refused: peak > 99 ? 1 : 0,
 });
 
 /** table's write bucket of 100 tokens, which refuses as `readUnits` does. */

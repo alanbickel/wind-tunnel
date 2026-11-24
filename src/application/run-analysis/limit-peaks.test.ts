@@ -16,7 +16,11 @@ const concurrency = (peak: number): LimitUse => ({
 });
 
 /** A bucket of 100 refilling at 50 per second. */
-const requestRate = (peak: number, takenPerSec: number): LimitUse => ({
+const requestRate = (
+  peak: number,
+  takenPerSec: number,
+  refused = 0,
+): LimitUse => ({
   kind: "rate",
   name: "requestRate",
   whenFull: { kind: "refuse", reason: "throttled" },
@@ -25,6 +29,7 @@ const requestRate = (peak: number, takenPerSec: number): LimitUse => ({
   peak,
   ratePerSec: 50,
   takenPerSec,
+  refused,
 });
 
 // Every peak comes first: fn holds 4 of 10, then 2. api's bucket is drawn
@@ -77,17 +82,25 @@ describe("limitPeaks", () => {
     ]);
   });
 
-  // Fails if `exhausted` reads `peakShare` = 1 rather than the bucket's own
-  // rule: at 99.5 of 100 tokens drawn, less than one token is left.
-  it("marks a bucket exhausted once less than one token is left", () => {
-    const [row] = limitPeaks({
-      project,
-      workloadId: "steady",
-      snapshots: [
-        sampleSnapshot({ second: 1, api: { limits: [requestRate(99.5, 0)] } }),
-      ],
+  // Fails if `exhausted` reads the bucket's level, or `peakShare` = 1,
+  // rather than whether it refused a request in any second (#314): it
+  // refused a large one with 60 tokens left, then was drawn to half a token
+  // left without refusing any.
+  it("marks a bucket exhausted if it refused a request in any second", () => {
+    const peaksOf = (...uses: LimitUse[]) =>
+      limitPeaks({
+        project,
+        workloadId: "steady",
+        snapshots: uses.map((use, index) =>
+          sampleSnapshot({ second: index + 1, api: { limits: [use] } }),
+        ),
+      })[0];
+    const lowest = requestRate(99.5, 0);
+    expect(peaksOf(lowest)).toMatchObject({ exhausted: false });
+    expect(peaksOf(requestRate(40, 0, 1), lowest)).toMatchObject({
+      peakShare: 0.995,
+      exhausted: true,
     });
-    expect(row).toMatchObject({ peakShare: 0.995, exhausted: true });
   });
 
   // Fails if a limit of 0 divides by zero instead of leaving the share out.

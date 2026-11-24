@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { TokenBucket } from "../behaviors/token-bucket";
 import { limitExhausted } from "./limit-exhausted";
+
+/** Whether `bucket` counts as exhausted, from its refusals since the start. */
+const bucketExhausted = (bucket: TokenBucket) =>
+  limitExhausted({ kind: "rate", refused: bucket.refused });
 
 describe("limitExhausted", () => {
   // Fails if a concurrency limit counts as exhausted with a slot still free,
@@ -10,24 +15,25 @@ describe("limitExhausted", () => {
     expect([at(9), at(10)]).toEqual([false, true]);
   });
 
-  // Fails if a bucket counts as exhausted only when fully drawn down
-  // (`peak >= limit`), since one with less than a token left throttles too.
-  it("exhausts a bucket once less than one token is left", () => {
-    const at = (peak: number) =>
-      limitExhausted({ kind: "rate", limit: 2, peak });
-    expect([at(0.9), at(1), at(1.1), at(2)]).toEqual([
-      false,
-      false,
-      true,
-      true,
-    ]);
+  // Fails if a bucket counts as exhausted only below one token left, as it
+  // did before #314: this one refuses a 10-token request with 9 left.
+  it("exhausts a bucket that refused a request with more than one token left", () => {
+    const bucket = new TokenBucket({ ratePerSec: 1, burst: 20 });
+    bucket.tryTake({ nowMs: 0, cost: 11 });
+    expect(bucketExhausted(bucket)).toBe(false);
+    expect(bucket.tryTake({ nowMs: 0, cost: 10 })).toBe(false);
+    expect(bucket.available(0)).toBe(9);
+    expect(bucketExhausted(bucket)).toBe(true);
   });
 
-  // Fails if the bucket's rule drops the refill tolerance `tryTake` uses, so
-  // a level it would still take a token from counts as exhausted.
-  it("still has a token within the bucket's floating-point tolerance", () => {
-    expect(limitExhausted({ kind: "rate", limit: 2, peak: 1 + 1e-12 })).toBe(
-      false,
-    );
+  // Fails if a bucket counts as exhausted without having refused a request:
+  // this one still serves half-token requests with 0.75 left, under the one
+  // token the rule asked for before #314.
+  it("doesn't exhaust a bucket that still serves its requests", () => {
+    const bucket = new TokenBucket({ ratePerSec: 1, burst: 2 });
+    bucket.tryTake({ nowMs: 0, cost: 1.25 });
+    expect(bucket.tryTake({ nowMs: 0, cost: 0.5 })).toBe(true);
+    expect(bucket.available(0)).toBe(0.25);
+    expect(bucketExhausted(bucket)).toBe(false);
   });
 });

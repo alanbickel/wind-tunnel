@@ -159,6 +159,11 @@ export interface RateLimitGauge {
    */
   readonly taken: number;
   /**
+   * Requests refused since the run began, for holding less than their cost.
+   * Never decreases. The bucket ran out while this grows (ADR-0014).
+   */
+  readonly refused: number;
+  /**
    * Tokens in the bucket at `nowMs`, between 0 and `burst`. Only reads;
    * `nowMs` is never earlier than the component's last call.
    */

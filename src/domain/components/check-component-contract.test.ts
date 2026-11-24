@@ -88,14 +88,19 @@ interface FakeRate {
   readonly read: () => number;
   /** Tokens left; a full bucket if omitted. */
   readonly left?: () => number;
+  /** Requests refused since the start; none if omitted. */
+  readonly refused?: () => number;
 }
 
-const rateTaking = ({ burst, read, left }: FakeRate): RateSource => ({
+const rateTaking = ({ burst, read, left, refused }: FakeRate): RateSource => ({
   ratePerSec: 1,
   burst,
   available: () => left?.() ?? burst,
   get taken() {
     return read();
+  },
+  get refused() {
+    return refused?.() ?? 0;
   },
 });
 
@@ -157,6 +162,22 @@ describe("checkComponentContract", () => {
     const report = checkComponentContract(itemStoreDefinition);
     expect(report.violations).toEqual([]);
     expect(report.stats.started).toBeGreaterThan(0);
+  });
+
+  // Fails if the harness stops sending the input's request settings, so no
+  // read is for the 400 KB item this store refuses with a reason it
+  // doesn't list.
+  it("sends the input's request settings besides the defaults", () => {
+    const def = broken(itemStoreDefinition, (b) => ({
+      arrive: (input): Effect<number>[] =>
+        input.settings.itemSizeKb === 400
+          ? [{ kind: "rejected", request: input.request, reason: "too-big" }]
+          : b.arrive(input),
+    }));
+    const report = checkComponentContract(def, {
+      requestSettings: { read: [{ itemSizeKb: 400 }] },
+    });
+    expect(report.violations[0]).toMatch(/rejected as "too-big"/);
   });
 
   it("passes a correct queue, including redelivery after failures", () => {
@@ -420,9 +441,10 @@ describe("checkComponentContract", () => {
       );
     });
 
-    // Fails if the contract reads a bucket's level wrongly when checking a
-    // rejection, e.g. as tokens taken instead of tokens left.
-    it("a rejection while the bucket declaring it has tokens", () => {
+    // Fails if the contract judges a bucket by its level when checking a
+    // rejection (this one is empty), or counts a refusal from an earlier
+    // call: this bucket refused one before the run, and none since (#314).
+    it("a rejection while the bucket declaring it refused nothing", () => {
       const def = broken(workerPoolDefinition, () => ({
         limits: [
           concurrencyGauge({
@@ -433,12 +455,38 @@ describe("checkComponentContract", () => {
           rateGauge({
             name: "rate",
             whenFull: QUEUE_FULL,
-            source: rateTaking({ burst: 1_000, read: () => 0 }),
+            source: rateTaking({
+              burst: 1_000,
+              read: () => 0,
+              left: () => 0,
+              refused: () => 1,
+            }),
           }),
         ],
       }));
       expect(firstViolation(def)).toMatch(
         /rejected as "queue-full" while rate had room/,
+      );
+    });
+
+    // Fails if the contract stops checking that `refused` never decreases.
+    it("a rate limit whose refused count goes down", () => {
+      const def = broken(workerPoolDefinition, (b) => ({
+        limits: [
+          ...(b.limits ?? []),
+          rateGauge({
+            name: "rate",
+            whenFull: QUEUE_FULL,
+            source: rateTaking({
+              burst: 1_000,
+              read: () => 0,
+              refused: () => b.inProgress,
+            }),
+          }),
+        ],
+      }));
+      expect(firstViolation(def)).toMatch(
+        /limit rate refused went from \d+ to \d+/,
       );
     });
 
@@ -542,6 +590,17 @@ describe("checkComponentContract", () => {
         requestSettings: { read: itemStoreReadSettings.loose() },
       };
       expect(firstViolation(def)).toMatch(/requestSettings.read accepts a key/);
+    });
+
+    // Fails if the contract sends the input's request settings without
+    // parsing them first, as the registry would refuse them.
+    it("request settings to send that their schema refuses", () => {
+      const report = checkComponentContract(itemStoreDefinition, {
+        requestSettings: { read: [{ itemSizeKb: 0 }] },
+      });
+      expect(report.violations[0]).toMatch(
+        /The input's read settings {"itemSizeKb":0} don't parse with requestSettings.read/,
+      );
     });
 
     // Fails if checkRequestSettings stops checking that each schema is for an accepted action.

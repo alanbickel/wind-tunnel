@@ -32,9 +32,9 @@ export interface LimitPeak {
   /** `peak / limit`, from 0 to 1. Undefined for a limit of 0. */
   readonly peakShare: number | undefined;
   /**
-   * Whether the limit ran out at its peak, so a request arriving then waited
-   * or was rejected. A bucket can run out short of a `peakShare` of 1; see
-   * `limitExhausted`.
+   * Whether the limit ran out in any second so far, so a request arriving
+   * then waited or was rejected. A bucket can run out short of a
+   * `peakShare` of 1; see `limitExhausted`.
    */
   readonly exhausted: boolean;
   /** A rate limit's flow; undefined for a concurrency limit. */
@@ -91,7 +91,7 @@ function limitPeak(limit: LimitUse, context: LimitPeakContext): LimitPeak {
     limit: limit.limit,
     peak,
     peakShare: limit.limit === 0 ? undefined : peak / limit.limit,
-    exhausted: limitExhausted({ kind: limit.kind, limit: limit.limit, peak }),
+    exhausted: uses.some((use) => limitExhausted(use)),
     flow: handleKind(FLOWS, limit)(uses),
   };
 }

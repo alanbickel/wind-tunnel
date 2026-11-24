@@ -381,7 +381,7 @@ function secondsEvidence({ pair, tally }: WaitingFindingInput): Evidence[] {
   const w = `${pair.componentId} ${pair.waiting.name}`;
   return [
     {
-      what: `${w}: seconds in which it ran out (limitExhausted on the second's peak)`,
+      what: `${w}: seconds in which it ran out (limitExhausted: every slot held at the peak, or a request refused for want of tokens)`,
       value: tally.full.count,
       source: "snapshots",
     },

@@ -18,7 +18,11 @@ const concurrency = (peak: number): LimitUse => ({
 });
 
 /** A bucket of 5,000 refilling at 10,000 per second. */
-const requestRate = (peak: number, takenPerSec: number): LimitUse => ({
+const requestRate = (
+  peak: number,
+  takenPerSec: number,
+  refused = 0,
+): LimitUse => ({
   kind: "rate",
   name: "requestRate",
   whenFull: { kind: "refuse", reason: "throttled" },
@@ -27,6 +31,7 @@ const requestRate = (peak: number, takenPerSec: number): LimitUse => ({
   peak,
   ratePerSec: 10_000,
   takenPerSec,
+  refused,
 });
 
 /** Each body row of the limits table as its cells' text. */
@@ -75,14 +80,14 @@ describe("RunTotals", () => {
   });
 
   // Fails if Peak % rounds to nearest (995 of 1,000 would read 100%), or
-  // Exhausted reads Peak % rather than each kind's rule: a bucket with half
-  // a token left is out, at 99%.
+  // Exhausted reads Peak % rather than each kind's rule: a bucket that
+  // refused a request is out, at 99%.
   it("shows 100% only when all of a limit was used, and when it ran out", () => {
     const pool = { ...concurrency(995), limit: 1_000 };
     const snapshots = [
       sampleSnapshot({
         second: 1,
-        api: { limits: [requestRate(4_999.5, 0)] },
+        api: { limits: [requestRate(4_999.5, 0, 1)] },
         fn: { limits: [pool] },
       }),
     ];

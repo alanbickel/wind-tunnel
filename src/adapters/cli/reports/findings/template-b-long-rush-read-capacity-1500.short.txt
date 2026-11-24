@@ -9,7 +9,7 @@ Verdict: 4,377 of 273,539 answered requests failed
    1.1. orders-read's readUnits bucket drained from 18 s and ran out by 96 s
         - requests took 1,595 tokens a second on average, against a refill of 1,500
         - its burst of 7,500 tokens lasted at most 78 s
-        - at that flow, a full bucket lasts about 78.9 s
+        - at that flow, a full bucket empties in about 78.9 s
 
 2. work queued in orders-queue finished past the 29 s API Gateway waits for fn-api
    - the p99 of deliveries was over 29 s in 23 seconds

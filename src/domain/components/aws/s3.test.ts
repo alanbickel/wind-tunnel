@@ -99,8 +99,8 @@ describe("s3Definition", () => {
   });
 
   // Fails if S3 stops reporting either rate, counts a refused request as a
-  // token taken, drains the wrong bucket, or declares a reason other than
-  // the one it refuses with.
+  // token taken or doesn't count it as refused, drains the wrong bucket, or
+  // declares a reason other than the one it refuses with.
   it("reports each rate, the requests taken, and the tokens left", () => {
     const s3 = build();
     readsAt(s3, { count: 4, nowMs: 0 });
@@ -112,6 +112,7 @@ describe("s3Definition", () => {
         ratePerSec: 3,
         burst: 3,
         taken: 3,
+        refused: 1,
         tokensLeft: 0,
       },
       {
@@ -121,6 +122,7 @@ describe("s3Definition", () => {
         ratePerSec: 2,
         burst: 2,
         taken: 0,
+        refused: 0,
         tokensLeft: 2,
       },
     ]);

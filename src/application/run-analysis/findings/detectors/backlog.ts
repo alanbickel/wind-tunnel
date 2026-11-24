@@ -395,7 +395,7 @@ function limitEvidence({ limit, tally }: BacklogFindingInput): Evidence[] {
   return [
     { what: `${name}: the limit`, value: limit.use.limit, source: "config" },
     {
-      what: `${name}: seconds in which it ran out (limitExhausted on the second's peak)`,
+      what: `${name}: seconds in which it ran out (limitExhausted: every slot held at the peak, or a request refused for want of tokens)`,
       value: tally.out.count,
       source: "snapshots",
     },

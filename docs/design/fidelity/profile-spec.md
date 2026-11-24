@@ -6,7 +6,7 @@ A new component type starts with its service's profile ([Adding a component type
 
 Each component type has a folder in [`fidelity/`](./), named for its type (`lambda`, `s3`), with two pages: its profile, `<type>-profile.md`, and its [fidelity entries](../fidelity.md#how-to-read-an-entry), `<type>-fidelity.md`. A new type's folder starts with its profile, listed on the [index](../fidelity.md#the-service-pages). The profile is a research checklist, a row or a line per item, not prose, with a `Checked:` date for the whole profile. [S3's](s3/s3-profile.md) is the first.
 
-The first five types were built before profiles: their profile pages hold only their defaults tables, with a line saying the profile hasn't been researched yet.
+The first five types were built before profiles: their profile pages hold only their defaults tables and rejection reasons, with a line saying the profile hasn't been researched yet.
 
 ## What every profile has
 
@@ -19,6 +19,7 @@ These sections, in this order:
 - **Default values and their evidence:** right under Settings, the type's [defaults table](#default-values-and-their-evidence).
 - **Quotas:** each limit, with its default, whether it can be raised, and its scope: per resource, per account and Region, or per something smaller, such as a partition or a prefix. One the type doesn't enforce, or enforces at another scope, is an entry of kind Behavior, as [LMB-1](lambda/lambda-fidelity.md#lmb-1-concurrency-is-per-function-not-shared-by-the-account) is.
 - **Behavior under load:** what happens at each limit (refused, and with which error; queued; slowed), how fast the service scales, and its latency. Each way the type will behave differently is an entry of kind Behavior; cite its ID beside the line.
+- **Rejection reasons:** each reason the type rejects with, its [error kind](../../glossary.md#error-kind), and the evidence for the kind: the error AWS answers with, and how the SDKs class it.
 - **Evidence:** every claim marked as an entry's is (Documented with a link, Observed, or Assumption), checked on the profile's date or on a later one given beside it.
 
 The profile records what AWS does; its defaults table records what the model starts with and how sure that is.

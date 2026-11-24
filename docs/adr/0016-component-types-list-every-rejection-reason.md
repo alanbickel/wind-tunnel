@@ -1,6 +1,6 @@
 # ADR-0016: Component types list every reason they reject with
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-11-24
 - **Date:** 2026-10-21
 
 ## Context
@@ -19,6 +19,8 @@ There were three ways to treat a reason that no limit declares:
 
 **Each `ComponentDefinition` lists every reason its behavior may reject with, in `rejectionReasons`.** The list is closed and includes the reasons its limits declare. The registry's `ComponentType` exposes it, so it can be read without building a behavior.
 
+> **Changed by the [addendum of 2026-11-24](#addendum-2026-11-24).**
+
 `checkComponentContract` checks, for every type:
 
 - `rejectionReasons` doesn't list `timeout` (`TIMEOUT_REASON`), which the engine puts on a failure when a caller stops waiting;
@@ -36,3 +38,12 @@ A listed reason that no limit declares is a rejection with no limit behind it, a
 - The contract proves that no unlisted reason gets out, because it sees every rejection its scenario causes. It can't prove that every listed reason is reachable, so a stale entry isn't caught.
 - A reason is now stated in three places: the rejection, the limit's declaration, and the list. Each behavior keeps its reason in one constant that all three use, and the contract checks that they agree.
 - `timeout` is reserved by string only. If a component ever needs a reason with the same text, the failure should carry its origin (engine or component) as a field instead.
+
+## Addendum, 2026-11-24
+
+**Context.** [ADR-0025](0025-give-each-failure-an-error-kind-and-retry-by-it.md) gives each failure an error kind, so that an edge doesn't retry an error that retrying can't fix. A rejection's kind belongs to its reason, so a type has to say, for each reason it lists, what kind it is.
+
+**Decision.** `rejectionReasons` is a record from each reason to its error kind (`throttling`, `transient`, or `non-retryable`), for example `{ "too-many-connections": "transient" }`, not a list. The set of reasons is still closed, and everything above that is checked against the list is checked against the record's keys. The contract also fails a reason whose kind isn't an error kind. Built in [#317](https://github.com/alanbickel/wind-tunnel/issues/317).
+
+**Consequences.** A type can't list a reason without a kind. Every reason has one more value to choose, recorded with its evidence in the type's fidelity profile.
+

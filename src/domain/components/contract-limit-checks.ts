@@ -34,7 +34,7 @@ export interface LimitCheckInput {
   readonly nowMs: number;
   /** The previous read; undefined on the first. */
   readonly previous: LimitReading | undefined;
-  /** The definition's `rejectionReasons`. */
+  /** The reasons the definition's `rejectionReasons` gives kinds to. */
   readonly rejectionReasons: readonly string[];
 }
 
@@ -57,7 +57,7 @@ export interface RejectionCheckInput {
   readonly previous: LimitReading | undefined;
   /** The `rejected` effect's reason, e.g. `"too-many-connections"`. */
   readonly reason: string;
-  /** The definition's `rejectionReasons`. */
+  /** The reasons the definition's `rejectionReasons` gives kinds to. */
   readonly rejectionReasons: readonly string[];
 }
 

@@ -2,6 +2,7 @@ import type {
   ComponentBehavior,
   RequestSettings,
 } from "../components/component-behavior";
+import type { ErrorKind, RejectionReasons } from "../components/error-kind";
 import type { Edge, Step } from "../model/project";
 import type { Failure } from "./simulation-events";
 
@@ -9,10 +10,15 @@ import type { Failure } from "./simulation-events";
 // a user request makes calls, a call makes attempts, and an attempt becomes
 // a visit at its target component.
 
-/** A component in a run: its behavior, and its peaks for the metrics ticks. */
+/**
+ * A component in a run: its behavior, its type's rejection reasons, and its
+ * peaks for the metrics ticks.
+ */
 export interface RuntimeComponent {
   readonly id: string;
   readonly behavior: ComponentBehavior<Visit>;
+  /** Its type's reasons, each with the error kind a rejection gets. */
+  readonly rejectionReasons: RejectionReasons;
   /** Highest values since the last tick. */
   peakInProgress: number;
   peakQueueDepth: number;
@@ -21,6 +27,17 @@ export interface RuntimeComponent {
    * slots held, or tokens drawn out of a full bucket.
    */
   readonly limitPeaks: number[];
+}
+
+/**
+ * A failed attempt's answer: its cause, and the error kind its caller's
+ * retry policy sees. The kind travels beside the cause, not in it, since a
+ * failure from further down keeps its cause but changes its kind at each
+ * component it passes through (ADR-0025 decision 1.4).
+ */
+export interface AttemptFailure {
+  readonly failure: Failure;
+  readonly kind: ErrorKind;
 }
 
 /** One user request: a single run of a workflow. */

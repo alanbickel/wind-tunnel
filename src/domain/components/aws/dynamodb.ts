@@ -103,6 +103,8 @@ export const dynamoDbDefinition = rateLimitedServiceDefinition({
   },
   edgeDefaults: AWS_EDGE_DEFAULTS,
   refusal: THROTTLED,
+  // ProvisionedThroughputExceededException (ADR-0025 decision 7).
+  refusalKind: "throttling",
   limits: {
     readUnits: (config) =>
       capacityBucket(config, {

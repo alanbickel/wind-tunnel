@@ -3,6 +3,7 @@ import type { EdgeSettings } from "../model/edge-settings";
 import type { StepAction } from "../model/project";
 import type { RandomSource } from "../random/random-source";
 import type { ComponentBehavior, RequestSettings } from "./component-behavior";
+import type { RejectionReasons } from "./error-kind";
 
 /** What a definition gets from the engine when it builds a component. */
 export interface BuildContext {
@@ -60,13 +61,14 @@ export interface ComponentDefinition<Config> {
   readonly deliversAsync: boolean;
   /**
    * Every `reason` this type's behavior may put on a `rejected` effect,
-   * e.g. `["too-many-connections"]`; empty if it never rejects. The list is
-   * closed: the contract fails a rejection whose reason isn't on it. It
-   * includes the reasons the type's limits declare in `whenFull`, and any
-   * that no limit explains, such as a failed validation. Never `timeout`,
-   * which the engine reserves (ADR-0016).
+   * each with its error kind, e.g. `{ "too-many-connections": "transient" }`;
+   * empty if it never rejects. The set is closed: the contract fails a
+   * rejection whose reason isn't a key. It includes the reasons the type's
+   * limits declare in `whenFull`, and any that no limit explains, such as a
+   * failed validation. Never `timeout`, which the engine reserves
+   * (ADR-0016). The engine never retries a `non-retryable` one (ADR-0025).
    */
-  readonly rejectionReasons: readonly string[];
+  readonly rejectionReasons: RejectionReasons;
   /** Builds fresh run-time state. Called once per component per run. */
   build<T>(config: Config, context: BuildContext): ComponentBehavior<T>;
 }

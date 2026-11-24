@@ -60,3 +60,11 @@ Evidence: Documented: [performance guidelines](https://docs.aws.amazon.com/Amazo
 - **Bursts:** AWS gives the rates per second and says nothing about a burst over them (S3-3). Assumption.
 - **Latency:** for small requests (under 512 KB), "median latencies are often in the tens of milliseconds"; latency-sensitive applications "can achieve consistent small object latencies … of roughly 100–200 milliseconds". AWS advises retrying a small `GET` or `PUT` that hasn't answered after 2 s. Larger objects take longer to transfer (S3-5). Documented: [performance guidelines](https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html), [performance design patterns](https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance-design-patterns.html).
 - **Versioned objects:** an object with millions of versions makes S3 throttle `PUT` and `DELETE` requests to the whole bucket, with `503` responses (S3-8). Documented: [troubleshooting versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshooting-versioning.html).
+
+## Rejection reasons
+
+Each reason the type rejects with, and its [error kind](../../../glossary.md#error-kind), which decides whether an edge may retry it (ADR-0025).
+
+| Reason | Error kind | Evidence |
+|---|---|---|
+| `slow-down` | throttling | Documented: a 503 `SlowDown`, which the SDKs class as throttling ([AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html)) |

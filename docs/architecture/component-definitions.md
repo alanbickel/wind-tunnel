@@ -115,13 +115,13 @@ t(ms)  engine calls           effects returned   inProgress  queueDepth
 
 Code: [`src/domain/components/aws/`](../../src/domain/components/aws/). `createAwsComponentRegistry()` returns a registry with all six.
 
-| `type` | Built from | Rejects with (`rejectionReasons`) | Key config | Reports limits (when full) |
+| `type` | Built from | Rejects with (`rejectionReasons`, with each one's error kind) | Key config | Reports limits (when full) |
 |---|---|---|---|---|
-| `api-gateway` | `RateLimit` → overhead | `throttled` (HTTP 429) | `ratePerSec`, `burst`, `overhead` | `requestRate` (refuses) |
-| `lambda` | `ConcurrencyLimit` (reject) + `RateLimit` of 10 × concurrency a second + warm environments → cold start + compute | `throttled` | `concurrency`, `coldStart`, `idleTimeoutSec`, `computeTime` | `concurrency`, `requestRate` (both refuse) |
-| `dynamodb` | one `RateLimit` for reads, one for writes → latency | `throttled` | `readUnitsPerSec`, `writeUnitsPerSec`, `burstSec`, `latency` | `readUnits`, `writeUnits` (both refuse) |
-| `rds` | `ConcurrencyLimit` on connections (reject) → `ConcurrencyLimit` on query workers (queue) → query time | `too-many-connections` | `maxConnections`, `queryWorkers`, `queryTime` | `connections` (refuses), `queryWorkers` (waits, holding `connections`) |
-| `s3` | one `RateLimit` for reads, one for writes → a latency for each | `slow-down` (HTTP 503 Slow Down) | `readsPerSec`, `writesPerSec`, `readLatency`, `writeLatency` | `readRate`, `writeRate` (both refuse) |
+| `api-gateway` | `RateLimit` → overhead | `throttled` (HTTP 429): throttling | `ratePerSec`, `burst`, `overhead` | `requestRate` (refuses) |
+| `lambda` | `ConcurrencyLimit` (reject) + `RateLimit` of 10 × concurrency a second + warm environments → cold start + compute | `throttled`: throttling | `concurrency`, `coldStart`, `idleTimeoutSec`, `computeTime` | `concurrency`, `requestRate` (both refuse) |
+| `dynamodb` | one `RateLimit` for reads, one for writes → latency | `throttled`: throttling | `readUnitsPerSec`, `writeUnitsPerSec`, `burstSec`, `latency` | `readUnits`, `writeUnits` (both refuse) |
+| `rds` | `ConcurrencyLimit` on connections (reject) → `ConcurrencyLimit` on query workers (queue) → query time | `too-many-connections`: transient | `maxConnections`, `queryWorkers`, `queryTime` | `connections` (refuses), `queryWorkers` (waits, holding `connections`) |
+| `s3` | one `RateLimit` for reads, one for writes → a latency for each | `slow-down` (HTTP 503 Slow Down): throttling | `readsPerSec`, `writesPerSec`, `readLatency`, `writeLatency` | `readRate`, `writeRate` (both refuse) |
 | `sqs` | send latency → unbounded `Queue` → at most `consumerMaxConcurrency` dispatched at once | never | `consumerMaxConcurrency`, `sendLatency` | `consumerConcurrency` (waits, holding nothing) |
 
 Durations (`overhead`, `coldStart`, …) are distributions from [`distribution.ts`](../../src/domain/random/distribution.ts); defaults are mostly lognormal, given as a median and a p99.
@@ -167,19 +167,28 @@ t(ms)  engine calls  effects returned                  inProgress  queueDepth  w
 
 ## Rejection reasons
 
-A rejection carries a reason, such as `too-many-connections`. With the component's ID, it's the cause of the failure the findings explain ([findings design §2.4](../design/findings.md#24-how-a-failure-reaches-a-finding)). Each type lists every reason it may reject with in its definition's `rejectionReasons` ([ADR-0016](../adr/0016-component-types-list-every-rejection-reason.md)). The list is closed: the contract fails a rejection whose reason isn't on it. A reason means something only within its type, so two types may use the same one. `timeout` is never on a list: the engine puts it on a failure when a caller stops waiting.
+A rejection carries a reason, such as `too-many-connections`. With the component's ID, it's the cause of the failure the findings explain ([findings design §2.4](../design/findings.md#24-how-a-failure-reaches-a-finding)). Each type lists every reason it may reject with in its definition's `rejectionReasons` ([ADR-0016](../adr/0016-component-types-list-every-rejection-reason.md)), a record from each reason to its error kind: `{ "too-many-connections": "transient" }`. The set is closed: the contract fails a rejection whose reason isn't on it. A reason means something only within its type, so two types may use the same one. `timeout` is never on a list: the engine puts it on a failure when a caller stops waiting.
 
 A reason is one of these kinds:
 
 - **A limit's refusal:** a limit refuses work when it's full, and declares this reason ([What a full limit does](#what-a-full-limit-does)). Such a reason has one more rule: it's used only while its limit is exhausted, so the findings can name the limit behind a failure. RDS's `too-many-connections` is one.
 - **Any other reason**, such as a failed validation: a reason on the list that no limit declares. No rule ties it to a limit. No type has one yet.
 
-Keep each reason in one constant, used by the rejection, the list, and the limit that declares it, if any. `rds-behavior.ts` exports `TOO_MANY_CONNECTIONS`, and `rds.ts` lists its `reason`.
+Give each reason the error kind the AWS SDKs would give the error AWS answers with, as its fidelity profile records ([ADR-0025](../adr/0025-give-each-failure-an-error-kind-and-retry-by-it.md)):
+
+- **`throttling`:** AWS refused for a rate or a quota, such as a 429 or `ProvisionedThroughputExceededException`. Retryable.
+- **`transient`:** a failure that may pass, such as a 500, a 503 with no throttling code, or a dropped connection. Retryable.
+- **`non-retryable`:** an error retrying can't fix, such as a `ValidationException`. The engine never retries it, however many attempts the edge has left.
+
+The engine's own failures are transient: a timeout, and a failure from further down when it reaches the caller of the component it passed through (its cause stays the same; see [ENG-8](../design/fidelity/engine-and-edges.md#eng-8-a-failure-from-further-down-is-retryable-at-every-caller)). A different kind means a different reason: a type can't reject one reason with two kinds.
+
+Keep each reason in one constant, used by the rejection, the list, and the limit that declares it, if any. `rds-behavior.ts` exports `TOO_MANY_CONNECTIONS`, and `rds.ts` gives its `reason` a kind. A type on the shared base gives its one reason's kind as the spec's `refusalKind`.
 
 | Mistake | Caught by |
 |---|---|
 | A rejection whose reason isn't in `rejectionReasons` | The contract |
 | `rejectionReasons` lists `timeout` | The contract |
+| A reason whose kind isn't an error kind | The contract, and the types |
 | A listed reason that the behavior never uses | Nothing: the contract sees only the reasons its scenario causes |
 
 ## What a full limit does
@@ -238,7 +247,7 @@ export const itemStoreDefinition: ComponentDefinition<ItemStoreConfig> = {
 - `gauges` and `counters` are finite, and counters never decrease;
 - `limits` are the same on every read, declarations included; a limit whose waiting work holds another names a different limit of the same component, one that refuses; a concurrency limit's use stays within it; and a rate limit's bucket holds between 0 and its burst and never gives out more tokens than its burst and rate allow;
 - each `requestSettings` schema is for an action the type accepts, parses `{}`, and rejects a key it doesn't know; the scenario sends each action's default settings to `arrive`;
-- `rejectionReasons` doesn't list `timeout`; every rejection's reason, and every refusing limit's, is on it; and a rejection whose reason a limit declares happens while one such limit is exhausted;
+- `rejectionReasons` doesn't list `timeout` and gives each reason an error kind; every rejection's reason, and every refusing limit's, is on it; and a rejection whose reason a limit declares happens while one such limit is exhausted;
 - the same seed produces exactly the same effects (no state shared between runs).
 
 `checkComponentContract` runs the scenario twice through `createContractHarness`, the factory that builds each run's harness ([ADR-0009](../adr/0009-collaborators-come-from-factories.md)):
@@ -304,9 +313,9 @@ Start from the service's [fidelity profile](../design/fidelity/profile-spec.md),
 
 1. Write a Zod `configSchema` and a `defaultConfig` that passes it, and `edgeDefaults`: the latency, timeout, and retry policy of a new edge drawn from a component of the type. Most AWS types use `AWS_EDGE_DEFAULTS` ([`aws/edge-defaults.ts`](../../src/domain/components/aws/edge-defaults.ts)); API Gateway sets its own 29 s timeout. The contract check fails defaults that don't pass `edgeSettingsSchema`.
 2. List the `actions` it accepts; set `deliversAsync` only for queue-like types. If one call to it can differ from another in a way that changes its cost or time (an item's size, a query's shape), declare `requestSettings` for that action rather than putting the setting in the config ([Request settings](#request-settings)).
-3. **A rate-limited request/response service** (each request takes its cost in tokens from a bucket, is refused when the bucket holds less, and is otherwise served, with nothing waiting) needs no class: write a spec for `rateLimitedServiceDefinition`, as [`aws/dynamodb.ts`](../../src/domain/components/aws/dynamodb.ts) does. The base then does steps 4 to 6 for it, all but testing its limits with `limitValues`. Otherwise, write the run-time state as a class that implements `ComponentBehavior<T>`, in its own `<type>-behavior.ts` file. It takes a `<Class>Dependencies` object of primitive interfaces (`RateLimit`, `ConcurrencyLimit`, `ServiceTime`) and doesn't construct them itself (ADR-0009). `build` creates the primitives from the config (`TokenBucket`, `CountingSemaphore`, `SampledServiceTime`) and passes them in, taking randomness only from `context.random`. See [`aws/lambda.ts`](../../src/domain/components/aws/lambda.ts) and [`aws/lambda-behavior.ts`](../../src/domain/components/aws/lambda-behavior.ts).
+3. **A rate-limited request/response service** (each request takes its cost in tokens from a bucket, is refused when the bucket holds less, and is otherwise served, with nothing waiting) needs no class: write a spec for `rateLimitedServiceDefinition`, as [`aws/dynamodb.ts`](../../src/domain/components/aws/dynamodb.ts) does. The base then does steps 4 to 6 for it, given the spec's `refusal` and its `refusalKind`, all but testing its limits with `limitValues`. Otherwise, write the run-time state as a class that implements `ComponentBehavior<T>`, in its own `<type>-behavior.ts` file. It takes a `<Class>Dependencies` object of primitive interfaces (`RateLimit`, `ConcurrencyLimit`, `ServiceTime`) and doesn't construct them itself (ADR-0009). `build` creates the primitives from the config (`TokenBucket`, `CountingSemaphore`, `SampledServiceTime`) and passes them in, taking randomness only from `context.random`. See [`aws/lambda.ts`](../../src/domain/components/aws/lambda.ts) and [`aws/lambda-behavior.ts`](../../src/domain/components/aws/lambda-behavior.ts).
 4. Return exactly one outcome from `arrive`, reading any request settings from its `settings`; pass freed resources to waiters in `finish`. Each method takes one input object (`ArriveInput`, `FinishInput`, `DispatchFinishedInput`).
-5. List every reason the behavior rejects with in `rejectionReasons`, each in one constant that the limit declaring it, if any, also uses (see [Rejection reasons](#rejection-reasons)).
+5. List every reason the behavior rejects with in `rejectionReasons`, with its error kind from the type's fidelity profile, each in one constant that the limit declaring it, if any, also uses (see [Rejection reasons](#rejection-reasons)).
 6. Declare each limit the type enforces in `limits`, built once in the constructor with `concurrencyGauge` or `rateGauge` ([`limit-gauges.ts`](../../src/domain/components/limit-gauges.ts)), and test its values with `limitValues`. The reports and the run panel then show its use without changes ([ADR-0014](../adr/0014-components-report-their-limits.md)). Give each limit its `whenFull` ([What a full limit does](#what-a-full-limit-does)): `{ kind: "refuse", reason }` with the one of the type's rejection reasons that its `rejected` effect carries, or `{ kind: "wait", holds }` naming the limit that waiting work keeps a slot of, if any. The findings read these instead of the type ([ADR-0015](../adr/0015-findings-come-from-registered-detectors.md)); the metrics guide lists [each type's declarations](metrics.md#limits-and-their-use).
 7. Add a test that runs `checkComponentContract`, plus unit tests for the type's own behavior. The contract sends each action's default request settings; if other settings make a request cost more, run it again while it refuses, with `requestSettings` that send costly ones besides the defaults, as [`aws/dynamodb.test.ts`](../../src/domain/components/aws/dynamodb.test.ts) does with 40 KB items.
 8. Register it in `createAwsComponentRegistry` ([`aws/index.ts`](../../src/domain/components/aws/index.ts)), or in a new registry function for another provider.

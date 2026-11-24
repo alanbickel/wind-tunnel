@@ -274,7 +274,7 @@ sequenceDiagram
     Note over E,T: after serviceMs: the target's own nested calls, in order
     E->>T: finish()
     E->>C: answer (+latency)
-    Note over C,E: rejected, timed out, or an error from further down:<br/>retry after backoff, or fail the caller's step
+    Note over C,E: rejected, timed out, or an error from further down:<br/>retry after backoff if its kind is retryable, or fail the caller's step
 ```
 
 Rules worth knowing:
@@ -282,7 +282,7 @@ Rules worth knowing:
 - **Latency is paid both ways.** An edge's `latencyMs` is one-way; an answer travels back the same edge.
 - **A step's order is fixed:** its own service time, then its nested calls one at a time, then `finish`. If a nested call fails for good, the remaining calls are skipped and the step fails.
 - **Timeouts don't cancel anything.** The caller stops waiting, and the target's work runs to the end and holds its resources (ADR-0006).
-- **Every failure is retryable:** a rejection, a timeout, or an error from further down. Retries happen at each edge, so they multiply across layers.
+- **A failure is retried by its error kind** ([ADR-0025](../adr/0025-give-each-failure-an-error-kind-and-retry-by-it.md)). A rejection takes the kind its type gives its reason; a timeout, and an error from further down as the component it passed through answers its caller, are transient. Throttling and transient failures are retried as the edge's policy allows; a non-retryable one never is, and the caller gets it unchanged. Retries happen at each edge, so they multiply across layers.
 - **The user's call to the root step has no edge:** no latency, no timeout, no retries.
 - **Async work** starts when a queue-like component returns `dispatched`. The user already has an answer by then; `component-async-finished` reports when the work landed.
 - **Each part has its own random stream** (`arrivals`, `workflows`, `retries`, `component:<id>`), seeded from the workload's seed. Changing one component's config doesn't move the arrival times, so two runs are comparable.

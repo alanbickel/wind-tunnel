@@ -118,6 +118,7 @@ function buildComponents({
     components.set(component.id, {
       id: component.id,
       behavior,
+      rejectionReasons: type.rejectionReasons,
       peakInProgress: 0,
       peakQueueDepth: 0,
       limitPeaks: (behavior.limits ?? []).map(() => 0),

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createAwsComponentRegistry } from "../components/aws";
+import type { ComponentRegistry } from "../components/component-registry";
+import { ComponentRegistryMap } from "../components/component-registry-map";
+import { refuserDefinition } from "../components/testing/fake-definitions";
 import type {
   Component,
   Edge,
@@ -60,7 +63,23 @@ const components: Record<string, Component> = {
       computeTime: constant(20),
     },
   },
+  refuser: {
+    id: "refuser",
+    type: "test-refuser",
+    name: "Refuser",
+    config: { reason: "invalid" },
+  },
 };
+
+/** The AWS types, and a test type that refuses every request. */
+function registry(): ComponentRegistry {
+  const aws = createAwsComponentRegistry();
+  const test = new ComponentRegistryMap().register(refuserDefinition);
+  return {
+    get: (type) => aws.get(type) ?? test.get(type),
+    list: () => [...aws.list(), ...test.list()],
+  };
+}
 
 const edge = (
   from: string,
@@ -118,7 +137,7 @@ function run({
   simulate({
     project,
     workloadId: "light",
-    registry: createAwsComponentRegistry(),
+    registry: registry(),
     observer: (e) => events.push(e),
     ...(untilMs === undefined ? {} : { untilMs }),
     ...(tickMs === undefined ? {} : { tickMs }),
@@ -245,6 +264,94 @@ describe("simulate", () => {
     expect(ofKind(events, "workflow-finished")[0]).toMatchObject({
       latencyMs: 36,
       failure: { componentId: "fn", reason: "throttled" },
+    });
+  });
+
+  describe("retries by error kind (ADR-0025)", () => {
+    const retryThrice = {
+      retry: { maxAttempts: 3, backoff: "none", baseDelayMs: 10 },
+    } as const;
+
+    /** Request 0's arrivals at `componentId`. */
+    const arrivalsAt = (events: SimulationEvent[], componentId: string) =>
+      ofKind(events, "component-arrived").filter(
+        (e) => e.requestId === 0 && e.componentId === componentId,
+      ).length;
+
+    const fnRefuser: Step = {
+      id: "fn-invoke",
+      componentId: "fn",
+      action: "invoke",
+      calls: [{ id: "refuse", componentId: "refuser", action: "invoke" }],
+    };
+
+    // Fails if retryAtMs stops checking the failure's kind, so "invalid"
+    // is tried 3 times; or if the engine gives a rejection a kind other
+    // than its type's, so "busy" is tried once.
+    it.each([
+      ["invalid", "non-retryable", 1],
+      ["busy", "throttling", 3],
+    ])(
+      "tries a call refused as %s (%s) %i time(s) on an edge allowing 3",
+      (reason, _kind, attempts) => {
+        const events = run({
+          root: fnRefuser,
+          edges: [edge("fn", "refuser", retryThrice)],
+          overrides: { refuser: { reason } },
+        });
+        expect(arrivalsAt(events, "refuser")).toBe(attempts);
+        const failed = ofKind(events, "edge-attempt-failed").filter(
+          (e) => e.requestId === 0,
+        );
+        expect(failed.map((e) => e.retryAtMs !== undefined)).toEqual([
+          ...Array<boolean>(attempts - 1).fill(true),
+          false,
+        ]);
+        // The caller gets the original failure, cause unchanged.
+        expect(ofKind(events, "workflow-finished")[0]?.failure).toEqual({
+          componentId: "refuser",
+          reason,
+        });
+      },
+    );
+
+    // Fails if a failure from further down keeps its cause's kind as it
+    // passes through a component, so api → fn isn't retried, or if it
+    // loses its cause on the way.
+    it("retries a failure from further down as transient, keeping its cause", () => {
+      const events = run({
+        root: { ...apiFnDb, calls: [fnRefuser] },
+        edges: [
+          edge("api", "fn", retryThrice),
+          edge("fn", "refuser", retryThrice),
+        ],
+      });
+      // fn → refuser never retries "invalid", but api → fn retries fn's
+      // failure, so each of fn's 3 visits calls the refuser once.
+      expect(arrivalsAt(events, "fn")).toBe(3);
+      expect(arrivalsAt(events, "refuser")).toBe(3);
+      expect(ofKind(events, "workflow-finished")[0]?.failure).toEqual({
+        componentId: "refuser",
+        reason: "invalid",
+      });
+    });
+
+    // Fails if the engine gives a timeout a kind that isn't retryable.
+    it("retries a timeout as transient", () => {
+      const events = run({
+        root: apiFnDb,
+        edges: [
+          edge("api", "fn"),
+          edge("fn", "db", { ...retryThrice, timeoutMs: 100 }),
+        ],
+        overrides: { db: { queryTime: constant(500) } },
+        untilMs: 10_000,
+      });
+      expect(arrivalsAt(events, "db")).toBe(3);
+      expect(ofKind(events, "workflow-finished")[0]?.failure).toEqual({
+        componentId: "db",
+        reason: "timeout",
+      });
     });
   });
 

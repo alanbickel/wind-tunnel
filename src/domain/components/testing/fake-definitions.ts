@@ -8,14 +8,16 @@ import type {
   BuildContext,
   ComponentDefinition,
 } from "../component-definition";
+import type { RejectionReasons } from "../error-kind";
 import { ItemStoreBehavior } from "./item-store-behavior";
 import { MessageQueueBehavior } from "./message-queue-behavior";
+import { RefuserBehavior } from "./refuser-behavior";
 import { QUEUE_FULL, WorkerPoolBehavior } from "./worker-pool-behavior";
 
 // Small, correct definitions for tests of the registry, validation, and the
 // contract checker. They also serve as reference implementations of
-// `ComponentBehavior`: one ordinary component, one queue-like one, and one
-// whose reads take request settings.
+// `ComponentBehavior`: one ordinary component, one queue-like one, one
+// whose reads take request settings, and one that refuses everything.
 
 /** A new edge from either: fast, with no retries. */
 const TEST_EDGE_DEFAULTS: EdgeSettings = {
@@ -44,7 +46,7 @@ export const workerPoolDefinition: ComponentDefinition<WorkerPoolConfig> = {
   },
   actions: ["invoke", "read"],
   deliversAsync: false,
-  rejectionReasons: [QUEUE_FULL.reason],
+  rejectionReasons: { [QUEUE_FULL.reason]: "throttling" },
   edgeDefaults: TEST_EDGE_DEFAULTS,
   build<T>(
     config: WorkerPoolConfig,
@@ -80,7 +82,7 @@ export const messageQueueDefinition: ComponentDefinition<MessageQueueConfig> = {
   defaultConfig: { consumers: 2, sendMs: 1 },
   actions: ["enqueue"],
   deliversAsync: true,
-  rejectionReasons: [],
+  rejectionReasons: {},
   edgeDefaults: TEST_EDGE_DEFAULTS,
   build<T>(config: MessageQueueConfig): ComponentBehavior<T> {
     return new MessageQueueBehavior<T>(config);
@@ -113,9 +115,38 @@ export const itemStoreDefinition: ComponentDefinition<ItemStoreConfig> = {
   actions: ["read", "write"],
   requestSettings: { read: itemStoreReadSettings },
   deliversAsync: false,
-  rejectionReasons: [],
+  rejectionReasons: {},
   edgeDefaults: TEST_EDGE_DEFAULTS,
   build<T>(config: ItemStoreConfig): ComponentBehavior<T> {
     return new ItemStoreBehavior<T>(config);
+  },
+};
+
+/** The refuser's reasons: one that retrying can't fix, and one it can. */
+export const REFUSER_REASONS = {
+  invalid: "non-retryable",
+  busy: "throttling",
+} as const satisfies RejectionReasons;
+
+const refuserConfig = z.object({
+  reason: z.enum(["invalid", "busy"]),
+});
+type RefuserConfig = z.infer<typeof refuserConfig>;
+
+/**
+ * Rejects every request with the reason its config names, so a test can
+ * watch the engine retry a failure, or not, by its error kind (ADR-0025).
+ */
+export const refuserDefinition: ComponentDefinition<RefuserConfig> = {
+  type: "test-refuser",
+  displayName: "Test refuser",
+  configSchema: refuserConfig,
+  defaultConfig: { reason: "invalid" },
+  actions: ["invoke", "read"],
+  deliversAsync: false,
+  rejectionReasons: REFUSER_REASONS,
+  edgeDefaults: TEST_EDGE_DEFAULTS,
+  build<T>(config: RefuserConfig): ComponentBehavior<T> {
+    return new RefuserBehavior<T>(config);
   },
 };

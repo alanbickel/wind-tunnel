@@ -50,7 +50,9 @@ export const rdsDefinition: ComponentDefinition<RdsConfig> = {
   edgeDefaults: AWS_EDGE_DEFAULTS,
   actions: ["read", "write"],
   deliversAsync: false,
-  rejectionReasons: [TOO_MANY_CONNECTIONS.reason],
+  // Assumption: the database's refusal, not an AWS API error, so no SDK
+  // classes it; closest to a transient I/O failure (ADR-0025 decision 7).
+  rejectionReasons: { [TOO_MANY_CONNECTIONS.reason]: "transient" },
   build<T>(config: RdsConfig, { random }: BuildContext): ComponentBehavior<T> {
     return new RdsBehavior<T>({
       connections: new CountingSemaphore<T>({

@@ -35,6 +35,8 @@ export const apiGatewayDefinition = rateLimitedServiceDefinition({
   // A REST API waits up to 29 s for its integration (ENG-5).
   edgeDefaults: { ...AWS_EDGE_DEFAULTS, timeoutMs: 29_000 },
   refusal: THROTTLED,
+  // A 429 Too Many Requests (ADR-0025 decision 7).
+  refusalKind: "throttling",
   limits: {
     requestRate: ({ ratePerSec, burst }) => ({ ratePerSec, burst }),
   },

@@ -54,7 +54,7 @@ export const EDGE_FIELDS: readonly EdgeFieldDescriptor[] = [
     label: "Retries",
     unit: undefined,
     kind: "retry",
-    help: "Attempts in all, counting the first, and how the wait between them grows, up to 20 s. Every failure is retried, timeouts included (ENG-3). The AWS SDKs retry on their own, with their own policy and a retry quota that this doesn't model (ENG-2).",
+    help: "Attempts in all, counting the first, and how the wait between them grows, up to 20 s. Throttles and transient errors are retried, timeouts and failures from further down included (ENG-8); an error retrying can't fix never is. The AWS SDKs retry on their own, with their own policy and a retry quota that this doesn't model (ENG-2).",
   },
 ];
 

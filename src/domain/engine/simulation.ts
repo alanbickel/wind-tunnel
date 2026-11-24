@@ -1,4 +1,5 @@
 import type { Effect } from "../components/component-behavior";
+import { RETRYABLE, type ErrorKind } from "../components/error-kind";
 import type { Step } from "../model/project";
 import type { RandomSource } from "../random/random-source";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
@@ -7,6 +8,7 @@ import { backoffMs } from "./backoff";
 import type { EventQueue } from "./event-queue";
 import type {
   Attempt,
+  AttemptFailure,
   Call,
   RuntimeComponent,
   UserRequest,
@@ -111,8 +113,8 @@ export class Simulation {
     "visit-service-done": ({ visit }) => {
       this.continueVisit(visit);
     },
-    "attempt-answered": ({ attempt, failure }) => {
-      this.respond(attempt, failure);
+    "attempt-answered": ({ attempt, failed }) => {
+      this.respond(attempt, failed);
     },
     "attempt-timed-out": ({ attempt }) => {
       this.timeOut(attempt);
@@ -150,8 +152,11 @@ export class Simulation {
         ...this.eventBase(visit),
         reason,
       });
-      const componentId = visit.attempt.call.target.id;
-      this.respondLater(visit, { componentId, reason });
+      const { target } = visit.attempt.call;
+      this.respondLater(visit, {
+        failure: { componentId: target.id, reason },
+        kind: rejectionKind(target, reason),
+      });
     },
     dispatched: ({ request: visit }) => {
       this.observe({ kind: "component-dispatched", ...this.eventBase(visit) });
@@ -309,7 +314,10 @@ export class Simulation {
       latencyMs: this.nowMs - visit.arrivedMs,
       ...(failure === undefined ? {} : { failure }),
     });
-    this.respondLater(visit, failure);
+    this.respondLater(
+      visit,
+      failure === undefined ? undefined : passedUp(failure),
+    );
     this.apply(
       target,
       target.behavior.finish({ request: visit, nowMs: this.nowMs }),
@@ -317,38 +325,51 @@ export class Simulation {
   }
 
   /** Sends the answer back along the edge, which takes its latency again. */
-  private respondLater(visit: Visit, failure: Failure | undefined): void {
+  private respondLater(visit: Visit, failed: AttemptFailure | undefined): void {
     const { attempt } = visit;
     this.events.schedule(this.nowMs + (attempt.call.edge?.latencyMs ?? 0), {
       kind: "attempt-answered",
       attempt,
-      failure,
+      failed,
     });
   }
 
-  private respond(attempt: Attempt, failure: Failure | undefined): void {
+  private respond(attempt: Attempt, failed: AttemptFailure | undefined): void {
     // A caller that timed out has stopped waiting; the late answer is lost.
     if (attempt.settled) return;
-    if (failure !== undefined) {
-      this.failAttempt(attempt, failure);
+    if (failed !== undefined) {
+      this.failAttempt(attempt, failed);
       return;
     }
     attempt.settled = true;
     attempt.call.onSettled(undefined);
   }
 
-  /** The caller stops waiting, unless the attempt was already answered. */
+  /**
+   * The caller stops waiting, unless the attempt was already answered. A
+   * timeout is transient, as the SDKs class a socket timeout (ADR-0025
+   * decision 1.3).
+   */
   private timeOut(attempt: Attempt): void {
     if (attempt.settled) return;
     const componentId = attempt.call.target.id;
-    this.failAttempt(attempt, { componentId, reason: TIMEOUT_REASON });
+    this.failAttempt(attempt, {
+      failure: { componentId, reason: TIMEOUT_REASON },
+      kind: "transient",
+    });
   }
 
-  /** Retries if the edge's policy allows; otherwise the call fails. */
-  private failAttempt(attempt: Attempt, failure: Failure): void {
+  /**
+   * Retries if the failure's kind is retryable and the edge's policy
+   * allows; otherwise the call fails, with the failure's cause unchanged.
+   */
+  private failAttempt(
+    attempt: Attempt,
+    { failure, kind }: AttemptFailure,
+  ): void {
     attempt.settled = true;
     const { call } = attempt;
-    const retryAtMs = this.retryAtMs(call);
+    const retryAtMs = this.retryAtMs(call, kind);
     if (call.edge !== undefined) {
       this.observe({
         kind: "edge-attempt-failed",
@@ -367,12 +388,17 @@ export class Simulation {
     this.events.schedule(retryAtMs, { kind: "call-retry-due", call });
   }
 
-  /** When to try `call` again, or undefined if it has no attempts left. */
-  private retryAtMs(call: Call): number | undefined {
+  /**
+   * When to try `call` again after a failure of `kind`, or undefined if
+   * it has no attempts left or the failure isn't retryable (ADR-0025
+   * decision 2.1).
+   */
+  private retryAtMs(call: Call, kind: ErrorKind): number | undefined {
     const policy = call.edge?.retry;
     if (policy === undefined || call.attempts >= policy.maxAttempts) {
       return undefined;
     }
+    if (!RETRYABLE[kind]) return undefined;
     const failedAttempts = call.attempts;
     const random = this.retryRandom;
     return this.nowMs + backoffMs({ policy, failedAttempts, random });
@@ -418,6 +444,30 @@ export class Simulation {
       }) ?? [],
     );
   }
+}
+
+/**
+ * The error kind its type gives `reason`. Throws on a reason the type
+ * doesn't list, which the component contract rules out.
+ */
+function rejectionKind(component: RuntimeComponent, reason: string): ErrorKind {
+  const reasons = component.rejectionReasons;
+  const kind = Object.hasOwn(reasons, reason) ? reasons[reason] : undefined;
+  if (kind === undefined) {
+    throw new Error(
+      `Component "${component.id}" rejected as "${reason}", which its type's rejectionReasons doesn't list`,
+    );
+  }
+  return kind;
+}
+
+/**
+ * A failure from further down, as the component it passed through answers
+ * its own caller: transient, as API Gateway answers a failed integration
+ * with a 502, with its cause unchanged (ADR-0025 decision 1.3).
+ */
+function passedUp(failure: Failure): AttemptFailure {
+  return { failure, kind: "transient" };
 }
 
 function throwStuck(timeMs: number): never {

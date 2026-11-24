@@ -29,6 +29,7 @@ const SPEC = {
   },
   edgeDefaults: AWS_EDGE_DEFAULTS,
   refusal: { kind: "refuse", reason: "slow-down" },
+  refusalKind: "throttling",
   limits: { requests: ({ ratePerSec }) => ({ ratePerSec, burst: 1 }) },
   actions: {
     read: { limit: "requests", serviceTime: "readTime" },
@@ -49,10 +50,10 @@ const build = () =>
 
 describe("rateLimitedServiceDefinition", () => {
   // Fails if the definition lists actions or reasons other than the spec's,
-  // or delivers async work.
-  it("takes its actions and its one rejection reason from the spec", () => {
+  // gives its reason a kind other than the spec's, or delivers async work.
+  it("takes its actions and its one rejection reason, with its kind, from the spec", () => {
     expect(definition.actions).toEqual(["read", "write"]);
-    expect(definition.rejectionReasons).toEqual(["slow-down"]);
+    expect(definition.rejectionReasons).toEqual({ "slow-down": "throttling" });
     expect(definition.deliversAsync).toBe(false);
   });
 

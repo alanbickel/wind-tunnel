@@ -140,7 +140,7 @@ export function describeFindings(run: RunGetter, c: FindingsCase): void {
     const read = readRunOf(run);
     itCountsEachCause(read);
     itSpansEachCause(read);
-    itStartsNoCauseEarly(read);
+    itStartsNoCauseEarly(read, c.findings);
     itReconcilesTheVerdict(read);
     itListsTheFindings(read, c.findings);
     itPrintsThePinnedSentences(read, c.findings);
@@ -197,15 +197,22 @@ function itSpansEachCause(read: ReadRunGetter): void {
   });
 }
 
-function itStartsNoCauseEarly(read: ReadRunGetter): void {
+function itStartsNoCauseEarly(
+  read: ReadRunGetter,
+  expected: readonly ExpectedFinding[],
+): void {
   // Fails if failed-requests' walk-back stops checking whether the limit was
   // out, or a failure finding gets a cause window in a shipped run. In every
   // shipped run, the limits it names run out in exactly the failing seconds
   // (findings.md §3.1); the earlier starts belong on the note detectors' own
-  // findings, so their arrival shows up here.
-  it("gives no failure finding a cause window before its first failure", () => {
+  // findings, so their arrival shows up here. A case may expect one where
+  // retries wait long enough to fail requests seconds after the limit ran
+  // out, as the AWS SDK's do (§1.7); `itListsTheFindings` checks its start.
+  it("gives no failure finding a cause window before its first failure, unless its case expects one", () => {
     const { findings } = read();
+    const early = flatten(expected).filter((e) => e.causeFromMs !== undefined);
     for (const finding of failureFindings(findings)) {
+      if (early.some((e) => sameKey(e.key, finding.key))) continue;
       expect(finding.causeWindow, causeOf(finding)).toBeUndefined();
     }
   });

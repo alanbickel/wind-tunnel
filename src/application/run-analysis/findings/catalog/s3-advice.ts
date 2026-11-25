@@ -31,13 +31,13 @@ const RAMP_UP_GRADUALLY: Fix = {
 
 const SDKS_RETRY_SLOW_DOWN: Fix = {
   scope: "aws",
-  message: say`Look for 503 Slow Down in latency, not only in errors: the AWS SDKs retry it as a throttling error, three attempts by default, so it may reach your code only as a slower answer. Give the calling edge retries to see it here.`,
+  message: say`Look for 503 Slow Down in latency, not only in errors: the AWS SDKs retry it as a throttling error, three attempts by default, so it may reach your code only as a slower answer. Give the calling edge the AWS SDK standard retries to see it here.`,
   claim: {
     kind: "documented",
     title: "AWS SDKs retry behavior",
     url: "https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html",
   },
-  fidelityIds: ["S3-4"],
+  fidelityIds: ["ENG-2"],
 };
 
 const BUCKET_KEYS: Fix = {

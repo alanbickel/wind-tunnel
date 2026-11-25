@@ -100,3 +100,9 @@ The evidence is the [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref
 
 [#317](https://github.com/alanbickel/wind-tunnel/issues/317) built decisions 1, 2.1, 2.2, and 7, and closed ENG-3, so its entry is gone from the engine page; the links to it above point at a heading that no longer exists. [ENG-3 as it stood](https://github.com/alanbickel/wind-tunnel/blob/37d771a5c233d5fa9016299104aa90ce41bdf9d1/docs/design/fidelity/engine-and-edges.md#eng-3-every-failure-can-be-retried) is kept in the history. The entry the Consequences call for, for a failure from further down, is [ENG-8](../design/fidelity/engine-and-edges.md#eng-8-a-failure-from-further-down-is-retryable-at-every-caller).
 
+## Addendum, 2026-11-25
+
+[#318](https://github.com/alanbickel/wind-tunnel/issues/318) built decision 3 and moved Template B's edge into DynamoDB to the preset; neither template has an edge into S3. It closed DDB-4 and S3-4, so their entries are gone, and the links to them above point at headings that no longer exist: [DDB-4](https://github.com/alanbickel/wind-tunnel/blob/f4a78b93e72de11b0886646f09d5d084aed83ac9/docs/design/fidelity/dynamodb/dynamodb-fidelity.md#ddb-4-throttled-requests-fail-immediately) and [S3-4](https://github.com/alanbickel/wind-tunnel/blob/f4a78b93e72de11b0886646f09d5d084aed83ac9/docs/design/fidelity/s3/s3-fidelity.md#s3-4-requests-refused-with-503-slow-down-fail-immediately) as they stood are kept in the history. [ENG-2](../design/fidelity/engine-and-edges.md#eng-2-retries-follow-the-edges-policy-not-the-aws-sdks) now covers only what the preset leaves out: the retry quota, and the retries an SDK would make on an edge left with none.
+
+Decision 3.4 left open what a custom policy starts from when a preset edge's backoff or delay changes: it starts from the values the edge's field showed, the preset's attempts, its full jitter, and its base delay after a throttle.
+

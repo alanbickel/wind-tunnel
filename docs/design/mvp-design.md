@@ -364,7 +364,7 @@ The templates are `src/adapters/templates/template-a.json` and `template-b.json`
 |---|---|---|
 | API Gateway → Lambda edges | 1 attempt, 29 s timeout | API Gateway doesn't retry integrations (APIGW-3); 29 s is the REST API integration maximum (ENG-5) |
 | Lambda → RDS edges | 1 attempt, 5 s timeout | Database drivers don't retry by default (Assumption) |
-| fn-api → orders-read | 4 attempts, exponential jitter, 25 ms base | Like the AWS SDK's DynamoDB client (ENG-2, DDB-4) |
+| fn-api → orders-read | AWS SDK standard: 4 attempts, full jitter, from 1,000 ms after a throttle and 25 ms after a transient error | The AWS SDK's DynamoDB client retries a throttle on its own (ENG-2) |
 | fn-api → orders-queue | 3 attempts, exponential jitter, 50 ms base | Like the AWS SDK's standard mode (ENG-2) |
 | orders-queue → fn-writer | 1 attempt | SQS redelivers failed messages itself (SQS-1) |
 | orders-read `readUnitsPerSec`, `burstSec` | 2,500, 5 | Read units a second: headroom over the 1,600 reads/s peak, which draws about 800 units/s at half a unit per default read, without leaning on a full 300 s bucket, which would hide throttling (DDB-2) |

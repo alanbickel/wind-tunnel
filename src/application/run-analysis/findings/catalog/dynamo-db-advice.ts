@@ -1,7 +1,7 @@
 import { say } from "../message";
 import type { TypeAdvice } from "./type-advice";
 
-// Readings: findings.md §1.7, sentences 3, 5, and 6. AWS links checked
+// Readings: findings.md §1.7, sentences 4, 6, and 7. AWS links checked
 // 2026-10-21.
 
 export const dynamoDbAdvice: TypeAdvice = {
@@ -26,7 +26,7 @@ export const dynamoDbAdvice: TypeAdvice = {
             title: "DynamoDB error handling",
             url: "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html",
           },
-          fidelityIds: ["DDB-4"],
+          fidelityIds: ["ENG-2"],
         },
       ],
       learnMore: "dynamodb-saves-up-unused-capacity-for-bursts",

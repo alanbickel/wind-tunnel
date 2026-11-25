@@ -602,6 +602,17 @@ describe("checkComponentContract", () => {
       expect(firstViolation(def)).toMatch(/edgeDefaults/);
     });
 
+    // Fails if checkDefinition stops checking sdkRetryDefaults, so a type
+    // could give every preset edge into it attempts the edge can't have.
+    it.each([
+      ["no attempts", { maxAttempts: 0, transientBaseDelayMs: 25 }],
+      ["too many attempts", { maxAttempts: 11, transientBaseDelayMs: 25 }],
+      ["a negative delay", { maxAttempts: 4, transientBaseDelayMs: -1 }],
+    ])("sdkRetryDefaults with %s", (_name, sdkRetryDefaults) => {
+      const def = { ...workerPoolDefinition, sdkRetryDefaults };
+      expect(firstViolation(def)).toMatch(/sdkRetryDefaults/);
+    });
+
     // Fails if checkRequestSettings stops checking that a schema gives every field a default.
     it("request settings with a field that has no default", () => {
       const def = {

@@ -4,6 +4,7 @@ import type { StepAction } from "../model/project";
 import type { RandomSource } from "../random/random-source";
 import type { ComponentBehavior, RequestSettings } from "./component-behavior";
 import type { RejectionReasons } from "./error-kind";
+import type { SdkRetryDefaults } from "./sdk-retry-defaults";
 
 /** What a definition gets from the engine when it builds a component. */
 export interface BuildContext {
@@ -44,6 +45,14 @@ export interface ComponentDefinition<Config> {
    * `edgeSettingsSchema`.
    */
   readonly edgeDefaults: EdgeSettings;
+  /**
+   * How its service's AWS SDK client retries, where it differs from the
+   * SDKs' standard mode: the attempts and the base delay after a transient
+   * error that the AWS SDK standard preset uses on an edge into this type
+   * (ADR-0025 decision 3.3). Left out by a type whose clients use the
+   * standard values. The contract checks it's in range.
+   */
+  readonly sdkRetryDefaults?: SdkRetryDefaults;
   /** Step actions this type accepts, e.g. `["read", "write"]`. */
   readonly actions: readonly StepAction[];
   /**

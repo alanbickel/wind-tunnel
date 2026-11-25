@@ -1,5 +1,6 @@
 import { TIMEOUT_REASON } from "../engine/simulation-events";
 import { edgeSettingsSchema } from "../model/edge-settings";
+import { sdkRetryDefaultsSchema } from "./sdk-retry-defaults";
 import type { StepAction } from "../model/project";
 import type { ComponentDefinition } from "./component-definition";
 import { ERROR_KINDS, type RejectionReasons } from "./error-kind";
@@ -67,6 +68,8 @@ export interface ContractReport {
  *   accepts, parses `{}` (every field has a default), and rejects a key it
  *   doesn't know (ADR-0024); the input's `requestSettings`, sent besides
  *   the defaults, parse with it;
+ * - `sdkRetryDefaults`, if set, has 1 to 10 attempts and a transient base
+ *   delay of at least 0 ms (ADR-0025 decision 3.3);
  * - `rejectionReasons` doesn't list `timeout` and gives each reason an
  *   error kind (ADR-0025); every refusing limit's
  *   reason is on it, and so is every rejection's; a rejection whose reason
@@ -114,6 +117,9 @@ function checkDefinition<Config>(
   if (!edgeSettingsSchema.safeParse(definition.edgeDefaults).success) {
     problems.push("edgeDefaults doesn't pass edgeSettingsSchema.");
   }
+  if (!sdkRetryDefaultsInRange(definition)) {
+    problems.push("sdkRetryDefaults doesn't pass sdkRetryDefaultsSchema.");
+  }
   if (definition.actions.length === 0) {
     problems.push("The definition accepts no actions.");
   }
@@ -122,6 +128,16 @@ function checkDefinition<Config>(
     ...checkRejectionReasons(definition.rejectionReasons),
     ...checkRequestSettings(definition),
   ];
+}
+
+/** True if the type leaves `sdkRetryDefaults` out, or sets them in range. */
+function sdkRetryDefaultsInRange<Config>(
+  definition: ComponentDefinition<Config>,
+): boolean {
+  const defaults = definition.sdkRetryDefaults;
+  return (
+    defaults === undefined || sdkRetryDefaultsSchema.safeParse(defaults).success
+  );
 }
 
 /**

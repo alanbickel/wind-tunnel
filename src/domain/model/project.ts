@@ -15,13 +15,33 @@ export interface Component {
 /** How the wait between attempts grows; see `backoffMs` in the engine. */
 export type BackoffStrategy = "none" | "exponential" | "exponential-jitter";
 
-/** Any failed attempt is retried: a rejection, a timeout, or an error from further down. */
+/**
+ * A custom retry policy, with its own values: one base delay for every
+ * retryable failure (ADR-0025 decision 2.3). A failure that isn't
+ * retryable is never retried.
+ */
 export interface RetryPolicy {
   /** Total attempts, including the first. 1 means no retries. */
   readonly maxAttempts: number;
   readonly backoff: BackoffStrategy;
   readonly baseDelayMs: number;
 }
+
+/** The one retry preset: the AWS SDKs' standard mode (ADR-0025 decision 3). */
+export type RetryPresetName = "aws-sdk-standard";
+
+/**
+ * Retries as an AWS SDK client in standard mode would, stored by name and
+ * resolved against the edge's target when a run is built (`resolveRetry`).
+ */
+export interface RetryPreset {
+  readonly preset: RetryPresetName;
+  /** Overrides the target type's attempts, and the SDK's 3. */
+  readonly maxAttempts?: number;
+}
+
+/** An edge's retries: a custom policy, or the AWS SDK standard preset. */
+export type EdgeRetry = RetryPolicy | RetryPreset;
 
 /** A connection that calls travel along, from caller to callee. */
 export interface Edge {
@@ -32,7 +52,7 @@ export interface Edge {
   readonly latencyMs: number;
   /** How long the caller waits for each attempt, counted from sending it. */
   readonly timeoutMs: number;
-  readonly retry: RetryPolicy;
+  readonly retry: EdgeRetry;
 }
 
 export interface Architecture {

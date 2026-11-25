@@ -19,6 +19,14 @@ export const RETRYABLE: Readonly<Record<ErrorKind, boolean>> = {
   "non-retryable": false,
 };
 
+/** The kinds a policy may retry, each with a base delay of its own. */
+export type RetryableKind = Exclude<ErrorKind, "non-retryable">;
+
+/** Whether a failure of `kind` may be retried, by `RETRYABLE`. */
+export function isRetryable(kind: ErrorKind): kind is RetryableKind {
+  return RETRYABLE[kind];
+}
+
 /**
  * Every reason a type may reject with, each with its error kind, e.g.
  * `{ "too-many-connections": "transient" }` (ADR-0025 decision 1.2).

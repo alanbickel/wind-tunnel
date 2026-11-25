@@ -1,5 +1,11 @@
 import { z } from "zod";
-import type { BackoffStrategy, Edge, RetryPolicy } from "./project";
+import type {
+  BackoffStrategy,
+  Edge,
+  EdgeRetry,
+  RetryPolicy,
+  RetryPreset,
+} from "./project";
 
 /**
  * Every backoff strategy. A strategy added to or removed from
@@ -11,12 +17,27 @@ const BACKOFF_STRATEGIES = {
   "exponential-jitter": "exponential-jitter",
 } as const satisfies { readonly [K in BackoffStrategy]: K };
 
-/** An edge's retry policy, as `RetryPolicy` describes it. At most 10 attempts. */
+/** Attempts in all, counting the first: 1 to 10. */
+const maxAttemptsSchema = z.number().int().min(1).max(10);
+
+/** A custom retry policy, as `RetryPolicy` describes it. */
 export const retryPolicySchema = z.strictObject({
-  maxAttempts: z.number().int().min(1).max(10),
+  maxAttempts: maxAttemptsSchema,
   backoff: z.enum(BACKOFF_STRATEGIES),
   baseDelayMs: z.number().nonnegative(),
 }) satisfies z.ZodType<RetryPolicy>;
+
+/** The AWS SDK standard preset, as `RetryPreset` describes it. */
+export const retryPresetSchema = z.strictObject({
+  preset: z.literal("aws-sdk-standard"),
+  maxAttempts: maxAttemptsSchema.optional(),
+}) satisfies z.ZodType<RetryPreset>;
+
+/** An edge's retries: a custom policy or the preset (ADR-0025 decision 3.1). */
+export const edgeRetrySchema = z.union([
+  retryPolicySchema,
+  retryPresetSchema,
+]) satisfies z.ZodType<EdgeRetry>;
 
 /**
  * What an edge's settings may be: its latency, its timeout, and its retry
@@ -26,7 +47,7 @@ export const retryPolicySchema = z.strictObject({
 export const edgeSettingsSchema = z.strictObject({
   latencyMs: z.number().nonnegative(),
   timeoutMs: z.number().positive(),
-  retry: retryPolicySchema,
+  retry: edgeRetrySchema,
 }) satisfies z.ZodType<EdgeSettings>;
 
 /** An edge's settings: everything but its id and the components it joins. */

@@ -3,15 +3,17 @@ import type {
   ComponentRegistry,
   ComponentType,
 } from "../components/component-registry";
-import type { Edge, Project, Step, Workflow, Workload } from "../model/project";
+import type { Project, Step, Workflow, Workload } from "../model/project";
 import { stepsOfWorkflow } from "../model/step-tree";
-import type { RuntimeComponent, Visit } from "./runtime-records";
+import { resolveRetry } from "./resolve-retry";
+import type { RuntimeComponent, RuntimeEdge, Visit } from "./runtime-records";
 import type { RandomStreams } from "./simulation-events";
 import type { Topology } from "./topology";
 
 export interface ProjectTopologyInput {
   readonly components: ReadonlyMap<string, RuntimeComponent>;
-  readonly edges: readonly Edge[];
+  /** Each edge with its retries resolved against its target's type. */
+  readonly edges: readonly RuntimeEdge[];
   readonly workflows: readonly Workflow[];
   /** Each step's parsed request settings, by step ID. */
   readonly settings: ReadonlyMap<string, RequestSettings>;
@@ -21,7 +23,7 @@ export interface ProjectTopologyInput {
 export class ProjectTopology implements Topology {
   private readonly components: ReadonlyMap<string, RuntimeComponent>;
   /** Keyed by `edgeKey(from, to)`. */
-  private readonly edges: ReadonlyMap<string, Edge>;
+  private readonly edges: ReadonlyMap<string, RuntimeEdge>;
   private readonly workflows: ReadonlyMap<string, Workflow>;
   private readonly settings: ReadonlyMap<string, RequestSettings>;
 
@@ -42,7 +44,7 @@ export class ProjectTopology implements Topology {
     return this.components.values();
   }
 
-  edgeFor(fromId: string | undefined, toId: string): Edge | undefined {
+  edgeFor(fromId: string | undefined, toId: string): RuntimeEdge | undefined {
     if (fromId === undefined) return undefined;
     const edge = this.edges.get(edgeKey(fromId, toId));
     if (edge === undefined) {
@@ -76,15 +78,16 @@ export interface TopologyInput {
 }
 
 /**
- * Builds each component's behavior from the registry, parses the request
- * settings of each step the workload can reach, then builds the topology.
+ * Builds each component's behavior from the registry, resolves each edge's
+ * retries, parses the request settings of each step the workload can
+ * reach, then builds the topology.
  */
 export function buildTopology(input: TopologyInput): ProjectTopology {
-  const { architecture, workflows } = input.project;
+  const { workflows } = input.project;
   const components = buildComponents(input);
   return new ProjectTopology({
     components,
-    edges: architecture.edges,
+    edges: resolveEdges(input),
     workflows,
     settings: parseStepSettings(input),
   });
@@ -160,9 +163,27 @@ function parseStepSettings({
   );
 }
 
+/**
+ * Each edge with its retries resolved against its target's type, once per
+ * run: an edge's ends never change, so neither does what it resolves to
+ * (ADR-0025 decision 3.3).
+ */
+function resolveEdges({ project, registry }: TopologyInput): RuntimeEdge[] {
+  const { components, edges } = project.architecture;
+  const typeById = new Map(components.map((c) => [c.id, c.type]));
+  return edges.map((edge): RuntimeEdge => {
+    const type = registry.get(typeById.get(edge.to) ?? "");
+    if (type === undefined) {
+      throw new Error(`No component type for edge "${edge.id}"'s target`);
+    }
+    const sdkDefaults = type.sdkRetryDefaults;
+    return { ...edge, retry: resolveRetry({ retry: edge.retry, sdkDefaults }) };
+  });
+}
+
 /** Edges by their endpoints. Validation rejects duplicates; the first wins. */
-function indexEdges(edges: readonly Edge[]): Map<string, Edge> {
-  const byEnds = new Map<string, Edge>();
+function indexEdges(edges: readonly RuntimeEdge[]): Map<string, RuntimeEdge> {
+  const byEnds = new Map<string, RuntimeEdge>();
   for (const edge of edges) {
     const key = edgeKey(edge.from, edge.to);
     if (!byEnds.has(key)) byEnds.set(key, edge);

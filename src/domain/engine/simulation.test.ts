@@ -72,9 +72,9 @@ const components: Record<string, Component> = {
 };
 
 /** The AWS types, and a test type that refuses every request. */
-function registry(): ComponentRegistry {
+function registry(refuser = refuserDefinition): ComponentRegistry {
   const aws = createAwsComponentRegistry();
-  const test = new ComponentRegistryMap().register(refuserDefinition);
+  const test = new ComponentRegistryMap().register(refuser);
   return {
     get: (type) => aws.get(type) ?? test.get(type),
     list: () => [...aws.list(), ...test.list()],
@@ -111,6 +111,8 @@ interface Setup {
   overrides?: Record<string, Partial<Component["config"]>>;
   untilMs?: number;
   tickMs?: number;
+  /** Replaces the refuser's definition, to break its contract. */
+  refuser?: typeof refuserDefinition;
 }
 
 function run({
@@ -119,6 +121,7 @@ function run({
   overrides = {},
   untilMs,
   tickMs,
+  refuser,
 }: Setup): SimulationEvent[] {
   const project: Project = {
     id: "p",
@@ -137,7 +140,7 @@ function run({
   simulate({
     project,
     workloadId: "light",
-    registry: registry(),
+    registry: registry(refuser),
     observer: (e) => events.push(e),
     ...(untilMs === undefined ? {} : { untilMs }),
     ...(tickMs === undefined ? {} : { tickMs }),
@@ -352,6 +355,22 @@ describe("simulate", () => {
         componentId: "db",
         reason: "timeout",
       });
+    });
+
+    // Fails if the engine guesses a kind for a reason the type doesn't
+    // list (say, falls back to "transient") instead of throwing.
+    it("throws on a rejection whose reason the type doesn't list", () => {
+      expect(() =>
+        run({
+          root: fnRefuser,
+          edges: [edge("fn", "refuser")],
+          overrides: { refuser: { reason: "busy" } },
+          refuser: {
+            ...refuserDefinition,
+            rejectionReasons: { invalid: "non-retryable" },
+          },
+        }),
+      ).toThrow(/rejectionReasons doesn't list/);
     });
   });
 

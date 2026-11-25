@@ -1,3 +1,7 @@
+import {
+  AWS_SDK_STANDARD,
+  type ResolvedRetryPolicy,
+} from "../../../domain/engine/resolve-retry";
 import type { EdgeSettings } from "../../../domain/model/edge-settings";
 import type {
   DefaultEvidence,
@@ -17,10 +21,12 @@ export interface EdgeNumberFieldDescriptor extends FieldDescriptor {
   readonly range: FieldRange;
 }
 
-/** An edge's retry policy. */
+/** An edge's retries: the AWS SDK standard preset, or a custom policy. */
 export interface EdgeRetryFieldDescriptor extends FieldDescriptor {
   readonly key: "retry";
   readonly kind: "retry";
+  /** What the preset resolves to on the edge; see `RetryFieldDescriptor`. */
+  readonly sdkStandard: ResolvedRetryPolicy;
 }
 
 /**
@@ -54,9 +60,22 @@ export const EDGE_FIELDS: readonly EdgeFieldDescriptor[] = [
     label: "Retries",
     unit: undefined,
     kind: "retry",
-    help: "Attempts in all, counting the first, and how the wait between them grows, up to 20 s. Throttles and transient errors are retried, timeouts and failures from further down included (ENG-8); an error retrying can't fix never is. The AWS SDKs retry on their own, with their own policy and a retry quota that this doesn't model (ENG-2).",
+    help: "Attempts in all, counting the first, and how the wait between them grows, up to 20 s. Throttles and transient errors are retried, timeouts and failures from further down included (ENG-8); an error retrying can't fix never is. A custom policy waits from one base delay after either. AWS SDK standard retries as the AWS SDKs do in standard mode: 3 attempts, or 4 into DynamoDB, with full jitter from 1,000 ms after a throttle and from 50 ms after a transient error, or 25 ms into DynamoDB, but without the SDKs' retry quota (ENG-2).",
+    sdkStandard: AWS_SDK_STANDARD,
   },
 ];
+
+/**
+ * An edge setting's descriptor for an edge into a type whose SDK client
+ * retries as `sdkStandard` says; only the retries' descriptor changes.
+ */
+export function intoTarget(
+  field: EdgeFieldDescriptor,
+  sdkStandard: ResolvedRetryPolicy,
+): EdgeFieldDescriptor {
+  if (field.kind !== "retry") return field;
+  return { ...field, sdkStandard };
+}
 
 /** An edge setting's descriptor with its caller type's evidence, for its field. */
 export function withEvidence(

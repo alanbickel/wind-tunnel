@@ -1,3 +1,5 @@
+import type { SdkRetryDefaults } from "../../domain/components/sdk-retry-defaults";
+import { resolveRetry } from "../../domain/engine/resolve-retry";
 import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { Edge, Project } from "../../domain/model/project";
 import { stepsAlong } from "./called-by";
@@ -5,6 +7,7 @@ import type { EdgeDetails, SettingDetails } from "./details";
 import type { EdgeEvidence } from "./field-descriptor";
 import {
   EDGE_FIELDS,
+  intoTarget,
   withEvidence,
   type EdgeFieldDescriptor,
 } from "./fields/edge-fields";
@@ -20,6 +23,8 @@ export interface EdgeDetailsInput {
   readonly defaults: EdgeSettings | undefined;
   /** The caller type's `edgeEvidence`; undefined if it has no descriptors. */
   readonly evidence: EdgeEvidence | undefined;
+  /** The target type's `sdkRetryDefaults`; undefined if it has none. */
+  readonly sdkDefaults: SdkRetryDefaults | undefined;
 }
 
 /**
@@ -30,13 +35,17 @@ export interface EdgeDetailsInput {
  * read-only.
  */
 export function edgeDetails(input: EdgeDetailsInput): EdgeDetails {
-  const { project, edge, defaults } = input;
+  const { project, edge, defaults, sdkDefaults } = input;
+  const preset = { preset: "aws-sdk-standard" } as const;
+  const sdkStandard = resolveRetry({ retry: preset, sdkDefaults });
   return {
     kind: "edge",
     edgeId: edge.id,
     sourceName: nameOf(project, edge.from),
     targetName: nameOf(project, edge.to),
-    settings: EDGE_FIELDS.map((field) => edgeSetting({ ...input, field })),
+    settings: EDGE_FIELDS.map((field) =>
+      edgeSetting({ ...input, field: intoTarget(field, sdkStandard) }),
+    ),
     calledAlongBy: stepsAlong(project, edge),
     defaults,
     removal: edgeRemovalText(project, edge),

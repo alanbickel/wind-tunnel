@@ -108,18 +108,24 @@ export class DescribeSelection {
     return workloadDetails({ project, workload, issues: ownIssues });
   }
 
-  /** The edge, with its caller type's edge defaults and their evidence. */
+  /**
+   * The edge, with its caller type's edge defaults and their evidence, and
+   * its target type's SDK retry defaults.
+   */
   private describeEdge({ project, id }: ItemInput): Details | undefined {
     const { registry, fields } = this.deps;
     const { components, edges } = project.architecture;
     const edge = edges.find((e) => e.id === id);
     if (edge === undefined) return undefined;
-    const callerType = components.find((c) => c.id === edge.from)?.type ?? "";
+    const typeOf = (componentId: string) =>
+      components.find((c) => c.id === componentId)?.type ?? "";
+    const callerType = typeOf(edge.from);
     return edgeDetails({
       project,
       edge,
       defaults: registry.get(callerType)?.edgeDefaults,
       evidence: fields.get(callerType)?.edgeEvidence,
+      sdkDefaults: registry.get(typeOf(edge.to))?.sdkRetryDefaults,
     });
   }
 }

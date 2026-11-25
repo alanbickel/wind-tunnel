@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  AWS_SDK_STANDARD,
+  resolveRetry,
+} from "../../domain/engine/resolve-retry";
 import type {
   ChoiceFieldDescriptor,
   DefaultEvidence,
@@ -26,6 +30,16 @@ const retry: RetryFieldDescriptor = {
   kind: "retry",
   help: "",
   evidence: ASSUMED,
+  sdkStandard: AWS_SDK_STANDARD,
+};
+
+/** The same field on an edge into DynamoDB, whose clients make 4 attempts. */
+const retryIntoDynamoDb: RetryFieldDescriptor = {
+  ...retry,
+  sdkStandard: resolveRetry({
+    retry: { preset: "aws-sdk-standard" },
+    sdkDefaults: { maxAttempts: 4, transientBaseDelayMs: 25 },
+  }),
 };
 
 const workers: NumberFieldDescriptor = {
@@ -83,6 +97,34 @@ describe("settingValueText", () => {
     ],
   ])("reads retry policy %j as %s", (value, text) => {
     expect(settingValueText(retry, value)).toBe(text);
+  });
+
+  // Fails if the preset reads without the values it resolves to on the
+  // edge (its target's, then the edge's own attempts), or a custom policy
+  // reads as the preset.
+  it.each([
+    [
+      { preset: "aws-sdk-standard" },
+      "AWS SDK standard: 3 attempts, backing off exponentially, with jitter, from 1,000 ms after a throttle and 50 ms after a transient error",
+      retry,
+    ],
+    [
+      { preset: "aws-sdk-standard" },
+      "AWS SDK standard: 4 attempts, backing off exponentially, with jitter, from 1,000 ms after a throttle and 25 ms after a transient error",
+      retryIntoDynamoDb,
+    ],
+    [
+      { preset: "aws-sdk-standard", maxAttempts: 1 },
+      "AWS SDK standard: 1 attempt, no retries",
+      retryIntoDynamoDb,
+    ],
+    [
+      { maxAttempts: 2, backoff: "none", baseDelayMs: 10 },
+      "2 attempts, 10 ms apart",
+      retryIntoDynamoDb,
+    ],
+  ])("reads retries %j as %s", (value, text, field) => {
+    expect(settingValueText(field, value)).toBe(text);
   });
 
   // Fails if a number loses its thousands separator or its unit.

@@ -226,6 +226,31 @@ describe("loadProject", () => {
     ]);
   });
 
+  // Fails if the edge schema accepts only a custom policy, drops the
+  // preset's maxAttempts, or lets the preset carry a custom policy's
+  // fields (ADR-0025 decision 4).
+  it("loads an edge's retries as a custom policy or the AWS SDK standard preset", () => {
+    const preset = { preset: "aws-sdk-standard", maxAttempts: 5 };
+    const doc = document();
+    set(doc, ["architecture", "edges", 1, "retry"], preset);
+    const result = loadProject(doc, registry);
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    const [custom, withPreset] = result.record.project.architecture.edges;
+    expect(custom?.retry).toEqual(edge("a", "b").retry);
+    expect(withPreset?.retry).toEqual(preset);
+
+    set(doc, ["architecture", "edges", 1, "retry"], {
+      ...preset,
+      baseDelayMs: 25,
+    });
+    expect(issuesFor(doc)[0]?.path).toEqual([
+      "architecture",
+      "edges",
+      1,
+      "retry",
+    ]);
+  });
+
   it("rejects unknown keys, so typos in templates are caught", () => {
     const doc = document();
     set(doc, ["architecture", "edges", 1, "latencyMS"], 5);

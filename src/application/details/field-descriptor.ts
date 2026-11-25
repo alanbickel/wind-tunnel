@@ -2,6 +2,7 @@
 // type's settings are validated by its config schema in `domain/`; these
 // descriptors say what each one means to a user, in AWS terms.
 
+import type { ResolvedRetryPolicy } from "../../domain/engine/resolve-retry";
 import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { StepAction } from "../../domain/model/project";
 
@@ -114,10 +115,19 @@ export interface ChoiceFieldDescriptor extends FieldDescriptor {
   readonly evidence: DefaultEvidence;
 }
 
-/** An edge's retry policy: attempts, backoff, and base delay. */
+/**
+ * An edge's retries: the AWS SDK standard preset, or a custom policy's
+ * attempts, backoff, and base delay (ADR-0025 decision 3).
+ */
 export interface RetryFieldDescriptor extends FieldDescriptor {
   readonly kind: "retry";
   readonly evidence: DefaultEvidence;
+  /**
+   * What the preset resolves to on this edge before the edge's own
+   * attempts: the SDKs' standard values, with its target type's
+   * `sdkRetryDefaults` over them.
+   */
+  readonly sdkStandard: ResolvedRetryPolicy;
 }
 
 /**

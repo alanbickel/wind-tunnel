@@ -159,9 +159,9 @@ describe("checkComponentContract", () => {
     expect(report.stats.rejected).toBeGreaterThan(0);
   });
 
-  // Fails if the contract rejects a reason whose kind is non-retryable, or
-  // a rejection no limit explains: give REFUSER_REASONS.invalid the kind
-  // "fatal".
+  // Fails if the contract rejects a non-retryable reason or a rejection no
+  // limit explains: make checkRejectionReasons flag "non-retryable", which
+  // turns the invalid case red on violations.
   it.each(["invalid", "busy"] as const)(
     "passes a type that rejects every request as %s",
     (reason) => {

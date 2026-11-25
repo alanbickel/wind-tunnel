@@ -147,7 +147,9 @@ describe("the default catalog's wording", () => {
   it("words every reason a type declares", () => {
     const declared = createAwsComponentRegistry()
       .list()
-      .flatMap((t) => t.rejectionReasons.map((id) => `${t.type} ${id}`));
+      .flatMap((t) =>
+        Object.keys(t.rejectionReasons).map((id) => `${t.type} ${id}`),
+      );
     expect(new Set(wordedIn("reasons"))).toEqual(new Set(declared));
   });
 

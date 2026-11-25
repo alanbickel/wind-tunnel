@@ -2,6 +2,7 @@ import { TIMEOUT_REASON } from "../engine/simulation-events";
 import { edgeSettingsSchema } from "../model/edge-settings";
 import type { StepAction } from "../model/project";
 import type { ComponentDefinition } from "./component-definition";
+import { ERROR_KINDS, type RejectionReasons } from "./error-kind";
 import {
   createContractHarness,
   emptyStats,
@@ -66,7 +67,8 @@ export interface ContractReport {
  *   accepts, parses `{}` (every field has a default), and rejects a key it
  *   doesn't know (ADR-0024); the input's `requestSettings`, sent besides
  *   the defaults, parse with it;
- * - `rejectionReasons` doesn't list `timeout`, every refusing limit's
+ * - `rejectionReasons` doesn't list `timeout` and gives each reason an
+ *   error kind (ADR-0025); every refusing limit's
  *   reason is on it, and so is every rejection's; a rejection whose reason
  *   a limit declares comes while one such limit is full (see
  *   `checkRejection`, ADR-0016);
@@ -115,12 +117,29 @@ function checkDefinition<Config>(
   if (definition.actions.length === 0) {
     problems.push("The definition accepts no actions.");
   }
-  if (definition.rejectionReasons.includes(TIMEOUT_REASON)) {
-    problems.push(
-      `rejectionReasons lists "${TIMEOUT_REASON}", which the engine reserves for callers that stop waiting.`,
+  return [
+    ...problems,
+    ...checkRejectionReasons(definition.rejectionReasons),
+    ...checkRequestSettings(definition),
+  ];
+}
+
+/**
+ * Problems with the reasons themselves: `timeout` isn't one, and each has
+ * an error kind (ADR-0016, ADR-0025).
+ */
+function checkRejectionReasons(reasons: RejectionReasons): string[] {
+  const problems = Object.entries(reasons)
+    .filter(([, kind]) => !ERROR_KINDS.includes(kind))
+    .map(
+      ([reason, kind]) =>
+        `rejectionReasons gives "${reason}" the kind "${kind}", which isn't an error kind.`,
     );
-  }
-  return [...problems, ...checkRequestSettings(definition)];
+  if (!Object.hasOwn(reasons, TIMEOUT_REASON)) return problems;
+  return [
+    `rejectionReasons lists "${TIMEOUT_REASON}", which the engine reserves for callers that stop waiting.`,
+    ...problems,
+  ];
 }
 
 /** A key no request settings schema takes, to show a schema is strict. */

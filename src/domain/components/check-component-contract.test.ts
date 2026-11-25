@@ -10,6 +10,7 @@ import type {
   WhenFull,
 } from "./component-behavior";
 import type { BuildContext, ComponentDefinition } from "./component-definition";
+import type { ErrorKind } from "./error-kind";
 import {
   concurrencyGauge,
   rateGauge,
@@ -19,6 +20,7 @@ import {
 import { z } from "zod";
 import {
   itemStoreDefinition,
+  refuserDefinition,
   itemStoreReadSettings,
   messageQueueDefinition,
   workerPoolDefinition,
@@ -157,6 +159,20 @@ describe("checkComponentContract", () => {
     expect(report.stats.rejected).toBeGreaterThan(0);
   });
 
+  // Fails if the contract rejects a non-retryable reason or a rejection no
+  // limit explains: make checkRejectionReasons flag "non-retryable", which
+  // turns the invalid case red on violations.
+  it.each(["invalid", "busy"] as const)(
+    "passes a type that rejects every request as %s",
+    (reason) => {
+      const report = checkComponentContract(refuserDefinition, {
+        config: { reason },
+      });
+      expect(report.violations).toEqual([]);
+      expect(report.stats.rejected).toBeGreaterThan(0);
+    },
+  );
+
   // Fails if the harness stops sending a read's default settings, so the store's read times are NaN.
   it("passes a type whose reads take request settings, sending their defaults", () => {
     const report = checkComponentContract(itemStoreDefinition);
@@ -198,7 +214,12 @@ describe("checkComponentContract", () => {
           waitLine: { kind: "refuse", reason: "line-full" },
         }),
       }),
-      { rejectionReasons: ["queue-full", "line-full"] },
+      {
+        rejectionReasons: {
+          "queue-full": "throttling",
+          "line-full": "transient",
+        },
+      },
     );
     const report = checkComponentContract(def);
     expect(report.violations).toEqual([]);
@@ -419,10 +440,21 @@ describe("checkComponentContract", () => {
     // Fails if the contract stops reserving the engine's timeout reason.
     it("a definition that lists timeout as a rejection reason", () => {
       const def = broken(workerPoolDefinition, () => ({}), {
-        rejectionReasons: ["queue-full", "timeout"],
+        rejectionReasons: { "queue-full": "throttling", timeout: "transient" },
       });
       expect(firstViolation(def)).toMatch(
         /rejectionReasons lists "timeout", which the engine reserves/,
+      );
+    });
+
+    // Fails if the contract stops checking that each reason's kind is an
+    // error kind (ADR-0025), so a reason could reach the engine without one.
+    it("a rejection reason with no valid error kind", () => {
+      const def = broken(workerPoolDefinition, () => ({}), {
+        rejectionReasons: { "queue-full": "retry-later" as ErrorKind },
+      });
+      expect(firstViolation(def)).toMatch(
+        /rejectionReasons gives "queue-full" the kind "retry-later", which isn't an error kind/,
       );
     });
 

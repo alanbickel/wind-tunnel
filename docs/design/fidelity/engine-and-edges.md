@@ -26,18 +26,6 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 - **Skew:** Pessimistic during outages, when retry storms in the model keep going after an SDK's quota would have stopped them. Optimistic when templates leave out retries that AWS SDKs would add on their own.
 - **To close:** an "AWS SDK standard" retry preset with base delays by error type, and a retry quota per calling component.
 
-#### ENG-3: Every failure can be retried
-
-- **Status:** Open
-- **Kind:** Behavior
-- **Depends on:** Nothing; it's M8 item 7 (#317). [ADR-0025](../../adr/0025-give-each-failure-an-error-kind-and-retry-by-it.md) decides where a failure's kind comes from.
-- **Checked:** 2026-10-14
-- **Wind Tunnel:** rejections, timeouts, and errors from further down can all be retried.
-- **AWS:** SDKs retry transient and throttling errors and return other errors (e.g. `ValidationException`) at once. Every failure Wind Tunnel produces today is a throttle, a capacity rejection, or a timeout, which the SDKs treat as retryable.
-- **Evidence:** Documented: [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html). Whether a database driver retries a refused connection on its own is an assumption (it usually doesn't).
-- **Skew:** Minor today. It matters once Wind Tunnel models errors that shouldn't be retried.
-- **To close:** mark rejection reasons as retryable or not.
-
 #### ENG-4: Timeouts don't cancel work
 
 - **Status:** Open
@@ -85,6 +73,18 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 - **Evidence:** Assumption (a modeling choice).
 - **Skew:** Mixed. Users giving up reduces load; client retries add to it.
 - **To close:** an optional client edge on workflows, with a timeout and retry policy.
+
+#### ENG-8: A failure from further down is retryable at every caller
+
+- **Status:** Open
+- **Kind:** Behavior
+- **Depends on:** Nothing; no Roadmap item yet. It matters once an edge into Lambda can use the AWS SDK standard preset (#318).
+- **Checked:** 2026-11-24
+- **Wind Tunnel:** a component whose nested call failed answers its own caller with a transient error, whatever the failure's kind further down, so the caller's policy may retry it. The cause (the component and reason) passes up unchanged ([ADR-0025](../../adr/0025-give-each-failure-an-error-kind-and-retry-by-it.md) decision 1.3).
+- **AWS:** depends on the service in between. API Gateway answers a failed integration with a 5xx error, which the SDKs class as transient. A Lambda function's error doesn't change `Invoke`'s status code: a synchronous call gets a 200 with the `X-Amz-Function-Error` header, which the SDKs don't retry.
+- **Evidence:** Documented: [Lambda `Invoke`](https://docs.aws.amazon.com/lambda/latest/api/API_Invoke.html), [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html).
+- **Skew:** Pessimistic on an edge into Lambda that follows the SDK: it retries a function error the SDK would return, adding load. None on a custom policy, which stands for the caller's own retry logic and may retry a function's errors, as a Step Functions Task's `Retry` can.
+- **To close:** let a type say what kind a failure from below becomes when it passes through it.
 
 ## Default values and their evidence
 

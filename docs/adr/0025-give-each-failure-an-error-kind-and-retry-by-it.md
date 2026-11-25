@@ -95,3 +95,8 @@ The evidence is the [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref
 - **A type's SDK defaults reach every preset edge into it,** as a type's request-setting defaults reach every step (ADR-0024 decision 2.3). An edge that should keep its values uses a custom policy.
 - **Two shapes of `retry`.** Everything that reads an edge's policy (its text, its draft, its evidence, the CLI report) handles both. The engine reads only the resolved form.
 - **Follow-up:** [#317](https://github.com/alanbickel/wind-tunnel/issues/317) builds decisions 1 and 2 and the kinds in decision 7, closes ENG-3, and opens the entry for a failure from further down. [#318](https://github.com/alanbickel/wind-tunnel/issues/318) builds decision 3, the edge editor's preset, and the templates' move to it. The retry quota is the M10 stub.
+
+## Addendum, 2026-11-24
+
+[#317](https://github.com/alanbickel/wind-tunnel/issues/317) built decisions 1, 2.1, 2.2, and 7, and closed ENG-3, so its entry is gone from the engine page; the links to it above point at a heading that no longer exists. [ENG-3 as it stood](https://github.com/alanbickel/wind-tunnel/blob/37d771a5c233d5fa9016299104aa90ce41bdf9d1/docs/design/fidelity/engine-and-edges.md#eng-3-every-failure-can-be-retried) is kept in the history. The entry the Consequences call for, for a failure from further down, is [ENG-8](../design/fidelity/engine-and-edges.md#eng-8-a-failure-from-further-down-is-retryable-at-every-caller).
+

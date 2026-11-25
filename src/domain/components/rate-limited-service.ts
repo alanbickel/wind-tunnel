@@ -12,6 +12,7 @@ import type {
   RequestSettings,
 } from "./component-behavior";
 import type { BuildContext, ComponentDefinition } from "./component-definition";
+import type { ErrorKind } from "./error-kind";
 import {
   RateLimitedServiceBehavior,
   type RateLimitedAction,
@@ -58,6 +59,8 @@ export interface RateLimitedServiceSpec<
   readonly edgeDefaults: EdgeSettings;
   /** How every limit refuses once empty: the type's one rejection reason. */
   readonly refusal: RefuseWhenFull;
+  /** The error kind of `refusal`'s reason (ADR-0025). */
+  readonly refusalKind: ErrorKind;
   /** Each limit's bucket, by the name it reports, in the order reported. */
   readonly limits: Readonly<Record<Limit, BucketOf<Config>>>;
   /** Each accepted action and what it draws on, in the order listed. */
@@ -98,7 +101,7 @@ export function rateLimitedServiceDefinition<
     actions: Object.keys(spec.actions) as Action[],
     requestSettings: spec.requestSettings,
     deliversAsync: false,
-    rejectionReasons: [spec.refusal.reason],
+    rejectionReasons: { [spec.refusal.reason]: spec.refusalKind },
     build<T>(config: Config, { random }: BuildContext): ComponentBehavior<T> {
       return new RateLimitedServiceBehavior<T>(
         dependenciesOf({ spec, config, random }),

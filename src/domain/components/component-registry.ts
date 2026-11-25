@@ -3,6 +3,7 @@ import type { StepAction, StepSettings } from "../model/project";
 import type { ValidationIssue } from "../model/validation-issue";
 import type { ComponentBehavior, RequestSettings } from "./component-behavior";
 import type { BuildContext } from "./component-definition";
+import type { RejectionReasons } from "./error-kind";
 
 /**
  * A registered definition with its config type hidden, so definitions with
@@ -14,8 +15,8 @@ export interface ComponentType {
   readonly displayName: string;
   readonly actions: readonly StepAction[];
   readonly deliversAsync: boolean;
-  /** Every reason the type may reject with; see `ComponentDefinition`. */
-  readonly rejectionReasons: readonly string[];
+  /** Every reason the type may reject with, and its kind; see `ComponentDefinition`. */
+  readonly rejectionReasons: RejectionReasons;
   readonly defaultConfig: unknown;
   /** The settings of a new edge from a component of this type. */
   readonly edgeDefaults: EdgeSettings;

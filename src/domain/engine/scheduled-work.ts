@@ -1,5 +1,4 @@
-import type { Attempt, Call, Visit } from "./runtime-records";
-import type { Failure } from "./simulation-events";
+import type { Attempt, AttemptFailure, Call, Visit } from "./runtime-records";
 
 /**
  * What the engine schedules on its own event queue: work that falls due at a
@@ -36,7 +35,8 @@ interface VisitServiceDone {
 interface AttemptAnswered {
   readonly kind: "attempt-answered";
   readonly attempt: Attempt;
-  readonly failure: Failure | undefined;
+  /** Why the attempt failed, with its kind; undefined if it succeeded. */
+  readonly failed: AttemptFailure | undefined;
 }
 
 /** The caller stops waiting for an attempt. */

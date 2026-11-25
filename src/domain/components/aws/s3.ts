@@ -43,6 +43,8 @@ export const s3Definition = rateLimitedServiceDefinition({
   },
   edgeDefaults: AWS_EDGE_DEFAULTS,
   refusal: SLOW_DOWN,
+  // A 503 SlowDown (ADR-0025 decision 7).
+  refusalKind: "throttling",
   limits: {
     readRate: ({ readsPerSec }) => oneSecondOf(readsPerSec),
     writeRate: ({ writesPerSec }) => oneSecondOf(writesPerSec),

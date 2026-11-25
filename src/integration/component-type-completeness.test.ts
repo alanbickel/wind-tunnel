@@ -53,7 +53,7 @@ describe("every registered component type", () => {
     (type) => {
       const advice = findings.get(type.type);
       expect(advice, type.type).toBeDefined();
-      for (const reason of type.rejectionReasons) {
+      for (const reason of Object.keys(type.rejectionReasons)) {
         expect(advice?.wording.reasons, `${type.type} reason`).toHaveProperty([
           reason,
         ]);
@@ -108,7 +108,7 @@ describe("every registered component type", () => {
 
   // Fails if a registered type breaks ComponentDefinition's contract, even
   // if its own test file doesn't run checkComponentContract: make
-  // sqsDefinition's rejectionReasons list "timeout".
+  // sqsDefinition's rejectionReasons give "timeout" a kind.
   it.each(exportedDefinitions)(
     "$type passes the component contract",
     (definition) => {

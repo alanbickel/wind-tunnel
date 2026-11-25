@@ -17,7 +17,9 @@ describe("ComponentRegistryMap", () => {
   it("looks up registered types and lists them in order", () => {
     const r = registry();
     expect(r.get("test-worker-pool")?.displayName).toBe("Test worker pool");
-    expect(r.get("test-worker-pool")?.rejectionReasons).toEqual(["queue-full"]);
+    expect(r.get("test-worker-pool")?.rejectionReasons).toEqual({
+      "queue-full": "throttling",
+    });
     expect(r.get("nope")).toBeUndefined();
     expect(r.list().map((t) => t.type)).toEqual([
       "test-worker-pool",

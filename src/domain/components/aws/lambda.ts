@@ -63,7 +63,8 @@ export const lambdaDefinition: ComponentDefinition<LambdaConfig> = {
   edgeDefaults: AWS_EDGE_DEFAULTS,
   actions: ["invoke"],
   deliversAsync: false,
-  rejectionReasons: [THROTTLED.reason],
+  // A 429 TooManyRequestsException (ADR-0025 decision 7).
+  rejectionReasons: { [THROTTLED.reason]: "throttling" },
   build<T>(
     config: LambdaConfig,
     { random }: BuildContext,

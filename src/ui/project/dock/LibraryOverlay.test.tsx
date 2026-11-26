@@ -63,6 +63,37 @@ describe("LibraryOverlay", () => {
     });
   });
 
+  // Fails if the group of types with no category loses its list's name, gets
+  // an h4, or drops its cards.
+  it("shows types with no category in a named list with no heading", () => {
+    const listComponentTypes = {
+      execute: () => [
+        {
+          heading: undefined,
+          types: [{ type: "rds", displayName: "RDS", purpose: undefined }],
+        },
+      ],
+    };
+    render(
+      <UseCasesProvider useCases={fakeUseCases({ listComponentTypes })}>
+        <LibraryOverlay
+          {...({ onAdd: vi.fn() } as Partial<OverlayProps> as OverlayProps)}
+        />
+      </UseCasesProvider>,
+    );
+
+    const other = screen.getByRole("list", { name: "Other component types" });
+
+    expect(
+      [...other.querySelectorAll("button")].map(
+        (b) => b.querySelector("span span")?.textContent,
+      ),
+    ).toEqual(["RDS"]);
+    expect(screen.queryAllByRole("heading", { level: 4 })).toHaveLength(
+      screen.getAllByRole("list").length - 1,
+    );
+  });
+
   // Fails if clicking a card doesn't add that type, or adds it more than once.
   it("adds the type of the card clicked", () => {
     const { onAdd } = renderTab();

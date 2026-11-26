@@ -3,7 +3,10 @@ import {
   createAwsComponentRegistry,
   rdsDefinition,
 } from "../../domain/components/aws";
-import { COMPONENT_CATEGORIES } from "../details/component-category";
+import {
+  COMPONENT_CATEGORIES,
+  type ComponentCategory,
+} from "../details/component-category";
 import { createFieldCatalog } from "../details/create-field-catalog";
 import {
   awsListComponentTypes,
@@ -70,6 +73,31 @@ describe("ListComponentTypes", () => {
     expect(groups.at(-1)).toEqual({
       heading: undefined,
       types: [{ type: "rds", displayName: "RDS", purpose: undefined }],
+    });
+    expect(groups.find((g) => g.heading === "Data")?.types).toHaveLength(2);
+  });
+
+  // Fails if a type whose category isn't in the closed list is dropped, as
+  // when the last group takes only types with no descriptors, rather than
+  // showing it in the last group with no heading.
+  it("lists a type with a category not in the list last, with no heading", () => {
+    const fields = createFieldCatalog();
+    const rds = fields.get("rds");
+    if (rds === undefined) throw new Error("rds has no descriptors");
+    const unlisted = new Map(fields).set("rds", {
+      ...rds,
+      category: "nope" as ComponentCategory,
+    });
+    const list = new ListComponentTypes({
+      registry: createAwsComponentRegistry(),
+      fields: unlisted,
+    });
+
+    const groups = list.execute();
+
+    expect(groups.at(-1)).toMatchObject({
+      heading: undefined,
+      types: [{ type: "rds", displayName: "RDS" }],
     });
     expect(groups.find((g) => g.heading === "Data")?.types).toHaveLength(2);
   });

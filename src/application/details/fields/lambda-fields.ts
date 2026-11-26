@@ -4,6 +4,7 @@ import { ASSUMED_EDGE_EVIDENCE } from "./edge-fields";
 export const lambdaFields: TypeFields = {
   type: "lambda",
   purpose: "runs your code; throttles invocations over its concurrency.",
+  category: "compute",
   fields: [
     {
       key: "concurrency",

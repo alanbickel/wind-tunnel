@@ -2,6 +2,7 @@
 // type's settings are validated by its config schema in `domain/`; these
 // descriptors say what each one means to a user, in AWS terms.
 
+import type { ComponentCategory } from "./component-category";
 import type { ResolvedRetryPolicy } from "../../domain/engine/resolve-retry";
 import type { EdgeSettings } from "../../domain/model/edge-settings";
 import type { StepAction } from "../../domain/model/project";
@@ -161,6 +162,8 @@ export interface TypeFields {
    * "the front door; throttles requests over its rate." for API Gateway.
    */
   readonly purpose: string;
+  /** The Library group the type is listed under, e.g. `"data"` for RDS. */
+  readonly category: ComponentCategory;
   readonly fields: readonly ConfigFieldDescriptor[];
   /**
    * The evidence for each of the type's edge defaults: how sure the latency,

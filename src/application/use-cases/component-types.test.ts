@@ -3,6 +3,7 @@ import {
   createAwsComponentRegistry,
   rdsDefinition,
 } from "../../domain/components/aws";
+import { COMPONENT_CATEGORIES } from "../details/component-category";
 import { createFieldCatalog } from "../details/create-field-catalog";
 import {
   awsListComponentTypes,
@@ -14,21 +15,49 @@ describe("ListComponentTypes", () => {
   // Fails if a registered type has no line on what it's for: a new type
   // registered without its descriptors, or with an empty purpose.
   it("gives every registered type a line on what it's for", () => {
-    const choices = awsListComponentTypes().execute();
+    const choices = allChoices(awsListComponentTypes());
 
-    expect(choices.map((c) => c.type)).toEqual(
+    expect(choices.map((c) => c.type).sort()).toEqual(
       createAwsComponentRegistry()
         .list()
-        .map((t) => t.type),
+        .map((t) => t.type)
+        .sort(),
     );
     for (const choice of choices) {
       expect(choice.purpose, choice.type).toMatch(/^[a-z].*\.$/);
     }
   });
 
+  // Fails if a registered type's descriptors have no category, or one not
+  // in the closed list: it would show with no heading, or not at all.
+  it("gives every registered type a category from the list", () => {
+    const known = COMPONENT_CATEGORIES.map((c) => c.category);
+    const fields = createFieldCatalog();
+
+    for (const { type } of createAwsComponentRegistry().list()) {
+      expect(known, type).toContain(fields.get(type)?.category);
+    }
+  });
+
+  // Fails if the groups come out of the list's order, a category with no
+  // types is shown, or a group's types aren't in order of display name.
+  it("groups types in the list's order, by display name within a group", () => {
+    const groups = awsListComponentTypes().execute();
+
+    expect(
+      groups.map((g) => [g.heading, g.types.map((t) => t.displayName)]),
+    ).toEqual([
+      ["Front door", ["API Gateway"]],
+      ["Compute", ["Lambda"]],
+      ["Integration", ["SQS"]],
+      ["Data", ["DynamoDB", "RDS", "S3"]],
+    ]);
+  });
+
   // Fails if a type without descriptors is dropped from the list, or
-  // throws, rather than showing without its line.
-  it("lists a type with no descriptors, without a line", () => {
+  // throws, rather than showing without its line, in a last group with no
+  // heading.
+  it("lists a type with no descriptors last, with no heading or line", () => {
     const fields = createFieldCatalog();
     const withoutRds = new Map([...fields].filter(([type]) => type !== "rds"));
     const list = new ListComponentTypes({
@@ -36,15 +65,19 @@ describe("ListComponentTypes", () => {
       fields: withoutRds,
     });
 
-    const rds = list.execute().find((c) => c.type === "rds");
+    const groups = list.execute();
 
-    expect(rds).toEqual({
-      type: "rds",
-      displayName: "RDS",
-      purpose: undefined,
+    expect(groups.at(-1)).toEqual({
+      heading: undefined,
+      types: [{ type: "rds", displayName: "RDS", purpose: undefined }],
     });
+    expect(groups.find((g) => g.heading === "Data")?.types).toHaveLength(2);
   });
 });
+
+function allChoices(list: ListComponentTypes) {
+  return list.execute().flatMap((group) => group.types);
+}
 
 describe("NewComponent", () => {
   // Fails if the input takes its id from anywhere but the generator, or

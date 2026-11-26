@@ -34,6 +34,7 @@ const ASSUMED: DefaultEvidence = { level: "assumption", fidelityId: undefined };
 export const itemStoreFields: TypeFields = {
   type: itemStoreDefinition.type,
   purpose: "a store whose reads take request settings.",
+  category: "data",
   fields: [
     {
       key: "writeMs",
@@ -86,6 +87,7 @@ export const itemStoreFields: TypeFields = {
 const workerPoolFields: TypeFields = {
   type: workerPoolDefinition.type,
   purpose: "workers with a wait line in front.",
+  category: "compute",
   fields: [],
   edgeEvidence: ASSUMED_EDGE_EVIDENCE,
 };

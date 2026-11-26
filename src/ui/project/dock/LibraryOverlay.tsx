@@ -1,5 +1,8 @@
-import { useMemo } from "react";
-import type { ComponentTypeChoice } from "../../../application/use-cases/list-component-types";
+import { useId, useMemo } from "react";
+import type {
+  ComponentTypeChoice,
+  ComponentTypeGroup,
+} from "../../../application/use-cases/list-component-types";
 import { useUseCases } from "../../app/useUseCases";
 import { ComponentIcon } from "../../diagram/ComponentIcon";
 import styles from "./LibraryOverlay.module.css";
@@ -15,18 +18,54 @@ import type { OverlayProps } from "./overlay";
  */
 export function LibraryOverlay({ onAdd }: OverlayProps) {
   const { listComponentTypes } = useUseCases();
-  const choices = useMemo(
+  const groups = useMemo(
     () => listComponentTypes.execute(),
     [listComponentTypes],
   );
+  const headingPrefix = useId();
   return (
-    <ul aria-label="Component types" className={styles.cards}>
-      {choices.map((choice) => (
-        <li key={choice.type}>
-          <TypeCard choice={choice} onChoose={onAdd} />
-        </li>
+    <>
+      {groups.map((group, index) => (
+        <TypeGroup
+          key={group.heading ?? ""}
+          group={group}
+          headingId={`${headingPrefix}-${String(index)}`}
+          onChoose={onAdd}
+        />
       ))}
-    </ul>
+    </>
+  );
+}
+
+interface TypeGroupProps {
+  readonly group: ComponentTypeGroup;
+  readonly headingId: string;
+  readonly onChoose: (type: string) => void;
+}
+
+/** A category's heading, and its cards in a list the heading names. */
+function TypeGroup({ group, headingId, onChoose }: TypeGroupProps) {
+  const { heading, types } = group;
+  return (
+    <section className={styles.group}>
+      {heading !== undefined && (
+        <h4 id={headingId} className={styles.heading}>
+          {heading}
+        </h4>
+      )}
+      <ul
+        {...(heading === undefined
+          ? { "aria-label": "Other component types" }
+          : { "aria-labelledby": headingId })}
+        className={styles.cards}
+      >
+        {types.map((choice) => (
+          <li key={choice.type}>
+            <TypeCard choice={choice} onChoose={onChoose} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

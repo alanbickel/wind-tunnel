@@ -4,6 +4,7 @@ import { ASSUMED_EDGE_EVIDENCE } from "./edge-fields";
 export const apiGatewayFields: TypeFields = {
   type: "api-gateway",
   purpose: "the front door; throttles requests over its rate.",
+  category: "front-door",
   fields: [
     {
       key: "ratePerSec",

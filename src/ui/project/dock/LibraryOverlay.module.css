@@ -1,3 +1,12 @@
+/* A category: its heading, then its cards. */
+.group + .group {
+  margin-top: var(--space-4);
+}
+
+.heading {
+  margin: 0 0 var(--space-2);
+}
+
 /* The cards, in a grid that fits as many as the dock's width allows. */
 .cards {
   display: grid;

@@ -5,6 +5,7 @@ export const rdsFields: TypeFields = {
   type: "rds",
   purpose:
     "a relational database; refuses connections over its limit, and queues queries for its workers.",
+  category: "data",
   fields: [
     {
       key: "maxConnections",

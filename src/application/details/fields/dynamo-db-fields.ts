@@ -24,6 +24,7 @@ function itemSize(stored: string, perUnit: string): ConfigFieldDescriptor {
 export const dynamoDbFields: TypeFields = {
   type: "dynamodb",
   purpose: "a key-value table; throttles reads and writes over its capacity.",
+  category: "data",
   fields: [
     {
       key: "readUnitsPerSec",

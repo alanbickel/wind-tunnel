@@ -4,6 +4,7 @@ import { ASSUMED_EDGE_EVIDENCE } from "./edge-fields";
 export const s3Fields: TypeFields = {
   type: "s3",
   purpose: "object storage, one key prefix; slows down requests over its rate.",
+  category: "data",
   fields: [
     {
       key: "readsPerSec",

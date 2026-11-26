@@ -6,7 +6,10 @@ export function useDisplayNames(): (type: string) => string {
   const { listComponentTypes } = useUseCases();
   return useMemo(() => {
     const names = new Map(
-      listComponentTypes.execute().map((t) => [t.type, t.displayName]),
+      listComponentTypes
+        .execute()
+        .flatMap((group) => group.types)
+        .map((t) => [t.type, t.displayName]),
     );
     return (type) => names.get(type) ?? type;
   }, [listComponentTypes]);

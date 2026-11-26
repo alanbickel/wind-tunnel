@@ -25,10 +25,20 @@ export function dockRegion(): HTMLElement {
 export function addComponent(typeName: string): void {
   const tab = screen.queryByRole("tab", { name: "Library" });
   if (tab !== null) fireEvent.click(tab);
-  const list = screen.getByRole("list", { name: "Component types" });
-  const card = within(list).getByRole("button", {
-    name: new RegExp(`^${typeName} `),
-  });
+  // The cards are in one list per category, each named by its h4 (other
+  // h4s, such as Details', name no list).
+  const card = screen
+    .getAllByRole("heading", { level: 4 })
+    .flatMap((heading) =>
+      screen.queryAllByRole("list", { name: heading.textContent }),
+    )
+    .flatMap((list) =>
+      within(list).queryAllByRole("button", {
+        name: new RegExp(`^${typeName} `),
+      }),
+    )
+    .at(0);
+  if (card === undefined) throw new Error(`No card for ${typeName}`);
   fireEvent.click(card);
 }
 

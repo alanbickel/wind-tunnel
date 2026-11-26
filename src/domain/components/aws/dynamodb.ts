@@ -102,6 +102,9 @@ export const dynamoDbDefinition = rateLimitedServiceDefinition({
     latency: { kind: "lognormal", medianMs: 5, p99Ms: 20 },
   },
   edgeDefaults: AWS_EDGE_DEFAULTS,
+  // DynamoDB's SDK clients make 4 attempts and wait from 25 ms after a
+  // transient error (ADR-0025 decision 3.3; fidelity ENG-2).
+  sdkRetryDefaults: { maxAttempts: 4, transientBaseDelayMs: 25 },
   refusal: THROTTLED,
   // ProvisionedThroughputExceededException (ADR-0025 decision 7).
   refusalKind: "throttling",

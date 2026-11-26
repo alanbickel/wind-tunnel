@@ -85,11 +85,7 @@
         "to": "orders-read",
         "latencyMs": 1,
         "timeoutMs": 5000,
-        "retry": {
-          "maxAttempts": 4,
-          "backoff": "exponential-jitter",
-          "baseDelayMs": 25
-        }
+        "retry": { "preset": "aws-sdk-standard" }
       },
       {
         "id": "fn-api->orders-queue",

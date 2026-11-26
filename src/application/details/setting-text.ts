@@ -1,4 +1,10 @@
-import type { BackoffStrategy, RetryPolicy } from "../../domain/model/project";
+import {
+  isPreset,
+  resolveRetry,
+  type ResolvedRetryPolicy,
+} from "../../domain/engine/resolve-retry";
+import { edgeRetrySchema } from "../../domain/model/edge-settings";
+import type { BackoffStrategy } from "../../domain/model/project";
 import {
   distributionSchema,
   type Distribution,
@@ -16,18 +22,24 @@ import type {
   EvidenceLevel,
   FieldDescriptor,
   FieldKind,
+  RetryFieldDescriptor,
 } from "./field-descriptor";
 
 /** The kinds whose values read without anything but their descriptor's unit. */
-type PlainKind = Exclude<FieldKind, "choice">;
+type PlainKind = Exclude<FieldKind, "choice" | "retry">;
+
+/** An edge's retries, as reading them needs: what the preset resolves to there. */
+export type ReadableRetryField = Omit<RetryFieldDescriptor, "evidence">;
 
 /**
  * A setting's descriptor, as reading its value needs it: a choice with its
- * options, any other kind with no more than its kind and unit. An edge's
- * setting whose default is unknown has no evidence, so this asks for none.
+ * options, an edge's retries with what the preset resolves to on it, any
+ * other kind with no more than its kind and unit. An edge's setting whose
+ * default is unknown has no evidence, so this asks for none.
  */
 export type ReadableField =
   | ChoiceFieldDescriptor
+  | ReadableRetryField
   | { [K in PlainKind]: FieldDescriptor & { readonly kind: K } }[PlainKind];
 
 /** A setting's value, and the unit to read it in if it's a plain number. */
@@ -47,9 +59,9 @@ const VALUE_TEXTS: KindHandlers<ReadableField, ValueText> = {
     ({ value }) =>
       distributionText(value),
   retry:
-    () =>
+    ({ sdkStandard }) =>
     ({ value }) =>
-      retryText(value as RetryPolicy),
+      retryText(value, sdkStandard),
   choice:
     ({ options }) =>
     ({ value }) =>
@@ -127,9 +139,33 @@ const BACKOFF_TEXTS: Readonly<
     `backing off exponentially, with jitter, from ${delay}`,
 };
 
-/** E.g. "1 attempt, no retries", or "3 attempts, 50 ms apart". */
-function retryText({ maxAttempts, backoff, baseDelayMs }: RetryPolicy): string {
+/**
+ * E.g. "1 attempt, no retries", "3 attempts, 50 ms apart", or "AWS SDK
+ * standard: 4 attempts, backing off exponentially, with jitter, from
+ * 1,000 ms after a throttle and 25 ms after a transient error". The
+ * preset reads as it resolves on the edge.
+ */
+function retryText(value: unknown, sdkStandard: ResolvedRetryPolicy): string {
+  const parsed = edgeRetrySchema.safeParse(value);
+  if (!parsed.success) return JSON.stringify(value);
+  const retry = parsed.data;
+  const policy = resolveRetry({ retry, sdkDefaults: undefined });
+  if (!isPreset(retry)) return policyText(policy);
+  const maxAttempts = retry.maxAttempts ?? sdkStandard.maxAttempts;
+  return `AWS SDK standard: ${policyText({ ...sdkStandard, maxAttempts })}`;
+}
+
+/** A resolved policy's attempts and waits; one delay if both kinds share it. */
+function policyText({
+  maxAttempts,
+  backoff,
+  baseDelayMs,
+}: ResolvedRetryPolicy): string {
   if (maxAttempts === 1) return "1 attempt, no retries";
-  const delay = `${count(baseDelayMs)} ms`;
+  const { throttling, transient } = baseDelayMs;
+  const delay =
+    throttling === transient
+      ? `${count(throttling)} ms`
+      : `${count(throttling)} ms after a throttle and ${count(transient)} ms after a transient error`;
   return `${count(maxAttempts)} attempts, ${lookup(BACKOFF_TEXTS, backoff)(delay)}`;
 }

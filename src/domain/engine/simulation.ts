@@ -1,5 +1,5 @@
 import type { Effect } from "../components/component-behavior";
-import { RETRYABLE, type ErrorKind } from "../components/error-kind";
+import { isRetryable, type ErrorKind } from "../components/error-kind";
 import type { Step } from "../model/project";
 import type { RandomSource } from "../random/random-source";
 import { handleKind, type KindHandlers } from "../shared/kind-handlers";
@@ -398,10 +398,10 @@ export class Simulation {
     if (policy === undefined || call.attempts >= policy.maxAttempts) {
       return undefined;
     }
-    if (!RETRYABLE[kind]) return undefined;
+    if (!isRetryable(kind)) return undefined;
     const failedAttempts = call.attempts;
     const random = this.retryRandom;
-    return this.nowMs + backoffMs({ policy, failedAttempts, random });
+    return this.nowMs + backoffMs({ policy, kind, failedAttempts, random });
   }
 
   /** Starts the `async` step of a message a queue-like component delivers. */

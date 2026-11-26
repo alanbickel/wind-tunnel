@@ -1,6 +1,6 @@
 import type { RequestSettings } from "../components/component-behavior";
-import type { Edge, Step, Workflow } from "../model/project";
-import type { RuntimeComponent } from "./runtime-records";
+import type { Step, Workflow } from "../model/project";
+import type { RuntimeComponent, RuntimeEdge } from "./runtime-records";
 
 /**
  * The parts of a project a run looks up as it goes: components with their
@@ -12,8 +12,11 @@ export interface Topology {
   component(id: string): RuntimeComponent;
   /** Every component, in the project's order. */
   allComponents(): Iterable<RuntimeComponent>;
-  /** The edge a call travels along; the user's call (no `fromId`) has none. */
-  edgeFor(fromId: string | undefined, toId: string): Edge | undefined;
+  /**
+   * The edge a call travels along, its retries resolved; the user's call
+   * (no `fromId`) has none.
+   */
+  edgeFor(fromId: string | undefined, toId: string): RuntimeEdge | undefined;
   /** The workflow with this ID. */
   workflow(id: string): Workflow;
   /**

@@ -18,14 +18,13 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 
 - **Status:** Open
 - **Kind:** Behavior
-- **Depends on:** Nothing; the preset is M8 item 6 (#318), without the retry quota, which is a Roadmap stub in M10. [ADR-0025](../../adr/0025-give-each-failure-an-error-kind-and-retry-by-it.md) decides how the preset is stored and applied, and leaves room for the quota.
+- **Depends on:** Nothing; the retry quota is a Roadmap stub in M10. [ADR-0025](../../adr/0025-give-each-failure-an-error-kind-and-retry-by-it.md) decision 6 leaves room for it.
 - **Checked:** 2026-10-14
-- **Wind Tunnel:** each edge sets `maxAttempts`, a backoff (`none`, `exponential`, `exponential-jitter`), and one `baseDelayMs`. The backoff is capped at 20 s. There's no retry budget: every caller retries as often as its policy allows, however many calls are failing.
+- **Wind Tunnel:** an edge retries by a custom policy (`maxAttempts`, a backoff, and one `baseDelayMs`) or by the AWS SDK standard preset: 3 attempts, full jitter, and a base delay of 1,000 ms after a throttle and 50 ms after a transient error. A target type's `sdkRetryDefaults` change the attempts and the transient delay on preset edges into it: DynamoDB's are 4 and 25 ms. The backoff is capped at 20 s. There's no retry quota: every caller retries as often as its policy allows, however many calls are failing. A new edge doesn't retry, where an SDK client would.
 - **AWS:** the AWS SDKs retry automatically. Standard mode (the default) makes up to 3 attempts (4 for DynamoDB clients), with full jitter, a 20 s cap, and different base delays by error type: 50 ms for transient errors (25 ms for DynamoDB) and 1,000 ms for throttling. A **retry quota** (500 tokens per client; a retry costs 14 tokens for transient errors and 5 for throttling; successes refill it) stops retries when failures are widespread. Adaptive mode also rate-limits the client's first attempts. The page notes that this updated behavior is opt-in (`AWS_NEW_RETRIES_2026=true`) until it becomes the default, and older behavior differs by SDK.
 - **Evidence:** Documented: [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html).
-- **Skew:** Pessimistic during outages, when retry storms in the model keep going after an SDK's quota would have stopped them. Optimistic when templates leave out retries that AWS SDKs would add on their own.
-- **To close:** an "AWS SDK standard" retry preset with base delays by error type, and a retry quota per calling component.
-
+- **Skew:** Pessimistic during outages, when preset edges keep retrying after an SDK's quota would have stopped them, adding load and holding their callers longer. Optimistic on an edge left with "no retries" that an SDK would retry on its own.
+- **To close:** a retry quota per calling component and target type, on preset edges.
 #### ENG-4: Timeouts don't cancel work
 
 - **Status:** Open
@@ -92,6 +91,7 @@ Where Wind Tunnel's model of the engine and its edges differs from AWS. How to r
 |---|---|---|---|
 | Edges | backoff cap | 20 s | Documented ([AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html)) |
 | Edges from every type | `latencyMs` | 1 ms | Assumption (ENG-1) |
-| Edges from every type | `retry` | 1 attempt, no retries | Assumption: the caller retries only if you say so; the AWS SDKs would retry on their own (ENG-2) |
+| Edges from every type | `retry` | 1 attempt, no retries | Assumption: the caller retries only if you say so; the AWS SDKs would retry on their own (ENG-2). The AWS SDK standard preset is a choice, not a default (ADR-0025) |
+| Edges with the AWS SDK standard preset | attempts; backoff; base delay after a throttle, after a transient error | 3; full jitter; 1,000 ms, 50 ms | Documented ([AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html)); a target type's `sdkRetryDefaults` change the attempts and the transient delay (ENG-2) |
 | Edges from API Gateway | `timeoutMs` | 29,000 ms | Documented: a REST API's integration timeout is 29 s at most, unless a Regional or private API requests more ([quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html)); see ENG-5 |
 | Edges from the other types | `timeoutMs` | 5,000 ms | Assumption: a client timeout of our choosing (ENG-5) |

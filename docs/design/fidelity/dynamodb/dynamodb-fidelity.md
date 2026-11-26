@@ -25,18 +25,6 @@ Where Wind Tunnel's model of DynamoDB differs from AWS. How to read an entry, an
 - **Skew:** Optimistic for skewed keys. Hot partitions are a planned template.
 - **To close:** a key distribution on the workload and buckets per partition.
 
-#### DDB-4: Throttled requests fail immediately
-
-- **Status:** Open
-- **Kind:** Behavior
-- **Depends on:** ENG-2's AWS SDK retry preset (M8 item 6).
-- **Checked:** 2026-10-14
-- **Wind Tunnel:** a throttled request is rejected, and the caller's edge decides whether to retry.
-- **AWS:** "The AWS SDKs for DynamoDB automatically retry requests that receive this exception" (`ProvisionedThroughputExceededException`). DynamoDB clients default to 4 attempts, and throttling retries back off from 1,000 ms (see ENG-2).
-- **Evidence:** Documented: [DynamoDB error handling](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html), [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html).
-- **Skew:** Mixed. Without SDK-like retries on the edge, the model fails requests that AWS would get through after a delay. With them, the delays and extra load show up.
-- **To close:** use the ENG-2 preset on edges into DynamoDB in templates.
-
 #### DDB-5: No on-demand mode or auto scaling
 
 - **Status:** Open

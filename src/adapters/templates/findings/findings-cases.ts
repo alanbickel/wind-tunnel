@@ -110,15 +110,19 @@ export const TEMPLATE_B_LONG_RUSH: FindingsCase = {
 // findings.md §1.7: Template B's long rush with orders-read's read capacity
 // cut to 1,500 a second. Its reads are throttled and retried, so refused
 // attempts outnumber failed requests, and the failures must still add up.
-// The drained read bucket shows beneath the failure, from 18 s (§1.7.2),
-// and the retries that got most reads through are a note of their own
-// (§1.7.3).
+// The drained read bucket shows beneath the failure, from 18 s (§1.7.2).
+// The edge retries as the AWS SDK does, waiting from 1,000 ms after a
+// throttle, so a read fails seconds after the bucket ran out: the failure's
+// cause began before it. While reads wait to retry, they hold fn-api's
+// concurrency, which runs out too (§1.7.3). The retries that got most
+// reads through are a note of their own (§1.7.4).
 export const READ_CAPACITY_1500: FindingsCase = {
   name: "Template B, long rush, read capacity 1,500",
   reading: "1.7",
   findings: [
     {
       key: failedRequests("orders-read", "throttled"),
+      causeFromMs: 95_000,
       causes: [
         {
           key: bucketDrained("orders-read", "readUnits"),
@@ -133,6 +137,7 @@ export const READ_CAPACITY_1500: FindingsCase = {
         },
       ],
     },
+    { key: failedRequests("fn-api", "throttled") },
     {
       key: lateAsyncWork("orders-queue"),
       causes: [
@@ -144,14 +149,14 @@ export const READ_CAPACITY_1500: FindingsCase = {
     },
     {
       key: retriesAbsorbed("orders-read"),
-      // findings.md §1.7, sentence 3: Get order's p99 rose while reads
-      // were throttled.
+      // findings.md §1.7, sentence 4: Get order's p99 rose to seconds
+      // while reads waited to retry.
       sentences: [
-        "orders-read refused 64,201 attempts, but only 4,377 requests failed with its rejections: callers retried the rest.",
-        "It refused attempts in 46 seconds from 95 s to 141 s.",
+        "orders-read refused 50,394 attempts, but only 2,166 requests failed with its rejections: callers retried the rest.",
+        "It refused attempts in 49 seconds from 95 s to 144 s.",
         "Attempts aren't requests: a request refused twice and then served counts as two refused attempts, so the difference isn't how many requests the retries saved.",
         "It refuses only with throttled, so the attempts and the requests are both throttled rejections.",
-        "While it refused attempts, Get order's p99 was 185 ms in the median second, and up to 445 ms, against 108 ms in the median second before.",
+        "While it refused attempts, Get order's p99 was 4.9 s in the median second, and up to 5.4 s, against 108 ms in the median second before.",
       ],
     },
   ],

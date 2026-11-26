@@ -4,6 +4,7 @@ import type {
 } from "../components/component-behavior";
 import type { ErrorKind, RejectionReasons } from "../components/error-kind";
 import type { Edge, Step } from "../model/project";
+import type { ResolvedRetryPolicy } from "./resolve-retry";
 import type { Failure } from "./simulation-events";
 
 // The records the engine creates as a run goes. Plain state, no behavior:
@@ -40,6 +41,14 @@ export interface AttemptFailure {
   readonly kind: ErrorKind;
 }
 
+/**
+ * An edge in a run: its retries resolved against its target's type when
+ * the run was built (ADR-0025 decision 3.3), so the engine reads one shape.
+ */
+export interface RuntimeEdge extends Omit<Edge, "retry"> {
+  readonly retry: ResolvedRetryPolicy;
+}
+
 /** One user request: a single run of a workflow. */
 export interface UserRequest {
   readonly id: number;
@@ -57,7 +66,7 @@ export interface Call {
   /** The step's request settings, parsed, as `arrive` gets them. */
   readonly settings: RequestSettings;
   readonly target: RuntimeComponent;
-  readonly edge: Edge | undefined;
+  readonly edge: RuntimeEdge | undefined;
   readonly request: UserRequest;
   attempts: number;
   /** Called once, when the call succeeds or its last attempt fails. */

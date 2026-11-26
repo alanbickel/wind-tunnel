@@ -4,6 +4,7 @@ import type { ValidationIssue } from "../model/validation-issue";
 import type { ComponentBehavior, RequestSettings } from "./component-behavior";
 import type { BuildContext } from "./component-definition";
 import type { RejectionReasons } from "./error-kind";
+import type { SdkRetryDefaults } from "./sdk-retry-defaults";
 
 /**
  * A registered definition with its config type hidden, so definitions with
@@ -20,6 +21,8 @@ export interface ComponentType {
   readonly defaultConfig: unknown;
   /** The settings of a new edge from a component of this type. */
   readonly edgeDefaults: EdgeSettings;
+  /** How its SDK client's retries differ from standard; see `ComponentDefinition`. */
+  readonly sdkRetryDefaults: SdkRetryDefaults | undefined;
   /** Problems with `config`, with paths relative to the config. */
   checkConfig(config: unknown): ValidationIssue[];
   /**

@@ -37,6 +37,7 @@ export class ComponentRegistryMap implements ComponentRegistry {
       rejectionReasons: definition.rejectionReasons,
       defaultConfig: definition.defaultConfig,
       edgeDefaults: definition.edgeDefaults,
+      sdkRetryDefaults: definition.sdkRetryDefaults,
       checkConfig: (config) => issuesOf(schema.safeParse(config)),
       checkSettings: (action, settings) =>
         issuesOf(settingsFor(action).safeParse(settings ?? {})),

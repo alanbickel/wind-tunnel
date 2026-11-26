@@ -13,6 +13,7 @@ import type {
 } from "./component-behavior";
 import type { BuildContext, ComponentDefinition } from "./component-definition";
 import type { ErrorKind } from "./error-kind";
+import type { SdkRetryDefaults } from "./sdk-retry-defaults";
 import {
   RateLimitedServiceBehavior,
   type RateLimitedAction,
@@ -57,6 +58,8 @@ export interface RateLimitedServiceSpec<
   readonly configSchema: z.ZodType<Config>;
   readonly defaultConfig: Config;
   readonly edgeDefaults: EdgeSettings;
+  /** As `ComponentDefinition`'s: how its SDK client's retries differ from standard. */
+  readonly sdkRetryDefaults?: SdkRetryDefaults;
   /** How every limit refuses once empty: the type's one rejection reason. */
   readonly refusal: RefuseWhenFull;
   /** The error kind of `refusal`'s reason (ADR-0025). */
@@ -100,6 +103,7 @@ export function rateLimitedServiceDefinition<
     edgeDefaults,
     actions: Object.keys(spec.actions) as Action[],
     requestSettings: spec.requestSettings,
+    sdkRetryDefaults: spec.sdkRetryDefaults,
     deliversAsync: false,
     rejectionReasons: { [spec.refusal.reason]: spec.refusalKind },
     build<T>(config: Config, { random }: BuildContext): ComponentBehavior<T> {

@@ -38,18 +38,6 @@ Where Wind Tunnel's model of Amazon S3 differs from AWS. How to read an entry, a
 - **Skew:** Mixed. A bucket smaller than S3's lets fewer requests through a sudden spike; a larger one, more.
 - **To close:** evidence of how S3 counts a second's requests.
 
-#### S3-4: Requests refused with 503 Slow Down fail immediately
-
-- **Status:** Open
-- **Kind:** Behavior
-- **Depends on:** ENG-2's AWS SDK retry preset (M8 item 6).
-- **Checked:** 2026-11-19
-- **Wind Tunnel:** a refused request fails, and the caller's edge decides whether to retry.
-- **AWS:** "each AWS SDK implements automatic retry logic using exponential backoff" for `503 Slow Down`. The SDKs class `SlowDown` as a throttling error: three attempts by default, waiting a random time up to 1,000 ms before the first retry and 2,000 ms before the second.
-- **Evidence:** Documented: [performance design patterns](https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance-design-patterns.html), [AWS SDKs retry behavior](https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html).
-- **Skew:** Mixed, as DDB-4. Without SDK-like retries on the edge, the model fails requests that AWS would get through after a delay; with them, the delays and the extra load show up.
-- **To close:** use the ENG-2 preset on edges into S3 in templates.
-
 #### S3-5: Latency doesn't depend on the object's size
 
 - **Status:** Open

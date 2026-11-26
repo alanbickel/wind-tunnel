@@ -223,6 +223,23 @@
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 8px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .category {
+        margin: 10px 0 4px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .category:first-child {
+        margin-top: 0;
+      }
+      .screen.tall {
+        height: 880px;
+      }
+      .screen.tall .dock {
+        height: 620px;
       }
       .card {
         border: 1px solid var(--border-strong);
@@ -286,10 +303,11 @@
     <main class="mock-page">
       <p class="mock-caption">
         Sketch, 2026-11-15, for #246: the project screen in each state of the
-        map in docs/design/user-experience.md §5. Not the app, and not kept in
-        step with it; that page is the authority. Add #&lt;state&gt; to the URL
-        to open on a state, and ?shot to hide this caption and the switcher, as
-        the design page's PNGs do.
+        map in docs/design/user-experience.md §5; the Library's categories added
+        2026-11-26, for #326. Not the app, and not kept in step with it; that
+        page is the authority. Add #&lt;state&gt; to the URL to open on a state,
+        and ?shot to hide this caption and the switcher, as the design page's
+        PNGs do.
       </p>
       <h1 class="sr-only">The project screen, state by state</h1>
       <div class="switcher" id="switcher" aria-label="State"></div>
@@ -309,6 +327,16 @@
           run: "none",
           tab: "library",
           unconnected: true,
+        },
+        library: {
+          label: "Library",
+          about:
+            "The Library with the twelve types M8 ends with, under their categories in a request's path order: Front door, Compute, Integration, Data, Security and identity. Plain headings, nothing to fold; within a category, by name. A category with no types yet isn't shown. The dock is drawn taller here so every card shows; in the app the tab scrolls.",
+          selection: "none",
+          run: "none",
+          tab: "library",
+          unconnected: true,
+          tall: true,
         },
         component: {
           label: "Component",
@@ -531,22 +559,54 @@
         return `<div class="strip">${tabs}${group}<i class="ti ${chevron}" aria-label="${label}" style="font-size:15px;margin-left:${s.narrow ? "auto" : "6px"}"></i></div>`;
       }
 
+      // The twelve types M8 ends with, by category in the Library's order;
+      // within a category, by name.
+      const LIBRARY = [
+        [
+          "Front door",
+          [["API Gateway", "Takes requests from clients and passes them on"]],
+        ],
+        ["Compute", [["Lambda", "Runs your code for each request"]]],
+        [
+          "Integration",
+          [
+            ["SNS", "Fans each message out to its subscribers"],
+            ["SQS", "A queue that holds messages for a consumer"],
+            ["Step Functions", "Runs a workflow's tasks in order"],
+          ],
+        ],
+        [
+          "Data",
+          [
+            ["DynamoDB", "A key-value table that scales with its capacity"],
+            ["Neptune", "A graph database; each query takes a worker"],
+            ["RDS", "A relational database with a fixed pool of connections"],
+            ["RDS Proxy", "Shares database connections between callers"],
+            ["S3", "Object storage, one key prefix"],
+          ],
+        ],
+        [
+          "Security and identity",
+          [
+            ["Cognito", "Signs users in and refreshes their tokens"],
+            ["Verified Permissions", "Decides whether a request is allowed"],
+          ],
+        ],
+      ];
+
+      function libraryGroupHtml([category, types]) {
+        const cards = types
+          .map(
+            ([name, line]) =>
+              `<li class="card"><b>${name}</b><br><span class="muted">${line}</span></li>`,
+          )
+          .join("");
+        return `<h4 class="category">${category}</h4><ul class="cards">${cards}</ul>`;
+      }
+
       const DOCK_BODY = {
         library: () =>
-          `<div class="cards">${[
-            ["API Gateway", "Takes requests from clients and passes them on"],
-            ["Lambda", "Runs your code for each request"],
-            ["RDS", "A relational database with a fixed pool of connections"],
-            ["DynamoDB", "A key-value table that scales with its capacity"],
-            ["SQS", "A queue that holds messages for a consumer"],
-          ]
-            .map(
-              ([name, line]) =>
-                `<div class="card"><b>${name}</b><br><span class="muted">${line}</span></div>`,
-            )
-            .join(
-              "",
-            )}</div><p class="muted">Drag a card onto the canvas, or click it to place it in the next free spot.</p>`,
+          `${LIBRARY.map(libraryGroupHtml).join("")}<p class="muted">Drag a card onto the canvas, or click it to place it in the next free spot.</p>`,
         components: (s) => {
           const status = (n) =>
             s.run === "none" ? "" : `<td>${n.status}</td>`;
@@ -653,7 +713,7 @@
       function render(key) {
         const s = STATES[key] ?? STATES["after-run"];
         const screen = document.getElementById("screen");
-        screen.className = `screen ${s.narrow ? "narrow" : ""}`;
+        screen.className = `screen ${s.narrow ? "narrow" : ""} ${s.tall ? "tall" : ""}`;
         const groupInBar = s.narrow ? runGroupHtml(s) : "";
         const bar = `<div class="bar"><i class="ti ti-wind" aria-hidden="true" style="font-size:16px"></i><b>Wind Tunnel</b><span class="muted">Projects ›</span><b>Serverless API with RDS</b><i class="ti ti-arrow-back-up" aria-label="Undo"></i><i class="ti ti-arrow-forward-up" aria-label="Redo"></i><span style="flex:1"></span>${groupInBar}<i class="ti ti-dots" aria-label="Settings"></i></div>`;
         const banner = "<div></div>";

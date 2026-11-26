@@ -62,6 +62,23 @@ Every part of the screen follows these. When a new feature seems to need an exce
 
 **Adding and removing.** The dock's Library tab lists the component types, each as a card with its icon and a line on what it's for, and it's the one place to add a component. Drag a card onto the canvas to place the box where you drop it; or click it, or press Enter on it, to place it in the next free spot. Either way the new box is selected, with its name field focused, since naming it is what comes next, and the dock stays on the Library. The Library is separate from the Components tab, which lists what's in the project: one is what you can add, the other is what you have. Removing a component takes it and its own edges, never workflow steps; the confirmation names the steps that call it, and those steps are then marked as calling a component that's gone.
 
+**The Library's categories.** The Library groups the types under a heading for each category, so you can find a type by what it's for. The categories come in the order a request meets them, and the types in each are in order of name:
+
+| Category | Types |
+|---|---|
+| Front door | API Gateway |
+| Compute | Lambda |
+| Integration | SNS, SQS, Step Functions |
+| Data | DynamoDB, Neptune, RDS, RDS Proxy, S3 |
+| Security and identity | Cognito, Verified Permissions |
+
+![The dock's Library tab with all twelve types as cards under five plain headings: Front door, Compute, Integration, Data, and Security and identity](mocks/project-screen-library.png)
+
+- **Each type is in exactly one category,** the one you'd look in to add it. RDS Proxy is under Data, beside the database it sits in front of. S3 is under Data too, with the other places a request keeps things, rather than in a Storage category of its own.
+- **The headings are plain:** nothing folds, and there are no counts and no sticky headings. A dozen types fit in one scroll. A category with no types yet isn't shown.
+- **A screen reader** hears a heading for each category, one level under the tab's own, followed by that category's cards as a list named by the heading. Heading navigation jumps between categories, and each list announces its size. The Tab order is the cards in the order shown, one stop each, as before; headings take no tab stop.
+- **A type's category comes from its field descriptors,** beside its `purpose`, not from UI code: like `purpose`, it says how the product presents the type, and the engine never reads it. The categories are a closed list in the application layer, which owns their order and their labels, and `ListComponentTypes` hands the Library the types already grouped, so a new type joins its category with no UI code. A registered type without a category fails a test.
+
 ## 5. Selection and focus
 
 The screen has one selection, or none: a component, an edge, a workflow, a step, a workload, the run, or one of the run's findings. The screen holds it, above every region, so the canvas, the inspector, the dock's lists, and the run group all read the same one. It isn't saved, and it isn't an undo step.

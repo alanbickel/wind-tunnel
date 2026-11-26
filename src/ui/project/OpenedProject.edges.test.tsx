@@ -172,8 +172,10 @@ describe("OpenedProject's edges", () => {
   });
 
   // Fails if the preset can't be picked, shows the SDK's values rather
-  // than DynamoDB's, stops being the preset when its attempts change, or
-  // stays the preset when its base delay does (ADR-0025 decision 3.4).
+  // than DynamoDB's, its note doesn't describe the group, it stops being
+  // the preset when its attempts change, or stays the preset when its
+  // base delay does (ADR-0025 decision 3.4); or if leaving it isn't
+  // announced.
   it("picks the AWS SDK standard preset, keeps it for new attempts, and goes custom for a new delay", async () => {
     const { projects } = renderOpenedProject();
     select(FN_TO_TABLE);
@@ -188,7 +190,12 @@ describe("OpenedProject's edges", () => {
     });
     const attempts = retries.getByRole("textbox", { name: "Attempts" });
     expect((attempts as HTMLInputElement).value).toBe("4");
-    expect(retries.getByText(/25 ms after a transient error/)).toBeTruthy();
+    expect(
+      screen.getByRole("group", {
+        name: "Retries",
+        description: /25 ms after a transient error/,
+      }),
+    ).toBeTruthy();
 
     enter(attempts, "6");
     const withAttempts = await savedRecord(
@@ -201,6 +208,9 @@ describe("OpenedProject's edges", () => {
     });
 
     enter(retries.getByRole("textbox", { name: "Base delay" }), "200");
+    expect(detailsRegion().textContent).toBe(
+      "Mode is now Custom, with one base delay for both kinds of error.",
+    );
     const custom = await savedRecord(projects, (r) => {
       const retry = edgeOf(r, "fn", "table")?.retry;
       return retry !== undefined && !("preset" in retry);

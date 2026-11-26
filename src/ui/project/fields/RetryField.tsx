@@ -42,19 +42,26 @@ export function RetryField(props: RetryFieldProps) {
   const { field, helpId } = props;
   const { sdkStandard } = field;
   const state = useRetryDraft(props);
+  const noteId = useId();
+  const isPreset = state.draft.value.mode !== "custom";
   const [attempts, delay] = RETRY_PARTS.map((part) => (
     <PartField key={part.key} state={state} part={part} />
   ));
   return (
-    <fieldset className={styles.group} aria-describedby={helpId}>
+    <fieldset
+      className={styles.group}
+      aria-describedby={isPreset ? `${helpId} ${noteId}` : helpId}
+    >
       <legend className={styles.label}>{field.label}</legend>
       <ModePicker state={state} sdkStandard={sdkStandard} />
       {attempts}
       <BackoffPicker state={state} />
       {delay}
-      {state.draft.value.mode === "custom" ? null : (
-        <p className={styles.help}>{presetNote(sdkStandard)}</p>
-      )}
+      {isPreset ? (
+        <p id={noteId} className={styles.help}>
+          {presetNote(sdkStandard)}
+        </p>
+      ) : null}
     </fieldset>
   );
 }
@@ -87,14 +94,14 @@ interface BackoffPickerProps {
 
 /** How the wait between attempts grows; a new one makes the preset custom. */
 function BackoffPicker({ state }: BackoffPickerProps) {
-  const { draft } = state;
+  const { draft, edit } = state;
   return (
     <Picker
       label="Backoff"
       value={draft.value.backoff}
       choices={BACKOFF_CHOICES}
       onPick={(backoff) => {
-        draft.set(withBackoff(draft.value, backoff));
+        edit(withBackoff(draft.value, backoff));
       }}
       keys={keysOf(state)}
     />
@@ -113,7 +120,7 @@ function PartField({ state, part }: PartFieldProps) {
       label={part.label}
       unit={part.unit}
       inputMode={part.rule.wholeNumber ? "numeric" : "decimal"}
-      draft={partDraft(state.draft, part)}
+      draft={partDraft(state, part)}
       message={state.messages[part.key]}
       onCommit={state.commit}
     />
@@ -178,13 +185,28 @@ interface RetryDraftState {
   readonly messages: Readonly<Partial<Record<RetryPart["key"], string>>>;
   /** Saves the draft if it passes; announces what's wrong if not. */
   readonly commit: () => void;
+  /**
+   * Sets a backoff or number edit, announcing it if it leaves the preset,
+   * since nothing else tells a screen-reader user that Mode changed.
+   */
+  readonly edit: (next: RetryDraft) => void;
 }
+
+/** Said when a new backoff or base delay turns the preset custom. */
+const LEFT_PRESET =
+  "Mode is now Custom, with one base delay for both kinds of error.";
 
 function useRetryDraft(props: RetryFieldProps): RetryDraftState {
   const { field, value, save, announce } = props;
   const { sdkStandard } = field;
   const draft = useDraft(retryDraft(value, sdkStandard));
   const check = checkRetryDraft(draft.value, sdkStandard);
+  const edit = (next: RetryDraft) => {
+    if (draft.value.mode !== "custom" && next.mode === "custom") {
+      announce(LEFT_PRESET);
+    }
+    draft.set(next);
+  };
   const commit = () => {
     if (check.status === "fails") {
       announce(Object.values(check.messages).join(" "));
@@ -194,16 +216,19 @@ function useRetryDraft(props: RetryFieldProps): RetryDraftState {
     save(check.value);
   };
   const messages = check.status === "fails" ? check.messages : {};
-  return { draft, messages, commit };
+  return { draft, messages, commit, edit };
 }
 
 /** One number's text, as a draft of its own over the retries'. */
-function partDraft(draft: Draft<RetryDraft>, part: RetryPart): Draft<string> {
+function partDraft(
+  { draft, edit }: RetryDraftState,
+  part: RetryPart,
+): Draft<string> {
   const { value } = draft;
   return {
     value: value.texts[part.key],
     set: (text) => {
-      draft.set(withPartText(value, { key: part.key, text }));
+      edit(withPartText(value, { key: part.key, text }));
     },
     reset: draft.reset,
     changed: draft.changed,

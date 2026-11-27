@@ -163,3 +163,10 @@ A read uses one read capacity unit per started **4 KB** of the item, and half th
 
 **At scale:** a table's capacity is in units, not requests, so 1,000 read units serve 2,000 eventually consistent reads of a 1 KB item a second, but only 100 strongly consistent reads of a 40 KB one. Growing an item past a 4 KB (reads) or 1 KB (writes) boundary raises the cost of every request for it. In Wind Tunnel, each step sets its item's size, and a read's consistency.
 **Source:** [DynamoDB provisioned capacity](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/provisioned-capacity-mode.html), [DynamoDB constraints](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Constraints.html)
+
+### Token refreshes share Cognito's sign-in quota, and so do all your user pools
+
+Cognito counts sign-ins and token refreshes against one quota, `UserAuthentication`: **120 requests per second** by default, for **every user pool in the account and Region together**. A client refreshes about once per access token lifetime (1 hour by default), so an app whose users stay signed in all day spends much of the quota on refreshes, not sign-ins. You can raise the quota, but you pay for the rate above 120. Checking a token, on the other hand, costs nothing: an HTTP API's JWT authorizer verifies its signature with the pool's public keys, cached for up to two hours, and never calls the pool.
+
+**At scale:** a morning rush of sign-ins, or shortening token lifetimes for security, can get `TooManyRequestsException` for every app in the account, including ones on other user pools. Cognito also limits **one user to 10 requests a second**, so a load test that signs in the same test account over and over is throttled long before the quota.
+**Source:** [Quotas in Amazon Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/quotas.html), [JWT authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html)

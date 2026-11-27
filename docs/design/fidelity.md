@@ -54,6 +54,7 @@ Each component type has a folder of two pages: its profile, what AWS exposes and
 - RDS (RDS): [profile](fidelity/rds/rds-profile.md), [entries](fidelity/rds/rds-fidelity.md)
 - SQS and the Lambda consumer (SQS): [profile](fidelity/sqs/sqs-profile.md), [entries](fidelity/sqs/sqs-fidelity.md)
 - S3 (S3): [profile](fidelity/s3/s3-profile.md), [entries](fidelity/s3/s3-fidelity.md), the first researched profile
+- Cognito user pools (COG): [profile](fidelity/cognito/cognito-profile.md), [entries](fidelity/cognito/cognito-fidelity.md)
 
 ## Keeping this page current
 
